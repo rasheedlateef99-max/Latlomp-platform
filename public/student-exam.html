@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Exam — LatLomp Platform</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/student-exam.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body class="s-exam-body">
+
+  <!-- LOADER -->
+  <div id="sLoader" style="position:fixed; inset:0; background:var(--dark); display:flex; align-items:center; justify-content:center; z-index:9999; flex-direction:column; gap:16px;">
+    <div style="width:48px; height:48px; border:4px solid rgba(108,99,255,0.2); border-top-color:var(--primary); border-radius:50%; animation:spin 0.8s linear infinite;"></div>
+    <p style="color:var(--text-secondary);">Preparing your exam...</p>
+  </div>
+
+  <!-- INSTRUCTIONS SCREEN -->
+  <div id="sInstructions" style="display:none; min-height:100vh; display:none; align-items:center; justify-content:center; padding:24px; overflow-y:auto;">
+    <div class="s-inst-card">
+      <div style="text-align:center; margin-bottom:28px;">
+        <div style="font-size:48px; margin-bottom:12px;">📋</div>
+        <h1 id="sExamTitle" style="font-size:24px; font-weight:800; margin-bottom:6px;">Exam Title</h1>
+        <p id="sExamSubject" style="color:var(--text-secondary); font-size:14px;"></p>
+      </div>
+
+      <div class="s-inst-meta">
+        <div class="s-inst-meta-item">
+          <div style="font-size:22px;">⏱</div>
+          <div>
+            <div id="sInstDuration" style="font-size:20px; font-weight:800;">--</div>
+            <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Minutes</div>
+          </div>
+        </div>
+        <div class="s-inst-meta-item">
+          <div style="font-size:22px;">📋</div>
+          <div>
+            <div id="sInstQuestions" style="font-size:20px; font-weight:800;">--</div>
+            <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Questions</div>
+          </div>
+        </div>
+        <div class="s-inst-meta-item">
+          <div style="font-size:22px;">🎯</div>
+          <div>
+            <div id="sInstPassMark" style="font-size:20px; font-weight:800;">--%</div>
+            <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Pass Mark</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:24px;">
+        <h3 style="font-size:15px; font-weight:700; margin-bottom:12px;">📌 Instructions</h3>
+        <p id="sInstText" style="font-size:14px; color:var(--text-secondary); background:rgba(108,99,255,0.07); border:1px solid rgba(108,99,255,0.15); padding:14px 16px; border-radius:8px; line-height:1.7;"></p>
+      </div>
+
+      <div style="margin-bottom:28px; background:rgba(255,165,0,0.07); border:1px solid rgba(255,165,0,0.2); border-radius:10px; padding:14px 16px;">
+        <p style="font-size:13px; color:#ffa500; font-weight:600;">
+          ⚠️ Important Rules
+        </p>
+        <ul style="list-style:none; margin-top:8px; display:flex; flex-direction:column; gap:6px;">
+          <li style="font-size:13px; color:var(--text-secondary);">• The timer starts immediately when you click Begin</li>
+          <li style="font-size:13px; color:var(--text-secondary);">• Your exam auto-submits when time runs out</li>
+          <li style="font-size:13px; color:var(--text-secondary);">• You cannot re-enter the exam after submitting</li>
+          <li style="font-size:13px; color:var(--text-secondary);">• For theory questions, type your answer clearly</li>
+        </ul>
+      </div>
+
+      <div style="display:flex; gap:12px; justify-content:flex-end;">
+        <a href="student-login.html" class="btn btn-secondary">← Go Back</a>
+        <button class="btn btn-primary" onclick="beginStudentExam()" style="background:linear-gradient(135deg,#43e97b,#38f9d7); color:#0f0f1a;">
+          Begin Exam →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXAM INTERFACE -->
+  <div id="sExamInterface" style="display:none;">
+
+    <!-- TOP BAR -->
+    <header class="s-topbar">
+      <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+        <div style="font-size:13px; font-weight:800; color:#43e97b; white-space:nowrap;">⚡ LatLomp</div>
+        <div id="sTopbarTitle" style="font-size:13px; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;"></div>
+      </div>
+
+      <div id="sTimerWrapper" class="s-timer">
+        <span>⏱</span>
+        <span id="sTimerDisplay" style="font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; min-width:72px; text-align:center;">00:00:00</span>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="font-size:13px; color:var(--text-secondary); background:var(--card-bg); border:1px solid var(--border); padding:5px 12px; border-radius:20px; white-space:nowrap;">
+          <span id="sAnsweredCount">0</span>/<span id="sTotalCount">0</span>
+        </div>
+        <button onclick="sConfirmSubmit()" class="s-submit-btn">Submit</button>
+      </div>
+    </header>
+
+    <!-- MAIN AREA -->
+    <div class="s-exam-main">
+
+      <!-- QUESTION AREA -->
+      <div class="s-question-area">
+
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:20px;">
+          <div style="font-size:13px; font-weight:600; color:var(--text-secondary); background:var(--card-bg); border:1px solid var(--border); padding:6px 14px; border-radius:6px;">
+            Question <span id="sCurrentNum">1</span> of <span id="sTotalNum">0</span>
+          </div>
+          <div id="sQTypeBadge" style="font-size:12px; font-weight:700; padding:4px 12px; border-radius:20px; background:rgba(108,99,255,0.12); color:var(--primary-light);">Objective</div>
+        </div>
+
+        <div id="sQuestionText" style="font-size:18px; font-weight:600; line-height:1.6; color:var(--text-primary); background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); padding:24px; margin-bottom:24px; min-height:80px;">
+          Loading...
+        </div>
+
+        <!-- Objective Options -->
+        <div id="sOptionsArea" style="display:flex; flex-direction:column; gap:12px; margin-bottom:24px;"></div>
+
+        <!-- Theory Text Area -->
+        <div id="sTheoryArea" style="display:none; margin-bottom:24px;">
+          <label style="display:block; font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:10px;">
+            Write your answer below:
+          </label>
+          <textarea id="sTheoryAnswer" rows="8"
+            placeholder="Type your answer here..."
+            oninput="saveTheoryAnswer()"
+            style="width:100%; background:var(--card-bg); border:1px solid var(--border); border-radius:10px; padding:16px; color:var(--text-primary); font-size:15px; font-family:inherit; outline:none; resize:vertical; box-sizing:border-box; line-height:1.7; transition:border-color 0.2s;"
+            onfocus="this.style.borderColor='#43e97b'"
+            onblur="this.style.borderColor='var(--border)'">
+          </textarea>
+        </div>
+
+        <!-- Navigation -->
+        <div style="display:flex; align-items:center; justify-content:space-between; padding-top:16px;">
+          <button onclick="sNavigate(-1)" id="sPrevBtn"
+            style="padding:12px 28px; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; background:var(--card-bg); border:1px solid var(--border); color:var(--text-secondary); transition:var(--transition);">
+            ← Previous
+          </button>
+          <span style="font-size:14px; color:var(--text-muted); font-weight:600;">
+            <span id="sNavCurrent">1</span> / <span id="sNavTotal">0</span>
+          </span>
+          <button onclick="sNavigate(1)" id="sNextBtn"
+            style="padding:12px 28px; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:white; border:none; transition:var(--transition);">
+            Next →
+          </button>
+        </div>
+
+      </div>
+
+      <!-- NAV PANEL -->
+      <aside class="s-nav-panel">
+        <div style="padding:16px 16px 12px; border-bottom:1px solid var(--border); font-size:14px; font-weight:700;">
+          Questions
+        </div>
+        <div id="sNavGrid" style="padding:14px; display:grid; grid-template-columns:repeat(5,1fr); gap:6px; flex:1; overflow-y:auto;"></div>
+        <div style="padding:16px; border-top:1px solid var(--border);">
+          <button onclick="sConfirmSubmit()" style="width:100%; padding:13px; background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:white; border:none; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit;">
+            🏁 Submit Exam
+          </button>
+        </div>
+      </aside>
+
+    </div>
+  </div>
+
+  <!-- SUBMIT MODAL -->
+  <div id="sSubmitModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:9000; display:none; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:40px; max-width:400px; width:100%; text-align:center;">
+      <div style="font-size:48px; margin-bottom:16px;">⚠️</div>
+      <h2 style="font-size:22px; font-weight:800; margin-bottom:8px;">Submit Exam?</h2>
+      <p id="sSubmitMsg" style="font-size:14px; color:var(--text-secondary); margin-bottom:24px;"></p>
+      <div style="display:flex; gap:12px; justify-content:center;">
+        <button onclick="document.getElementById('sSubmitModal').style.display='none'" style="padding:12px 24px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text-secondary); border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit;">
+          Continue Exam
+        </button>
+        <button onclick="sSubmitExam()" id="sFinalSubmitBtn" style="padding:12px 24px; background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:white; border:none; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit;">
+          Yes, Submit →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTO SUBMIT NOTICE -->
+  <div id="sAutoNotice" style="display:none; position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--secondary); color:white; padding:14px 28px; border-radius:30px; font-weight:700; font-size:15px; z-index:9999; box-shadow:0 8px 30px rgba(255,101,132,0.4);">
+    ⏰ Time is up! Submitting your exam...
+  </div>
+
+  <!-- RESULT SCREEN -->
+  <div id="sResultScreen" style="display:none; min-height:100vh; padding:40px 24px; overflow-y:auto;">
+    <div style="max-width:600px; margin:0 auto;">
+      <div style="text-align:center; background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:40px; margin-bottom:24px;">
+        <div id="sResultTrophy" style="font-size:64px; margin-bottom:12px;">🏆</div>
+        <h1 id="sResultTitle" style="font-size:28px; font-weight:800; margin-bottom:8px;">Result</h1>
+        <div id="sResultScore" style="font-size:56px; font-weight:900; margin:16px 0;"></div>
+        <div id="sResultTag" style="display:inline-block; padding:6px 20px; border-radius:20px; font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:24px;"></div>
+        <p id="sResultMsg" style="font-size:15px; color:var(--text-secondary); line-height:1.7; max-width:400px; margin:0 auto 28px;"></p>
+        <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+          <a href="student-login.html" class="btn btn-secondary">Take Another Exam</a>
+          <a href="index.html" class="btn btn-primary">Go to Home</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/main.js"></script>
+  <script src="js/student-exam.js"></script>
+</body>
+</html>

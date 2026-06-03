@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Institution Portal — LatLomp Platform</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --primary:      #6c63ff;
+      --primary-dark: #574fd6;
+      --green:        #43e97b;
+      --dark:         #0f0f1a;
+      --dark-2:       #1a1a2e;
+      --border:       rgba(255,255,255,0.08);
+      --text:         #fff;
+      --text-muted:   #6b6b8a;
+      --text-secondary: #a0a0c0;
+    }
+
+    body { margin:0; padding:0; background:var(--dark); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+
+    @keyframes fadeUp   { from { opacity:0; transform:translateY(30px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes float    { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-12px); } }
+
+    /* ---- NAV ---- */
+    nav {
+      position:sticky; top:0; z-index:100;
+      background:rgba(15,15,26,0.95);
+      backdrop-filter:blur(12px);
+      border-bottom:1px solid var(--border);
+      padding:0 32px; height:64px;
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .nav-logo { display:flex; align-items:center; gap:10px; text-decoration:none; }
+    .nav-logo-text { font-size:20px; font-weight:800; color:#fff; }
+    .nav-logo-badge { background:linear-gradient(135deg,var(--primary),var(--green)); color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; text-transform:uppercase; }
+    .nav-links { display:flex; align-items:center; gap:24px; }
+    .nav-links a { color:var(--text-secondary); font-size:14px; text-decoration:none; font-weight:500; transition:color 0.2s; }
+    .nav-links a:hover { color:#fff; }
+
+    /* ---- HERO ---- */
+    .hero {
+      padding:100px 32px 80px; text-align:center;
+      position:relative; overflow:hidden;
+    }
+    .hero::before {
+      content:''; position:absolute; inset:0;
+      background:radial-gradient(ellipse 80% 60% at 50% 0%, rgba(108,99,255,0.18), transparent);
+    }
+    .hero-badge {
+      display:inline-flex; align-items:center; gap:8px;
+      background:rgba(108,99,255,0.12); border:1px solid rgba(108,99,255,0.3);
+      color:#a78bfa; font-size:13px; font-weight:700;
+      padding:6px 18px; border-radius:20px; margin-bottom:28px;
+      animation:fadeUp 0.5s ease;
+    }
+    .hero-title {
+      font-size:clamp(36px,6vw,68px); font-weight:900; line-height:1.1;
+      margin:0 0 20px; animation:fadeUp 0.5s ease 0.1s both;
+    }
+    .hero-title span { background:linear-gradient(135deg,var(--primary),var(--green)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .hero-sub {
+      font-size:18px; color:var(--text-secondary); line-height:1.7;
+      max-width:640px; margin:0 auto 40px; animation:fadeUp 0.5s ease 0.2s both;
+    }
+    .hero-btns { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; animation:fadeUp 0.5s ease 0.3s both; }
+
+    /* ---- BUTTONS ---- */
+    .btn { display:inline-flex; align-items:center; gap:8px; padding:14px 28px; border-radius:12px; font-size:15px; font-weight:700; text-decoration:none; cursor:pointer; font-family:inherit; border:none; transition:all 0.2s; }
+    .btn-primary { background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:#fff; }
+    .btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(108,99,255,0.45); }
+    .btn-outline { background:transparent; border:1px solid var(--border); color:var(--text-secondary); }
+    .btn-outline:hover { background:rgba(255,255,255,0.06); color:#fff; }
+    .btn-green { background:linear-gradient(135deg,var(--green),#38f9d7); color:#0f0f1a; }
+    .btn-green:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(67,233,123,0.4); }
+
+    /* ---- STATS ---- */
+    .stats-bar { display:flex; justify-content:center; gap:48px; flex-wrap:wrap; padding:48px 32px; border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+    .stat-item { text-align:center; }
+    .stat-num { font-size:36px; font-weight:900; background:linear-gradient(135deg,var(--primary),var(--green)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .stat-lbl { font-size:13px; color:var(--text-muted); margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; }
+
+    /* ---- FEATURES ---- */
+    .section { padding:80px 32px; max-width:1100px; margin:0 auto; }
+    .section-tag { display:inline-block; background:rgba(67,233,123,0.1); color:var(--green); font-size:12px; font-weight:700; padding:4px 14px; border-radius:20px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:16px; }
+    .section-title { font-size:clamp(24px,4vw,40px); font-weight:800; margin:0 0 12px; }
+    .section-sub { font-size:16px; color:var(--text-secondary); line-height:1.7; max-width:560px; margin:0 0 52px; }
+
+    .features-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px; }
+    .feature-card {
+      background:var(--dark-2); border:1px solid var(--border); border-radius:16px; padding:28px;
+      transition:transform 0.2s, box-shadow 0.2s;
+    }
+    .feature-card:hover { transform:translateY(-4px); box-shadow:0 12px 40px rgba(0,0,0,0.3); border-color:rgba(108,99,255,0.25); }
+    .feature-icon { font-size:36px; margin-bottom:16px; animation:float 3s ease-in-out infinite; display:inline-block; }
+    .feature-title { font-size:18px; font-weight:700; margin:0 0 10px; }
+    .feature-desc { font-size:14px; color:var(--text-secondary); line-height:1.6; margin:0; }
+
+    /* ---- ROLES ---- */
+    .roles-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; }
+    .role-card { background:var(--dark-2); border:1px solid var(--border); border-radius:14px; padding:24px; text-align:center; }
+    .role-icon { font-size:44px; margin-bottom:14px; }
+    .role-title { font-size:16px; font-weight:800; margin:0 0 8px; }
+    .role-desc { font-size:13px; color:var(--text-secondary); line-height:1.6; margin:0 0 16px; }
+
+    /* ---- PRICING ---- */
+    .plans-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:20px; }
+    .plan-card {
+      background:var(--dark-2); border:1px solid var(--border); border-radius:18px; padding:28px;
+      position:relative; transition:transform 0.2s;
+    }
+    .plan-card:hover { transform:translateY(-4px); }
+    .plan-card.popular { border-color:rgba(108,99,255,0.5); box-shadow:0 0 0 1px rgba(108,99,255,0.3); }
+    .plan-popular-badge { position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:var(--primary); color:#fff; font-size:11px; font-weight:700; padding:3px 16px; border-radius:20px; white-space:nowrap; }
+    .plan-name { font-size:15px; font-weight:700; color:var(--text-secondary); margin:0 0 4px; }
+    .plan-price { font-size:40px; font-weight:900; margin:8px 0 4px; }
+    .plan-price span { font-size:15px; font-weight:400; color:var(--text-muted); }
+    .plan-duration { font-size:13px; color:var(--text-muted); margin:0 0 20px; }
+    .plan-features { list-style:none; padding:0; margin:0 0 24px; }
+    .plan-features li { font-size:13px; color:var(--text-secondary); padding:6px 0; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; }
+    .plan-features li:last-child { border-bottom:none; }
+    .plan-features li::before { content:'✓'; color:var(--green); font-weight:700; }
+
+    /* ---- SIGN IN CARD ---- */
+    .signin-section { padding:80px 32px; text-align:center; }
+    .signin-card {
+      background:var(--dark-2); border:1px solid var(--border); border-radius:24px;
+      padding:48px 40px; max-width:480px; margin:0 auto;
+    }
+
+    .err-msg { display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:#ff6584; padding:12px 16px; border-radius:8px; font-size:14px; margin-bottom:16px; }
+
+    /* ---- INVITE BANNER ---- */
+    .invite-banner { background:linear-gradient(135deg,rgba(67,233,123,0.12),rgba(56,249,215,0.08)); border:1px solid rgba(67,233,123,0.3); border-radius:16px; padding:24px; margin-bottom:24px; text-align:left; }
+    .invite-banner h3 { font-size:16px; font-weight:800; margin:0 0 6px; color:#fff; }
+    .invite-banner p  { font-size:14px; color:var(--text-secondary); margin:0; line-height:1.5; }
+
+    /* ---- FOOTER ---- */
+    footer { border-top:1px solid var(--border); padding:40px 32px; text-align:center; color:var(--text-muted); font-size:13px; }
+    footer a { color:var(--primary); text-decoration:none; }
+
+    @media (max-width:600px) {
+      nav { padding:0 16px; }
+      .hero { padding:60px 16px 48px; }
+      .signin-card { padding:32px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-logo">
+    <span style="font-size:24px;">⚡</span>
+    <span class="nav-logo-text">LatLomp</span>
+    <span class="nav-logo-badge">Institutions</span>
+  </a>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#signin">Sign In</a>
+    <a href="../index.html" style="font-size:12px;">← Platform</a>
+  </div>
+</nav>
+
+<!-- INVITE BANNER -->
+<div id="inviteBannerWrap" style="max-width:900px; margin:20px auto; padding:0 32px; display:none;">
+  <div class="invite-banner">
+    <h3>📨 You have been invited!</h3>
+    <p id="inviteBannerText">You have been invited to join an institution on LatLomp. Sign in with Google to accept.</p>
+  </div>
+</div>
+
+<!-- HERO -->
+<section class="hero" id="hero">
+  <div class="hero-badge">🏫 Multi-Tenant Educational SaaS</div>
+  <h1 class="hero-title">
+    Institution Management<br/>
+    <span>Made Professional</span>
+  </h1>
+  <p class="hero-sub">
+    Complete CBT examination platform, teacher management, and student tracking — built for Nigerian institutions of all sizes.
+  </p>
+  <div class="hero-btns">
+    <a href="#signin" class="btn btn-green">🚀 Get Started Free</a>
+    <a href="#features" class="btn btn-outline">See Features</a>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats-bar">
+  <div class="stat-item"><div class="stat-num">7-Day</div><div class="stat-lbl">Free Trial</div></div>
+  <div class="stat-item"><div class="stat-num">∞</div><div class="stat-lbl">Exam Questions</div></div>
+  <div class="stat-item"><div class="stat-num">100%</div><div class="stat-lbl">Auto-Graded</div></div>
+  <div class="stat-item"><div class="stat-num">Multi-Tenant</div><div class="stat-lbl">Isolated Data</div></div>
+</div>
+
+<!-- ROLES -->
+<div class="section">
+  <div class="section-tag">Who uses it</div>
+  <h2 class="section-title">Built for every role</h2>
+  <p class="section-sub">One platform, four distinct experiences — each isolated and secure.</p>
+  <div class="roles-grid">
+    <div class="role-card">
+      <div class="role-icon">🏫</div>
+      <div class="role-title">Institution Admin</div>
+      <div class="role-desc">Manage teachers, view all results, control exam releases, handle subscriptions.</div>
+      <a href="#signin" class="btn btn-primary" style="font-size:13px; padding:10px 18px; justify-content:center;">Get Started</a>
+    </div>
+    <div class="role-card">
+      <div class="role-icon">👩‍🏫</div>
+      <div class="role-title">Teacher</div>
+      <div class="role-desc">Create exams, add questions, monitor submissions, grade theory answers.</div>
+      <a href="#signin" class="btn btn-outline" style="font-size:13px; padding:10px 18px; justify-content:center;">Accept Invite</a>
+    </div>
+    <div class="role-card">
+      <div class="role-icon">🎓</div>
+      <div class="role-title">Student</div>
+      <div class="role-desc">Enter exam code, take timed CBT exam, get instant objective results.</div>
+      <a href="student/exam.html" class="btn btn-green" style="font-size:13px; padding:10px 18px; color:#0f0f1a; justify-content:center;">Take Exam</a>
+    </div>
+    <div class="role-card">
+      <div class="role-icon">⚙️</div>
+      <div class="role-title">Platform Admin</div>
+      <div class="role-desc">Monitor all institutions, manage subscriptions, view revenue analytics.</div>
+      <a href="../admin.html" class="btn btn-outline" style="font-size:13px; padding:10px 18px; justify-content:center;">Admin Panel</a>
+    </div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<div class="section" id="features" style="background:var(--dark-2); max-width:none; padding:80px 0;">
+  <div style="max-width:1100px; margin:0 auto; padding:0 32px;">
+    <div class="section-tag">Features</div>
+    <h2 class="section-title">Everything you need</h2>
+    <p class="section-sub">Professional tools built specifically for Nigerian institutions.</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">📝</div>
+        <h3 class="feature-title">CBT Exam Engine</h3>
+        <p class="feature-desc">Objective and theory exams with auto-grading, randomized questions, timers, and anti-cheat measures.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">👥</div>
+        <h3 class="feature-title">Teacher Management</h3>
+        <p class="feature-desc">Invite teachers via email, manage roles, track performance, and isolate data per institution.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔒</div>
+        <h3 class="feature-title">Multi-Tenant Security</h3>
+        <p class="feature-desc">Every institution's data is completely isolated. No institution can access another's data.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <h3 class="feature-title">Result Analytics</h3>
+        <p class="feature-desc">Pass rates, averages, class performance, and individual student breakdowns.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">💳</div>
+        <h3 class="feature-title">Automated Subscriptions</h3>
+        <p class="feature-desc">Paystack-powered payments. Auto-expiry. No manual activation. Zero underpayments accepted.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📱</div>
+        <h3 class="feature-title">Mobile Ready</h3>
+        <p class="feature-desc">Students can take exams on any device. Teachers manage from anywhere.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PRICING -->
+<div class="section" id="pricing">
+  <div class="section-tag">Pricing</div>
+  <h2 class="section-title">Simple, transparent pricing</h2>
+  <p class="section-sub">Start free. Scale as you grow.</p>
+  <div class="plans-grid" id="plansGrid">
+    <div style="color:var(--text-muted); font-size:14px; text-align:center; padding:40px; grid-column:1/-1;">Loading plans...</div>
+  </div>
+</div>
+
+<!-- SIGN IN -->
+<!-- ✅ FIX: Both closing </div> tags were missing in your version -->
+<div class="signin-section" id="signin">
+  <div class="signin-card">
+    <div style="font-size:48px; margin-bottom:16px;" id="signinIcon">🏫</div>
+    <h2 style="font-size:24px; font-weight:800; margin:0 0 8px;" id="signinTitle">Join LatLomp Institutions</h2>
+    <p style="font-size:14px; color:var(--text-secondary); margin:0 0 28px;" id="signinDesc">
+      Sign in with your institution Google account to get started.
+    </p>
+
+    <div id="signinError" class="err-msg"></div>
+
+    <!-- Custom Google button — click triggers prompt() overlay -->
+    <button id="instBtnGoogle"
+      style="width:100%; padding:13px 20px; background:white; border:1px solid #dadce0;
+             border-radius:12px; display:flex; align-items:center; justify-content:center;
+             gap:12px; cursor:pointer; font-size:15px; font-weight:600; color:#3c4043;
+             font-family:inherit; transition:all 0.2s; margin-bottom:16px;"
+      onmouseover="this.style.boxShadow='0 2px 12px rgba(0,0,0,0.15)'"
+      onmouseout="this.style.boxShadow='none'">
+      <svg width="20" height="20" viewBox="0 0 48 48">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.36-8.16 2.36-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+      </svg>
+      Continue with Google
+    </button>
+
+    <p style="font-size:12px; color:var(--text-muted); margin:0; line-height:1.7;">
+      By signing in you agree to our Terms of Service. Institution admins get a free 7-day trial automatically.
+    </p>
+
+  </div><!-- ✅ FIX: closes signin-card -->
+</div><!-- ✅ FIX: closes signin-section -->
+
+<footer>
+  <p>© 2025 LatLomp Platform. All rights reserved. · <a href="../index.html">← Back to Platform</a></p>
+</footer>
+
+<script>
+/* ============================================
+   INSTITUTION PORTAL — ENTRY LOGIC
+   Self-contained: does NOT depend on main.js
+============================================ */
+var INST_TOKEN_KEY = 'latlomp_inst_token';
+var INST_USER_KEY  = 'latlomp_inst_user';
+var _inviteToken   = null;
+
+/* ✅ FIX: Initialize Google — button click uses prompt() */
+function instInitGoogleSignIn(callbackFn) {
+  if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
+    setTimeout(function() { instInitGoogleSignIn(callbackFn); }, 500);
+    return;
+  }
+  google.accounts.id.initialize({
+    client_id:             '804260807914-tl2i27hblh8f3s1g4a5ip12hejosk0ab.apps.googleusercontent.com',
+    callback:              callbackFn,
+    auto_select:           false,
+    cancel_on_tap_outside: true
+  });
+  google.accounts.id.disableAutoSelect();
+}
+
+/* ✅ FIX: ALL initialization code is inside DOMContentLoaded.
+   Your version called instInitGoogleSignIn() and the button
+   listener at the TOP LEVEL of the script — this runs before
+   the DOM exists, so getElementById returns null. */
+document.addEventListener('DOMContentLoaded', function() {
+
+  /* Check for invite token in URL */
+  var params   = new URLSearchParams(window.location.search);
+  _inviteToken = params.get('invite');
+
+  if (_inviteToken) {
+    var bannerWrap = document.getElementById('inviteBannerWrap');
+    if (bannerWrap) bannerWrap.style.display = 'block';
+    var iconEl  = document.getElementById('signinIcon');
+    var titleEl = document.getElementById('signinTitle');
+    var descEl  = document.getElementById('signinDesc');
+    if (iconEl)  iconEl.textContent  = '👩‍🏫';
+    if (titleEl) titleEl.textContent = 'Accept Your Invitation';
+    if (descEl)  descEl.textContent  = 'Sign in with Google to join your institution on LatLomp.';
+  }
+
+  /* Check if already logged in */
+  var existingToken = localStorage.getItem(INST_TOKEN_KEY);
+  if (existingToken) { verifyAndRedirect(existingToken); }
+
+  /* Initialize Google */
+  instInitGoogleSignIn(handleGoogleResponse);
+
+  /* Button click triggers prompt() overlay */
+  var instBtn = document.getElementById('instBtnGoogle');
+  if (instBtn) {
+    instBtn.addEventListener('click', function() {
+      if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
+        showErr('Google Sign In is still loading. Please wait and try again.');
+        return;
+      }
+      google.accounts.id.disableAutoSelect();
+      google.accounts.id.prompt(function(notification) {
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          showErr('Google sign in was blocked. Please allow popups or try a different browser.');
+        }
+      });
+    });
+  }
+
+  /* ✅ FIX: loadPlans() was never called in your version */
+  loadPlans();
+});
+
+/* Verify existing token and redirect */
+async function verifyAndRedirect(token) {
+  try {
+    var res  = await fetch('/api/institution/auth/me', {
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+    });
+    var data = await res.json();
+    if (data.success) {
+      redirect(data.user, data.school);
+    } else {
+      localStorage.removeItem(INST_TOKEN_KEY);
+      localStorage.removeItem(INST_USER_KEY);
+    }
+  } catch (e) {
+    localStorage.removeItem(INST_TOKEN_KEY);
+    localStorage.removeItem(INST_USER_KEY);
+  }
+}
+
+/* Google callback */
+async function handleGoogleResponse(response) {
+  var errEl = document.getElementById('signinError');
+  if (errEl) errEl.style.display = 'none';
+
+  /* Show loading state on button */
+  var btn = document.getElementById('instBtnGoogle');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.7'; btn.textContent = 'Signing in...'; }
+
+  try {
+    var body = { credential: response.credential };
+    if (_inviteToken) body.inviteToken = _inviteToken;
+
+    var res  = await fetch('/api/institution/auth/google', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(body)
+    });
+    var data = await res.json();
+
+    if (data.success) {
+      localStorage.setItem(INST_TOKEN_KEY, data.token);
+      localStorage.setItem(INST_USER_KEY,  JSON.stringify(data.user));
+      redirect(data.user, data.school, data.redirectTo);
+    } else {
+      /* ✅ FIX: Re-enable button and show error — no re-init needed with prompt() approach */
+      if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'Continue with Google'; }
+      showErr(data.message || 'Sign in failed. Please try again.');
+    }
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'Continue with Google'; }
+    showErr('Network error. Please check your connection.');
+  }
+}
+
+function redirect(user, school, redirectTo) {
+  var dest = redirectTo || (
+    user.role === 'school_admin'
+      ? (school && school.onboardingDone
+          ? '/institution/school/dashboard.html'
+          : '/institution/onboarding.html')
+      : (user.role === 'teacher' || user.role === 'vice_principal')
+        ? '/institution/teacher/dashboard.html'
+        : '/institution/school/dashboard.html'
+  );
+  window.location.replace(dest);
+}
+
+function showErr(msg) {
+  var el = document.getElementById('signinError');
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+}
+
+/* ✅ FIX: loadPlans is now called from DOMContentLoaded above */
+async function loadPlans() {
+  try {
+    var res  = await fetch('/api/institution/school/plans');
+    var data = await res.json();
+    var grid = document.getElementById('plansGrid');
+    if (!data.success || !data.plans || !data.plans.length) {
+      if (grid) grid.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:40px; grid-column:1/-1;">No plans available yet.</div>';
+      return;
+    }
+    grid.innerHTML = data.plans.map(function(plan) {
+      var isPopular = plan.isPopular;
+      var features  = (plan.features || []).map(function(f) { return '<li>' + f + '</li>'; }).join('');
+      return '<div class="plan-card' + (isPopular ? ' popular' : '') + '">' +
+        (isPopular ? '<div class="plan-popular-badge">⭐ Most Popular</div>' : '') +
+        '<div class="plan-name">' + plan.name + '</div>' +
+        '<div class="plan-price">' +
+          (plan.price === 0 ? '<span style="font-size:28px;">FREE</span>' : '₦' + plan.price.toLocaleString()) +
+          (plan.price > 0 ? '<span>/ ' + Math.round(plan.durationDays / 30) + (plan.durationDays < 60 ? ' month' : ' months') + '</span>' : '') +
+        '</div>' +
+        '<div class="plan-duration">' + plan.durationDays + ' days access</div>' +
+        '<ul class="plan-features">' + features + '</ul>' +
+        '<a href="#signin" class="btn ' + (isPopular ? 'btn-primary' : 'btn-outline') + '" style="width:100%; justify-content:center;">' +
+          (plan.price === 0 ? '🚀 Start Free Trial' : 'Get This Plan') +
+        '</a>' +
+      '</div>';
+    }).join('');
+  } catch (err) {
+    var grid = document.getElementById('plansGrid');
+    if (grid) grid.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:40px; grid-column:1/-1;">Could not load plans.</div>';
+  }
+}
+</script>
+</body>
+</html>

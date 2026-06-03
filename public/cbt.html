@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CBT Exam System — LatLomp Platform</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/loading.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+<!-- PAGE LOADER -->
+<div id="pageLoader">
+  <div class="loader-progress"></div>
+  <div class="loader-logo">
+    <span class="loader-logo-icon">⚡</span>
+    <span class="loader-logo-text">LatLomp</span>
+    <span class="loader-logo-badge">Platform</span>
+  </div>
+  <div class="loader-spinner-wrap">
+    <div class="loader-spinner"></div>
+    <span class="loader-text">Loading...</span>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <ul class="nav-links" id="navLinks">
+    <li><a href="index.html"     class="nav-link">Home</a></li>
+    <li><a href="cbt.html"       class="nav-link active">CBT Exam</a></li>
+    <li><a href="store.html"     class="nav-link">Store</a></li>
+    <li><a href="portfolio.html" class="nav-link">Portfolio</a></li>
+    <li><a href="games.html"     class="nav-link">Games</a></li>
+    <li><a href="admin.html"     class="nav-link admin-link">Admin</a></li>
+    <li class="nav-divider-item">|</li>
+    <li><a href="teacher-signin.html" class="nav-link teacher-nav-btn">📚 Teacher</a></li>
+    <li><a href="student-login.html"  class="nav-link student-nav-btn">🎓 Student</a></li>
+    <li id="authNavItem">
+      <a href="#" onclick="event.preventDefault(); showLoginModal();"
+        class="nav-link"
+        style="background:rgba(108,99,255,0.1); border:1px solid rgba(108,99,255,0.2);
+               color:var(--primary-light); font-weight:700; padding:8px 16px;
+               border-radius:8px; font-size:14px; white-space:nowrap; display:inline-block;">
+        Login / Register
+      </a>
+    </li>
+  </ul>
+  <button class="hamburger" id="hamburger">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+  <span class="section-tag">📝 Examination System</span>
+  <h1>CBT <span class="highlight">Exam System</span></h1>
+  <p>JAMB · WAEC · NECO · POST-UTME · Practice Mode</p>
+</div>
+
+<section style="padding: 0 0 60px;">
+  <div class="container" style="max-width:860px;">
+
+    <!-- USER STATS -->
+    <div style="background:var(--dark-2,#1a1a2e); border:1px solid var(--border,rgba(255,255,255,0.08));
+                border-radius:16px; padding:22px 24px; margin-bottom:24px;
+                display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:14px; flex:1; min-width:200px;">
+        <div id="userInitial"
+          style="width:48px; height:48px; border-radius:12px;
+                 background:linear-gradient(135deg,var(--primary,#6c63ff),var(--primary-dark,#574fd6));
+                 color:#fff; display:flex; align-items:center; justify-content:center;
+                 font-weight:900; font-size:20px; flex-shrink:0;">?</div>
+        <div>
+          <div id="userGreeting" style="font-size:16px; font-weight:700; color:#fff;">Welcome!</div>
+          <div style="font-size:13px; color:var(--text-muted);">Your exam statistics</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:16px; flex-wrap:wrap;">
+        <div style="text-align:center; background:rgba(255,255,255,0.04); border-radius:10px; padding:12px 20px;">
+          <div id="statExams" style="font-size:22px; font-weight:900; color:#fff;">—</div>
+          <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px; margin-top:2px;">Exams Taken</div>
+        </div>
+        <div style="text-align:center; background:rgba(255,255,255,0.04); border-radius:10px; padding:12px 20px;">
+          <div id="statAvg" style="font-size:22px; font-weight:900; color:#a78bfa;">—</div>
+          <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px; margin-top:2px;">Avg Score</div>
+        </div>
+        <div style="text-align:center; background:rgba(255,255,255,0.04); border-radius:10px; padding:12px 20px;">
+          <div id="statBest" style="font-size:22px; font-weight:900; color:#43e97b;">—</div>
+          <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px; margin-top:2px;">Best Score</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- START CBT CARD -->
+    <div style="background:linear-gradient(135deg,rgba(108,99,255,0.18),rgba(67,233,123,0.10));
+                border:1px solid rgba(108,99,255,0.35); border-radius:20px;
+                padding:40px 32px; text-align:center; margin-bottom:24px;">
+      <div style="font-size:64px; margin-bottom:16px;">📝</div>
+      <h2 style="font-size:24px; font-weight:800; color:#fff; margin:0 0 10px;">
+        Start a CBT Exam
+      </h2>
+      <p style="font-size:15px; color:var(--text-secondary,#a0a0c0); margin:0 0 28px; line-height:1.7; max-width:480px; margin-left:auto; margin-right:auto;">
+        Choose your exam type, confirm your department, select subjects,
+        and take a fully timed exam with randomized questions.
+      </p>
+
+      <!-- Exam category pills (visual only) -->
+      <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-bottom:28px;">
+        <span style="padding:6px 16px; border-radius:20px; background:rgba(108,99,255,0.2); color:#a78bfa; font-size:13px; font-weight:700;">🎓 JAMB</span>
+        <span style="padding:6px 16px; border-radius:20px; background:rgba(67,233,123,0.15); color:#43e97b; font-size:13px; font-weight:700;">📚 WAEC</span>
+        <span style="padding:6px 16px; border-radius:20px; background:rgba(56,249,215,0.15); color:#38f9d7; font-size:13px; font-weight:700;">🏫 NECO</span>
+        <span style="padding:6px 16px; border-radius:20px; background:rgba(255,214,0,0.15); color:#ffd600; font-size:13px; font-weight:700;">🏛️ POST-UTME</span>
+        <span style="padding:6px 16px; border-radius:20px; background:rgba(255,101,132,0.15); color:#ff6584; font-size:13px; font-weight:700;">⚡ Practice</span>
+      </div>
+
+      <a href="cbt-start.html"
+        style="display:inline-block; padding:16px 48px;
+               background:linear-gradient(135deg,#43e97b,#38f9d7);
+               color:#0f0f1a; border-radius:14px; font-size:16px; font-weight:900;
+               text-decoration:none; transition:all 0.2s;"
+        onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 28px rgba(67,233,123,0.4)'"
+        onmouseout="this.style.transform=''; this.style.boxShadow=''">
+        🚀 Start CBT Exam →
+      </a>
+    </div>
+
+    <!-- HOW IT WORKS -->
+    <div style="background:var(--dark-2,#1a1a2e); border:1px solid var(--border,rgba(255,255,255,0.08));
+                border-radius:16px; padding:24px; margin-bottom:24px;">
+      <h3 style="font-size:15px; font-weight:800; color:#fff; margin:0 0 18px;">How it works</h3>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:16px;">
+        <div style="text-align:center; padding:16px 12px; background:rgba(255,255,255,0.03); border-radius:12px;">
+          <div style="font-size:28px; margin-bottom:8px;">🎓</div>
+          <div style="font-size:13px; font-weight:700; color:#fff; margin-bottom:4px;">1. Choose Type</div>
+          <div style="font-size:12px; color:var(--text-muted);">JAMB, WAEC, NECO…</div>
+        </div>
+        <div style="text-align:center; padding:16px 12px; background:rgba(255,255,255,0.03); border-radius:12px;">
+          <div style="font-size:28px; margin-bottom:8px;">📋</div>
+          <div style="font-size:13px; font-weight:700; color:#fff; margin-bottom:4px;">2. Fill Details</div>
+          <div style="font-size:12px; color:var(--text-muted);">Name, class, department</div>
+        </div>
+        <div style="text-align:center; padding:16px 12px; background:rgba(255,255,255,0.03); border-radius:12px;">
+          <div style="font-size:28px; margin-bottom:8px;">📖</div>
+          <div style="font-size:13px; font-weight:700; color:#fff; margin-bottom:4px;">3. Pick Subjects</div>
+          <div style="font-size:12px; color:var(--text-muted);">Select what to take</div>
+        </div>
+        <div style="text-align:center; padding:16px 12px; background:rgba(255,255,255,0.03); border-radius:12px;">
+          <div style="font-size:28px; margin-bottom:8px;">⏱️</div>
+          <div style="font-size:13px; font-weight:700; color:#fff; margin-bottom:4px;">4. Take Exam</div>
+          <div style="font-size:12px; color:var(--text-muted);">Timed, randomized</div>
+        </div>
+        <div style="text-align:center; padding:16px 12px; background:rgba(255,255,255,0.03); border-radius:12px;">
+          <div style="font-size:28px; margin-bottom:8px;">🏆</div>
+          <div style="font-size:13px; font-weight:700; color:#fff; margin-bottom:4px;">5. Get Results</div>
+          <div style="font-size:12px; color:var(--text-muted);">Instant breakdown</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESULT HISTORY -->
+    <div style="background:var(--dark-2,#1a1a2e); border:1px solid var(--border,rgba(255,255,255,0.08));
+                border-radius:16px; overflow:hidden;">
+      <div style="display:flex; align-items:center; justify-content:space-between;
+                  padding:18px 22px; border-bottom:1px solid var(--border,rgba(255,255,255,0.08));">
+        <h3 style="font-size:16px; font-weight:700; color:#fff; margin:0;">My Result History</h3>
+        <a href="cbt-start.html" style="font-size:13px; color:var(--primary-light,#a78bfa); font-weight:600; text-decoration:none;">Take New Exam →</a>
+      </div>
+
+      <div id="historyContainer" style="display:none;">
+        <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
+          <table style="width:100%; border-collapse:collapse; min-width:440px;">
+            <thead>
+              <tr>
+                <th style="padding:11px 14px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); background:rgba(255,255,255,0.02); border-bottom:1px solid var(--border,rgba(255,255,255,0.08));"><  #</th>
+                <th style="padding:11px 14px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); background:rgba(255,255,255,0.02); border-bottom:1px solid var(--border,rgba(255,255,255,0.08));">Exam</th>
+                <th style="padding:11px 14px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); background:rgba(255,255,255,0.02); border-bottom:1px solid var(--border,rgba(255,255,255,0.08));">Score</th>
+                <th style="padding:11px 14px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); background:rgba(255,255,255,0.02); border-bottom:1px solid var(--border,rgba(255,255,255,0.08));">Status</th>
+                <th style="padding:11px 14px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted); background:rgba(255,255,255,0.02); border-bottom:1px solid var(--border,rgba(255,255,255,0.08));">Date</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody"></tbody>
+          </table>
+        </div>
+        <p id="noHistoryMsg"
+          style="display:none; color:var(--text-muted); font-size:14px;
+                 padding:24px; text-align:center; margin:0;">
+          No exams taken yet. Start your first exam above! 🎯
+        </p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-bottom">
+      <p>© 2025 LatLomp Platform. <a href="index.html" style="color:var(--primary)">← Back to Home</a></p>
+    </div>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+<script src="js/cbt.js"></script>
+</body>
+</html>

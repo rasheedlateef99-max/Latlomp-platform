@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Start CBT Exam — LatLomp Platform</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 0;
+      min-height: 100vh;
+      background: var(--dark, #0f0f1a);
+      font-family: 'Inter', sans-serif;
+      display: flex; flex-direction: column;
+      align-items: center;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+
+    .cbt-nav {
+      width: 100%; padding: 0 20px; height: 60px;
+      background: var(--dark-2, #1a1a2e);
+      border-bottom: 1px solid var(--border, rgba(255,255,255,0.08));
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .cbt-nav a { color: var(--text-muted, #6b6b8a); font-size: 13px; text-decoration: none; }
+    .cbt-nav a:hover { color: #fff; }
+    .cbt-nav-title { font-size: 15px; font-weight: 800; color: #fff; }
+
+    .cbt-wrap {
+      width: 100%; max-width: 560px;
+      padding: 32px 20px 60px;
+      animation: fadeUp 0.3s ease;
+    }
+
+    /* ---- Step indicator ---- */
+    .step-bar {
+      display: flex; align-items: center; gap: 0;
+      margin-bottom: 32px;
+    }
+    .step-dot {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 800; flex-shrink: 0;
+      background: rgba(255,255,255,0.06);
+      border: 2px solid var(--border, rgba(255,255,255,0.08));
+      color: var(--text-muted, #6b6b8a);
+      transition: all 0.3s;
+    }
+    .step-dot.active { background: var(--primary, #6c63ff); border-color: var(--primary); color: #fff; }
+    .step-dot.done   { background: #43e97b; border-color: #43e97b; color: #0f0f1a; }
+    .step-line { flex: 1; height: 2px; background: var(--border, rgba(255,255,255,0.08)); }
+    .step-line.done { background: #43e97b; }
+
+    /* ---- Screen card ---- */
+    .cbt-card {
+      background: var(--dark-2, #1a1a2e);
+      border: 1px solid var(--border, rgba(255,255,255,0.08));
+      border-radius: 20px; padding: 28px;
+      width: 100%;
+    }
+
+    .cbt-card h2 { font-size: 20px; font-weight: 800; color: #fff; margin: 0 0 6px; }
+    .cbt-card p  { font-size: 14px; color: var(--text-muted, #6b6b8a); margin: 0 0 24px; line-height: 1.5; }
+
+    /* ---- Category buttons ---- */
+    .cat-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 12px; margin-bottom: 4px;
+    }
+    @media (max-width: 380px) { .cat-grid { grid-template-columns: 1fr; } }
+
+    .cat-btn {
+      padding: 18px 14px; border-radius: 14px; cursor: pointer;
+      border: 2px solid var(--border, rgba(255,255,255,0.08));
+      background: rgba(255,255,255,0.03);
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      font-family: inherit; transition: all 0.2s; text-align: center;
+    }
+    .cat-btn:hover { border-color: rgba(108,99,255,0.4); background: rgba(108,99,255,0.06); }
+    .cat-btn.active { border-color: var(--primary, #6c63ff); background: rgba(108,99,255,0.15); }
+    .cat-btn .cat-icon { font-size: 28px; }
+    .cat-btn .cat-name { font-size: 13px; font-weight: 800; color: var(--text-primary, #fff); }
+    .cat-btn .cat-sub  { font-size: 11px; color: var(--text-muted, #6b6b8a); }
+
+    /* ---- Form fields ---- */
+    .cbt-field { margin-bottom: 18px; }
+    .cbt-field label {
+      display: block; font-size: 12px; font-weight: 700;
+      color: var(--text-secondary, #a0a0c0); text-transform: uppercase;
+      letter-spacing: 0.5px; margin-bottom: 8px;
+    }
+    .cbt-input {
+      width: 100%; background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border, rgba(255,255,255,0.08));
+      border-radius: 10px; padding: 13px 16px;
+      color: #fff; font-size: 15px; font-family: inherit;
+      outline: none; transition: border-color 0.2s;
+    }
+    .cbt-input:focus { border-color: var(--primary, #6c63ff); }
+    .cbt-input::placeholder { color: var(--text-muted, #6b6b8a); }
+
+    /* ---- Department cards ---- */
+    .dept-list { display: flex; flex-direction: column; gap: 10px; }
+    .dept-card {
+      padding: 16px 18px; border-radius: 12px; cursor: pointer;
+      border: 2px solid var(--border, rgba(255,255,255,0.08));
+      background: rgba(255,255,255,0.03);
+      display: flex; align-items: center; justify-content: space-between;
+      transition: all 0.2s;
+    }
+    .dept-card:hover { border-color: rgba(108,99,255,0.4); background: rgba(108,99,255,0.06); }
+    .dept-card.selected { border-color: var(--primary, #6c63ff); background: rgba(108,99,255,0.12); }
+    .dept-card.blocked  { opacity: 0.4; cursor: not-allowed; }
+    .dept-card.blocked:hover { border-color: var(--border, rgba(255,255,255,0.08)); background: rgba(255,255,255,0.03); }
+    .dept-name { font-size: 15px; font-weight: 700; color: #fff; }
+    .dept-meta { font-size: 12px; color: var(--text-muted, #6b6b8a); margin-top: 2px; }
+    .dept-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border); flex-shrink: 0; transition: all 0.2s; }
+    .dept-card.selected .dept-check { background: var(--primary, #6c63ff); border-color: var(--primary); }
+
+    /* ---- Subject checkboxes ---- */
+    .subj-list { display: flex; flex-direction: column; gap: 10px; }
+    .subj-card {
+      padding: 14px 16px; border-radius: 12px; cursor: pointer;
+      border: 2px solid var(--border, rgba(255,255,255,0.08));
+      background: rgba(255,255,255,0.03);
+      display: flex; align-items: center; gap: 14px;
+      transition: all 0.2s;
+    }
+    .subj-card:hover { border-color: rgba(67,233,123,0.4); background: rgba(67,233,123,0.04); }
+    .subj-card.selected { border-color: #43e97b; background: rgba(67,233,123,0.08); }
+    .subj-checkbox {
+      width: 22px; height: 22px; border-radius: 6px;
+      border: 2px solid var(--border, rgba(255,255,255,0.2));
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      font-size: 13px; transition: all 0.2s;
+    }
+    .subj-card.selected .subj-checkbox { background: #43e97b; border-color: #43e97b; color: #0f0f1a; }
+    .subj-info { flex: 1; }
+    .subj-name { font-size: 14px; font-weight: 700; color: #fff; }
+    .subj-meta { font-size: 12px; color: var(--text-muted, #6b6b8a); margin-top: 2px; }
+
+    /* ---- Buttons ---- */
+    .cbt-btn {
+      width: 100%; padding: 15px; border-radius: 12px;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      font-family: inherit; border: none; transition: all 0.2s;
+      margin-top: 20px;
+    }
+    .cbt-btn-primary {
+      background: linear-gradient(135deg, var(--primary, #6c63ff), var(--primary-dark, #574fd6));
+      color: #fff;
+    }
+    .cbt-btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(108,99,255,0.4); }
+    .cbt-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .cbt-btn-green { background: linear-gradient(135deg, #43e97b, #38f9d7); color: #0f0f1a; }
+    .cbt-btn-green:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(67,233,123,0.4); }
+    .cbt-btn-green:disabled { opacity: 0.5; cursor: not-allowed; }
+    .cbt-btn-back {
+      width: 100%; padding: 12px; border-radius: 12px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      font-family: inherit; border: 1px solid var(--border, rgba(255,255,255,0.08));
+      background: rgba(255,255,255,0.04); color: var(--text-secondary, #a0a0c0);
+      margin-top: 10px; transition: all 0.2s;
+    }
+    .cbt-btn-back:hover { background: rgba(255,255,255,0.08); color: #fff; }
+
+    .cbt-err {
+      display: none; background: rgba(255,101,132,0.1);
+      border: 1px solid rgba(255,101,132,0.3); color: #ff6584;
+      padding: 12px 16px; border-radius: 8px; font-size: 13px;
+      margin-bottom: 16px; line-height: 1.5;
+    }
+
+    .cbt-loading {
+      text-align: center; padding: 32px;
+      color: var(--text-muted, #6b6b8a); font-size: 14px;
+    }
+    .cbt-spinner {
+      width: 36px; height: 36px;
+      border: 3px solid rgba(108,99,255,0.2);
+      border-top-color: var(--primary, #6c63ff);
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+
+    /* Selected subjects summary */
+    .subj-summary {
+      background: rgba(67,233,123,0.06);
+      border: 1px solid rgba(67,233,123,0.2);
+      border-radius: 10px; padding: 12px 16px;
+      font-size: 13px; color: #43e97b;
+      margin-top: 12px; display: none;
+    }
+  </style>
+</head>
+<body>
+
+<nav class="cbt-nav">
+  <a href="cbt.html">← Back</a>
+  <span class="cbt-nav-title">📝 CBT Exam</span>
+  <span style="font-size:12px; color:var(--text-muted,#6b6b8a);" id="navStepLabel">Step 1 of 4</span>
+</nav>
+
+<div class="cbt-wrap">
+
+  <!-- Step bar -->
+  <div class="step-bar" id="stepBar">
+    <div class="step-dot active" id="step1dot">1</div>
+    <div class="step-line"      id="line12"></div>
+    <div class="step-dot"       id="step2dot">2</div>
+    <div class="step-line"      id="line23"></div>
+    <div class="step-dot"       id="step3dot">3</div>
+    <div class="step-line"      id="line34"></div>
+    <div class="step-dot"       id="step4dot">4</div>
+  </div>
+
+  <!-- ===== STEP 1: EXAM TYPE ===== -->
+  <div id="screen1" class="cbt-card">
+    <h2>Select Exam Type</h2>
+    <p>Choose the exam category you want to practice.</p>
+
+    <div class="cat-grid">
+      <button class="cat-btn" onclick="selectCategory('jamb', this)">
+        <span class="cat-icon">🎓</span>
+        <span class="cat-name">JAMB</span>
+        <span class="cat-sub">UTME</span>
+      </button>
+      <button class="cat-btn" onclick="selectCategory('waec', this)">
+        <span class="cat-icon">📚</span>
+        <span class="cat-name">WAEC</span>
+        <span class="cat-sub">SSCE</span>
+      </button>
+      <button class="cat-btn" onclick="selectCategory('neco', this)">
+        <span class="cat-icon">🏫</span>
+        <span class="cat-name">NECO</span>
+        <span class="cat-sub">SSCE</span>
+      </button>
+      <button class="cat-btn" onclick="selectCategory('post-utme', this)">
+        <span class="cat-icon">🏛️</span>
+        <span class="cat-name">POST-UTME</span>
+        <span class="cat-sub">Admission</span>
+      </button>
+      <button class="cat-btn" onclick="selectCategory('practice', this)" style="grid-column:1/-1;">
+        <span class="cat-icon">⚡</span>
+        <span class="cat-name">Practice Mode</span>
+        <span class="cat-sub">Mixed subjects — no time pressure</span>
+      </button>
+    </div>
+
+    <button class="cbt-btn cbt-btn-primary" id="step1Btn" onclick="goStep2()" disabled>
+      Continue →
+    </button>
+  </div>
+
+  <!-- ===== STEP 2: STUDENT INFORMATION ===== -->
+  <div id="screen2" class="cbt-card" style="display:none;">
+    <h2>Your Information</h2>
+    <p>Fill in your details before proceeding to the exam.</p>
+
+    <div id="step2Err" class="cbt-err"></div>
+
+    <div class="cbt-field">
+      <label>Full Name *</label>
+      <input type="text" id="studentName" class="cbt-input" placeholder="e.g. John Adewale" />
+    </div>
+    <div class="cbt-field">
+      <label>Phone Number *</label>
+      <input type="tel" id="studentPhone" class="cbt-input" placeholder="e.g. 08012345678" inputmode="tel" />
+    </div>
+    <div class="cbt-field">
+      <label>Class / Level</label>
+      <input type="text" id="studentClass" class="cbt-input" placeholder="e.g. SS3, 100 Level" />
+    </div>
+    <div class="cbt-field">
+      <label>Department *</label>
+      <input type="text" id="studentDept" class="cbt-input" placeholder="e.g. Science, Commercial, Arts" />
+      <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">
+        This must match the available departments.
+      </div>
+    </div>
+
+    <button class="cbt-btn cbt-btn-primary" onclick="goStep3()">Continue →</button>
+    <button class="cbt-btn-back" onclick="goStep1()">← Back</button>
+  </div>
+
+  <!-- ===== STEP 3: DEPARTMENT SELECTION ===== -->
+  <div id="screen3" class="cbt-card" style="display:none;">
+    <h2>Confirm Your Department</h2>
+    <p id="step3Desc">Select your department to load your subjects.</p>
+
+    <div id="step3Err" class="cbt-err"></div>
+    <div id="deptLoadingEl" class="cbt-loading">
+      <div class="cbt-spinner"></div>Loading departments...
+    </div>
+    <div class="dept-list" id="deptListEl"></div>
+
+    <button class="cbt-btn cbt-btn-primary" id="step3Btn" onclick="goStep4()" disabled>
+      Load My Subjects →
+    </button>
+    <button class="cbt-btn-back" onclick="goStep2()">← Back</button>
+  </div>
+
+  <!-- ===== STEP 4: SUBJECT SELECTION ===== -->
+  <div id="screen4" class="cbt-card" style="display:none;">
+    <h2>Select Subjects</h2>
+    <p id="step4Desc">Choose the subjects you want to take in this session.</p>
+
+    <div id="step4Err" class="cbt-err"></div>
+    <div id="subjLoadingEl" class="cbt-loading" style="display:none;">
+      <div class="cbt-spinner"></div>Loading subjects...
+    </div>
+    <div class="subj-list" id="subjListEl"></div>
+
+    <div class="subj-summary" id="subjSummary"></div>
+
+    <button class="cbt-btn cbt-btn-green" id="step4Btn" onclick="startExam()" disabled>
+      🚀 Start Exam →
+    </button>
+    <button class="cbt-btn-back" onclick="goStep3()">← Back</button>
+  </div>
+
+</div>
+
+<script src="js/main.js"></script>
+<script>
+/* ============================================
+   CBT START FLOW — 4 STEPS
+============================================ */
+document.addEventListener('DOMContentLoaded', function() {
+  if (!requireLogin('cbt-start.html')) return;
+});
+
+/* State */
+var _category     = '';
+var _depts        = [];
+var _selectedDept = null;
+var _subjects     = [];
+var _selectedSubjectIds = [];
+var _studentInfo  = {};
+var _currentStep  = 1;
+
+/* ============================================
+   STEP INDICATOR
+============================================ */
+function updateStepBar(step) {
+  _currentStep = step;
+  document.getElementById('navStepLabel').textContent = 'Step ' + step + ' of 4';
+
+  for (var i = 1; i <= 4; i++) {
+    var dot  = document.getElementById('step' + i + 'dot');
+    if (i < step) {
+      dot.className = 'step-dot done';
+      dot.textContent = '✓';
+    } else if (i === step) {
+      dot.className = 'step-dot active';
+      dot.textContent = i;
+    } else {
+      dot.className = 'step-dot';
+      dot.textContent = i;
+    }
+  }
+
+  for (var j = 1; j <= 3; j++) {
+    var line = document.getElementById('line' + j + (j+1));
+    if (line) line.className = 'step-line' + (j < step ? ' done' : '');
+  }
+}
+
+function showScreen(n) {
+  for (var i = 1; i <= 4; i++) {
+    var s = document.getElementById('screen' + i);
+    if (s) s.style.display = i === n ? 'block' : 'none';
+  }
+  updateStepBar(n);
+  window.scrollTo(0, 0);
+}
+
+/* ============================================
+   STEP 1 — EXAM TYPE
+============================================ */
+function selectCategory(cat, btnEl) {
+  _category = cat;
+  document.querySelectorAll('.cat-btn').forEach(function(b) { b.classList.remove('active'); });
+  if (btnEl) btnEl.classList.add('active');
+  document.getElementById('step1Btn').disabled = false;
+}
+
+function goStep2() {
+  if (!_category) return;
+  showScreen(2);
+}
+
+function goStep1() {
+  showScreen(1);
+}
+
+/* ============================================
+   STEP 2 — STUDENT INFO
+============================================ */
+function goStep3() {
+  var name  = (document.getElementById('studentName')  || {}).value.trim();
+  var phone = (document.getElementById('studentPhone') || {}).value.trim();
+  var cls   = (document.getElementById('studentClass') || {}).value.trim();
+  var dept  = (document.getElementById('studentDept')  || {}).value.trim();
+
+  var errEl = document.getElementById('step2Err');
+  errEl.style.display = 'none';
+
+  if (!name)  { errEl.textContent = '⚠️ Please enter your full name.';      errEl.style.display = 'block'; return; }
+  if (!phone) { errEl.textContent = '⚠️ Please enter your phone number.';   errEl.style.display = 'block'; return; }
+  if (!dept)  { errEl.textContent = '⚠️ Please enter your department.';     errEl.style.display = 'block'; return; }
+
+  _studentInfo = { name: name, phone: phone, class: cls, department: dept };
+
+  /* Update step 3 description */
+  document.getElementById('step3Desc').textContent =
+    'Hi ' + name + '! Select your department below. It must match "' + dept + '".';
+
+  showScreen(3);
+  loadDepartments();
+}
+
+/* ============================================
+   STEP 3 — DEPARTMENT
+============================================ */
+async function loadDepartments() {
+  var loadEl  = document.getElementById('deptLoadingEl');
+  var listEl  = document.getElementById('deptListEl');
+  var btn     = document.getElementById('step3Btn');
+  var errEl   = document.getElementById('step3Err');
+
+  loadEl.style.display = 'block';
+  listEl.innerHTML     = '';
+  btn.disabled         = true;
+  errEl.style.display  = 'none';
+  _selectedDept        = null;
+
+  var res = await apiRequest('/cbt/departments?category=' + _category);
+
+  loadEl.style.display = 'none';
+
+  if (!res.ok || !res.data.departments) {
+    errEl.textContent   = 'Failed to load departments. Please refresh.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  _depts = res.data.departments;
+
+  if (_depts.length === 0) {
+    listEl.innerHTML = '<div style="color:var(--text-muted); font-size:14px; text-align:center; padding:24px;">No departments available yet. Ask your admin to create departments.</div>';
+    return;
+  }
+
+  /* Check which department matches what student typed */
+  var enteredDept = _studentInfo.department.toLowerCase().trim();
+
+  listEl.innerHTML = _depts.map(function(d) {
+    var nameNorm = d.name.toLowerCase().trim();
+    var isMatch  = nameNorm.includes(enteredDept) || enteredDept.includes(nameNorm);
+    var blockedClass = isMatch ? '' : ' blocked';
+    var blockedTitle = isMatch ? '' : ' title="Your entered department does not match this option."';
+    return '<div class="dept-card' + blockedClass + '" id="dept_' + d._id + '"' + blockedTitle +
+      ' onclick="selectDept(\'' + d._id + '\', \'' + (d.name || '').replace(/'/g, '') + '\', ' + isMatch + ')">' +
+      '<div>' +
+        '<div class="dept-name">' + d.name + '</div>' +
+        '<div class="dept-meta">' + (d.description || 'Click to select') + '</div>' +
+      '</div>' +
+      '<div class="dept-check"></div>' +
+    '</div>';
+  }).join('');
+}
+
+function selectDept(id, name, isMatch) {
+  if (!isMatch) {
+    var errEl = document.getElementById('step3Err');
+    errEl.textContent   = '⛔ This department does not match the one you entered ("' + _studentInfo.department + '"). Please select the correct department or go back and correct your entry.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  _selectedDept = { _id: id, name: name };
+
+  /* Update UI */
+  document.querySelectorAll('.dept-card:not(.blocked)').forEach(function(c) { c.classList.remove('selected'); });
+  var card = document.getElementById('dept_' + id);
+  if (card) card.classList.add('selected');
+
+  document.getElementById('step3Err').style.display  = 'none';
+  document.getElementById('step3Btn').disabled = false;
+}
+
+async function goStep4() {
+  if (!_selectedDept) return;
+
+  /* Update step 4 */
+  document.getElementById('step4Desc').textContent =
+    _selectedDept.name + ' subjects for ' + _category.toUpperCase() + '. Select what you want to take.';
+
+  showScreen(4);
+  loadSubjects();
+}
+
+/* ============================================
+   STEP 4 — SUBJECTS
+============================================ */
+async function loadSubjects() {
+  var loadEl = document.getElementById('subjLoadingEl');
+  var listEl = document.getElementById('subjListEl');
+  var btn    = document.getElementById('step4Btn');
+  var errEl  = document.getElementById('step4Err');
+
+  loadEl.style.display = 'block';
+  listEl.innerHTML     = '';
+  btn.disabled         = true;
+  errEl.style.display  = 'none';
+  _selectedSubjectIds  = [];
+
+  var query = _category !== 'practice' ? '?category=' + _category : '';
+  var res   = await apiRequest('/cbt/departments/' + _selectedDept._id + '/subjects' + query);
+
+  loadEl.style.display = 'none';
+
+  if (!res.ok || !res.data.subjects) {
+    errEl.textContent   = 'Failed to load subjects. Please try again.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  _subjects = res.data.subjects;
+
+  if (_subjects.length === 0) {
+    listEl.innerHTML = '<div style="color:var(--text-muted); font-size:14px; text-align:center; padding:24px; line-height:1.7;">' +
+      'No subjects found for ' + _selectedDept.name + ' → ' + _category.toUpperCase() + '.<br>' +
+      'Ask your admin to add subjects and questions.</div>';
+    return;
+  }
+
+  listEl.innerHTML = _subjects.map(function(s) {
+    return '<div class="subj-card" id="subj_' + s._id + '" onclick="toggleSubject(\'' + s._id + '\')">' +
+      '<div class="subj-checkbox" id="check_' + s._id + '"></div>' +
+      '<div class="subj-info">' +
+        '<div class="subj-name">' + s.name + '</div>' +
+        '<div class="subj-meta">' +
+          (s.totalQuestions || 0) + ' questions · ' + (s.timeLimit || 0) + ' mins' +
+          (s.instructions ? ' · ' + s.instructions : '') +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function toggleSubject(id) {
+  var idx = _selectedSubjectIds.indexOf(id);
+  var card  = document.getElementById('subj_' + id);
+  var check = document.getElementById('check_' + id);
+
+  if (idx >= 0) {
+    _selectedSubjectIds.splice(idx, 1);
+    if (card)  card.classList.remove('selected');
+    if (check) check.textContent = '';
+  } else {
+    _selectedSubjectIds.push(id);
+    if (card)  card.classList.add('selected');
+    if (check) check.textContent = '✓';
+  }
+
+  var btn     = document.getElementById('step4Btn');
+  var summary = document.getElementById('subjSummary');
+
+  if (_selectedSubjectIds.length > 0) {
+    btn.disabled = false;
+
+    /* Calculate total time */
+    var totalMins = 0;
+    _subjects.forEach(function(s) {
+      if (_selectedSubjectIds.includes(s._id)) totalMins += (s.timeLimit || 0);
+    });
+
+    summary.style.display = 'block';
+    summary.textContent   = '✅ ' + _selectedSubjectIds.length + ' subject' +
+      (_selectedSubjectIds.length > 1 ? 's' : '') + ' selected · Total time: ' + totalMins + ' mins';
+  } else {
+    btn.disabled = true;
+    summary.style.display = 'none';
+  }
+}
+
+/* ============================================
+   START EXAM — save state and navigate
+============================================ */
+async function startExam() {
+  if (_selectedSubjectIds.length === 0) return;
+
+  var btn = document.getElementById('step4Btn');
+  btn.textContent = '⏳ Loading questions...';
+  btn.disabled    = true;
+
+  try {
+    var res = await apiRequest('/cbt/session/start', 'POST', {
+      examCategory: _category,
+      subjectIds:   _selectedSubjectIds
+    });
+
+    if (!res.ok) {
+      var errEl = document.getElementById('step4Err');
+      errEl.textContent   = res.data.message || 'Could not start exam. Please try again.';
+      errEl.style.display = 'block';
+      btn.textContent     = '🚀 Start Exam →';
+      btn.disabled        = false;
+      return;
+    }
+
+    /* Save full session to sessionStorage */
+    var session = res.data.session;
+    session.studentInfo     = _studentInfo;
+    session.selectedDept    = _selectedDept;
+    session.selectedSubjectIds = _selectedSubjectIds;
+
+    sessionStorage.setItem('cbtSession', JSON.stringify(session));
+
+    /* Navigate to exam page */
+    window.location.href = 'exam.html';
+
+  } catch (err) {
+    console.error('startExam error:', err);
+    var errEl = document.getElementById('step4Err');
+    errEl.textContent   = 'An error occurred. Please try again.';
+    errEl.style.display = 'block';
+    btn.textContent     = '🚀 Start Exam →';
+    btn.disabled        = false;
+  }
+}
+</script>
+</body>
+</html>

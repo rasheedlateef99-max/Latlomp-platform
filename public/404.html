@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Page Not Found — LatLomp Platform</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50%       { transform: translateY(-16px); }
+    }
+
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(24px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    .page-404 {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: var(--dark);
+      text-align: center;
+    }
+
+    .card-404 {
+      max-width: 520px;
+      width: 100%;
+      animation: fadeUp 0.5s ease;
+    }
+
+    .icon-404 {
+      font-size: 100px;
+      margin-bottom: 24px;
+      display: block;
+      animation: float 3s ease-in-out infinite;
+      line-height: 1;
+    }
+
+    .code-404 {
+      font-size: 96px;
+      font-weight: 900;
+      letter-spacing: -4px;
+      line-height: 1;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .title-404 {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+      letter-spacing: -0.5px;
+    }
+
+    .msg-404 {
+      font-size: 15px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: 36px;
+      max-width: 380px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .btns-404 {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 48px;
+    }
+
+    .btn-404-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 13px 28px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.2s;
+      min-width: 140px;
+      justify-content: center;
+    }
+
+    .btn-404-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(108,99,255,0.4);
+    }
+
+    .btn-404-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 13px 28px;
+      background: rgba(255,255,255,0.05);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.2s;
+      min-width: 140px;
+      justify-content: center;
+    }
+
+    .btn-404-secondary:hover {
+      background: rgba(255,255,255,0.09);
+      color: var(--text-primary);
+    }
+
+    /* Quick links section */
+    .quick-links-404 {
+      background: var(--dark-2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+    }
+
+    .quick-links-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+    }
+
+    .quick-links-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .quick-link-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .quick-link-item:hover {
+      border-color: rgba(108,99,255,0.3);
+      background: rgba(108,99,255,0.06);
+      transform: translateY(-1px);
+    }
+
+    .quick-link-icon { font-size: 20px; }
+
+    .quick-link-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    @media (max-width: 480px) {
+      .code-404   { font-size: 72px; }
+      .title-404  { font-size: 22px; }
+      .quick-links-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body class="page-404">
+
+  <div class="card-404">
+
+    <!-- Floating emoji -->
+    <span class="icon-404">🔍</span>
+
+    <!-- 404 number -->
+    <div class="code-404">404</div>
+
+    <!-- Title -->
+    <h1 class="title-404">Page Not Found</h1>
+
+    <!-- Message -->
+    <p class="msg-404">
+      The page you are looking for does not exist or has been moved.
+      Let us take you somewhere helpful.
+    </p>
+
+    <!-- Action buttons -->
+    <div class="btns-404">
+      <a href="index.html" class="btn-404-primary">
+        ← Go Home
+      </a>
+      <button onclick="history.back()" class="btn-404-secondary">
+        ← Go Back
+      </button>
+    </div>
+
+    <!-- Quick navigation links -->
+    <div class="quick-links-404">
+      <div class="quick-links-title">Quick Navigation</div>
+      <div class="quick-links-grid">
+        <a href="cbt.html" class="quick-link-item">
+          <span class="quick-link-icon">📝</span>
+          <span class="quick-link-label">CBT Exam</span>
+        </a>
+        <a href="store.html" class="quick-link-item">
+          <span class="quick-link-icon">🛒</span>
+          <span class="quick-link-label">Store</span>
+        </a>
+        <a href="games.html" class="quick-link-item">
+          <span class="quick-link-icon">🎮</span>
+          <span class="quick-link-label">Games</span>
+        </a>
+        <a href="teacher.html" class="quick-link-item">
+          <span class="quick-link-icon">📚</span>
+          <span class="quick-link-label">Teacher Portal</span>
+        </a>
+        <a href="student-login.html" class="quick-link-item">
+          <span class="quick-link-icon">🎓</span>
+          <span class="quick-link-label">Student Exam</span>
+        </a>
+        <a href="portfolio.html" class="quick-link-item">
+          <span class="quick-link-icon">💼</span>
+          <span class="quick-link-label">Portfolio</span>
+        </a>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,913 @@
+/* ============================================
+   LATLOMP PLATFORM — TEACHER DASHBOARD CSS
+   Perfectly matched to teacher.html classes
+   ============================================ */
+
+/* ---- Variables ---- */
+:root {
+  --sidebar-w:  260px;
+  --topbar-h:   60px;
+  --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ---- Reset ---- */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---- Body ---- */
+body,
+.teacher-body {
+  margin:     0;
+  padding:    0;
+  overflow-x: hidden;
+  background: var(--dark, #0f0f1a);
+  font-family: 'Inter', sans-serif;
+}
+
+/* ============================================
+   SIDEBAR OVERLAY
+============================================ */
+.teacher-sidebar-overlay {
+  display:    none;
+  position:   fixed;
+  inset:      0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index:    399;
+  cursor:     pointer;
+}
+
+.teacher-sidebar-overlay.visible {
+  display: block;
+}
+
+/* ============================================
+   MOBILE TOP BAR
+   Hidden on desktop, shown on mobile
+============================================ */
+.teacher-mobile-bar {
+  display:         none;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         0 16px;
+  height:          var(--topbar-h);
+  background:      var(--dark-2, #1a1a2e);
+  border-bottom:   1px solid var(--border, rgba(255,255,255,0.08));
+  position:        sticky;
+  top:             0;
+  z-index:         300;
+  flex-shrink:     0;
+}
+
+/* Hamburger button */
+.sb-ham {
+  background:    none;
+  border:        none;
+  color:         var(--text-primary, #ffffff);
+  font-size:     22px;
+  cursor:        pointer;
+  padding:       8px;
+  border-radius: 8px;
+  line-height:   1;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  transition:    background 0.15s;
+}
+
+.sb-ham:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.mobile-bar-title {
+  font-size:   15px;
+  font-weight: 800;
+  color:       var(--text-primary, #ffffff);
+}
+
+.mobile-bar-section {
+  font-size:   13px;
+  font-weight: 500;
+  color:       var(--text-muted, #6b6b8a);
+}
+
+/* ============================================
+   SIDEBAR
+   Always position:fixed — never in document flow
+============================================ */
+.teacher-sidebar {
+  position:       fixed;
+  top:            0;
+  left:           0;
+  bottom:         0;
+  width:          var(--sidebar-w);
+  z-index:        400;
+  background:     var(--dark-2, #1a1a2e);
+  border-right:   1px solid var(--border, rgba(255,255,255,0.08));
+  display:        flex;
+  flex-direction: column;
+  overflow-y:     auto;
+  overflow-x:     hidden;
+  -webkit-overflow-scrolling: touch;
+  transition:     transform var(--transition), box-shadow var(--transition);
+}
+
+/* Desktop: always visible */
+@media (min-width: 961px) {
+  .teacher-sidebar {
+    transform: translateX(0);
+  }
+}
+
+/* Mobile: hidden until .open */
+@media (max-width: 960px) {
+  .teacher-sidebar {
+    transform: translateX(-100%);
+  }
+
+  .teacher-sidebar.open {
+    transform:  translateX(0);
+    box-shadow: 8px 0 48px rgba(0, 0, 0, 0.65);
+  }
+}
+
+/* ---- Sidebar brand ---- */
+.sb-brand {
+  display:      flex;
+  align-items:  center;
+  gap:          12px;
+  padding:      20px;
+  border-bottom: 1px solid var(--border, rgba(255,255,255,0.08));
+  min-height:   64px;
+  flex-shrink:  0;
+}
+
+.sb-brand-text {
+  flex:      1;
+  min-width: 0;
+}
+
+.sb-brand-text .name {
+  font-size:   15px;
+  font-weight: 800;
+  color:       var(--text-primary, #ffffff);
+}
+
+.sb-brand-text .sub {
+  font-size: 11px;
+  color:     var(--text-muted, #6b6b8a);
+}
+
+/* ---- Sidebar user block ---- */
+.sb-user {
+  display:       flex;
+  align-items:   center;
+  gap:           12px;
+  padding:       16px 20px;
+  border-bottom: 1px solid var(--border, rgba(255,255,255,0.08));
+  flex-shrink:   0;
+}
+
+.sb-avatar {
+  width:           40px;
+  height:          40px;
+  border-radius:   10px;
+  background:      linear-gradient(135deg, #43e97b, #38f9d7);
+  color:           #0f0f1a;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  font-weight:     800;
+  font-size:       18px;
+  flex-shrink:     0;
+}
+
+.sb-user-info .sb-name {
+  font-size:   14px;
+  font-weight: 700;
+  color:       var(--text-primary, #ffffff);
+}
+
+.sb-user-info .sb-role {
+  font-size:      11px;
+  font-weight:    600;
+  color:          #43e97b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ---- Sidebar navigation ---- */
+.sb-nav {
+  flex:    1;
+  padding: 12px 10px;
+}
+
+.sb-link {
+  display:         flex;
+  align-items:     center;
+  gap:             10px;
+  padding:         11px 12px;
+  border-radius:   10px;
+  font-size:       14px;
+  font-weight:     500;
+  color:           var(--text-secondary, #a0a0c0);
+  cursor:          pointer;
+  text-decoration: none;
+  transition:      background 0.15s, color 0.15s;
+  margin-bottom:   2px;
+  width:           100%;
+  border:          none;
+  background:      none;
+  font-family:     inherit;
+  text-align:      left;
+  line-height:     1.4;
+}
+
+.sb-link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color:      var(--text-primary, #ffffff);
+}
+
+.sb-link.active,
+.teacher-nav-link.active {
+  background:  rgba(108, 99, 255, 0.15);
+  color:       var(--primary-light, #a78bfa);
+  font-weight: 700;
+}
+
+.sb-icon {
+  font-size:   16px;
+  width:       22px;
+  text-align:  center;
+  flex-shrink: 0;
+}
+
+/* ---- Sidebar back link ---- */
+.sb-back {
+  display:         block;
+  padding:         16px 20px;
+  font-size:       13px;
+  color:           var(--text-muted, #6b6b8a);
+  text-decoration: none;
+  border-top:      1px solid var(--border, rgba(255,255,255,0.08));
+  flex-shrink:     0;
+  transition:      color 0.2s;
+}
+
+.sb-back:hover {
+  color: var(--text-primary, #ffffff);
+}
+
+/* ============================================
+   MAIN CONTENT AREA
+   Desktop: offset by sidebar width
+   Mobile:  full width
+============================================ */
+.teacher-main {
+  margin-left:    var(--sidebar-w);
+  width:          calc(100% - var(--sidebar-w));
+  min-height:     100vh;
+  display:        flex;
+  flex-direction: column;
+}
+
+@media (max-width: 960px) {
+  .teacher-main {
+    margin-left: 0;
+    width:       100%;
+  }
+}
+
+/* ---- Content padding ---- */
+.t-content {
+  padding: 28px 28px 52px;
+  width:   100%;
+}
+
+@media (max-width: 960px) {
+  .t-content { padding: 20px 16px 44px; }
+}
+
+@media (max-width: 600px) {
+  .t-content { padding: 16px 12px 40px; }
+}
+
+/* ============================================
+   SECTIONS
+============================================ */
+.teacher-section {
+  display: none;
+  width:   100%;
+}
+
+.teacher-section.active {
+  display: block;
+}
+
+/* ============================================
+   PAGE HEADER
+============================================ */
+.t-page-header {
+  display:         flex;
+  align-items:     flex-start;
+  justify-content: space-between;
+  margin-bottom:   24px;
+  gap:             14px;
+  flex-wrap:       wrap;
+}
+
+.t-page-header h1 {
+  font-size:   22px;
+  font-weight: 800;
+  color:       var(--text-primary, #ffffff);
+  margin:      0 0 4px;
+  line-height: 1.3;
+}
+
+.t-page-header p {
+  font-size: 14px;
+  color:     var(--text-muted, #6b6b8a);
+  margin:    0;
+}
+
+@media (max-width: 600px) {
+  .t-page-header {
+    flex-direction: column;
+    align-items:    flex-start;
+  }
+
+  .t-page-header h1 { font-size: 19px; }
+}
+
+/* ============================================
+   STATS GRID
+============================================ */
+.t-stats-grid {
+  display:               grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap:                   16px;
+  margin-bottom:         24px;
+}
+
+@media (max-width: 900px) {
+  .t-stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap:                   14px;
+  }
+}
+
+@media (max-width: 600px) {
+  .t-stats-grid {
+    grid-template-columns: 1fr;
+    gap:                   12px;
+  }
+}
+
+.t-stat-card {
+  background:    var(--dark-2, #1a1a2e);
+  border:        1px solid var(--border, rgba(255,255,255,0.08));
+  border-radius: 14px;
+  padding:       20px;
+  display:       flex;
+  align-items:   center;
+  gap:           16px;
+  transition:    transform 0.2s;
+}
+
+.t-stat-card:hover {
+  transform: translateY(-2px);
+}
+
+.t-stat-icon {
+  font-size:       22px;
+  width:           48px;
+  height:          48px;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  background:      rgba(108, 99, 255, 0.12);
+  border-radius:   12px;
+  flex-shrink:     0;
+}
+
+.t-stat-val {
+  font-size:     28px;
+  font-weight:   900;
+  color:         var(--text-primary, #ffffff);
+  line-height:   1;
+  margin-bottom: 4px;
+}
+
+.t-stat-lbl {
+  font-size:      11px;
+  font-weight:    700;
+  color:          var(--text-muted, #6b6b8a);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ============================================
+   CARDS
+============================================ */
+.t-card {
+  background:    var(--dark-2, #1a1a2e);
+  border:        1px solid var(--border, rgba(255,255,255,0.08));
+  border-radius: 16px;
+  overflow:      hidden;
+  margin-bottom: 20px;
+  width:         100%;
+}
+
+.t-card-head {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         18px 22px;
+  border-bottom:   1px solid var(--border, rgba(255,255,255,0.08));
+  flex-wrap:       wrap;
+  gap:             10px;
+}
+
+.t-card-head h3 {
+  font-size:   16px;
+  font-weight: 700;
+  color:       var(--text-primary, #ffffff);
+  margin:      0;
+}
+
+.t-card-body {
+  padding: 22px;
+}
+
+@media (max-width: 600px) {
+  .t-card-head {
+    flex-direction: column;
+    align-items:    flex-start;
+  }
+}
+
+/* ============================================
+   BUTTONS
+============================================ */
+.t-btn {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           8px;
+  padding:       10px 18px;
+  border-radius: 10px;
+  font-size:     14px;
+  font-weight:   700;
+  cursor:        pointer;
+  font-family:   inherit;
+  border:        none;
+  transition:    all 0.2s;
+  white-space:   nowrap;
+  text-decoration: none;
+}
+
+.t-btn-green {
+  background: linear-gradient(135deg, #43e97b, #38f9d7);
+  color:      #0f0f1a;
+}
+
+.t-btn-green:hover {
+  transform:  translateY(-1px);
+  box-shadow: 0 4px 16px rgba(67, 233, 123, 0.35);
+}
+
+.t-btn-primary {
+  background: linear-gradient(135deg, var(--primary, #6c63ff), var(--primary-dark, #574fd6));
+  color:      white;
+}
+
+.t-btn-primary:hover {
+  transform:  translateY(-1px);
+  box-shadow: 0 4px 16px rgba(108, 99, 255, 0.35);
+}
+
+.t-btn-secondary {
+  background:  rgba(255, 255, 255, 0.06);
+  border:      1px solid var(--border, rgba(255,255,255,0.08));
+  color:       var(--text-secondary, #a0a0c0);
+}
+
+.t-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color:      var(--text-primary, #ffffff);
+}
+
+.t-btn-danger {
+  background:  rgba(255, 101, 132, 0.1);
+  border:      1px solid rgba(255, 101, 132, 0.25);
+  color:       var(--secondary, #ff6584);
+}
+
+.t-btn-danger:hover {
+  background: rgba(255, 101, 132, 0.2);
+}
+
+.t-text-btn {
+  background:  none;
+  border:      none;
+  color:       #43e97b;
+  font-size:   13px;
+  font-weight: 600;
+  cursor:      pointer;
+  font-family: inherit;
+  padding:     0;
+  transition:  color 0.2s;
+}
+
+.t-text-btn:hover {
+  color: var(--text-primary, #ffffff);
+}
+
+@media (max-width: 600px) {
+  .t-btn {
+    padding:   9px 14px;
+    font-size: 13px;
+  }
+}
+
+/* ============================================
+   TABLES
+============================================ */
+.t-table-wrap {
+  overflow-x:              auto;
+  -webkit-overflow-scrolling: touch;
+  width:                   100%;
+}
+
+.teacher-table {
+  width:           100%;
+  border-collapse: collapse;
+  min-width:       500px;
+}
+
+.teacher-table th {
+  padding:        11px 14px;
+  text-align:     left;
+  font-size:      11px;
+  font-weight:    700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color:          var(--text-muted, #6b6b8a);
+  background:     rgba(255, 255, 255, 0.02);
+  border-bottom:  1px solid var(--border, rgba(255,255,255,0.08));
+  white-space:    nowrap;
+}
+
+.teacher-table td {
+  padding:        11px 14px;
+  font-size:      14px;
+  color:          var(--text-secondary, #a0a0c0);
+  border-bottom:  1px solid var(--border, rgba(255,255,255,0.08));
+  vertical-align: middle;
+}
+
+.teacher-table tr:last-child td {
+  border-bottom: none;
+}
+
+.teacher-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* ---- Table action buttons (used in teacher.js rendered rows) ---- */
+.tbl-actions {
+  display:   flex;
+  gap:       6px;
+  flex-wrap: wrap;
+}
+
+.tbl-btn {
+  padding:       5px 10px;
+  border-radius: 6px;
+  font-size:     12px;
+  font-weight:   600;
+  cursor:        pointer;
+  font-family:   inherit;
+  border:        1px solid var(--border, rgba(255,255,255,0.08));
+  background:    rgba(255, 255, 255, 0.05);
+  color:         var(--text-secondary, #a0a0c0);
+  transition:    all 0.15s;
+  white-space:   nowrap;
+}
+
+.tbl-btn:hover {
+  background:   rgba(108, 99, 255, 0.15);
+  color:        var(--primary-light, #a78bfa);
+  border-color: rgba(108, 99, 255, 0.3);
+}
+
+.tbl-btn-danger:hover {
+  background:   rgba(255, 101, 132, 0.15);
+  color:        var(--secondary, #ff6584);
+  border-color: rgba(255, 101, 132, 0.3);
+}
+
+/* ============================================
+   EMPTY & LOADING STATES
+============================================ */
+.teacher-empty,
+.teacher-loading {
+  padding:    32px 22px;
+  text-align: center;
+  color:      var(--text-muted, #6b6b8a);
+  font-size:  14px;
+}
+
+/* ============================================
+   GUIDE STEPS (Quick Guide on overview)
+============================================ */
+.guide-step {
+  display:     flex;
+  align-items: flex-start;
+  gap:         14px;
+  font-size:   14px;
+  color:       var(--text-secondary, #a0a0c0);
+  line-height: 1.6;
+}
+
+.guide-num {
+  width:           28px;
+  height:          28px;
+  border-radius:   8px;
+  background:      linear-gradient(135deg, #43e97b, #38f9d7);
+  color:           #0f0f1a;
+  font-size:       13px;
+  font-weight:     800;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  flex-shrink:     0;
+}
+
+/* ============================================
+   BADGES (used in teacher.js rendered rows)
+============================================ */
+.badge {
+  display:        inline-flex;
+  align-items:    center;
+  padding:        3px 10px;
+  border-radius:  20px;
+  font-size:      11px;
+  font-weight:    700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space:    nowrap;
+}
+
+.badge-green  { background: rgba(67, 233, 123, 0.12); color: #43e97b; }
+.badge-red    { background: rgba(255, 101, 132, 0.12); color: var(--secondary, #ff6584); }
+.badge-purple { background: rgba(108, 99, 255, 0.12);  color: var(--primary-light, #a78bfa); }
+.badge-orange { background: rgba(255, 165, 0, 0.12);   color: #ffa500; }
+
+/* Exam code pill */
+.exam-code {
+  font-family:    monospace;
+  font-size:      13px;
+  font-weight:    800;
+  letter-spacing: 2px;
+  background:     rgba(67, 233, 123, 0.1);
+  border:         1px solid rgba(67, 233, 123, 0.3);
+  color:          #43e97b;
+  padding:        4px 12px;
+  border-radius:  6px;
+  display:        inline-block;
+}
+
+/* ============================================
+   MODALS — class names match HTML exactly
+   HTML uses: .t-modal-overlay, .t-modal-box,
+   .t-modal-header, .t-modal-close,
+   .t-form-grid, .t-form-group, .t-full,
+   .t-modal-footer, .t-radio-label
+============================================ */
+.t-modal-overlay {
+  position:        fixed;
+  inset:           0;
+  background:      rgba(0, 0, 0, 0.75);
+  z-index:         600;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  padding:         20px;
+  overflow-y:      auto;
+}
+
+.t-modal-box {
+  background:    var(--dark-2, #1a1a2e);
+  border:        1px solid var(--border, rgba(255,255,255,0.08));
+  border-radius: 20px;
+  padding:       28px;
+  width:         100%;
+  max-width:     540px;
+  position:      relative;
+  max-height:    92vh;
+  overflow-y:    auto;
+}
+
+.t-modal-header {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  margin-bottom:   22px;
+}
+
+.t-modal-header h2 {
+  font-size:   19px;
+  font-weight: 800;
+  color:       var(--text-primary, #ffffff);
+  margin:      0;
+}
+
+.t-modal-close {
+  width:           32px;
+  height:          32px;
+  border-radius:   8px;
+  background:      rgba(255, 255, 255, 0.06);
+  border:          1px solid var(--border, rgba(255,255,255,0.08));
+  color:           var(--text-muted, #6b6b8a);
+  cursor:          pointer;
+  font-size:       15px;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  font-family:     inherit;
+  transition:      all 0.2s;
+  flex-shrink:     0;
+}
+
+.t-modal-close:hover {
+  background: rgba(255, 101, 132, 0.15);
+  color:      var(--secondary, #ff6584);
+}
+
+/* ---- Form grid inside modal ---- */
+.t-form-grid {
+  display:               grid;
+  grid-template-columns: 1fr 1fr;
+  gap:                   16px;
+}
+
+.t-full {
+  grid-column: span 2;
+}
+
+@media (max-width: 500px) {
+  .t-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .t-full {
+    grid-column: span 1;
+  }
+}
+
+.t-form-group {
+  display:        flex;
+  flex-direction: column;
+  gap:            6px;
+}
+
+.t-form-group label {
+  font-size:      12px;
+  font-weight:    700;
+  color:          var(--text-secondary, #a0a0c0);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.t-form-group input,
+.t-form-group select,
+.t-form-group textarea {
+  background:    rgba(255, 255, 255, 0.04);
+  border:        1px solid var(--border, rgba(255,255,255,0.08));
+  border-radius: 8px;
+  padding:       11px 14px;
+  color:         var(--text-primary, #ffffff);
+  font-size:     14px;
+  font-family:   inherit;
+  outline:       none;
+  width:         100%;
+  box-sizing:    border-box;
+  transition:    border-color 0.2s;
+}
+
+.t-form-group input:focus,
+.t-form-group select:focus,
+.t-form-group textarea:focus {
+  border-color: #43e97b;
+}
+
+.t-form-group textarea {
+  resize:     vertical;
+  min-height: 80px;
+}
+
+.t-modal-footer {
+  display:         flex;
+  justify-content: flex-end;
+  gap:             10px;
+  margin-top:      20px;
+  padding-top:     16px;
+  border-top:      1px solid var(--border, rgba(255,255,255,0.08));
+  flex-wrap:       wrap;
+}
+
+.t-radio-label {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  font-size:   14px;
+  color:       var(--text-secondary, #a0a0c0);
+  cursor:      pointer;
+}
+
+/* Mobile: modal becomes bottom sheet */
+@media (max-width: 600px) {
+  .t-modal-overlay {
+    align-items: flex-end;
+    padding:     0;
+  }
+
+  .t-modal-box {
+    border-radius: 20px 20px 0 0;
+    max-width:     100%;
+    padding:       22px 16px 28px;
+    max-height:    88vh;
+    margin:        0;
+  }
+}
+
+/* ============================================
+   TOAST
+============================================ */
+#teacherToast {
+  position:      fixed;
+  bottom:        24px;
+  right:         24px;
+  background:    var(--dark-2, #1a1a2e);
+  border:        1px solid var(--border, rgba(255,255,255,0.08));
+  border-radius: 10px;
+  padding:       14px 20px;
+  font-size:     14px;
+  font-weight:   600;
+  color:         var(--text-primary, #ffffff);
+  z-index:       9999;
+  box-shadow:    0 8px 32px rgba(0, 0, 0, 0.4);
+  max-width:     320px;
+  word-break:    break-word;
+  animation:     slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 600px) {
+  #teacherToast {
+    bottom:    12px;
+    right:     12px;
+    left:      12px;
+    max-width: none;
+  }
+}
+
+/* ============================================
+   PASSWORD FIELD (shared from style.css)
+============================================ */
+.pw-field-wrap {
+  position: relative;
+}
+
+.pw-field-wrap input {
+  padding-right: 44px;
+}
+
+.pw-eye {
+  position:   absolute;
+  right:      12px;
+  top:        50%;
+  transform:  translateY(-50%);
+  background: none;
+  border:     none;
+  cursor:     pointer;
+  font-size:  16px;
+  color:      var(--text-muted, #6b6b8a);
+  padding:    4px;
+  line-height: 1;
+}
+
+/* ============================================
+   SHOW MOBILE BAR ON SMALL SCREENS
+============================================ */
+@media (max-width: 960px) {
+  .teacher-mobile-bar {
+    display: flex;
+  }
+}

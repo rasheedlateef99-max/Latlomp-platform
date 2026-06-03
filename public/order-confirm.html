@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order Confirmation — LatLomp Platform</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin:      0;
+      padding:     0;
+      min-height:  100vh;
+      background:  var(--dark, #0f0f1a);
+      font-family: 'Inter', sans-serif;
+      display:     flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    @keyframes spin    { to { transform: rotate(360deg); } }
+    @keyframes fadeUp  { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes popIn   { 0%   { transform:scale(0); } 60% { transform:scale(1.2); } 100% { transform:scale(1); } }
+
+    /* ---- Top nav bar ---- */
+    .oc-nav {
+      width:           100%;
+      max-width:       100%;
+      display:         flex;
+      align-items:     center;
+      justify-content: space-between;
+      padding:         0 24px;
+      height:          64px;
+      background:      var(--dark-2, #1a1a2e);
+      border-bottom:   1px solid var(--border, rgba(255,255,255,0.08));
+      flex-shrink:     0;
+    }
+
+    .oc-logo {
+      display:     flex;
+      align-items: center;
+      gap:         8px;
+      text-decoration: none;
+    }
+
+    .oc-logo span {
+      font-size:   16px;
+      font-weight: 800;
+      color:       var(--text-primary, #fff);
+    }
+
+    /* ---- Main card ---- */
+    .oc-wrap {
+      width:      100%;
+      max-width:  520px;
+      padding:    32px 20px 60px;
+      animation:  fadeUp 0.4s ease;
+    }
+
+    .oc-card {
+      background:    var(--dark-2, #1a1a2e);
+      border:        1px solid var(--border, rgba(255,255,255,0.08));
+      border-radius: 20px;
+      overflow:      hidden;
+    }
+
+    /* ---- State header ---- */
+    .oc-header {
+      padding:    32px 28px;
+      text-align: center;
+    }
+
+    .oc-icon {
+      font-size:     52px;
+      margin-bottom: 16px;
+      display:       block;
+      animation:     popIn 0.5s ease 0.2s both;
+    }
+
+    .oc-title {
+      font-size:   22px;
+      font-weight: 800;
+      color:       var(--text-primary, #fff);
+      margin:      0 0 8px;
+    }
+
+    .oc-subtitle {
+      font-size:   14px;
+      color:       var(--text-muted, #6b6b8a);
+      margin:      0;
+      line-height: 1.5;
+    }
+
+    /* ---- Reference box ---- */
+    .oc-ref-box {
+      margin:     0 28px 20px;
+      background: rgba(67,233,123,0.06);
+      border:     1px solid rgba(67,233,123,0.2);
+      border-radius: 12px;
+      padding:    14px 18px;
+    }
+
+    .oc-ref-label {
+      font-size:      11px;
+      font-weight:    700;
+      color:          var(--text-muted, #6b6b8a);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom:  4px;
+    }
+
+    .oc-ref-code {
+      font-size:      15px;
+      font-weight:    800;
+      color:          #43e97b;
+      font-family:    monospace;
+      letter-spacing: 1px;
+      word-break:     break-all;
+    }
+
+    /* ---- Order details ---- */
+    .oc-details {
+      padding: 0 28px 20px;
+    }
+
+    .oc-detail-row {
+      display:         flex;
+      justify-content: space-between;
+      align-items:     center;
+      padding:         10px 0;
+      border-bottom:   1px solid var(--border, rgba(255,255,255,0.06));
+      font-size:       14px;
+    }
+
+    .oc-detail-row:last-child { border-bottom: none; }
+
+    .oc-detail-label { color: var(--text-muted, #6b6b8a); }
+    .oc-detail-val   { color: var(--text-primary, #fff); font-weight: 600; }
+    .oc-detail-green { color: #43e97b; font-weight: 800; font-size: 16px; }
+
+    /* ---- Order items ---- */
+    .oc-items {
+      padding:     0 28px 20px;
+    }
+
+    .oc-items-title {
+      font-size:   13px;
+      font-weight: 700;
+      color:       var(--text-secondary, #a0a0c0);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    .oc-item {
+      display:       flex;
+      align-items:   center;
+      gap:           12px;
+      padding:       10px 0;
+      border-bottom: 1px solid var(--border, rgba(255,255,255,0.05));
+    }
+
+    .oc-item:last-child { border-bottom: none; }
+
+    .oc-item-name {
+      flex:        1;
+      font-size:   13px;
+      font-weight: 600;
+      color:       var(--text-secondary, #a0a0c0);
+    }
+
+    .oc-item-qty {
+      font-size:   12px;
+      color:       var(--text-muted, #6b6b8a);
+      white-space: nowrap;
+    }
+
+    .oc-item-price {
+      font-size:   13px;
+      font-weight: 700;
+      color:       var(--text-primary, #fff);
+      white-space: nowrap;
+    }
+
+    /* ---- Footer buttons ---- */
+    .oc-actions {
+      padding:    20px 28px 28px;
+      display:    flex;
+      flex-direction: column;
+      gap:        10px;
+    }
+
+    .oc-btn {
+      display:       block;
+      width:         100%;
+      padding:       14px;
+      border-radius: 12px;
+      font-size:     15px;
+      font-weight:   700;
+      cursor:        pointer;
+      font-family:   inherit;
+      border:        none;
+      text-align:    center;
+      text-decoration: none;
+      transition:    all 0.2s;
+    }
+
+    .oc-btn-primary {
+      background: linear-gradient(135deg, #43e97b, #38f9d7);
+      color:      #0f0f1a;
+    }
+
+    .oc-btn-primary:hover {
+      transform:  translateY(-1px);
+      box-shadow: 0 4px 16px rgba(67,233,123,0.35);
+    }
+
+    .oc-btn-secondary {
+      background:  rgba(255,255,255,0.05);
+      border:      1px solid var(--border, rgba(255,255,255,0.08));
+      color:       var(--text-secondary, #a0a0c0);
+    }
+
+    .oc-btn-secondary:hover {
+      background: rgba(255,255,255,0.1);
+      color:      var(--text-primary, #fff);
+    }
+
+    .oc-btn-danger {
+      background:  rgba(255,101,132,0.1);
+      border:      1px solid rgba(255,101,132,0.25);
+      color:       var(--secondary, #ff6584);
+    }
+
+    /* ---- Loading state ---- */
+    #stateLoading {
+      text-align: center;
+      padding:    48px 28px;
+    }
+
+    .oc-spinner {
+      width:         48px;
+      height:        48px;
+      border:        4px solid rgba(108,99,255,0.2);
+      border-top-color: var(--primary, #6c63ff);
+      border-radius: 50%;
+      animation:     spin 0.8s linear infinite;
+      margin:        0 auto 20px;
+    }
+
+    .oc-loading-text {
+      font-size:   15px;
+      font-weight: 600;
+      color:       var(--text-secondary, #a0a0c0);
+      margin:      0 0 6px;
+    }
+
+    .oc-loading-sub {
+      font-size: 13px;
+      color:     var(--text-muted, #6b6b8a);
+      margin:    0;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .oc-wrap      { padding: 20px 12px 48px; }
+      .oc-header    { padding: 24px 20px; }
+      .oc-ref-box   { margin: 0 20px 16px; }
+      .oc-details   { padding: 0 20px 16px; }
+      .oc-items     { padding: 0 20px 16px; }
+      .oc-actions   { padding: 16px 20px 24px; }
+      .oc-title     { font-size: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="oc-nav">
+    <a href="index.html" class="oc-logo">
+      <span>⚡ LatLomp</span>
+    </a>
+    <a href="store.html"
+      style="font-size:13px; color:var(--text-muted, #6b6b8a); text-decoration:none;">
+      ← Continue Shopping
+    </a>
+  </nav>
+
+  <!-- Main content -->
+  <div class="oc-wrap">
+    <div class="oc-card" id="mainCard">
+
+      <!-- ========= LOADING STATE ========= -->
+      <div id="stateLoading">
+        <div class="oc-spinner"></div>
+        <p class="oc-loading-text">Verifying your payment...</p>
+        <p class="oc-loading-sub">Please wait, do not close this page.</p>
+      </div>
+
+      <!-- ========= SUCCESS STATE ========= -->
+      <div id="stateSuccess" style="display:none;">
+        <div class="oc-header" style="background:linear-gradient(135deg, rgba(67,233,123,0.08), rgba(56,249,215,0.04));">
+          <span class="oc-icon">🎉</span>
+          <h1 class="oc-title">Payment Successful!</h1>
+          <p class="oc-subtitle">Your order has been confirmed.<br>A confirmation email has been sent to you.</p>
+        </div>
+
+        <!-- Reference -->
+        <div class="oc-ref-box">
+          <div class="oc-ref-label">Payment Reference</div>
+          <div class="oc-ref-code" id="successRef">—</div>
+        </div>
+
+        <!-- Order details -->
+        <div class="oc-details">
+          <div class="oc-detail-row">
+            <span class="oc-detail-label">Order ID</span>
+            <span class="oc-detail-val" id="successOrderId" style="font-family:monospace; font-size:12px;">—</span>
+          </div>
+          <div class="oc-detail-row">
+            <span class="oc-detail-label">Date</span>
+            <span class="oc-detail-val" id="successDate">—</span>
+          </div>
+          <div class="oc-detail-row">
+            <span class="oc-detail-label">Payment Method</span>
+            <span class="oc-detail-val" id="successChannel">—</span>
+          </div>
+          <div class="oc-detail-row">
+            <span class="oc-detail-label">Status</span>
+            <span style="font-size:12px; font-weight:700; padding:3px 10px; border-radius:20px; background:rgba(67,233,123,0.12); color:#43e97b;">✅ CONFIRMED</span>
+          </div>
+          <div class="oc-detail-row" style="border-bottom:none; padding-top:14px;">
+            <span class="oc-detail-label" style="font-weight:700; color:var(--text-secondary);">Total Paid</span>
+            <span class="oc-detail-green" id="successTotal">—</span>
+          </div>
+        </div>
+
+        <!-- Items ordered -->
+        <div class="oc-items" id="successItemsWrap" style="display:none;">
+          <div class="oc-items-title">Items Ordered</div>
+          <div id="successItemsList"></div>
+        </div>
+
+        <!-- Actions -->
+        <div class="oc-actions">
+          <a href="store.html" class="oc-btn oc-btn-primary">🛍️ Continue Shopping</a>
+          <a href="index.html" class="oc-btn oc-btn-secondary">← Back to Platform</a>
+        </div>
+      </div>
+
+      <!-- ========= FAILED STATE ========= -->
+      <div id="stateFailed" style="display:none;">
+        <div class="oc-header" style="background:rgba(255,101,132,0.04);">
+          <span class="oc-icon">❌</span>
+          <h1 class="oc-title">Payment Failed</h1>
+          <p class="oc-subtitle" id="failedMsg">Your payment was not completed.<br>Your cart items are still saved.</p>
+        </div>
+
+        <!-- Reference -->
+        <div class="oc-ref-box" style="background:rgba(255,101,132,0.06); border-color:rgba(255,101,132,0.2);">
+          <div class="oc-ref-label">Reference (for support)</div>
+          <div class="oc-ref-code" id="failedRef" style="color:var(--secondary, #ff6584);">—</div>
+        </div>
+
+        <div class="oc-details">
+          <div class="oc-detail-row" style="border-bottom:none;">
+            <span class="oc-detail-label">Status</span>
+            <span style="font-size:12px; font-weight:700; padding:3px 10px; border-radius:20px; background:rgba(255,101,132,0.12); color:var(--secondary, #ff6584);">❌ FAILED</span>
+          </div>
+        </div>
+
+        <div class="oc-actions">
+          <a href="store.html" class="oc-btn oc-btn-danger" id="retryBtn">Try Again</a>
+          <a href="index.html" class="oc-btn oc-btn-secondary">← Back to Platform</a>
+          <a href="mailto:support@latlomp.com" class="oc-btn oc-btn-secondary" style="font-size:13px;">
+            📧 Contact Support
+          </a>
+        </div>
+      </div>
+
+      <!-- ========= NO REFERENCE STATE ========= -->
+      <div id="stateNoRef" style="display:none;">
+        <div class="oc-header">
+          <span class="oc-icon">🤔</span>
+          <h1 class="oc-title">No Order Found</h1>
+          <p class="oc-subtitle">We couldn't find a payment reference.<br>Please check your cart or contact support.</p>
+        </div>
+        <div class="oc-actions">
+          <a href="store.html" class="oc-btn oc-btn-primary">← Back to Store</a>
+        </div>
+      </div>
+
+      <!-- ========= ERROR STATE ========= -->
+      <div id="stateError" style="display:none;">
+        <div class="oc-header">
+          <span class="oc-icon">⚠️</span>
+          <h1 class="oc-title">Verification Error</h1>
+          <p class="oc-subtitle" id="errorMsg">Could not verify your payment.<br>If you were charged, please contact support with your reference.</p>
+        </div>
+
+        <div class="oc-ref-box" style="background:rgba(255,165,0,0.06); border-color:rgba(255,165,0,0.2);">
+          <div class="oc-ref-label">Reference (for support)</div>
+          <div class="oc-ref-code" id="errorRef" style="color:#ffa500;">—</div>
+        </div>
+
+        <div class="oc-actions">
+          <button class="oc-btn oc-btn-primary" onclick="verifyPayment()">🔄 Retry Verification</button>
+          <a href="store.html" class="oc-btn oc-btn-secondary">← Back to Store</a>
+          <a href="mailto:support@latlomp.com" class="oc-btn oc-btn-secondary" style="font-size:13px;">
+            📧 Contact Support
+          </a>
+        </div>
+      </div>
+
+    </div><!-- end oc-card -->
+  </div><!-- end oc-wrap -->
+
+<script src="js/main.js"></script>
+<script>
+/* ============================================
+   ORDER CONFIRMATION — VERIFICATION LOGIC
+   ============================================ */
+
+/* Get reference from URL: ?ref=LATLOMP_xxx */
+function getRefFromUrl() {
+  var params = new URLSearchParams(window.location.search);
+  return params.get('ref') || params.get('reference') || '';
+}
+
+/* Format date nicely */
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleDateString('en-NG', {
+    day:    'numeric',
+    month:  'long',
+    year:   'numeric',
+    hour:   '2-digit',
+    minute: '2-digit'
+  });
+}
+
+/* Format channel name */
+function formatChannel(channel) {
+  if (!channel) return 'Paystack';
+  var map = { card: '💳 Card', bank: '🏦 Bank Transfer', ussd: '📱 USSD', qr: '📷 QR Code', mobile_money: '📱 Mobile Money', bank_transfer: '🏦 Bank Transfer' };
+  return map[channel] || channel.charAt(0).toUpperCase() + channel.slice(1);
+}
+
+/* Show one state, hide all others */
+function showState(state) {
+  var states = ['stateLoading', 'stateSuccess', 'stateFailed', 'stateNoRef', 'stateError'];
+  states.forEach(function(s) {
+    var el = document.getElementById(s);
+    if (el) el.style.display = (s === state) ? 'block' : 'none';
+  });
+}
+
+/* ---- Main: verify payment ---- */
+async function verifyPayment() {
+  var ref = getRefFromUrl();
+
+  /* No reference in URL */
+  if (!ref) {
+    showState('stateNoRef');
+    return;
+  }
+
+  showState('stateLoading');
+
+  /* Must be logged in */
+  var user = getCurrentUser();
+  if (!user) {
+    /* Not logged in — redirect to signin */
+    window.location.href = 'signin.html?redirect=' + encodeURIComponent(window.location.href);
+    return;
+  }
+
+  try {
+    var res = await apiRequest('/payment/verify/' + ref);
+
+    if (res.ok) {
+      /* ---- PAYMENT SUCCESS ---- */
+      var order = res.data.order;
+
+      /* Fill reference */
+      var refEl = document.getElementById('successRef');
+      if (refEl) refEl.textContent = ref;
+
+      /* Fill order details */
+      var orderIdEl = document.getElementById('successOrderId');
+      if (orderIdEl && order && order._id) {
+        orderIdEl.textContent = order._id;
+      }
+
+      var dateEl = document.getElementById('successDate');
+      if (dateEl) {
+        dateEl.textContent = formatDate(order ? (order.paidAt || order.createdAt) : null);
+      }
+
+      var channelEl = document.getElementById('successChannel');
+      if (channelEl) {
+        channelEl.textContent = formatChannel(order ? order.paystackChannel : null);
+      }
+
+      var totalEl = document.getElementById('successTotal');
+      if (totalEl) {
+        var amount = order ? (order.paidAmount || order.totalAmount || 0) : 0;
+        totalEl.textContent = '₦' + amount.toLocaleString();
+      }
+
+      /* Fill items if available */
+      if (order && order.items && order.items.length > 0) {
+        var itemsWrap = document.getElementById('successItemsWrap');
+        var itemsList = document.getElementById('successItemsList');
+
+        if (itemsWrap) itemsWrap.style.display = 'block';
+
+        if (itemsList) {
+          itemsList.innerHTML = order.items.map(function(item) {
+            return '<div class="oc-item">' +
+              '<span class="oc-item-name">' + (item.name || 'Product') + '</span>' +
+              '<span class="oc-item-qty">× ' + (item.quantity || 1) + '</span>' +
+              '<span class="oc-item-price">₦' + ((item.totalPrice || 0)).toLocaleString() + '</span>' +
+            '</div>';
+          }).join('');
+        }
+      }
+
+      /* Clear cart since payment succeeded */
+      localStorage.removeItem('latlomp_cart');
+
+      showState('stateSuccess');
+
+    } else if (res.data && res.data.failed) {
+      /* ---- PAYMENT FAILED ---- */
+      var failedRefEl = document.getElementById('failedRef');
+      if (failedRefEl) failedRefEl.textContent = ref;
+
+      var failedMsgEl = document.getElementById('failedMsg');
+      if (failedMsgEl) {
+        failedMsgEl.textContent = res.data.message || 'Your payment was not completed. Your cart items are still saved.';
+      }
+
+      /* Set retry button to go back to cart */
+      var retryBtn = document.getElementById('retryBtn');
+      if (retryBtn) retryBtn.href = 'store.html';
+
+      showState('stateFailed');
+
+    } else {
+      /* ---- OTHER ERROR (server error, auth error, etc.) ---- */
+      var errorRefEl = document.getElementById('errorRef');
+      if (errorRefEl) errorRefEl.textContent = ref;
+
+      var errorMsgEl = document.getElementById('errorMsg');
+      if (errorMsgEl && res.data && res.data.message) {
+        errorMsgEl.textContent = res.data.message;
+      }
+
+      showState('stateError');
+    }
+
+  } catch (err) {
+    console.error('verifyPayment error:', err);
+
+    var errorRefEl = document.getElementById('errorRef');
+    if (errorRefEl) errorRefEl.textContent = ref;
+
+    showState('stateError');
+  }
+}
+
+/* ---- Run on page load ---- */
+document.addEventListener('DOMContentLoaded', function() {
+  verifyPayment();
+});
+</script>
+</body>
+</html>

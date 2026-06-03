@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>CBT Exam — LatLomp Platform</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      background: var(--dark, #0f0f1a);
+      font-family: 'Inter', sans-serif;
+      overflow: hidden; /* prevents body scroll — only exam area scrolls */
+    }
+
+    @keyframes spin    { to { transform: rotate(360deg); } }
+    @keyframes pulse   { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+    @keyframes fadeIn  { from { opacity:0; } to { opacity:1; } }
+
+    /* =============================================
+       LAYOUT — Fixed header + scrollable content
+       This is the KEY fix for mobile accessibility.
+    ============================================== */
+    #examApp {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      height: 100dvh; /* dynamic viewport height — iOS fix */
+    }
+
+    /* ---- Top bar (fixed, never scrolls) ---- */
+    .exam-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      height: 56px;
+      background: var(--dark-2, #1a1a2e);
+      border-bottom: 1px solid var(--border, rgba(255,255,255,0.08));
+      flex-shrink: 0;
+      gap: 10px;
+    }
+
+    .exam-subject-tag {
+      font-size: 13px; font-weight: 700;
+      color: var(--primary-light, #a78bfa);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      flex: 1;
+    }
+
+    .exam-timer {
+      font-size: 16px; font-weight: 900;
+      font-family: monospace;
+      color: #43e97b;
+      background: rgba(67,233,123,0.1);
+      border: 1px solid rgba(67,233,123,0.25);
+      padding: 6px 12px; border-radius: 8px;
+      white-space: nowrap; flex-shrink: 0;
+      transition: all 0.3s;
+    }
+    .exam-timer.warning { color: #ffa500; background: rgba(255,165,0,0.1); border-color: rgba(255,165,0,0.3); }
+    .exam-timer.danger  { color: #ff6584; background: rgba(255,101,132,0.1); border-color: rgba(255,101,132,0.3); animation: pulse 1s infinite; }
+
+    .exam-quit-btn {
+      padding: 6px 12px; border-radius: 8px;
+      background: rgba(255,101,132,0.08); border: 1px solid rgba(255,101,132,0.25);
+      color: #ff6584; font-size: 12px; font-weight: 700;
+      cursor: pointer; font-family: inherit; flex-shrink: 0;
+    }
+
+    /* ---- Progress bar ---- */
+    .exam-progress {
+      height: 4px;
+      background: rgba(255,255,255,0.06);
+      flex-shrink: 0;
+    }
+    .exam-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary, #6c63ff), #43e97b);
+      transition: width 0.3s ease;
+    }
+
+    /* ---- Question area (SCROLLABLE) ---- */
+    .exam-body {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 20px 16px;
+    }
+
+    .q-counter {
+      font-size: 12px; font-weight: 700;
+      color: var(--text-muted, #6b6b8a);
+      text-transform: uppercase; letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    .q-text {
+      font-size: 17px; font-weight: 600;
+      color: var(--text-primary, #fff);
+      line-height: 1.6; margin-bottom: 24px;
+    }
+
+    /* ---- Options ---- */
+    .options-list {
+      display: flex; flex-direction: column; gap: 12px;
+      margin-bottom: 32px; /* space below last option */
+    }
+
+    .option-btn {
+      width: 100%; padding: 16px 18px;
+      border-radius: 12px; cursor: pointer;
+      border: 2px solid var(--border, rgba(255,255,255,0.08));
+      background: rgba(255,255,255,0.03);
+      display: flex; align-items: flex-start; gap: 14px;
+      font-family: inherit; transition: all 0.15s;
+      text-align: left;
+    }
+    .option-btn:hover:not(:disabled) { border-color: rgba(108,99,255,0.4); background: rgba(108,99,255,0.06); }
+    .option-btn:active:not(:disabled) { transform: scale(0.99); }
+    .option-btn.selected { border-color: var(--primary, #6c63ff); background: rgba(108,99,255,0.15); }
+    .option-btn:disabled { cursor: default; }
+
+    .option-letter {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border, rgba(255,255,255,0.08));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 800;
+      color: var(--text-muted, #6b6b8a);
+      flex-shrink: 0; margin-top: 1px;
+      transition: all 0.15s;
+    }
+    .option-btn.selected .option-letter {
+      background: var(--primary, #6c63ff);
+      border-color: var(--primary, #6c63ff);
+      color: #fff;
+    }
+    .option-text { font-size: 15px; color: var(--text-primary, #fff); line-height: 1.5; flex: 1; }
+
+    /* ---- Bottom nav (fixed, never scrolls) ---- */
+    .exam-footer {
+      padding: 12px 16px;
+      background: var(--dark-2, #1a1a2e);
+      border-top: 1px solid var(--border, rgba(255,255,255,0.08));
+      display: flex; align-items: center; gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .nav-btn {
+      flex: 1; padding: 14px;
+      border-radius: 12px; font-size: 14px; font-weight: 700;
+      cursor: pointer; font-family: inherit; border: none;
+      transition: all 0.2s;
+    }
+    .nav-btn-prev {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border, rgba(255,255,255,0.08));
+      color: var(--text-secondary, #a0a0c0);
+    }
+    .nav-btn-next {
+      background: linear-gradient(135deg, var(--primary, #6c63ff), var(--primary-dark, #574fd6));
+      color: #fff;
+    }
+    .nav-btn-submit {
+      background: linear-gradient(135deg, #43e97b, #38f9d7);
+      color: #0f0f1a;
+    }
+    .nav-btn:hover:not(:disabled) { transform: translateY(-1px); }
+    .nav-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* ---- Question grid (mini navigator) ---- */
+    .q-grid-toggle {
+      padding: 8px 14px; border-radius: 8px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border, rgba(255,255,255,0.08));
+      color: var(--text-secondary, #a0a0c0);
+      font-size: 12px; font-weight: 700;
+      cursor: pointer; font-family: inherit; white-space: nowrap;
+    }
+
+    .q-grid-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+      z-index: 500; display: none; flex-direction: column;
+      align-items: flex-end;
+    }
+    .q-grid-overlay.open { display: flex; }
+
+    .q-grid-panel {
+      background: var(--dark-2, #1a1a2e);
+      border-left: 1px solid var(--border, rgba(255,255,255,0.08));
+      width: min(320px, 90vw);
+      height: 100%; padding: 20px;
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
+    }
+
+    .q-grid-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .q-grid-header h3 { font-size: 16px; font-weight: 800; color: #fff; margin: 0; }
+
+    .q-dots {
+      display: flex; flex-wrap: wrap; gap: 8px;
+    }
+    .q-dot {
+      width: 36px; height: 36px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+      border: 1px solid var(--border, rgba(255,255,255,0.08));
+      background: rgba(255,255,255,0.04);
+      color: var(--text-muted, #6b6b8a);
+      transition: all 0.15s;
+    }
+    .q-dot.answered { background: rgba(67,233,123,0.15); border-color: rgba(67,233,123,0.3); color: #43e97b; }
+    .q-dot.current  { background: rgba(108,99,255,0.25); border-color: var(--primary, #6c63ff); color: var(--primary-light, #a78bfa); }
+
+    /* ---- Loading / no-session screens ---- */
+    #loadingScreen, #noSessionScreen {
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 16px; height: 100vh;
+      color: var(--text-secondary, #a0a0c0); font-size: 14px;
+    }
+    .big-spinner {
+      width: 48px; height: 48px;
+      border: 4px solid rgba(108,99,255,0.2);
+      border-top-color: var(--primary, #6c63ff);
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+
+    /* ---- Subject transition ---- */
+    .subject-banner {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+      z-index: 400; display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 16px;
+      animation: fadeIn 0.3s ease;
+    }
+    .subject-banner h2 { font-size: 24px; font-weight: 800; color: #fff; margin: 0; text-align: center; }
+    .subject-banner p  { font-size: 14px; color: var(--text-muted, #6b6b8a); margin: 0; text-align: center; }
+    .subject-banner-icon { font-size: 56px; }
+  </style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loadingScreen">
+  <div class="big-spinner"></div>
+  <p>Loading exam session...</p>
+</div>
+
+<!-- NO SESSION -->
+<div id="noSessionScreen" style="display:none;">
+  <div style="font-size:48px; margin-bottom:8px;">⚠️</div>
+  <p style="font-size:18px; font-weight:700; color:#fff;">No exam session found</p>
+  <p>Please start an exam from the CBT page.</p>
+  <a href="cbt.html" style="margin-top:16px; padding:12px 24px; background:linear-gradient(135deg,var(--primary,#6c63ff),var(--primary-dark,#574fd6)); color:#fff; border-radius:10px; font-weight:700; text-decoration:none;">← Go to CBT</a>
+</div>
+
+<!-- MAIN EXAM APP -->
+<div id="examApp" style="display:none;">
+
+  <!-- Top bar -->
+  <div class="exam-topbar">
+    <span class="exam-subject-tag" id="examSubjectTag">Loading...</span>
+    <span class="exam-timer" id="examTimer">00:00</span>
+    <button class="exam-quit-btn" onclick="confirmQuit()">✕ Quit</button>
+  </div>
+
+  <!-- Progress bar -->
+  <div class="exam-progress">
+    <div class="exam-progress-fill" id="progressFill" style="width:0%;"></div>
+  </div>
+
+  <!-- Scrollable question area -->
+  <div class="exam-body" id="examBody">
+    <div class="q-counter" id="qCounter">Question 1 of 1</div>
+    <div class="q-text"    id="qText">Loading...</div>
+    <div class="options-list" id="optionsList"></div>
+  </div>
+
+  <!-- Bottom nav -->
+  <div class="exam-footer">
+    <button class="nav-btn nav-btn-prev" id="prevBtn" onclick="prevQuestion()" disabled>← Prev</button>
+    <button class="q-grid-toggle" onclick="toggleQGrid()" id="qGridBtn">📋</button>
+    <button class="nav-btn nav-btn-next" id="nextBtn" onclick="nextQuestion()">Next →</button>
+    <button class="nav-btn nav-btn-submit" id="submitBtn" onclick="confirmSubmit()" style="display:none;">Submit ✓</button>
+  </div>
+
+</div>
+
+<!-- QUESTION GRID OVERLAY -->
+<div class="q-grid-overlay" id="qGridOverlay" onclick="handleGridOverlayClick(event)">
+  <div class="q-grid-panel">
+    <div class="q-grid-header">
+      <h3>📋 Questions</h3>
+      <button onclick="toggleQGrid()" style="background:none; border:none; color:var(--text-muted); font-size:20px; cursor:pointer;">✕</button>
+    </div>
+    <div class="q-dots" id="qDots"></div>
+    <div style="margin-top:20px; font-size:12px; color:var(--text-muted); line-height:1.8;">
+      <span style="display:inline-block; width:12px; height:12px; background:rgba(67,233,123,0.3); border-radius:3px; margin-right:6px;"></span>Answered<br>
+      <span style="display:inline-block; width:12px; height:12px; background:rgba(108,99,255,0.3); border-radius:3px; margin-right:6px;"></span>Current
+    </div>
+  </div>
+</div>
+
+<script src="js/main.js"></script>
+<script src="js/exam.js"></script>
+</body>
+</html>

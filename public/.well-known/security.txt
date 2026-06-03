@@ -1,0 +1,14 @@
+# ============================================
+# LatLomp Platform — Security Disclosure Policy
+# https://securitytxt.org/
+# ============================================
+
+Contact: mailto:security@latlomp.com
+Preferred-Languages: en
+Canonical: https://latlompsystem.up.railway.app/.well-known/security.txt
+Policy: https://latlompsystem.up.railway.app/security-policy
+Expires: 2027-01-01T00:00:00.000Z
+
+# If you discover a security vulnerability in LatLomp Platform,
+# please report it responsibly to the contact above.
+# We appreciate responsible disclosure and will respond within 5 business days.

@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LatLomp Platform</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/loading.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+<!-- ============================================
+     PAGE LOADING SCREEN
+     Shown briefly while page loads.
+     Fades out automatically when ready.
+     main.js handles the fade out.
+============================================ -->
+<div id="pageLoader">
+  <div class="loader-progress"></div>
+  <div class="loader-logo">
+    <span class="loader-logo-icon">⚡</span>
+    <span class="loader-logo-text">LatLomp</span>
+    <span class="loader-logo-badge">Platform</span>
+  </div>
+  <div class="loader-spinner-wrap">
+    <div class="loader-spinner"></div>
+    <span class="loader-text">Loading...</span>
+  </div>
+</div>
+  <!-- ===== NAVIGATION BAR ===== -->
+<ul class="nav-links" id="navLinks">
+  <li><a href="index.html"     class="nav-link active">Home</a></li>
+  <li><a href="cbt.html"       class="nav-link">CBT Exam</a></li>
+  <li><a href="store.html"     class="nav-link">Store</a></li>
+  <li><a href="portfolio.html" class="nav-link">Portfolio</a></li>
+  <li><a href="games.html"     class="nav-link">Games</a></li>
+  <li><a href="admin.html"     class="nav-link admin-link">Admin</a></li>
+  <li class="nav-divider-item">|</li>
+ <li><a href="teacher-signin.html" class="nav-link teacher-nav-btn">📚 Teacher</a></li>
+  <li><a href="student-login.html" class="nav-link student-nav-btn">🎓 Student</a></li>
+  <!-- Auth button — updated by main.js updateNavForAuthState() -->
+  <li id="authNavItem">
+    <a href="#"
+      onclick="event.preventDefault(); showLoginModal();"
+      class="nav-link"
+      style="background:rgba(108,99,255,0.1); border:1px solid rgba(108,99,255,0.2); color:var(--primary-light); font-weight:700; padding:8px 16px; border-radius:8px; font-size:14px; white-space:nowrap; display:inline-block;">
+      Login / Register
+    </a>
+  </li>
+</ul>
+      <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ===== HERO SECTION ===== -->
+  <section class="hero" id="home">
+    <div class="hero-background">
+      <div class="hero-shape shape-1"></div>
+      <div class="hero-shape shape-2"></div>
+      <div class="hero-shape shape-3"></div>
+    </div>
+    <div class="hero-content">
+      <div class="hero-badge">🇳🇬 Built for Nigerian Students & Businesses</div>
+      <h1 class="hero-title">
+        Welcome to <span class="highlight">LatLomp</span><br/>Platform
+      </h1>
+      <p class="hero-subtitle">
+        Your all-in-one platform for CBT exam preparation, digital shopping,
+        portfolio showcase, and educational games — all in one place.
+      </p>
+      <div class="hero-buttons">
+  <a href="#login-entry" class="btn btn-primary">Get Started →</a>
+  <a href="#modules" class="btn btn-secondary">Explore Platform</a>
+</div>
+<div class="hero-role-pills">
+ <a href="teacher-signin.html" class="entry-card-btn teacher-btn">
+  📚 Teacher Login
+</a>
+  <a href="student-login.html" class="role-pill student-pill">🎓 Student Exam Access</a>
+  <a href="cbt.html" class="role-pill cbt-pill">📝 CBT Practice</a>
+</div>
+      <div class="hero-stats">
+        <div class="stat">
+          <span class="stat-number">500+</span>
+          <span class="stat-label">Practice Questions</span>
+        </div>
+        <div class="stat">
+          <span class="stat-number">5</span>
+          <span class="stat-label">Core Modules</span>
+        </div>
+        <div class="stat">
+          <span class="stat-number">100%</span>
+          <span class="stat-label">Free to Start</span>
+        </div>
+      </div>
+    </div>
+  </section>
+<!-- ===== LOGIN ENTRY SECTION ===== -->
+<section class="login-entry-section" id="login-entry">
+  <div class="container">
+
+    <div class="section-header">
+      <span class="section-tag">🚀 Get Started</span>
+      <h2 class="section-title">Choose Your Role</h2>
+      <p class="section-subtitle">Select how you want to use the LatLomp Platform</p>
+    </div>
+
+    <div class="entry-cards-wrapper">
+
+      <!-- TEACHER CARD -->
+      <div class="entry-card teacher-entry-card">
+        <div class="entry-card-glow teacher-glow"></div>
+        <div class="entry-icon-wrapper teacher-icon-wrapper">
+          <span class="entry-icon">📚</span>
+        </div>
+        <h3 class="entry-title">I'm a Teacher</h3>
+        <p class="entry-desc">
+          Create and manage exams, add questions, set your own exam codes,
+          and monitor every student's performance in real time.
+        </p>
+        <ul class="entry-features">
+          <li>✓ Create Objective & Theory exams</li>
+          <li>✓ Set your own custom exam code</li>
+          <li>✓ Add unlimited questions</li>
+          <li>✓ Monitor student submissions live</li>
+          <li>✓ View detailed student answers</li>
+        </ul>
+        <a href="teacher-signin.html" class="entry-card-btn teacher-btn">
+  📚 Teacher Login
+</a>
+          Login as Teacher →
+        </a>
+      </div>
+
+      <!-- DIVIDER -->
+      <div class="entry-divider">
+        <div class="entry-divider-line"></div>
+        <span class="entry-divider-text">OR</span>
+        <div class="entry-divider-line"></div>
+      </div>
+
+      <!-- STUDENT CARD -->
+      <div class="entry-card student-entry-card">
+        <div class="entry-card-glow student-glow"></div>
+        <div class="entry-icon-wrapper student-icon-wrapper">
+          <span class="entry-icon">🎓</span>
+        </div>
+        <h3 class="entry-title">I'm a Student</h3>
+        <p class="entry-desc">
+          Enter the exam code your teacher gave you, take your exam,
+          and get your results instantly — no account needed.
+        </p>
+        <ul class="entry-features">
+          <li>✓ No account or password needed</li>
+          <li>✓ Just enter your name + exam code</li>
+          <li>✓ Timed exam with auto-submit</li>
+          <li>✓ Objective & Theory questions</li>
+          <li>✓ Instant result after submission</li>
+        </ul>
+        <a href="student-login.html" class="entry-btn student-entry-btn">
+          Enter Exam with Code →
+        </a>
+      </div>
+
+    </div>
+
+    <!-- EXTRA INFO BAR -->
+    <div class="entry-info-bar">
+      <div class="entry-info-item">
+        <span class="entry-info-icon">🔐</span>
+        <div>
+          <strong>Teachers</strong> — Login with your teacher account
+        </div>
+      </div>
+      <div class="entry-info-divider"></div>
+      <div class="entry-info-item">
+        <span class="entry-info-icon">📋</span>
+        <div>
+          <strong>Students</strong> — No account needed. Just your name + exam code
+        </div>
+      </div>
+      <div class="entry-info-divider"></div>
+      <div class="entry-info-item">
+        <span class="entry-info-icon">⚙️</span>
+        <div>
+          <strong>Admins</strong> — <a href="admin.html" style="color:var(--primary-light); font-weight:600;">Access admin panel →</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+  <!-- ===== MODULES SECTION ===== -->
+  <section class="modules" id="modules">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">What We Offer</span>
+        <h2 class="section-title">Platform Modules</h2>
+        <p class="section-subtitle">Everything you need in one powerful platform</p>
+      </div>
+
+      <div class="modules-grid">
+
+        <!-- CBT MODULE CARD -->
+        <div class="module-card cbt-card" onclick="window.location='cbt.html'">
+          <div class="card-icon">📝</div>
+          <div class="card-badge">Most Popular</div>
+          <h3 class="card-title">CBT Exam System</h3>
+          <p class="card-desc">
+            Practice JAMB, WAEC, NECO and more with our timed computer-based 
+            test system. Get instant scores and track your progress.
+          </p>
+          <ul class="card-features">
+            <li>✓ Timed examinations</li>
+            <li>✓ Auto-submit system</li>
+            <li>✓ Instant result & score</li>
+            <li>✓ Result history</li>
+          </ul>
+          <a href="cbt.html" class="card-btn">Start Practicing →</a>
+        </div>
+
+        <!-- STORE MODULE CARD -->
+        <div class="module-card store-card" onclick="window.location='store.html'">
+          <div class="card-icon">🛒</div>
+          <h3 class="card-title">Digital Store</h3>
+          <p class="card-desc">
+            Browse and purchase digital products, study materials, templates, 
+            and resources. Instant digital delivery.
+          </p>
+          <ul class="card-features">
+            <li>✓ Digital downloads</li>
+            <li>✓ Study materials</li>
+            <li>✓ Secure checkout</li>
+            <li>✓ Instant delivery</li>
+          </ul>
+          <a href="store.html" class="card-btn">Visit Store →</a>
+        </div>
+
+        <!-- PORTFOLIO MODULE CARD -->
+        <div class="module-card portfolio-card" onclick="window.location='portfolio.html'">
+          <div class="card-icon">💼</div>
+          <h3 class="card-title">Portfolio & Business</h3>
+          <p class="card-desc">
+            Showcase your work, services, and projects to the world. 
+            Professional portfolio and business profile built-in.
+          </p>
+          <ul class="card-features">
+            <li>✓ Professional showcase</li>
+            <li>✓ Services listing</li>
+            <li>✓ Project gallery</li>
+            <li>✓ Contact form</li>
+          </ul>
+          <a href="portfolio.html" class="card-btn">View Portfolio →</a>
+        </div>
+
+        <!-- GAMES MODULE CARD -->
+        <div class="module-card games-card" onclick="window.location='games.html'">
+          <div class="card-icon">🎮</div>
+          <h3 class="card-title">Educational Games</h3>
+          <p class="card-desc">
+            Learn while playing! Quiz games, word challenges, and educational 
+            tools designed to make studying fun and effective.
+          </p>
+          <ul class="card-features">
+            <li>✓ Quiz challenges</li>
+            <li>✓ Subject-based games</li>
+            <li>✓ Leaderboard</li>
+            <li>✓ Track progress</li>
+          </ul>
+          <a href="games.html" class="card-btn">Play Now →</a>
+        </div>
+
+        <!-- ADMIN MODULE CARD -->
+        <div class="module-card admin-card" onclick="window.location='admin.html'">
+          <div class="card-icon">⚙️</div>
+          <h3 class="card-title">Admin Dashboard</h3>
+          <p class="card-desc">
+            Full control over the entire platform. Manage users, exams, 
+            questions, products, orders, and view all analytics.
+          </p>
+          <ul class="card-features">
+            <li>✓ User management</li>
+            <li>✓ Exam creation</li>
+            <li>✓ Product management</li>
+            <li>✓ Analytics & reports</li>
+          </ul>
+          <a href="admin.html" class="card-btn">Open Dashboard →</a>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== HOW IT WORKS ===== -->
+  <section class="how-it-works">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">Simple Process</span>
+        <h2 class="section-title">How It Works</h2>
+      </div>
+      <div class="steps-grid">
+        <div class="step">
+          <div class="step-number">01</div>
+          <h3>Create Account</h3>
+          <p>Register for free in seconds. No credit card required.</p>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step">
+          <div class="step-number">02</div>
+          <h3>Choose Module</h3>
+          <p>Select the module you need — CBT, Store, Games, or Portfolio.</p>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step">
+          <div class="step-number">03</div>
+          <h3>Start Using</h3>
+          <p>Begin your exam, shopping, or learning journey immediately.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="nav-logo">
+            <span class="logo-icon">⚡</span>
+            <span class="logo-text">LatLomp</span>
+            <span class="logo-badge">Platform</span>
+          </div>
+          <p>Your all-in-one platform for education, commerce, and growth.</p>
+        </div>
+        <div class="footer-links">
+          <h4>Platform</h4>
+          <ul>
+            <li><a href="cbt.html">CBT Exam</a></li>
+            <li><a href="store.html">Store</a></li>
+            <li><a href="portfolio.html">Portfolio</a></li>
+            <li><a href="games.html">Games</a></li>
+          </ul>
+        </div>
+        <div class="footer-links">
+          <h4>Support</h4>
+          <ul>
+            <li><a href="#">Help Center</a></li>
+            <li><a href="#">Contact Us</a></li>
+            <li><a href="#">Privacy Policy</a></li>
+            <li><a href="#">Terms of Use</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>© 2025 LatLomp Platform. Built with ❤️ for Nigeria.</p>
+      </div>
+    </div>
+  </footer>
+
+<!-- ===== LOGIN / REGISTER MODAL ===== -->
+<div id="authModal"
+  style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85);
+         z-index:9999; align-items:center; justify-content:center; padding:20px;
+         overflow-y:auto;">
+  <div style="background:var(--dark-2,#1a1a2e); border:1px solid var(--border,rgba(255,255,255,0.08));
+              border-radius:20px; padding:36px 32px; width:100%; max-width:400px; position:relative;">
+
+    <button onclick="closeModal()"
+      style="position:absolute; top:14px; right:14px; background:rgba(255,255,255,0.06);
+             border:1px solid var(--border); color:var(--text-muted,#6b6b8a);
+             width:32px; height:32px; border-radius:8px; font-size:16px; cursor:pointer;
+             display:flex; align-items:center; justify-content:center;">✕</button>
+
+    <div style="text-align:center; margin-bottom:28px;">
+      <div style="font-size:36px; margin-bottom:10px;">⚡</div>
+      <h2 style="font-size:22px; font-weight:800; color:var(--text-primary,#fff); margin:0 0 6px;">Sign In to LatLomp</h2>
+      <p style="font-size:14px; color:var(--text-secondary,#a0a0c0); margin:0;">Choose how to continue</p>
+    </div>
+
+    <div id="modalErr"
+      style="display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3);
+             color:#ff6584; padding:12px 16px; border-radius:8px; font-size:14px; margin-bottom:16px;"></div>
+
+    <!-- ✅ RESTORED: Custom button — click triggers prompt() overlay -->
+    <button id="modalBtnGoogle"
+      style="width:100%; padding:13px 20px; background:white; border:1px solid #dadce0;
+             border-radius:12px; display:flex; align-items:center; justify-content:center;
+             gap:12px; cursor:pointer; font-size:15px; font-weight:600; color:#3c4043;
+             font-family:inherit; transition:all 0.2s; margin-bottom:12px;"
+      onmouseover="this.style.boxShadow='0 2px 12px rgba(0,0,0,0.15)'"
+      onmouseout="this.style.boxShadow='none'">
+      <svg width="20" height="20" viewBox="0 0 48 48">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.36-8.16 2.36-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+      </svg>
+      Continue with Google
+    </button>
+
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+      <div style="flex:1; height:1px; background:var(--border,rgba(255,255,255,0.08));"></div>
+      <span style="font-size:12px; color:var(--text-muted,#6b6b8a); font-weight:600;">OR</span>
+      <div style="flex:1; height:1px; background:var(--border,rgba(255,255,255,0.08));"></div>
+    </div>
+
+    <a href="signin.html"
+      style="width:100%; padding:13px 20px; background:transparent;
+             border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:12px;
+             display:flex; align-items:center; justify-content:center; gap:12px;
+             font-size:15px; font-weight:600; color:var(--text-primary,#fff);
+             text-decoration:none; box-sizing:border-box;">
+      <span style="font-size:20px;">📱</span>
+      Continue with Phone Number
+    </a>
+
+    <div style="text-align:center; margin-top:16px;">
+      <a href="teacher-signin.html" style="font-size:13px; color:var(--text-muted,#6b6b8a); text-decoration:none;">
+        📚 Teacher Login →
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================
+   INDEX.HTML MODAL — GOOGLE AUTH
+   RESTORED: prompt() approach
+============================================ */
+
+/* Initialize Google once at page load */
+function _initModalGoogle() {
+  if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
+    setTimeout(_initModalGoogle, 500); return;
+  }
+  google.accounts.id.initialize({
+    client_id:             '804260807914-tl2i27hblh8f3s1g4a5ip12hejosk0ab.apps.googleusercontent.com',
+    callback:              handleGoogleResponse,
+    auto_select:           false,
+    cancel_on_tap_outside: true
+  });
+  google.accounts.id.disableAutoSelect();
+}
+
+/* Google callback */
+function handleGoogleResponse(response) {
+  var errEl = document.getElementById('modalErr');
+  if (errEl) errEl.style.display = 'none';
+
+  var btn = document.getElementById('modalBtnGoogle');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.7'; btn.textContent = 'Signing in...'; }
+
+  apiRequest('/auth/google', 'POST', { credential: response.credential, role: 'student' })
+    .then(function(result) {
+      if (result.ok) {
+        saveAuthData(result.data.token, result.data.user);
+        closeModal();
+        updateNavForAuthState();
+        /* Re-init so button is ready next time */
+        google.accounts.id.disableAutoSelect();
+      } else {
+        if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.36-8.16 2.36-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Continue with Google'; }
+        if (errEl) { errEl.textContent = result.data.message || 'Sign in failed. Please try again.'; errEl.style.display = 'block'; }
+      }
+    })
+    .catch(function() {
+      if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+      if (errEl) { errEl.textContent = '❌ Network error. Please try again.'; errEl.style.display = 'block'; }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  /* Initialize Google */
+  _initModalGoogle();
+
+  /* Modal Google button click → prompt() */
+  var modalBtn = document.getElementById('modalBtnGoogle');
+  if (modalBtn) {
+    modalBtn.addEventListener('click', function() {
+      if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
+        var errEl = document.getElementById('modalErr');
+        if (errEl) { errEl.textContent = '⚠️ Google Sign In is still loading. Please wait and try again.'; errEl.style.display = 'block'; }
+        return;
+      }
+      google.accounts.id.disableAutoSelect();
+      google.accounts.id.prompt(function(notification) {
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          closeModal();
+          window.location.href = 'signin.html';
+        }
+      });
+    });
+  }
+
+  /* Close on backdrop click */
+  var modal = document.getElementById('authModal');
+  if (modal) {
+    modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
+  }
+});
+</script>
+
+<script src="js/main.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,118 @@
+/* ============================================
+   LATLOMP PLATFORM — PAGE LOADING SCREEN
+   ============================================
+   This creates a smooth loading overlay that
+   shows briefly when navigating between pages.
+   It fades in when a page starts loading and
+   fades out when it finishes.
+   ============================================ */
+
+/* ---- The full-screen overlay ---- */
+#pageLoader {
+  position: fixed;
+  inset: 0;
+  background: var(--dark);
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+
+  /* Starts visible, fades out when page is ready */
+  opacity: 1;
+  transition: opacity 0.4s ease;
+}
+
+/* Hidden state — added by JS when page is ready */
+#pageLoader.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Fully gone after fade */
+#pageLoader.gone {
+  display: none;
+}
+
+/* ---- Animated logo area ---- */
+.loader-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: loaderPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes loaderPulse {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%       { opacity: 0.7; transform: scale(0.97); }
+}
+
+.loader-logo-icon {
+  font-size: 32px;
+}
+
+.loader-logo-text {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+  font-family: 'Inter', sans-serif;
+}
+
+.loader-logo-badge {
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ---- Spinner ---- */
+.loader-spinner-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.loader-spinner {
+  width: 44px;
+  height: 44px;
+  border: 3px solid rgba(108, 99, 255, 0.2);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: loaderSpin 0.75s linear infinite;
+}
+
+@keyframes loaderSpin {
+  to { transform: rotate(360deg); }
+}
+
+.loader-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.3px;
+}
+
+/* ---- Progress bar at very top of screen ---- */
+.loader-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
+  border-radius: 0 2px 2px 0;
+  animation: loaderProgress 1.2s ease-in-out infinite;
+}
+
+@keyframes loaderProgress {
+  0%   { width: 0%;   opacity: 1; }
+  70%  { width: 85%;  opacity: 1; }
+  100% { width: 100%; opacity: 0; }
+}

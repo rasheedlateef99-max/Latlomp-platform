@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Admin Dashboard — LatLomp Platform</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin:0; padding:0; background:var(--dark,#0f0f1a); font-family:'Inter',sans-serif; overflow-x:hidden; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    .admin-sidebar {
+      position:fixed; top:0; left:0; bottom:0; width:260px; z-index:400;
+      background:var(--dark-2,#1a1a2e);
+      border-right:1px solid var(--border,rgba(255,255,255,0.08));
+      display:flex; flex-direction:column;
+      overflow-y:auto; overflow-x:hidden;
+      transition:transform 0.3s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s;
+    }
+    @media (min-width:961px) { .admin-sidebar { transform:translateX(0) !important; } }
+    @media (max-width:960px) {
+      .admin-sidebar { transform:translateX(-100%); }
+      .admin-sidebar.open { transform:translateX(0); box-shadow:8px 0 48px rgba(0,0,0,0.65); }
+    }
+
+    .admin-sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:399; }
+    .admin-sidebar-overlay.visible { display:block; }
+
+    .admin-mobile-bar {
+      display:none; align-items:center; justify-content:space-between;
+      padding:0 16px; height:60px; background:var(--dark-2,#1a1a2e);
+      border-bottom:1px solid var(--border,rgba(255,255,255,0.08));
+      position:sticky; top:0; z-index:300; flex-shrink:0;
+    }
+    @media (max-width:960px) { .admin-mobile-bar { display:flex !important; } }
+
+    .sb-ham { background:none; border:none; color:var(--text-primary,#fff); font-size:22px; cursor:pointer; padding:8px; border-radius:8px; line-height:1; display:flex; align-items:center; justify-content:center; transition:background 0.15s; }
+    .sb-ham:hover { background:rgba(255,255,255,0.08); }
+
+    .sb-brand { display:flex; align-items:center; gap:12px; padding:20px; border-bottom:1px solid var(--border,rgba(255,255,255,0.08)); min-height:64px; flex-shrink:0; }
+    .sb-user  { display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid var(--border,rgba(255,255,255,0.08)); flex-shrink:0; }
+    .sb-avatar { width:40px; height:40px; border-radius:10px; background:linear-gradient(135deg,#ff6584,#ff8e53); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; flex-shrink:0; }
+    .sb-nav { flex:1; padding:12px 10px; }
+
+    .sb-link {
+      display:flex; align-items:center; gap:10px; padding:11px 12px; border-radius:10px;
+      font-size:14px; font-weight:500; color:var(--text-secondary,#a0a0c0);
+      cursor:pointer; text-decoration:none; transition:all 0.15s; margin-bottom:2px;
+      width:100%; border:none; background:none; font-family:inherit; text-align:left; line-height:1.4;
+    }
+    .sb-link:hover { background:rgba(255,255,255,0.06); color:#fff; }
+    .sb-link.active { background:rgba(255,101,132,0.15); color:#ff6584; font-weight:700; }
+    .sb-icon { font-size:16px; width:22px; text-align:center; flex-shrink:0; }
+
+    .sb-back { display:block; padding:16px 20px; font-size:13px; color:var(--text-muted,#6b6b8a); text-decoration:none; border-top:1px solid var(--border,rgba(255,255,255,0.08)); flex-shrink:0; transition:color 0.2s; }
+    .sb-back:hover { color:#fff; }
+
+    .admin-main { margin-left:260px; min-height:100vh; display:flex; flex-direction:column; width:calc(100% - 260px); }
+    @media (max-width:960px) { .admin-main { margin-left:0 !important; width:100% !important; } }
+
+    .a-content { padding:28px 28px 52px; width:100%; }
+    @media (max-width:960px) { .a-content { padding:20px 16px 44px; } }
+    @media (max-width:600px) { .a-content { padding:16px 12px 40px; } }
+
+    .admin-section { display:none; width:100%; }
+    .admin-section.active { display:block; }
+
+    .a-stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+    @media (max-width:900px) { .a-stats-grid { grid-template-columns:1fr 1fr; } }
+    @media (max-width:500px) { .a-stats-grid { grid-template-columns:1fr; gap:10px; } }
+
+    .a-stat-card { background:var(--dark-2,#1a1a2e); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:14px; padding:20px; display:flex; align-items:center; gap:16px; }
+    .a-stat-icon { font-size:20px; width:44px; height:44px; display:flex; align-items:center; justify-content:center; background:rgba(255,101,132,0.1); border-radius:10px; flex-shrink:0; }
+    .a-stat-val  { font-size:26px; font-weight:900; color:#fff; line-height:1; margin-bottom:3px; }
+    .a-stat-lbl  { font-size:11px; font-weight:700; color:var(--text-muted,#6b6b8a); text-transform:uppercase; letter-spacing:0.5px; }
+
+    .a-card { background:var(--dark-2,#1a1a2e); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:16px; overflow:hidden; margin-bottom:20px; width:100%; }
+    .a-card-head { display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid var(--border,rgba(255,255,255,0.08)); flex-wrap:wrap; gap:10px; }
+    .a-card-head h3 { font-size:16px; font-weight:700; color:#fff; margin:0; }
+
+    .a-page-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:24px; gap:14px; flex-wrap:wrap; }
+    .a-page-header h1 { font-size:22px; font-weight:800; color:#fff; margin:0 0 4px; }
+    .a-page-header p  { font-size:14px; color:var(--text-muted,#6b6b8a); margin:0; }
+
+    .a-btn { display:inline-flex; align-items:center; gap:8px; padding:10px 18px; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; border:none; transition:all 0.2s; white-space:nowrap; text-decoration:none; }
+    .a-btn-primary  { background:linear-gradient(135deg,#ff6584,#ff8e53); color:#fff; }
+    .a-btn-primary:hover { transform:translateY(-1px); box-shadow:0 4px 16px rgba(255,101,132,0.35); }
+    .a-btn-green    { background:linear-gradient(135deg,#43e97b,#38f9d7); color:#0f0f1a; }
+    .a-btn-green:hover { transform:translateY(-1px); box-shadow:0 4px 16px rgba(67,233,123,0.35); }
+    .a-btn-secondary { background:rgba(255,255,255,0.06); border:1px solid var(--border,rgba(255,255,255,0.08)); color:var(--text-secondary,#a0a0c0); }
+    .a-btn-sm { padding:6px 12px; font-size:13px; }
+
+    .a-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; width:100%; }
+    .admin-table { width:100%; border-collapse:collapse; min-width:560px; }
+    .admin-table th { padding:11px 14px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted,#6b6b8a); background:rgba(255,255,255,0.02); border-bottom:1px solid var(--border,rgba(255,255,255,0.08)); white-space:nowrap; }
+    .admin-table td { padding:11px 14px; font-size:14px; color:var(--text-secondary,#a0a0c0); border-bottom:1px solid var(--border,rgba(255,255,255,0.08)); vertical-align:middle; }
+    .admin-table tr:last-child td { border-bottom:none; }
+    .admin-table tr:hover td { background:rgba(255,255,255,0.02); }
+
+    .t-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:600; display:flex; align-items:center; justify-content:center; padding:20px; overflow-y:auto; }
+    .t-modal-box { background:var(--dark-2,#1a1a2e); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:20px; padding:28px; width:100%; max-width:560px; max-height:92vh; overflow-y:auto; }
+    .t-modal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:22px; }
+    .t-modal-header h2 { font-size:19px; font-weight:800; color:#fff; margin:0; }
+    .t-modal-close { width:32px; height:32px; border-radius:8px; background:rgba(255,255,255,0.06); border:1px solid var(--border,rgba(255,255,255,0.08)); color:var(--text-muted,#6b6b8a); cursor:pointer; font-size:15px; display:flex; align-items:center; justify-content:center; font-family:inherit; transition:all 0.2s; }
+    .t-modal-close:hover { background:rgba(255,101,132,0.15); color:#ff6584; }
+
+    .t-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .t-full { grid-column:span 2; }
+    @media (max-width:500px) { .t-form-grid { grid-template-columns:1fr; } .t-full { grid-column:span 1; } }
+
+    .t-form-group { display:flex; flex-direction:column; gap:6px; }
+    .t-form-group label { font-size:12px; font-weight:700; color:var(--text-secondary,#a0a0c0); text-transform:uppercase; letter-spacing:0.4px; }
+    .t-form-group input, .t-form-group select, .t-form-group textarea { background:rgba(255,255,255,0.04); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:8px; padding:11px 14px; color:#fff; font-size:14px; font-family:inherit; outline:none; width:100%; transition:border-color 0.2s; }
+    .t-form-group input:focus, .t-form-group select:focus, .t-form-group textarea:focus { border-color:#ff6584; }
+    .t-form-group textarea { resize:vertical; min-height:80px; }
+
+    .t-modal-footer { display:flex; justify-content:flex-end; gap:10px; margin-top:20px; padding-top:16px; border-top:1px solid var(--border,rgba(255,255,255,0.08)); flex-wrap:wrap; }
+
+    @media (max-width:600px) {
+      .t-modal-overlay { align-items:flex-end; padding:0; }
+      .t-modal-box { border-radius:20px 20px 0 0; max-width:100%; padding:22px 16px 28px; max-height:90vh; }
+    }
+
+    .img-upload-area { border:2px dashed var(--border,rgba(255,255,255,0.08)); border-radius:12px; padding:20px; text-align:center; cursor:pointer; transition:border-color 0.2s; }
+    .img-upload-area:hover { border-color:#ff6584; }
+    #imagePreview { display:none; margin-top:12px; }
+    #imagePreviewImg { max-width:100%; max-height:200px; border-radius:10px; object-fit:cover; border:1px solid var(--border,rgba(255,255,255,0.08)); }
+
+    /* ---- CBT Management specific styles ---- */
+    .cbt-cat-pill {
+      padding:8px 18px; border-radius:20px; cursor:pointer;
+      border:1px solid var(--border,rgba(255,255,255,0.08));
+      background:rgba(255,255,255,0.04);
+      color:var(--text-secondary,#a0a0c0);
+      font-size:13px; font-weight:700; font-family:inherit;
+      transition:all 0.2s; white-space:nowrap;
+    }
+    .cbt-cat-pill:hover { background:rgba(108,99,255,0.08); border-color:rgba(108,99,255,0.3); color:#fff; }
+    .cbt-cat-pill.active { background:rgba(108,99,255,0.18); border-color:rgba(108,99,255,0.45); color:var(--primary-light,#a78bfa); }
+
+    .cbt-list-item {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:12px 16px; cursor:pointer;
+      border-bottom:1px solid var(--border,rgba(255,255,255,0.06));
+      transition:background 0.15s;
+    }
+    .cbt-list-item:last-child { border-bottom:none; }
+    .cbt-list-item:hover { background:rgba(255,255,255,0.03); }
+    .cbt-list-item.selected { background:rgba(108,99,255,0.12); border-left:3px solid var(--primary,#6c63ff); }
+    .cbt-list-item-name { font-size:14px; font-weight:700; color:#fff; }
+    .cbt-list-item-meta { font-size:12px; color:var(--text-muted); margin-top:2px; }
+
+    .cbt-q-item {
+      padding:14px 16px;
+      border-bottom:1px solid var(--border,rgba(255,255,255,0.06));
+    }
+    .cbt-q-item:last-child { border-bottom:none; }
+
+    #adminToast { position:fixed; bottom:24px; right:24px; background:var(--dark-2,#1a1a2e); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:10px; padding:14px 20px; font-size:14px; font-weight:600; color:#fff; z-index:9999; box-shadow:0 8px 32px rgba(0,0,0,0.4); max-width:320px; }
+    @media (max-width:600px) { #adminToast { bottom:12px; right:12px; left:12px; max-width:none; } }
+  </style>
+</head>
+<body>
+
+<!-- ADMIN LOGIN -->
+<div id="adminDenied"
+  style="display:none; min-height:100vh; flex-direction:column; align-items:center;
+         justify-content:center; padding:32px; text-align:center; gap:20px;">
+  <div style="font-size:28px; font-weight:800; color:#fff;">⚡ LatLomp Admin</div>
+  <div style="background:var(--dark-2,#1a1a2e); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:20px; padding:36px 32px; width:100%; max-width:400px; text-align:left;">
+    <div style="text-align:center; margin-bottom:28px;">
+      <div style="font-size:40px; margin-bottom:10px;">🔐</div>
+      <h1 style="font-size:22px; font-weight:800; color:#fff; margin:0 0 6px;">Admin Access</h1>
+      <p style="font-size:14px; color:var(--text-secondary,#a0a0c0); margin:0;">Enter your admin credentials to continue</p>
+    </div>
+    <div id="adminLoginErr" style="display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:#ff6584; padding:12px 16px; border-radius:8px; font-size:14px; margin-bottom:16px;"></div>
+    <div style="margin-bottom:16px;">
+      <label style="display:block; font-size:12px; font-weight:700; color:var(--text-secondary,#a0a0c0); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Admin Email</label>
+      <input type="email" id="adminLoginEmail" placeholder="admin@yourdomain.com" autocomplete="username"
+        style="width:100%; background:rgba(255,255,255,0.04); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:10px; padding:13px 16px; color:#fff; font-size:15px; font-family:inherit; outline:none; box-sizing:border-box; transition:border-color 0.2s;"
+        onfocus="this.style.borderColor='#ff6584'" onblur="this.style.borderColor='var(--border,rgba(255,255,255,0.08))'"
+        onkeydown="if(event.key==='Enter') document.getElementById('adminLoginPassword').focus()" />
+    </div>
+    <div style="margin-bottom:24px;">
+      <label style="display:block; font-size:12px; font-weight:700; color:var(--text-secondary,#a0a0c0); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Admin Password</label>
+      <div style="position:relative;">
+        <input type="password" id="adminLoginPassword" placeholder="Your admin password" autocomplete="current-password"
+          style="width:100%; background:rgba(255,255,255,0.04); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:10px; padding:13px 48px 13px 16px; color:#fff; font-size:15px; font-family:inherit; outline:none; box-sizing:border-box; transition:border-color 0.2s;"
+          onfocus="this.style.borderColor='#ff6584'" onblur="this.style.borderColor='var(--border,rgba(255,255,255,0.08))'"
+          onkeydown="if(event.key==='Enter') submitAdminLogin()" />
+        <button type="button" onclick="togglePw('adminLoginPassword', this)"
+          style="position:absolute; right:12px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:16px; color:var(--text-muted,#6b6b8a); padding:4px;">👁</button>
+      </div>
+    </div>
+    <button id="adminLoginBtn" onclick="submitAdminLogin()"
+      style="width:100%; padding:14px; background:linear-gradient(135deg,#ff6584,#ff8e53); color:#fff; border:none; border-radius:12px; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; transition:all 0.2s; margin-bottom:16px;">
+      Access Admin Dashboard →
+    </button>
+    <div style="text-align:center;">
+      <a href="index.html" style="font-size:13px; color:var(--text-muted,#6b6b8a); text-decoration:none;">← Back to Platform</a>
+    </div>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="adminLoader" style="min-height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:16px;">
+  <div style="width:48px; height:48px; border:4px solid rgba(255,101,132,0.2); border-top-color:#ff6584; border-radius:50%; animation:spin 0.8s linear infinite;"></div>
+  <p style="color:var(--text-secondary,#a0a0c0); margin:0; font-size:14px;">Loading admin dashboard...</p>
+</div>
+
+<!-- MAIN APP -->
+<div id="adminApp" style="display:none;">
+  <div class="admin-sidebar-overlay" id="adminOverlay"></div>
+
+  <!-- Mobile bar -->
+  <div class="admin-mobile-bar">
+    <button class="sb-ham" onclick="toggleAdminSidebar()">☰</button>
+    <span style="font-size:15px; font-weight:800; color:#fff;">🔧 Admin Panel</span>
+    <span style="font-size:13px; color:var(--text-muted,#6b6b8a);" id="adminMobileSection">Overview</span>
+  </div>
+
+  <!-- Sidebar -->
+  <aside class="admin-sidebar" id="adminSidebar">
+    <div class="sb-brand">
+      <span style="font-size:26px; flex-shrink:0;">🔧</span>
+      <div>
+        <div style="font-size:15px; font-weight:800; color:#fff;">Admin Panel</div>
+        <div style="font-size:11px; color:var(--text-muted,#6b6b8a);">LatLomp Platform</div>
+      </div>
+    </div>
+    <div class="sb-user">
+      <div class="sb-avatar" id="adminAvatar">A</div>
+      <div>
+        <div style="font-size:14px; font-weight:700; color:#fff;" id="adminName">Admin</div>
+        <div style="font-size:11px; color:#ff6584; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Administrator</div>
+      </div>
+    </div>
+    <!-- ✅ Clean nav — no duplicates, no old CBT sections -->
+    <nav class="sb-nav">
+      <button class="sb-link admin-nav-link active" data-section="overview"        onclick="showAdminSection('overview')">       <span class="sb-icon">📊</span> Overview        </button>
+      <button class="sb-link admin-nav-link"         data-section="products"        onclick="showAdminSection('products')">       <span class="sb-icon">🛍️</span> Products        </button>
+      <button class="sb-link admin-nav-link"         data-section="cbt-management" onclick="showAdminSection('cbt-management')"> <span class="sb-icon">📝</span> CBT Management </button>
+      <a href="store.html"   class="sb-link"><span class="sb-icon">🏪</span> View Store     </a>
+      <a href="teacher.html" class="sb-link"><span class="sb-icon">📚</span> Teacher Panel  </a>
+      <button class="sb-link" onclick="adminLogout()"><span class="sb-icon">🚪</span> Logout</button>
+    </nav>
+    <a href="index.html" class="sb-back">← Back to Platform</a>
+  </aside>
+
+  <!-- Main content -->
+  <div class="admin-main">
+    <div class="a-content">
+
+      <!-- ===== OVERVIEW ===== -->
+      <section class="admin-section active" id="as-overview">
+        <div class="a-page-header">
+          <div><h1>Admin Overview</h1><p>Platform management at a glance</p></div>
+          <button class="a-btn a-btn-primary" onclick="showAdminSection('products'); setTimeout(openCreateProduct,300)">+ Add Product</button>
+        </div>
+        <div class="a-stats-grid">
+          <div class="a-stat-card"><div class="a-stat-icon">📦</div><div><div class="a-stat-val" id="statTotalProducts">—</div><div class="a-stat-lbl">Total Products</div></div></div>
+          <div class="a-stat-card"><div class="a-stat-icon">✅</div><div><div class="a-stat-val" id="statActiveProducts">—</div><div class="a-stat-lbl">Active Products</div></div></div>
+          <div class="a-stat-card"><div class="a-stat-icon">⭐</div><div><div class="a-stat-val" id="statFeatured">—</div><div class="a-stat-lbl">Featured</div></div></div>
+          <div class="a-stat-card"><div class="a-stat-icon">⚠️</div><div><div class="a-stat-val" id="statOutOfStock">—</div><div class="a-stat-lbl">Out of Stock</div></div></div>
+        </div>
+        <div class="a-card">
+          <div class="a-card-head"><h3>Quick Actions</h3></div>
+          <div style="padding:22px; display:flex; flex-wrap:wrap; gap:12px;">
+            <button class="a-btn a-btn-green"      onclick="showAdminSection('products'); setTimeout(openCreateProduct,300)">+ Add Product</button>
+            <button class="a-btn a-btn-primary"    onclick="showAdminSection('cbt-management')">📝 Manage CBT</button>
+            <a href="store.html"   class="a-btn a-btn-secondary">🏪 View Store</a>
+            <a href="teacher.html" class="a-btn a-btn-secondary">📚 Teacher Dashboard</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== PRODUCTS ===== -->
+      <section class="admin-section" id="as-products">
+        <div class="a-page-header">
+          <div><h1>Product Management</h1><p id="productsCount">Loading...</p></div>
+          <button class="a-btn a-btn-primary" onclick="openCreateProduct()">+ Add Product</button>
+        </div>
+        <div class="a-card">
+          <div class="a-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Image</th><th>Name</th><th>Category</th>
+                  <th>Price</th><th>Stock</th><th>Status</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="productsTableBody">
+                <tr><td colspan="7" style="text-align:center; padding:32px; color:var(--text-muted);">Loading products...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== CBT MANAGEMENT (unified) ===== -->
+      <section class="admin-section" id="as-cbt-management">
+        <div class="a-page-header">
+          <div>
+            <h1>CBT Management</h1>
+            <p>Manage departments, subjects and questions for each exam category</p>
+          </div>
+        </div>
+
+        <!-- Category selector -->
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px;">
+          <button class="cbt-cat-pill active" data-cat="jamb"      onclick="selectCbtCategory('jamb',this)">      🎓 JAMB      </button>
+          <button class="cbt-cat-pill"         data-cat="waec"      onclick="selectCbtCategory('waec',this)">      📚 WAEC      </button>
+          <button class="cbt-cat-pill"         data-cat="neco"      onclick="selectCbtCategory('neco',this)">      🏫 NECO      </button>
+          <button class="cbt-cat-pill"         data-cat="post-utme" onclick="selectCbtCategory('post-utme',this)"> 🏛️ POST-UTME </button>
+          <button class="cbt-cat-pill"         data-cat="practice"  onclick="selectCbtCategory('practice',this)">  ⚡ Practice  </button>
+        </div>
+
+        <!-- Three-panel layout -->
+        <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start;">
+
+          <!-- Panel 1: Departments -->
+          <div class="a-card" style="flex:1; min-width:220px; overflow:visible;">
+            <div class="a-card-head">
+              <h3>Departments <span id="deptCountBadge" style="font-size:12px; color:var(--text-muted); font-weight:400;"></span></h3>
+              <button class="a-btn a-btn-primary a-btn-sm" onclick="openCbtDeptModal()">+ Add</button>
+            </div>
+            <div id="cbtDeptPanel">
+              <div style="color:var(--text-muted); font-size:14px; text-align:center; padding:24px;">Loading...</div>
+            </div>
+          </div>
+
+          <!-- Panel 2: Subjects (appears when dept selected) -->
+          <div class="a-card" id="cbtSubjCard" style="flex:1; min-width:220px; display:none; overflow:visible;">
+            <div class="a-card-head">
+              <h3 id="cbtSubjCardTitle">Subjects</h3>
+              <button class="a-btn a-btn-green a-btn-sm" onclick="openCbtSubjModal()">+ Add</button>
+            </div>
+            <div id="cbtSubjPanel">
+              <div style="color:var(--text-muted); font-size:14px; text-align:center; padding:24px;">Select a department first</div>
+            </div>
+          </div>
+
+          <!-- Panel 3: Questions (appears when subject selected) -->
+          <div class="a-card" id="cbtQCard" style="flex:2; min-width:260px; display:none; overflow:visible;">
+            <div class="a-card-head">
+              <h3 id="cbtQCardTitle">Questions</h3>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <span id="cbtQCount" style="font-size:12px; color:var(--text-muted);"></span>
+                <button class="a-btn a-btn-green a-btn-sm" onclick="openCbtQModal()">+ Add Question</button>
+              </div>
+            </div>
+            <div id="cbtQPanel">
+              <div style="color:var(--text-muted); font-size:14px; text-align:center; padding:24px;">Select a subject first</div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </div><!-- end .a-content -->
+  </div><!-- end .admin-main -->
+</div><!-- end #adminApp -->
+
+
+<!-- =============================================
+     MODALS
+     (position:fixed — location in DOM is fine)
+============================================== -->
+
+<!-- PRODUCT MODAL -->
+<div class="t-modal-overlay" id="productModal" style="display:none;">
+  <div class="t-modal-box">
+    <div class="t-modal-header">
+      <h2 id="productModalHeading">Add New Product</h2>
+      <button class="t-modal-close" onclick="closeAdminModal('productModal')">✕</button>
+    </div>
+    <form id="productForm" onsubmit="saveProduct(event)">
+      <input type="hidden" id="editProductId" />
+      <div class="t-form-grid">
+        <div class="t-form-group t-full"><label>Product Name *</label><input type="text" id="productName" placeholder="e.g. Mathematics Textbook SS3" required /></div>
+        <div class="t-form-group t-full"><label>Description</label><textarea id="productDescription" rows="3" placeholder="Describe the product..."></textarea></div>
+        <div class="t-form-group"><label>Category</label><input type="text" id="productCategory" placeholder="e.g. Textbooks" value="General" /></div>
+        <div class="t-form-group"><label>Price (₦) *</label><input type="number" id="productPrice" min="0" step="0.01" placeholder="0.00" required /></div>
+        <div class="t-form-group"><label>Stock Quantity</label><input type="number" id="productStock" min="0" value="0" /></div>
+        <div class="t-form-group"><label>Tags</label><input type="text" id="productTags" placeholder="tag1, tag2" /></div>
+        <div class="t-form-group t-full">
+          <label>Product Image</label>
+          <div class="img-upload-area" onclick="document.getElementById('imageFileInput').click()">
+            <div style="font-size:28px; margin-bottom:8px;">📁</div>
+            <div style="font-size:13px; font-weight:700; color:var(--text-secondary);" id="uploadImageBtn">Upload Image File</div>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">JPEG, PNG, WebP · Max 5MB</div>
+            <input type="file" id="imageFileInput" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="onImageFileChange(this)" />
+          </div>
+          <div style="text-align:center; color:var(--text-muted); font-size:12px; margin:8px 0;">— or paste image URL —</div>
+          <input type="url" id="productImageUrl" placeholder="https://example.com/image.jpg" oninput="onImageUrlInput()" />
+          <div id="imagePreview"><img id="imagePreviewImg" src="" alt="Preview" /></div>
+        </div>
+        <div class="t-form-group"><label>Status</label><select id="productActive"><option value="true">Active (visible)</option><option value="false">Hidden (draft)</option></select></div>
+        <div class="t-form-group"><label>Featured?</label><select id="productFeatured"><option value="false">No</option><option value="true">Yes — show first</option></select></div>
+      </div>
+      <div class="t-modal-footer">
+        <button type="button" class="a-btn a-btn-secondary" onclick="closeAdminModal('productModal')">Cancel</button>
+        <button type="submit" class="a-btn a-btn-primary"   id="saveProductBtn">Create Product</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- CBT DEPARTMENT MODAL -->
+<div class="t-modal-overlay" id="cbtDeptModal" style="display:none;">
+  <div class="t-modal-box" style="max-width:440px;">
+    <div class="t-modal-header">
+      <h2 id="cbtDeptModalTitle">Add Department</h2>
+      <button class="t-modal-close" onclick="closeAdminModal('cbtDeptModal')">✕</button>
+    </div>
+    <form id="cbtDeptForm" onsubmit="saveCbtDept(event)">
+      <input type="hidden" id="editCbtDeptId" />
+      <div class="t-form-grid">
+        <div class="t-form-group t-full">
+          <label>Department Name *</label>
+          <input type="text" id="cbtDeptName" placeholder="e.g. Science, Commercial, Arts" required />
+        </div>
+        <div class="t-form-group t-full">
+          <label>Description</label>
+          <textarea id="cbtDeptDesc" rows="2" placeholder="Optional description..."></textarea>
+        </div>
+      </div>
+      <div class="t-modal-footer">
+        <button type="button" class="a-btn a-btn-secondary" onclick="closeAdminModal('cbtDeptModal')">Cancel</button>
+        <button type="submit" class="a-btn a-btn-primary"   id="saveCbtDeptBtn">Create Department</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- CBT SUBJECT MODAL -->
+<div class="t-modal-overlay" id="cbtSubjModal" style="display:none;">
+  <div class="t-modal-box">
+    <div class="t-modal-header">
+      <h2 id="cbtSubjModalTitle">Add Subject</h2>
+      <button class="t-modal-close" onclick="closeAdminModal('cbtSubjModal')">✕</button>
+    </div>
+    <form id="cbtSubjForm" onsubmit="saveCbtSubj(event)">
+      <input type="hidden" id="editCbtSubjId" />
+      <div class="t-form-grid">
+        <div class="t-form-group t-full">
+          <label>Subject Name *</label>
+          <input type="text" id="cbtSubjName" placeholder="e.g. Mathematics, Physics" required />
+        </div>
+        <div class="t-form-group t-full">
+          <label>Department *</label>
+          <select id="cbtSubjDeptSel" required>
+            <option value="">-- Select Department --</option>
+          </select>
+        </div>
+        <div class="t-form-group">
+          <label>Time Limit (minutes)</label>
+          <input type="number" id="cbtSubjTime" value="30" min="1" max="180" />
+        </div>
+        <div class="t-form-group">
+          <label>Questions per Session</label>
+          <input type="number" id="cbtSubjQCount" value="40" min="1" max="200" />
+        </div>
+        <div class="t-form-group t-full">
+          <label>Instructions (optional)</label>
+          <textarea id="cbtSubjInstr" rows="2" placeholder="Instructions shown to students..."></textarea>
+        </div>
+      </div>
+      <div class="t-modal-footer">
+        <button type="button" class="a-btn a-btn-secondary" onclick="closeAdminModal('cbtSubjModal')">Cancel</button>
+        <button type="submit" class="a-btn a-btn-primary"   id="saveCbtSubjBtn">Create Subject</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- CBT QUESTION MODAL -->
+<div class="t-modal-overlay" id="cbtQModal" style="display:none;">
+  <div class="t-modal-box" style="max-width:600px;">
+    <div class="t-modal-header">
+      <h2 id="cbtQModalTitle">Add Question</h2>
+      <button class="t-modal-close" onclick="closeAdminModal('cbtQModal')">✕</button>
+    </div>
+    <form id="cbtQForm" onsubmit="saveCbtQuestion(event)">
+      <div class="t-form-grid">
+        <div class="t-form-group t-full"><label>Question Text *</label><textarea id="cbtQText" rows="3" placeholder="Enter the question..." required></textarea></div>
+        <div class="t-form-group t-full"><label>Option A *</label><input type="text" id="cbtQOptA" placeholder="First option" required /></div>
+        <div class="t-form-group t-full"><label>Option B *</label><input type="text" id="cbtQOptB" placeholder="Second option" required /></div>
+        <div class="t-form-group t-full"><label>Option C</label><input type="text" id="cbtQOptC" placeholder="Third option (optional)" /></div>
+        <div class="t-form-group t-full"><label>Option D</label><input type="text" id="cbtQOptD" placeholder="Fourth option (optional)" /></div>
+        <div class="t-form-group">
+          <label>Correct Answer *</label>
+          <select id="cbtQCorrect" required>
+            <option value="">Select correct answer...</option>
+            <option value="0">A — First option</option>
+            <option value="1">B — Second option</option>
+            <option value="2">C — Third option</option>
+            <option value="3">D — Fourth option</option>
+          </select>
+        </div>
+        <div class="t-form-group">
+          <label>Exam Category</label>
+          <select id="cbtQCat">
+            <option value="all">All Categories</option>
+            <option value="jamb">JAMB</option>
+            <option value="waec">WAEC</option>
+            <option value="neco">NECO</option>
+            <option value="post-utme">POST-UTME</option>
+            <option value="practice">Practice</option>
+          </select>
+        </div>
+        <div class="t-form-group t-full"><label>Explanation (optional)</label><textarea id="cbtQExpl" rows="2" placeholder="Why is this answer correct?"></textarea></div>
+      </div>
+      <div class="t-modal-footer">
+        <button type="button" class="a-btn a-btn-secondary" onclick="closeAdminModal('cbtQModal')">Cancel</button>
+        <button type="submit" class="a-btn a-btn-primary"   id="saveCbtQBtn">Add Question</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="adminToast" style="display:none;"></div>
+
+<script src="js/main.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>

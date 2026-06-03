@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Teacher Dashboard — LatLomp Platform</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/teacher.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    /* =============================================
+       TEACHER DASHBOARD — LAYOUT SYSTEM
+       Sidebar is always position:fixed so it
+       never affects document flow.
+       Main content uses margin-left on desktop
+       and margin-left:0 on mobile.
+    ============================================== */
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin:     0;
+      padding:    0;
+      overflow-x: hidden;
+      background: var(--dark, #0f0f1a);
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---- Sidebar (always fixed, never in flow) ---- */
+    .teacher-sidebar {
+      position:       fixed;
+      top:            0;
+      left:           0;
+      bottom:         0;
+      width:          260px;
+      z-index:        400;
+      background:     var(--dark-2, #1a1a2e);
+      border-right:   1px solid var(--border, rgba(255,255,255,0.08));
+      display:        flex;
+      flex-direction: column;
+      overflow-y:     auto;
+      overflow-x:     hidden;
+      -webkit-overflow-scrolling: touch;
+      transition:     transform 0.3s cubic-bezier(0.4,0,0.2,1),
+                      box-shadow 0.3s ease;
+    }
+
+    /* Desktop: sidebar always visible */
+    @media (min-width: 961px) {
+      .teacher-sidebar {
+        transform: translateX(0) !important;
+      }
+    }
+
+    /* Mobile: sidebar hidden by default, slides in when .open */
+    @media (max-width: 960px) {
+      .teacher-sidebar {
+        transform: translateX(-100%);
+      }
+      .teacher-sidebar.open {
+        transform:  translateX(0);
+        box-shadow: 8px 0 48px rgba(0,0,0,0.65);
+      }
+    }
+
+    /* ---- Sidebar sections ---- */
+    .sb-brand {
+      display:      flex;
+      align-items:  center;
+      gap:          12px;
+      padding:      20px;
+      border-bottom: 1px solid var(--border, rgba(255,255,255,0.08));
+      min-height:   64px;
+      flex-shrink:  0;
+    }
+
+    .sb-brand-text { flex: 1; min-width: 0; }
+    .sb-brand-text .name  { font-size: 15px; font-weight: 800; color: var(--text-primary, #fff); }
+    .sb-brand-text .sub   { font-size: 11px; color: var(--text-muted, #6b6b8a); }
+
+    .sb-user {
+      display:       flex;
+      align-items:   center;
+      gap:           12px;
+      padding:       16px 20px;
+      border-bottom: 1px solid var(--border, rgba(255,255,255,0.08));
+      flex-shrink:   0;
+    }
+
+    .sb-avatar {
+      width:           40px;
+      height:          40px;
+      border-radius:   10px;
+      background:      linear-gradient(135deg,#43e97b,#38f9d7);
+      color:           #0f0f1a;
+      display:         flex;
+      align-items:     center;
+      justify-content: center;
+      font-weight:     800;
+      font-size:       18px;
+      flex-shrink:     0;
+    }
+
+    .sb-user-info .sb-name {
+      font-size:   14px;
+      font-weight: 700;
+      color:       var(--text-primary, #fff);
+    }
+
+    .sb-user-info .sb-role {
+      font-size:      11px;
+      color:          #43e97b;
+      font-weight:    600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .sb-nav {
+      flex:    1;
+      padding: 14px 10px;
+    }
+
+    .sb-link {
+      display:       flex;
+      align-items:   center;
+      gap:           10px;
+      padding:       11px 12px;
+      border-radius: 10px;
+      font-size:     14px;
+      font-weight:   500;
+      color:         var(--text-secondary, #a0a0c0);
+      cursor:        pointer;
+      text-decoration: none;
+      transition:    all 0.15s;
+      margin-bottom: 2px;
+      width:         100%;
+      border:        none;
+      background:    none;
+      font-family:   inherit;
+      text-align:    left;
+      line-height:   1.4;
+    }
+
+    .sb-link:hover {
+      background: rgba(255,255,255,0.06);
+      color:      var(--text-primary, #fff);
+    }
+
+    .sb-link.active {
+      background:  rgba(108,99,255,0.15);
+      color:       var(--primary-light, #a78bfa);
+      font-weight: 700;
+    }
+
+    .sb-icon {
+      font-size:   16px;
+      width:       22px;
+      text-align:  center;
+      flex-shrink: 0;
+    }
+
+    .sb-back {
+      display:       block;
+      padding:       16px 20px;
+      font-size:     13px;
+      color:         var(--text-muted, #6b6b8a);
+      text-decoration: none;
+      border-top:    1px solid var(--border, rgba(255,255,255,0.08));
+      transition:    color 0.2s;
+      flex-shrink:   0;
+    }
+    .sb-back:hover { color: var(--text-primary, #fff); }
+
+    /* ---- Sidebar overlay ---- */
+    .teacher-sidebar-overlay {
+      display:    none;
+      position:   fixed;
+      inset:      0;
+      background: rgba(0,0,0,0.6);
+      z-index:    399;
+    }
+    .teacher-sidebar-overlay.visible { display: block; }
+
+    /* ---- Mobile top bar ---- */
+    .teacher-mobile-bar {
+      display:          none; /* hidden on desktop */
+      align-items:      center;
+      justify-content:  space-between;
+      padding:          0 16px;
+      height:           60px;
+      background:       var(--dark-2, #1a1a2e);
+      border-bottom:    1px solid var(--border, rgba(255,255,255,0.08));
+      position:         sticky;
+      top:              0;
+      z-index:          300;
+      flex-shrink:      0;
+    }
+
+    .sb-ham {
+      background:    none;
+      border:        none;
+      color:         var(--text-primary, #fff);
+      font-size:     22px;
+      cursor:        pointer;
+      padding:       8px;
+      border-radius: 8px;
+      line-height:   1;
+      transition:    background 0.15s;
+      display:       flex;
+      align-items:   center;
+      justify-content: center;
+    }
+    .sb-ham:hover { background: rgba(255,255,255,0.08); }
+
+    .mobile-bar-title {
+      font-size:   15px;
+      font-weight: 800;
+      color:       var(--text-primary, #fff);
+    }
+
+    .mobile-bar-section {
+      font-size:  13px;
+      color:      var(--text-muted, #6b6b8a);
+      font-weight: 500;
+    }
+
+    /* ---- Main content area ---- */
+    .teacher-main {
+      /* On desktop: pushed right by sidebar width */
+      margin-left: 260px;
+      min-height:  100vh;
+      display:     flex;
+      flex-direction: column;
+      width:       calc(100% - 260px);
+    }
+
+    /* On mobile: full width, no sidebar offset */
+    @media (max-width: 960px) {
+      .teacher-main {
+        margin-left: 0 !important;
+        width:       100% !important;
+      }
+    }
+
+    /* ---- Content padding ---- */
+    .t-content {
+      padding: 28px 28px 52px;
+      width:   100%;
+    }
+
+    @media (max-width: 960px) {
+      .t-content { padding: 20px 16px 44px; }
+    }
+
+    @media (max-width: 600px) {
+      .t-content { padding: 16px 12px 40px; }
+    }
+
+    /* ---- Page header ---- */
+    .t-page-header {
+      display:         flex;
+      align-items:     flex-start;
+      justify-content: space-between;
+      margin-bottom:   24px;
+      gap:             14px;
+      flex-wrap:       wrap;
+    }
+
+    .t-page-header h1 {
+      font-size:   22px;
+      font-weight: 800;
+      color:       var(--text-primary, #fff);
+      margin:      0 0 4px;
+      line-height: 1.3;
+    }
+
+    .t-page-header p {
+      font-size: 14px;
+      color:     var(--text-muted, #6b6b8a);
+      margin:    0;
+    }
+
+    @media (max-width: 600px) {
+      .t-page-header { flex-direction: column; }
+      .t-page-header h1 { font-size: 20px; }
+    }
+
+    /* ---- Stats grid ---- */
+    .t-stats-grid {
+      display:               grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap:                   16px;
+      margin-bottom:         24px;
+    }
+
+    @media (max-width: 700px) {
+      .t-stats-grid { grid-template-columns: 1fr; gap: 12px; }
+    }
+
+    .t-stat-card {
+      background:    var(--dark-2, #1a1a2e);
+      border:        1px solid var(--border, rgba(255,255,255,0.08));
+      border-radius: 14px;
+      padding:       20px;
+      display:       flex;
+      align-items:   center;
+      gap:           16px;
+      transition:    transform 0.2s;
+    }
+
+    .t-stat-card:hover { transform: translateY(-2px); }
+
+    .t-stat-icon {
+      font-size:       22px;
+      width:           48px;
+      height:          48px;
+      display:         flex;
+      align-items:     center;
+      justify-content: center;
+      background:      rgba(108,99,255,0.12);
+      border-radius:   12px;
+      flex-shrink:     0;
+    }
+
+    .t-stat-val {
+      font-size:   28px;
+      font-weight: 900;
+      color:       var(--text-primary, #fff);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .t-stat-lbl {
+      font-size:      11px;
+      font-weight:    700;
+      color:          var(--text-muted, #6b6b8a);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ---- Cards ---- */
+    .t-card {
+      background:    var(--dark-2, #1a1a2e);
+      border:        1px solid var(--border, rgba(255,255,255,0.08));
+      border-radius: 16px;
+      overflow:      hidden;
+      margin-bottom: 20px;
+      width:         100%;
+    }
+
+    .t-card-head {
+      display:         flex;
+      align-items:     center;
+      justify-content: space-between;
+      padding:         18px 22px;
+      border-bottom:   1px solid var(--border, rgba(255,255,255,0.08));
+      flex-wrap:       wrap;
+      gap:             10px;
+    }
+
+    .t-card-head h3 {
+      font-size:   16px;
+      font-weight: 700;
+      color:       var(--text-primary, #fff);
+      margin:      0;
+    }
+
+    .t-card-body { padding: 22px; }
+
+    /* ---- Buttons ---- */
+    .t-btn {
+      display:       inline-flex;
+      align-items:   center;
+      gap:           8px;
+      padding:       10px 18px;
+      border-radius: 10px;
+      font-size:     14px;
+      font-weight:   700;
+      cursor:        pointer;
+      font-family:   inherit;
+      border:        none;
+      transition:    all 0.2s;
+      white-space:   nowrap;
+    }
+
+    .t-btn-primary {
+      background: linear-gradient(135deg, var(--primary,#6c63ff), var(--primary-dark,#574fd6));
+      color:      white;
+    }
+    .t-btn-primary:hover {
+      transform:  translateY(-1px);
+      box-shadow: 0 4px 16px rgba(108,99,255,0.35);
+    }
+
+    .t-btn-green {
+      background: linear-gradient(135deg,#43e97b,#38f9d7);
+      color:      #0f0f1a;
+    }
+    .t-btn-green:hover {
+      transform:  translateY(-1px);
+      box-shadow: 0 4px 16px rgba(67,233,123,0.35);
+    }
+
+    .t-btn-secondary {
+      background:  rgba(255,255,255,0.06);
+      border:      1px solid var(--border, rgba(255,255,255,0.08));
+      color:       var(--text-secondary, #a0a0c0);
+    }
+    .t-btn-secondary:hover {
+      background: rgba(255,255,255,0.1);
+      color:      var(--text-primary, #fff);
+    }
+
+    .t-btn-danger {
+      background:  rgba(255,101,132,0.1);
+      border:      1px solid rgba(255,101,132,0.25);
+      color:       var(--secondary, #ff6584);
+    }
+
+    .t-text-btn {
+      background:  none;
+      border:      none;
+      color:       var(--primary-light, #a78bfa);
+      font-size:   13px;
+      font-weight: 600;
+      cursor:      pointer;
+      font-family: inherit;
+      padding:     4px 0;
+      transition:  color 0.2s;
+    }
+    .t-text-btn:hover { color: var(--text-primary, #fff); }
+
+    /* ---- Sections ---- */
+    .teacher-section       { display: none; width: 100%; }
+    .teacher-section.active { display: block; }
+
+    /* ---- Table ---- */
+    .t-table-wrap {
+      overflow-x:              auto;
+      -webkit-overflow-scrolling: touch;
+      width: 100%;
+    }
+
+    .teacher-table {
+      width:           100%;
+      border-collapse: collapse;
+      min-width:       500px;
+    }
+
+    .teacher-table th {
+      padding:        11px 14px;
+      text-align:     left;
+      font-size:      11px;
+      font-weight:    700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color:          var(--text-muted, #6b6b8a);
+      background:     rgba(255,255,255,0.02);
+      border-bottom:  1px solid var(--border, rgba(255,255,255,0.08));
+      white-space:    nowrap;
+    }
+
+    .teacher-table td {
+      padding:       11px 14px;
+      font-size:     14px;
+      color:         var(--text-secondary, #a0a0c0);
+      border-bottom: 1px solid var(--border, rgba(255,255,255,0.08));
+      vertical-align: middle;
+    }
+
+    .teacher-table tr:last-child td { border-bottom: none; }
+    .teacher-table tr:hover td      { background: rgba(255,255,255,0.02); }
+
+    .teacher-loading,
+    .teacher-empty {
+      padding:    32px 22px;
+      text-align: center;
+      color:      var(--text-muted, #6b6b8a);
+      font-size:  14px;
+    }
+
+    /* ---- Guide steps ---- */
+    .guide-step {
+      display:     flex;
+      align-items: flex-start;
+      gap:         14px;
+      font-size:   14px;
+      color:       var(--text-secondary, #a0a0c0);
+      line-height: 1.6;
+    }
+
+    .guide-num {
+      width:           28px;
+      height:          28px;
+      border-radius:   8px;
+      background:      linear-gradient(135deg,var(--primary,#6c63ff),var(--primary-dark,#574fd6));
+      color:           white;
+      font-size:       13px;
+      font-weight:     800;
+      display:         flex;
+      align-items:     center;
+      justify-content: center;
+      flex-shrink:     0;
+    }
+
+    /* ---- Modals ---- */
+    .t-modal-overlay {
+      position:        fixed;
+      inset:           0;
+      background:      rgba(0,0,0,0.75);
+      z-index:         600;
+      display:         flex;
+      align-items:     center;
+      justify-content: center;
+      padding:         20px;
+      overflow-y:      auto;
+    }
+
+    .t-modal-box {
+      background:    var(--dark-2, #1a1a2e);
+      border:        1px solid var(--border, rgba(255,255,255,0.08));
+      border-radius: 20px;
+      padding:       28px;
+      width:         100%;
+      max-width:     540px;
+      position:      relative;
+      max-height:    92vh;
+      overflow-y:    auto;
+    }
+
+    .t-modal-header {
+      display:         flex;
+      align-items:     center;
+      justify-content: space-between;
+      margin-bottom:   22px;
+    }
+
+    .t-modal-header h2 {
+      font-size:   19px;
+      font-weight: 800;
+      color:       var(--text-primary, #fff);
+      margin:      0;
+    }
+
+    .t-modal-close {
+      width:           32px;
+      height:          32px;
+      border-radius:   8px;
+      background:      rgba(255,255,255,0.06);
+      border:          1px solid var(--border, rgba(255,255,255,0.08));
+      color:           var(--text-muted, #6b6b8a);
+      cursor:          pointer;
+      font-size:       15px;
+      display:         flex;
+      align-items:     center;
+      justify-content: center;
+      font-family:     inherit;
+      transition:      all 0.2s;
+      flex-shrink:     0;
+    }
+    .t-modal-close:hover {
+      background: rgba(255,101,132,0.15);
+      color:      var(--secondary, #ff6584);
+    }
+
+    .t-form-grid {
+      display:               grid;
+      grid-template-columns: 1fr 1fr;
+      gap:                   16px;
+    }
+
+    @media (max-width: 500px) {
+      .t-form-grid { grid-template-columns: 1fr; }
+      .t-full { grid-column: span 1 !important; }
+    }
+
+    .t-full { grid-column: span 2; }
+
+    .t-form-group {
+      display:        flex;
+      flex-direction: column;
+      gap:            6px;
+    }
+
+    .t-form-group label {
+      font-size:      12px;
+      font-weight:    700;
+      color:          var(--text-secondary, #a0a0c0);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .t-form-group input,
+    .t-form-group select,
+    .t-form-group textarea {
+      background:    rgba(255,255,255,0.04);
+      border:        1px solid var(--border, rgba(255,255,255,0.08));
+      border-radius: 8px;
+      padding:       11px 14px;
+      color:         var(--text-primary, #fff);
+      font-size:     14px;
+      font-family:   inherit;
+      outline:       none;
+      width:         100%;
+      box-sizing:    border-box;
+      transition:    border-color 0.2s;
+    }
+    .t-form-group input:focus,
+    .t-form-group select:focus,
+    .t-form-group textarea:focus {
+      border-color: var(--primary, #6c63ff);
+    }
+    .t-form-group textarea { resize: vertical; min-height: 80px; }
+
+    .t-modal-footer {
+      display:         flex;
+      justify-content: flex-end;
+      gap:             10px;
+      margin-top:      20px;
+      padding-top:     16px;
+      border-top:      1px solid var(--border, rgba(255,255,255,0.08));
+      flex-wrap:       wrap;
+    }
+
+    .t-radio-label {
+      display:     flex;
+      align-items: center;
+      gap:         8px;
+      font-size:   14px;
+      color:       var(--text-secondary, #a0a0c0);
+      cursor:      pointer;
+    }
+
+    /* Phone modal becomes bottom sheet */
+    @media (max-width: 600px) {
+      .t-modal-overlay {
+        align-items: flex-end;
+        padding:     0;
+      }
+      .t-modal-box {
+        border-radius: 20px 20px 0 0;
+        max-width:     100%;
+        padding:       22px 16px 28px;
+        max-height:    88vh;
+      }
+    }
+
+    /* ---- Toast ---- */
+    #teacherToast {
+      position:      fixed;
+      bottom:        24px;
+      right:         24px;
+      background:    var(--dark-2, #1a1a2e);
+      border:        1px solid var(--border, rgba(255,255,255,0.08));
+      border-radius: 10px;
+      padding:       14px 20px;
+      font-size:     14px;
+      font-weight:   600;
+      color:         var(--text-primary, #fff);
+      z-index:       9999;
+      box-shadow:    0 8px 32px rgba(0,0,0,0.4);
+      max-width:     320px;
+    }
+
+    @media (max-width: 600px) {
+      #teacherToast {
+        bottom: 12px;
+        right:  12px;
+        left:   12px;
+        max-width: none;
+      }
+    }
+
+    /* ---- pw-field-wrap (from style.css, repeated for safety) ---- */
+    .pw-field-wrap { position: relative; }
+    .pw-field-wrap input { padding-right: 44px !important; }
+    .pw-eye {
+      position:   absolute;
+      right:      12px;
+      top:        50%;
+      transform:  translateY(-50%);
+      background: none;
+      border:     none;
+      cursor:     pointer;
+      font-size:  16px;
+      color:      var(--text-muted, #6b6b8a);
+      padding:    4px;
+      line-height: 1;
+    }
+
+    /* Show mobile bar on small screens */
+    @media (max-width: 960px) {
+      .teacher-mobile-bar { display: flex !important; }
+    }
+  </style>
+</head>
+<body class="teacher-body">
+
+<!-- =============================================
+     ACCESS DENIED
+============================================== -->
+<div id="accessDenied"
+  style="display:none; min-height:100vh; flex-direction:column; align-items:center; justify-content:center; padding:32px; gap:20px; text-align:center;">
+
+  <div>
+    <span style="font-size:28px;">⚡</span>
+    <span style="font-size:20px; font-weight:800; color:var(--text-primary); margin-left:8px;">LatLomp</span>
+    <span style="background:linear-gradient(135deg,var(--primary),var(--secondary)); color:white; font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; margin-left:6px; text-transform:uppercase;">Platform</span>
+  </div>
+
+  <div style="background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:36px; width:100%; max-width:420px;">
+    <div style="font-size:48px; margin-bottom:12px;">📚</div>
+    <h1 style="font-size:22px; font-weight:800; color:var(--text-primary); margin:0 0 8px;">Teacher Portal</h1>
+    <p style="font-size:13px; color:var(--text-secondary); margin:0 0 24px; line-height:1.6;">
+      You must be signed in as a teacher to access this dashboard.
+    </p>
+
+    <a href="teacher-signin.html"
+      style="display:block; padding:14px; background:linear-gradient(135deg,#43e97b,#38f9d7); color:#0f0f1a; border-radius:12px; font-size:15px; font-weight:800; text-decoration:none; margin-bottom:12px;">
+      📚 Sign In as Teacher →
+    </a>
+    <a href="index.html"
+      style="display:block; font-size:13px; color:var(--text-muted); text-decoration:none;">
+      ← Back to Platform
+    </a>
+
+    <!-- Hidden stubs — required by teacher.js functions -->
+    <div id="teacherLoginForm"    style="display:none;"></div>
+    <div id="teacherRegisterForm" style="display:none;"></div>
+    <div id="teacherForgotPanel"  style="display:none;"></div>
+    <div id="teacherLoginError"   style="display:none;"></div>
+    <div id="teacherRegisterError"  style="display:none;"></div>
+    <div id="teacherRegisterSuccess" style="display:none;"></div>
+    <div id="teacherForgotError"  style="display:none;"></div>
+    <div id="teacherForgotSuccess" style="display:none;"></div>
+    <input id="teacherLoginEmail"    type="hidden" />
+    <input id="teacherLoginPassword" type="hidden" />
+    <input id="regTeacherName"       type="hidden" />
+    <input id="regTeacherEmail"      type="hidden" />
+    <input id="regTeacherPassword"   type="hidden" />
+    <input id="regTeacherConfirm"    type="hidden" />
+    <input id="teacherForgotEmail"   type="hidden" />
+    <button id="loginTabBtn"         style="display:none;" onclick="switchTeacherTab('login')"></button>
+    <button id="registerTabBtn"      style="display:none;" onclick="switchTeacherTab('register')"></button>
+    <button id="teacherLoginBtn"     style="display:none;" onclick="teacherLogin()"></button>
+    <button id="teacherRegisterBtn"  style="display:none;" onclick="teacherRegister()"></button>
+    <button id="teacherForgotBtn"    style="display:none;" onclick="sendTeacherForgot()"></button>
+  </div>
+</div>
+
+
+<!-- =============================================
+     LOADING SCREEN
+============================================== -->
+<div id="teacherLoader"
+  style="min-height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:16px;">
+  <div style="width:48px; height:48px; border:4px solid rgba(108,99,255,0.2); border-top-color:var(--primary); border-radius:50%; animation:spin 0.8s linear infinite;"></div>
+  <p style="color:var(--text-secondary); margin:0; font-size:14px;">Loading dashboard...</p>
+</div>
+
+
+<!-- =============================================
+     MAIN DASHBOARD
+============================================== -->
+<div id="teacherApp" style="display:none;">
+
+  <!-- Overlay behind sidebar on mobile -->
+  <div class="teacher-sidebar-overlay" id="teacherSidebarOverlay"></div>
+
+  <!-- Mobile top bar -->
+  <div class="teacher-mobile-bar">
+    <button class="sb-ham" onclick="toggleSidebar()" aria-label="Open menu">☰</button>
+    <span class="mobile-bar-title">⚡ Teacher Panel</span>
+    <span class="mobile-bar-section" id="mobileBarSection">Overview</span>
+  </div>
+
+  <!-- SIDEBAR -->
+  <aside class="teacher-sidebar" id="teacherSidebar">
+
+    <div class="sb-brand">
+      <span style="font-size:26px; flex-shrink:0;">📚</span>
+      <div class="sb-brand-text">
+        <div class="name">Teacher Panel</div>
+        <div class="sub">LatLomp Platform</div>
+      </div>
+    </div>
+
+    <div class="sb-user">
+      <div class="sb-avatar" id="teacherAvatar">T</div>
+      <div class="sb-user-info">
+        <div class="sb-name" id="teacherName">Teacher</div>
+        <div class="sb-role">Teacher</div>
+      </div>
+    </div>
+
+    <nav class="sb-nav">
+      <a class="sb-link teacher-nav-link active" data-section="overview"
+        onclick="showTeacherSection('overview')">
+        <span class="sb-icon">📊</span> Overview
+      </a>
+      <a class="sb-link teacher-nav-link" data-section="exams"
+        onclick="showTeacherSection('exams')">
+        <span class="sb-icon">📝</span> My Exams
+      </a>
+      <a class="sb-link teacher-nav-link" data-section="questions"
+        onclick="showTeacherSection('questions')">
+        <span class="sb-icon">❓</span> Questions
+      </a>
+      <a class="sb-link teacher-nav-link" data-section="students"
+        onclick="showTeacherSection('students')">
+        <span class="sb-icon">👥</span> Students
+      </a>
+      <a class="sb-link" onclick="teacherLogout()">
+        <span class="sb-icon">🚪</span> Logout
+      </a>
+    </nav>
+
+    <a href="index.html" class="sb-back">← Back to Platform</a>
+
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <div class="teacher-main" id="teacherMainContent">
+    <div class="t-content">
+
+      <!-- ===== OVERVIEW ===== -->
+      <section class="teacher-section active" id="ts-overview">
+
+        <div class="t-page-header">
+          <div>
+            <h1>Welcome back, <span id="overviewTeacherName">Teacher</span>! 👋</h1>
+            <p id="teacherDate"></p>
+          </div>
+          <button class="t-btn t-btn-green"
+            onclick="showTeacherSection('exams'); setTimeout(openCreateExamModal, 300)">
+            + Create New Exam
+          </button>
+        </div>
+
+        <div class="t-stats-grid">
+          <div class="t-stat-card">
+            <div class="t-stat-icon">📝</div>
+            <div>
+              <div class="t-stat-val" id="ovTotalExams">0</div>
+              <div class="t-stat-lbl">Total Exams</div>
+            </div>
+          </div>
+          <div class="t-stat-card">
+            <div class="t-stat-icon">👥</div>
+            <div>
+              <div class="t-stat-val" id="ovTotalStudents">0</div>
+              <div class="t-stat-lbl">Student Attempts</div>
+            </div>
+          </div>
+          <div class="t-stat-card">
+            <div class="t-stat-icon">✅</div>
+            <div>
+              <div class="t-stat-val" id="ovActiveExams">0</div>
+              <div class="t-stat-lbl">Active Exams</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="t-card">
+          <div class="t-card-head">
+            <h3>Recent Exams</h3>
+            <button class="t-text-btn" onclick="showTeacherSection('exams')">View all →</button>
+          </div>
+          <div id="ovRecentExams">
+            <div class="teacher-empty">No exams yet. Click "+ Create New Exam" to get started!</div>
+          </div>
+        </div>
+
+        <div class="t-card">
+          <div class="t-card-head">
+            <h3>📖 Quick Guide</h3>
+          </div>
+          <div class="t-card-body" style="display:flex; flex-direction:column; gap:14px;">
+            <div class="guide-step">
+              <div class="guide-num">1</div>
+              <div><strong>Create an Exam</strong> — Go to "My Exams" and click "+ Create Exam". Set the name, type, duration and your own exam code.</div>
+            </div>
+            <div class="guide-step">
+              <div class="guide-num">2</div>
+              <div><strong>Add Questions</strong> — Go to "Questions", select your exam and add questions one by one.</div>
+            </div>
+            <div class="guide-step">
+              <div class="guide-num">3</div>
+              <div><strong>Share the Code</strong> — Give your exam code to students. They enter it on the Student Login page.</div>
+            </div>
+            <div class="guide-step">
+              <div class="guide-num">4</div>
+              <div><strong>Monitor Results</strong> — Go to "Students" to see scores, answers and performance.</div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ===== MY EXAMS ===== -->
+      <section class="teacher-section" id="ts-exams">
+
+        <div class="t-page-header">
+          <div>
+            <h1>My Exams</h1>
+            <p><span id="examsCount">0</span> exams created</p>
+          </div>
+          <button class="t-btn t-btn-green" onclick="openCreateExamModal()">
+            + Create Exam
+          </button>
+        </div>
+
+        <div class="t-card">
+          <div class="t-table-wrap" id="examsTableWrapper">
+            <table class="teacher-table">
+              <thead>
+                <tr>
+                  <th>Exam Title</th>
+                  <th>Type</th>
+                  <th>Duration</th>
+                  <th>Exam Code</th>
+                  <th>Questions</th>
+                  <th>Attempts</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="examsTableBody">
+                <tr><td colspan="8" class="teacher-loading">Loading exams...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ===== QUESTIONS ===== -->
+      <section class="teacher-section" id="ts-questions">
+
+        <div class="t-page-header">
+          <div>
+            <h1>Question Bank</h1>
+            <p>Manage questions for your exams</p>
+          </div>
+          <button class="t-btn t-btn-green" id="addQuestionBtn"
+            onclick="openAddQuestionModal()" style="display:none;">
+            + Add Question
+          </button>
+        </div>
+
+        <div class="t-card" style="margin-bottom:20px;">
+          <div style="padding:18px 22px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+            <label style="font-size:14px; font-weight:600; color:var(--text-secondary); white-space:nowrap;">
+              Select Exam:
+            </label>
+            <select id="questionExamSelector" onchange="loadTeacherQuestions()"
+              style="flex:1; min-width:200px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; padding:10px 14px; color:var(--text-primary); font-size:14px; font-family:inherit; outline:none;">
+              <option value="">-- Choose an exam --</option>
+            </select>
+            <div id="selectedExamType"
+              style="font-size:13px; color:var(--primary-light); font-weight:600;"></div>
+          </div>
+        </div>
+
+        <div class="t-card" id="questionsCardWrapper" style="display:none;">
+          <div class="t-card-head">
+            <h3 id="questionsCardTitle">Questions</h3>
+            <span id="questionsCount"
+              style="font-size:13px; color:var(--text-muted);">0 questions</span>
+          </div>
+          <div id="questionsListWrapper">
+            <div class="teacher-loading">Select an exam to load questions</div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ===== STUDENTS ===== -->
+      <section class="teacher-section" id="ts-students">
+
+        <div class="t-page-header">
+          <div>
+            <h1>Student Monitoring</h1>
+            <p>See all students who took your exams</p>
+          </div>
+        </div>
+
+        <div class="t-card" style="margin-bottom:20px;">
+          <div style="padding:18px 22px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+            <label style="font-size:14px; font-weight:600; color:var(--text-secondary); white-space:nowrap;">
+              Select Exam:
+            </label>
+            <select id="studentExamSelector" onchange="loadStudentSubmissions()"
+              style="flex:1; min-width:200px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; padding:10px 14px; color:var(--text-primary); font-size:14px; font-family:inherit; outline:none;">
+              <option value="">-- Choose an exam to see its students --</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="t-card" id="studentsCard" style="display:none;">
+          <div class="t-card-head">
+            <h3 id="studentsCardTitle">Students</h3>
+            <span id="studentsCount"
+              style="font-size:13px; color:var(--text-muted);"></span>
+          </div>
+          <div class="t-table-wrap">
+            <table class="teacher-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Student Name</th>
+                  <th>Score</th>
+                  <th>Status</th>
+                  <th>Time Taken</th>
+                  <th>Submitted</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="studentsTableBody">
+                <tr><td colspan="7" class="teacher-loading">Select an exam above</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+    </div><!-- end t-content -->
+  </div><!-- end teacher-main -->
+
+</div><!-- end teacherApp -->
+
+
+<!-- =============================================
+     MODALS
+============================================== -->
+
+<!-- CREATE EXAM MODAL -->
+<div class="t-modal-overlay" id="createExamModal" style="display:none;">
+  <div class="t-modal-box">
+    <div class="t-modal-header">
+      <h2 id="examModalHeading">Create New Exam</h2>
+      <button class="t-modal-close" onclick="closeTeacherModal('createExamModal')">✕</button>
+    </div>
+    <form id="createExamForm" onsubmit="saveTeacherExam(event)">
+      <input type="hidden" id="editExamId" />
+      <div class="t-form-grid">
+
+        <div class="t-form-group t-full">
+          <label>Exam Title *</label>
+          <input type="text" id="newExamTitle"
+            placeholder="e.g. Mathematics Mid-Term Test" required />
+        </div>
+
+        <div class="t-form-group">
+          <label>Subject *</label>
+          <input type="text" id="newExamSubject"
+            placeholder="e.g. Mathematics" required />
+        </div>
+
+        <div class="t-form-group">
+          <label>Exam Type *</label>
+          <select id="newExamType" required>
+            <option value="">Select type...</option>
+            <option value="objective">Objective (Multiple Choice)</option>
+            <option value="theory">Theory (Written Answers)</option>
+            <option value="both">Both (Objective + Theory)</option>
+          </select>
+        </div>
+
+        <div class="t-form-group">
+          <label>Duration (minutes) *</label>
+          <input type="number" id="newExamDuration"
+            min="1" max="300" value="60" required />
+        </div>
+
+        <div class="t-form-group">
+          <label>Pass Mark (%)</label>
+          <input type="number" id="newExamPassMark"
+            min="0" max="100" value="50" />
+        </div>
+
+        <div class="t-form-group t-full">
+          <label>
+            Exam Code *
+            <span style="font-weight:400; font-size:11px; text-transform:none; color:var(--text-muted); margin-left:6px;">
+              Letters and numbers only — share with students
+            </span>
+          </label>
+          <input type="text" id="newExamCode"
+            placeholder="e.g. MATH2025"
+            style="text-transform:uppercase; letter-spacing:2px; font-weight:700;"
+            oninput="this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '')"
+            required />
+          <span style="font-size:12px; color:var(--text-muted); margin-top:2px;">
+            Students enter this code to access your exam.
+          </span>
+        </div>
+
+        <div class="t-form-group t-full">
+          <label>Instructions for Students</label>
+          <textarea id="newExamInstructions" rows="3"
+            placeholder="e.g. Read all questions carefully. No going back after submitting."></textarea>
+        </div>
+
+        <div class="t-form-group">
+          <label>Active (visible to students)?</label>
+          <select id="newExamActive">
+            <option value="true">Yes — Open for students</option>
+            <option value="false">No — Draft (hidden)</option>
+          </select>
+        </div>
+
+      </div>
+      <div class="t-modal-footer">
+        <button type="button" class="t-btn t-btn-secondary"
+          onclick="closeTeacherModal('createExamModal')">Cancel</button>
+        <button type="submit" class="t-btn t-btn-green" id="saveExamBtn">
+          Create Exam
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ADD QUESTION MODAL -->
+<div class="t-modal-overlay" id="addQuestionModal" style="display:none;">
+  <div class="t-modal-box">
+    <div class="t-modal-header">
+      <h2 id="questionModalHeading">Add Question</h2>
+      <button class="t-modal-close" onclick="closeTeacherModal('addQuestionModal')">✕</button>
+    </div>
+    <form id="addQuestionForm" onsubmit="saveTeacherQuestion(event)">
+      <input type="hidden" id="editQuestionId" />
+      <div class="t-form-grid">
+
+        <div class="t-form-group t-full">
+          <label>Question Type *</label>
+          <div style="display:flex; gap:16px; flex-wrap:wrap; padding:4px 0;">
+            <label class="t-radio-label">
+              <input type="radio" name="qType" value="objective"
+                onchange="toggleQuestionType('objective')" checked />
+              Objective (Multiple Choice)
+            </label>
+            <label class="t-radio-label">
+              <input type="radio" name="qType" value="theory"
+                onchange="toggleQuestionType('theory')" />
+              Theory (Written)
+            </label>
+          </div>
+        </div>
+
+        <div class="t-form-group t-full">
+          <label>Question Text *</label>
+          <textarea id="qText" rows="3"
+            placeholder="Type your question here..." required></textarea>
+        </div>
+
+        <div id="objectiveFields" class="t-full"
+          style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+          <div class="t-form-group">
+            <label>Option A *</label>
+            <input type="text" id="optA" placeholder="First option" />
+          </div>
+          <div class="t-form-group">
+            <label>Option B *</label>
+            <input type="text" id="optB" placeholder="Second option" />
+          </div>
+          <div class="t-form-group">
+            <label>Option C</label>
+            <input type="text" id="optC" placeholder="Third option (optional)" />
+          </div>
+          <div class="t-form-group">
+            <label>Option D</label>
+            <input type="text" id="optD" placeholder="Fourth option (optional)" />
+          </div>
+          <div class="t-form-group t-full">
+            <label>Correct Answer *</label>
+            <select id="qCorrectAnswer">
+              <option value="">Select the correct option...</option>
+              <option value="0">A — First option</option>
+              <option value="1">B — Second option</option>
+              <option value="2">C — Third option</option>
+              <option value="3">D — Fourth option</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="theoryFields" class="t-form-group t-full" style="display:none;">
+          <label>Expected Answer (Optional)</label>
+          <textarea id="qExpectedAnswer" rows="3"
+            placeholder="Model answer for your reference only..."></textarea>
+        </div>
+
+        <div class="t-form-group">
+          <label>Marks for this question</label>
+          <input type="number" id="qMarks" value="1" min="1" />
+        </div>
+
+      </div>
+      <div class="t-modal-footer">
+        <button type="button" class="t-btn t-btn-secondary"
+          onclick="closeTeacherModal('addQuestionModal')">Cancel</button>
+        <button type="submit" class="t-btn t-btn-green" id="saveQuestionBtn">
+          Add Question
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- VIEW SUBMISSION MODAL -->
+<div class="t-modal-overlay" id="viewSubmissionModal" style="display:none;">
+  <div class="t-modal-box" style="max-width:680px;">
+    <div class="t-modal-header">
+      <h2 id="submissionModalTitle">Student Answers</h2>
+      <button class="t-modal-close"
+        onclick="closeTeacherModal('viewSubmissionModal')">✕</button>
+    </div>
+    <div id="submissionModalBody"
+      style="padding:22px; max-height:68vh; overflow-y:auto;">
+      Loading...
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="teacherToast" style="display:none;"></div>
+
+<script src="js/main.js"></script>
+<script src="js/teacher.js"></script>
+
+<script>
+/*
+  Update mobile bar section label when switching sections.
+  This adds the section name next to the hamburger like Image 2 shows.
+*/
+(function() {
+  var originalShow = window.showTeacherSection;
+  window.showTeacherSection = function(section) {
+    if (originalShow) originalShow(section);
+    var labels = {
+      overview:  'Overview',
+      exams:     'My Exams',
+      questions: 'Questions',
+      students:  'Students'
+    };
+    var el = document.getElementById('mobileBarSection');
+    if (el) el.textContent = labels[section] || '';
+  };
+})();
+</script>
+</body>
+</html>

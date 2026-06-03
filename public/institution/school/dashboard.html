@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>School Dashboard — LatLomp Institution</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --primary:   #6c63ff;
+      --pd:        #574fd6;
+      --green:     #43e97b;
+      --red:       #ff6584;
+      --orange:    #ffa500;
+      --dark:      #0f0f1a;
+      --dark-2:    #1a1a2e;
+      --dark-3:    #151526;
+      --border:    rgba(255,255,255,0.08);
+      --text:      #fff;
+      --muted:     #6b6b8a;
+      --secondary: #a0a0c0;
+    }
+
+    html, body { margin:0; padding:0; background:var(--dark); color:var(--text); font-family:'Inter',sans-serif; }
+
+    @keyframes spin    { to { transform:rotate(360deg); } }
+    @keyframes fadeUp  { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes slideUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+
+    /* ============================================
+       LAYOUT
+    ============================================ */
+    .layout { display:flex; min-height:100vh; }
+
+    /* ---- SIDEBAR ---- */
+    .sidebar {
+      width: 260px; flex-shrink: 0;
+      background: var(--dark-2);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      position: fixed; top:0; left:0; bottom:0; z-index:400;
+      overflow-y: auto; overflow-x: hidden;
+      transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+    }
+    @media (max-width:960px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); box-shadow: 8px 0 48px rgba(0,0,0,0.6); }
+    }
+
+    .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:399; }
+    .sidebar-overlay.visible { display:block; }
+
+    .sb-school {
+      padding: 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+    }
+    .sb-school-logo {
+      width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; font-weight: 800;
+      background: linear-gradient(135deg, var(--primary), var(--pd));
+    }
+    .sb-school-name { font-size: 14px; font-weight: 800; color: #fff; line-height: 1.3; }
+    .sb-school-role { font-size: 11px; color: var(--green); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* Subscription badge */
+    .sb-sub-badge {
+      margin: 12px 16px;
+      background: rgba(67,233,123,0.08); border: 1px solid rgba(67,233,123,0.2);
+      border-radius: 10px; padding: 10px 14px;
+      display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+    }
+    .sb-sub-badge.warning { background: rgba(255,165,0,0.08); border-color: rgba(255,165,0,0.25); }
+    .sb-sub-badge.danger  { background: rgba(255,101,132,0.08); border-color: rgba(255,101,132,0.25); }
+    .sb-sub-days { font-size: 20px; font-weight: 900; color: var(--green); }
+    .sb-sub-badge.warning .sb-sub-days { color: var(--orange); }
+    .sb-sub-badge.danger  .sb-sub-days { color: var(--red); }
+    .sb-sub-label { font-size: 11px; color: var(--secondary); line-height: 1.4; }
+
+    /* Nav links */
+    .sb-nav { flex: 1; padding: 8px 10px; }
+    .sb-sep { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; padding: 14px 10px 6px; }
+
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 10px;
+      font-size: 14px; font-weight: 500; color: var(--secondary);
+      cursor: pointer; transition: all 0.15s; margin-bottom: 2px;
+      width: 100%; border: none; background: none; font-family: inherit;
+      text-align: left; text-decoration: none; line-height: 1.4;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .nav-item.active { background: rgba(108,99,255,0.15); color: var(--primary); font-weight: 700; }
+    .nav-icon { font-size: 16px; width: 22px; text-align: center; flex-shrink: 0; }
+    .nav-badge { margin-left: auto; background: var(--red); color: #fff; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 20px; }
+
+    .sb-footer { padding: 12px 10px; border-top: 1px solid var(--border); flex-shrink: 0; }
+
+    /* ---- MOBILE TOP BAR ---- */
+    .mobile-bar {
+      display: none; align-items: center; justify-content: space-between;
+      padding: 0 16px; height: 60px;
+      background: var(--dark-2); border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 300; flex-shrink: 0;
+    }
+    @media (max-width:960px) { .mobile-bar { display: flex !important; } }
+    .ham-btn { background:none; border:none; color:#fff; font-size:22px; cursor:pointer; padding:8px; border-radius:8px; }
+
+    /* ---- MAIN CONTENT ---- */
+    .main {
+      margin-left: 260px; flex: 1;
+      display: flex; flex-direction: column;
+      min-height: 100vh;
+    }
+    @media (max-width:960px) { .main { margin-left: 0 !important; } }
+
+    .page-content { padding: 28px; flex: 1; }
+    @media (max-width:960px) { .page-content { padding: 20px 16px; } }
+    @media (max-width:600px) { .page-content { padding: 16px 12px; } }
+
+    /* ---- SECTIONS ---- */
+    .section { display: none; animation: fadeUp 0.3s ease; }
+    .section.active { display: block; }
+
+    /* ---- PAGE HEADER ---- */
+    .page-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 24px; gap: 14px; flex-wrap: wrap;
+    }
+    .page-header h1 { font-size: 22px; font-weight: 800; color: #fff; margin: 0 0 4px; }
+    .page-header p  { font-size: 14px; color: var(--muted); margin: 0; }
+
+    /* ---- CARDS ---- */
+    .card { background: var(--dark-2); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-bottom: 20px; }
+    .card-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px; }
+    .card-head h3 { font-size: 15px; font-weight: 700; color: #fff; margin: 0; }
+    .card-body { padding: 20px; }
+
+    /* ---- STATS GRID ---- */
+    .stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 24px; }
+    @media (max-width:900px) { .stats-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width:480px) { .stats-grid { grid-template-columns: 1fr; gap: 12px; } }
+
+    .stat-card { background: var(--dark-2); border: 1px solid var(--border); border-radius: 14px; padding: 20px; display: flex; align-items: center; gap: 14px; }
+    .stat-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+    .stat-val  { font-size: 28px; font-weight: 900; color: #fff; line-height: 1; }
+    .stat-lbl  { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
+
+    /* ---- TABLE ---- */
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { width: 100%; border-collapse: collapse; min-width: 480px; }
+    th { padding: 11px 14px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 12px 14px; font-size: 14px; color: var(--secondary); border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    /* ---- BUTTONS ---- */
+    .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 9px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; border: none; transition: all 0.2s; text-decoration: none; white-space: nowrap; }
+    .btn-primary  { background: linear-gradient(135deg,var(--primary),var(--pd)); color: #fff; }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(108,99,255,0.4); }
+    .btn-green    { background: linear-gradient(135deg,var(--green),#38f9d7); color: #0f0f1a; }
+    .btn-green:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(67,233,123,0.35); }
+    .btn-secondary { background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--secondary); }
+    .btn-danger   { background: rgba(255,101,132,0.1); border: 1px solid rgba(255,101,132,0.3); color: var(--red); }
+    .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 7px; }
+
+    /* ---- BADGE ---- */
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+    .badge-green   { background: rgba(67,233,123,0.12);  color: var(--green); }
+    .badge-red     { background: rgba(255,101,132,0.12); color: var(--red); }
+    .badge-orange  { background: rgba(255,165,0,0.12);   color: var(--orange); }
+    .badge-purple  { background: rgba(108,99,255,0.12);  color: #a78bfa; }
+    .badge-muted   { background: rgba(255,255,255,0.06); color: var(--secondary); }
+
+    /* ---- MODAL ---- */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 600; display: flex; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
+    .modal-box { background: var(--dark-2); border: 1px solid var(--border); border-radius: 20px; padding: 28px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+    .modal-header h2 { font-size: 18px; font-weight: 800; color: #fff; margin: 0; }
+    .modal-close { width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--muted); cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; font-family: inherit; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+    @media (max-width:600px) { .modal-overlay { align-items: flex-end; padding: 0; } .modal-box { border-radius: 20px 20px 0 0; max-width: 100%; max-height: 88vh; } }
+
+    /* ---- FORM FIELDS ---- */
+    .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .field label { font-size: 12px; font-weight: 700; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.4px; }
+    .field input, .field select, .field textarea { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 9px; padding: 11px 13px; color: #fff; font-size: 14px; font-family: inherit; outline: none; width: 100%; transition: border-color 0.2s; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--primary); }
+    .field input::placeholder, .field textarea::placeholder { color: var(--muted); }
+    .field select option { background: var(--dark-2); }
+    .field textarea { resize: vertical; min-height: 70px; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width:480px) { .field-row { grid-template-columns: 1fr; } }
+
+    /* ---- EMPTY STATE ---- */
+    .empty { text-align: center; padding: 48px 20px; color: var(--muted); }
+    .empty-icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-text { font-size: 15px; font-weight: 700; color: var(--secondary); margin-bottom: 6px; }
+    .empty-sub  { font-size: 13px; line-height: 1.6; }
+
+    /* ---- SUBSCRIPTION BANNER ---- */
+    .sub-banner {
+      border-radius: 14px; padding: 20px 24px; margin-bottom: 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 14px;
+    }
+    .sub-banner.trial   { background: rgba(67,233,123,0.08); border: 1px solid rgba(67,233,123,0.25); }
+    .sub-banner.active  { background: rgba(108,99,255,0.08); border: 1px solid rgba(108,99,255,0.25); }
+    .sub-banner.warning { background: rgba(255,165,0,0.08);  border: 1px solid rgba(255,165,0,0.25); }
+    .sub-banner.expired { background: rgba(255,101,132,0.08); border: 1px solid rgba(255,101,132,0.3); }
+
+    /* ---- PLANS GRID ---- */
+    .plans-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 14px; }
+    .plan-card { background: rgba(255,255,255,0.03); border: 2px solid var(--border); border-radius: 14px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; }
+    .plan-card:hover { border-color: rgba(108,99,255,0.4); }
+    .plan-card.active-plan { border-color: var(--primary); background: rgba(108,99,255,0.1); }
+    .plan-card-name  { font-size: 13px; color: var(--muted); margin-bottom: 6px; font-weight: 700; text-transform: uppercase; }
+    .plan-card-price { font-size: 28px; font-weight: 900; color: #fff; }
+    .plan-card-price small { font-size: 13px; color: var(--muted); font-weight: 400; }
+    .plan-card-days  { font-size: 12px; color: var(--secondary); margin: 4px 0 14px; }
+    .plan-popular { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: var(--primary); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 12px; border-radius: 20px; white-space: nowrap; }
+
+    /* ---- TOAST ---- */
+    #instToast { position: fixed; bottom: 24px; right: 24px; z-index: 9999; }
+
+    /* ---- QUICK STATS MINI ---- */
+    .mini-stat { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: 8px; }
+    .mini-stat-val { font-size: 18px; font-weight: 800; color: #fff; }
+    .mini-stat-lbl { font-size: 12px; color: var(--muted); }
+
+    .spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
+
+    /* ---- INVITE LINK DISPLAY ---- */
+    .invite-link-box { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 13px; color: var(--secondary); word-break: break-all; font-family: monospace; }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR OVERLAY -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="sb-school">
+    <div class="sb-school-logo" id="sbLogo">🏫</div>
+    <div>
+      <div class="sb-school-name" id="sbSchoolName">Loading...</div>
+      <div class="sb-school-role">School Admin</div>
+    </div>
+  </div>
+
+  <!-- Subscription indicator -->
+  <div class="sb-sub-badge" id="sbSubBadge">
+    <div>
+      <div class="sb-sub-days" id="sbSubDays">—</div>
+      <div class="sb-sub-label" id="sbSubLabel">Days remaining</div>
+    </div>
+    <button class="btn btn-sm btn-green" onclick="showSection('subscription')" style="margin-left:auto;">Manage</button>
+
+  </div>
+
+  <nav class="sb-nav">
+    <div class="sb-sep">Main</div>
+    <button class="nav-item active" data-sec="overview"      onclick="showSection('overview')">      <span class="nav-icon">📊</span> Overview         </button>
+    <button class="nav-item"        data-sec="teachers"      onclick="showSection('teachers')">      <span class="nav-icon">👩‍🏫</span> Teachers         </button>
+    <button class="nav-item"        data-sec="exams"         onclick="showSection('exams')">         <span class="nav-icon">📝</span> Exams            </button>
+    <button class="nav-item"        data-sec="results"       onclick="showSection('results')">       <span class="nav-icon">📊</span> Results          </button>
+    <button class="nav-item" data-sec="analytics" onclick="window.location='/institution/school/analytics.html'">
+  <span class="nav-icon">📈</span> Analytics
+</button>
+    <div class="sb-sep">Settings</div>
+    <button class="nav-item"        data-sec="subscription"  onclick="showSection('subscription')">  <span class="nav-icon">💳</span> Subscription     </button>
+    <button class="nav-item"        data-sec="settings"      onclick="showSection('settings')">      <span class="nav-icon">⚙️</span> School Settings  </button>
+
+    <div class="sb-sep">Links</div>
+    <a href="/institution/student/exam.html" class="nav-item" target="_blank"><span class="nav-icon">🎓</span> Student Portal</a>
+    <a href="/institution/index.html"        class="nav-item"><span class="nav-icon">🏠</span> Institution Home</a>
+  </nav>
+
+  <div class="sb-footer">
+    <button class="nav-item" style="color:var(--red);" onclick="instLogout()">
+      <span class="nav-icon">🚪</span> Logout
+    </button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- Mobile bar -->
+  <div class="mobile-bar">
+    <button class="ham-btn" onclick="openSidebar()">☰</button>
+    <span style="font-size:15px; font-weight:800;">🏫 School Dashboard</span>
+    <span style="font-size:13px; color:var(--muted);" id="mobileSectionLabel">Overview</span>
+  </div>
+
+  <div class="page-content">
+
+    <!-- ===== OVERVIEW ===== -->
+    <div class="section active" id="sec-overview">
+      <div class="page-header">
+        <div>
+          <h1 id="overviewTitle">Dashboard</h1>
+          <p id="overviewSub">Welcome back! Here's your school at a glance.</p>
+        </div>
+        <button class="btn btn-green" onclick="showSection('exams')">+ Create Exam</button>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(108,99,255,0.12);">👩‍🏫</div>
+          <div><div class="stat-val" id="statTeachers">—</div><div class="stat-lbl">Teachers</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(67,233,123,0.12);">📝</div>
+          <div><div class="stat-val" id="statExams">—</div><div class="stat-lbl">Exams</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(255,214,0,0.12);">📊</div>
+          <div><div class="stat-val" id="statResults">—</div><div class="stat-lbl">Submissions</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(255,165,0,0.12);">📨</div>
+          <div><div class="stat-val" id="statPendingInvites">—</div><div class="stat-lbl">Pending Invites</div></div>
+        </div>
+      </div>
+
+      <!-- Recent Exams -->
+      <div class="card">
+        <div class="card-head">
+          <h3>Recent Exams</h3>
+          <button class="btn btn-secondary btn-sm" onclick="showSection('exams')">View All</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th><th>Subject</th><th>Status</th>
+                <th>Access Code</th><th>Submissions</th><th>Created</th>
+              </tr>
+            </thead>
+            <tbody id="recentExamsBody">
+              <tr><td colspan="6" style="text-align:center; padding:28px; color:var(--muted);">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="card">
+        <div class="card-head"><h3>Quick Actions</h3></div>
+        <div class="card-body" style="display:flex; flex-wrap:wrap; gap:12px;">
+          <button class="btn btn-primary" onclick="openInviteModal()">+ Invite Teacher</button>
+          <button class="btn btn-green"   onclick="showSection('exams'); setTimeout(openCreateExamModal, 300);">+ Create Exam</button>
+          <button class="btn btn-secondary" onclick="showSection('results')">📊 View Results</button>
+          <button class="btn btn-secondary" onclick="showSection('subscription')">💳 Subscription</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== TEACHERS ===== -->
+    <div class="section" id="sec-teachers">
+      <div class="page-header">
+        <div><h1>Teachers</h1><p id="teachersSubtitle">Manage your school staff</p></div>
+        <button class="btn btn-primary" onclick="openInviteModal()">+ Invite Teacher</button>
+      </div>
+
+      <!-- Active Teachers -->
+      <div class="card">
+        <div class="card-head">
+          <h3>Active Staff</h3>
+          <span id="teacherCountBadge" style="font-size:12px; color:var(--muted);"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Name</th><th>Email</th><th>Role</th><th>Subjects</th><th>Status</th><th>Joined</th></tr>
+            </thead>
+            <tbody id="teachersTableBody">
+              <tr><td colspan="6" style="text-align:center; padding:28px; color:var(--muted);">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Pending Invites -->
+      <div class="card">
+        <div class="card-head">
+          <h3>Pending Invitations</h3>
+          <span id="inviteCountBadge" style="font-size:12px; color:var(--muted);"></span>
+        </div>
+        <div id="invitesContainer">
+          <div style="text-align:center; padding:28px; color:var(--muted); font-size:14px;">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== EXAMS ===== -->
+    <div class="section" id="sec-exams">
+      <div class="page-header">
+        <div><h1>Examinations</h1><p>All exams created by your teachers</p></div>
+        <a href="/institution/teacher/dashboard.html" class="btn btn-primary">Go to Teacher Panel →</a>
+      </div>
+
+      <div style="background:rgba(108,99,255,0.08); border:1px solid rgba(108,99,255,0.2); border-radius:12px; padding:16px 20px; margin-bottom:20px; font-size:14px; color:#a78bfa; line-height:1.6;">
+        💡 <strong>Tip:</strong> Exams are created and managed from the Teacher Dashboard. Here you can view all exams, release results, and end active sessions.
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>All Exams</h3>
+          <span id="examsTotalBadge" style="font-size:12px; color:var(--muted);"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Title</th><th>Subject</th><th>Class</th><th>Access Code</th><th>Status</th><th>Submissions</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="allExamsBody">
+              <tr><td colspan="7" style="text-align:center; padding:28px; color:var(--muted);">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== RESULTS ===== -->
+    <div class="section" id="sec-results">
+      <div class="page-header">
+        <div><h1>Results</h1><p>Student submissions across all exams</p></div>
+        <button class="btn btn-green" onclick="openReleaseModal()">📤 Release Results</button>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>All Submissions</h3>
+          <span id="resultsTotalBadge" style="font-size:12px; color:var(--muted);"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Student</th><th>Exam</th><th>Score</th><th>Status</th><th>Released</th><th>Date</th></tr>
+            </thead>
+            <tbody id="resultsTableBody">
+              <tr><td colspan="6" style="text-align:center; padding:28px; color:var(--muted);">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SUBSCRIPTION ===== -->
+    <div class="section" id="sec-subscription">
+      <div class="page-header">
+        <div><h1>Subscription</h1><p>Manage your school's access plan</p></div>
+      </div>
+
+      <!-- Current plan status -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-head"><h3>Current Plan</h3></div>
+        <div class="card-body" id="currentPlanBody">
+          <div style="color:var(--muted); font-size:14px; text-align:center; padding:20px;">Loading...</div>
+        </div>
+      </div>
+
+      <!-- Available plans -->
+      <div class="card">
+        <div class="card-head"><h3>Available Plans</h3></div>
+        <div class="card-body">
+          <div class="plans-grid" id="subPlansGrid">
+            <div style="color:var(--muted); font-size:14px; text-align:center; padding:20px; grid-column:1/-1;">Loading plans...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SETTINGS ===== -->
+    <div class="section" id="sec-settings">
+      <div class="page-header">
+        <div><h1>School Settings</h1><p>Update your school profile and preferences</p></div>
+        <button class="btn btn-primary" onclick="saveSettings()">Save Changes</button>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>School Profile</h3></div>
+        <div class="card-body">
+          <div class="field-row">
+            <div class="field">
+              <label>School Name</label>
+              <input type="text" id="setSchoolName" />
+            </div>
+            <div class="field">
+              <label>Principal Name</label>
+              <input type="text" id="setPrincipalName" />
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Phone</label>
+              <input type="tel" id="setPhone" />
+            </div>
+            <div class="field">
+              <label>State</label>
+              <input type="text" id="setState" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Address</label>
+            <input type="text" id="setAddress" />
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Motto</label>
+              <input type="text" id="setMotto" />
+            </div>
+            <div class="field">
+              <label>Website</label>
+              <input type="url" id="setWebsite" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Logo URL</label>
+            <input type="url" id="setLogo" placeholder="https://..." />
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Primary Color</label>
+              <input type="color" id="setPrimaryColor" style="height:44px;" />
+            </div>
+            <div class="field">
+              <label>Secondary Color</label>
+              <input type="color" id="setSecondaryColor" style="height:44px;" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Exam Settings</h3></div>
+        <div class="card-body">
+          <div class="field" style="flex-direction:row; align-items:center; justify-content:space-between; margin-bottom:12px;">
+            <div>
+              <div style="font-size:14px; font-weight:600; color:#fff;">Auto-release results</div>
+              <div style="font-size:12px; color:var(--muted);">Release objective results immediately after submission</div>
+            </div>
+            <label style="position:relative; display:inline-block; width:44px; height:24px; cursor:pointer;">
+              <input type="checkbox" id="setAutoRelease" style="opacity:0; width:0; height:0;" onchange="toggleCheck(this)" />
+              <span id="setAutoReleaseSlider" style="position:absolute; inset:0; background:rgba(255,255,255,0.1); border-radius:24px; transition:all 0.3s;"></span>
+            </label>
+          </div>
+          <div class="field" style="flex-direction:row; align-items:center; justify-content:space-between;">
+            <div>
+              <div style="font-size:14px; font-weight:600; color:#fff;">Allow late entry</div>
+              <div style="font-size:12px; color:var(--muted);">Students can join exam after it starts</div>
+            </div>
+            <label style="position:relative; display:inline-block; width:44px; height:24px; cursor:pointer;">
+              <input type="checkbox" id="setLateEntry" style="opacity:0; width:0; height:0;" onchange="toggleCheck(this)" />
+              <span id="setLateEntrySlider" style="position:absolute; inset:0; background:rgba(255,255,255,0.1); border-radius:24px; transition:all 0.3s;"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end page-content -->
+</div><!-- end main -->
+
+<!-- ===== INVITE TEACHER MODAL ===== -->
+<div class="modal-overlay" id="inviteModal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>Invite Teacher</h2>
+      <button class="modal-close" onclick="closeModal('inviteModal')">✕</button>
+    </div>
+
+    <div id="inviteErr" style="display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); padding:12px; border-radius:8px; font-size:13px; margin-bottom:16px;"></div>
+    <div id="inviteSuccess" style="display:none; background:rgba(67,233,123,0.1); border:1px solid rgba(67,233,123,0.3); color:var(--green); padding:16px; border-radius:8px; font-size:13px; margin-bottom:16px; line-height:1.7;"></div>
+
+    <div class="field">
+      <label>Teacher Email <span style="color:var(--red);">*</span></label>
+      <input type="email" id="inviteEmail" placeholder="teacher@email.com" />
+    </div>
+    <div class="field">
+      <label>Full Name (optional)</label>
+      <input type="text" id="inviteName" placeholder="e.g. Mrs. Adaeze Okafor" />
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Role</label>
+        <select id="inviteRole">
+          <option value="teacher">Teacher</option>
+          <option value="vice_principal">Vice Principal</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Subjects</label>
+        <input type="text" id="inviteSubjects" placeholder="e.g. Maths, English" />
+      </div>
+    </div>
+    <div class="field">
+      <label>Classes</label>
+      <input type="text" id="inviteClasses" placeholder="e.g. JSS1, SS2A" />
+    </div>
+    <div class="field">
+      <label>Personal Message (optional)</label>
+      <textarea id="inviteMessage" placeholder="Welcome to our school!" rows="2"></textarea>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('inviteModal')">Cancel</button>
+      <button class="btn btn-primary" id="inviteBtn" onclick="sendInvite()">Send Invitation →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== RELEASE RESULTS MODAL ===== -->
+<div class="modal-overlay" id="releaseModal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>Release Results</h2>
+      <button class="modal-close" onclick="closeModal('releaseModal')">✕</button>
+    </div>
+    <p style="font-size:14px; color:var(--secondary); margin:0 0 18px; line-height:1.6;">
+      Select an exam to release all its results to students. Released results cannot be un-released.
+    </p>
+    <div class="field">
+      <label>Select Exam</label>
+      <select id="releaseExamSelect">
+        <option value="">-- Select Exam --</option>
+      </select>
+    </div>
+    <div id="releaseInfo" style="font-size:13px; color:var(--muted); margin-top:4px; display:none;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('releaseModal')">Cancel</button>
+      <button class="btn btn-green" id="releaseBtn" onclick="confirmRelease()">📤 Release Results</button>
+    </div>
+  </div>
+</div>
+
+<script src="/institution/js/inst.api.js"></script>
+<script>
+
+/* ============================================
+   LOGOUT FALLBACK
+   instLogout() MUST exist before any button
+   click can fire. inst.api.js should define it,
+   but we always define a fallback here so the
+   logout button never silently fails.
+============================================ */
+if (typeof instLogout !== 'function') {
+  window.instLogout = function() {
+    if (!confirm('Log out of School Dashboard?')) return;
+    localStorage.removeItem('latlomp_inst_token');
+    localStorage.removeItem('latlomp_inst_user');
+    window.location.href = '/institution/index.html';
+  };
+}
+
+/* ============================================
+   SCHOOL ADMIN DASHBOARD
+============================================ */
+var _school     = null;
+var _dashStats  = null;
+var _allExams   = [];
+var _allResults = [];
+var _teachers   = [];
+
+/* ============================================
+   INIT
+============================================ */
+document.addEventListener('DOMContentLoaded', async function() {
+  if (!instRequireAuth('school_admin')) return;
+
+  var user = instGetUser();
+  if (!user) return;
+
+  /* Load dashboard data */
+  await loadDashboard();
+});
+
+/* ============================================
+   SIDEBAR
+============================================ */
+var _sidebarOpen = false;
+
+function openSidebar() {
+  _sidebarOpen = true;
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebarOverlay').classList.add('visible');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeSidebar() {
+  _sidebarOpen = false;
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('visible');
+  document.body.style.overflow = '';
+}
+
+window.addEventListener('resize', function() {
+  if (window.innerWidth > 960) closeSidebar();
+});
+
+/* ============================================
+   SECTION NAVIGATION
+============================================ */
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
+  document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+
+  var section = document.getElementById('sec-' + name);
+  if (section) section.classList.add('active');
+
+  var navItem = document.querySelector('[data-sec="' + name + '"]');
+  if (navItem) navItem.classList.add('active');
+
+  var mobileLabel = document.getElementById('mobileSectionLabel');
+  var labels = { overview:'Overview', teachers:'Teachers', exams:'Exams', results:'Results', subscription:'Subscription', settings:'Settings' };
+  if (mobileLabel) mobileLabel.textContent = labels[name] || name;
+
+  if (window.innerWidth <= 960) closeSidebar();
+
+  /* Load section data lazily */
+  if (name === 'teachers')     loadTeachers();
+  if (name === 'exams')        loadAllExams();
+  if (name === 'results')      loadAllResults();
+  if (name === 'subscription') loadSubscriptionSection();
+  if (name === 'settings')     loadSettingsSection();
+}
+
+/* ============================================
+   LOAD DASHBOARD
+============================================ */
+async function loadDashboard() {
+  var res = await instApi('/school/dashboard');
+
+  if (!res.ok) {
+    if (res.status === 403 && res.data.code === 'SUBSCRIPTION_EXPIRED') {
+      showSection('subscription');
+      instToast('Your subscription has expired. Please renew.', 'error');
+      return;
+    }
+    instToast(res.data.message || 'Failed to load dashboard.', 'error');
+    return;
+  }
+
+  _school    = res.data.school;
+  _dashStats = res.data.stats;
+
+  fillSidebar(_school, _dashStats);
+  fillOverview(_dashStats, res.data.recentExams || []);
+}
+
+function fillSidebar(school, stats) {
+  if (!school) return;
+
+  /* Logo */
+  var logoEl = document.getElementById('sbLogo');
+  if (logoEl) {
+    if (school.logo) {
+      logoEl.innerHTML = '<img src="' + school.logo + '" alt="Logo" style="width:40px; height:40px; border-radius:8px; object-fit:cover;" />';
+    } else {
+      logoEl.textContent = (school.name || 'S').charAt(0).toUpperCase();
+      if (school.primaryColor) logoEl.style.background = 'linear-gradient(135deg,' + school.primaryColor + ',' + (school.secondaryColor || school.primaryColor) + ')';
+    }
+  }
+
+  var nameEl = document.getElementById('sbSchoolName');
+  if (nameEl) nameEl.textContent = school.name || 'My School';
+
+  /* Subscription badge */
+  var daysLeft  = stats ? stats.daysLeft : 0;
+  var badgeEl   = document.getElementById('sbSubBadge');
+  var daysEl    = document.getElementById('sbSubDays');
+  var labelEl   = document.getElementById('sbSubLabel');
+
+  if (daysEl)  daysEl.textContent = daysLeft;
+  if (labelEl) labelEl.textContent = (stats && stats.subscriptionPlan === 'trial' ? '🎁 Trial — ' : '✅ ') + 'days remaining';
+
+  if (badgeEl) {
+    badgeEl.className = 'sb-sub-badge' + (daysLeft <= 0 ? ' danger' : daysLeft <= 3 ? ' danger' : daysLeft <= 7 ? ' warning' : '');
+  }
+}
+
+function fillOverview(stats, recentExams) {
+  if (!stats) return;
+
+  /* Page header */
+  var titleEl = document.getElementById('overviewTitle');
+  var subEl   = document.getElementById('overviewSub');
+  if (titleEl && _school) titleEl.textContent = _school.name || 'Dashboard';
+  if (subEl) subEl.textContent = 'Welcome back! Here\'s your school at a glance.';
+
+  /* Stats */
+  function setEl(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
+  setEl('statTeachers',       stats.teachers       || 0);
+  setEl('statExams',          stats.exams          || 0);
+  setEl('statResults',        stats.results        || 0);
+  setEl('statPendingInvites', stats.pendingInvites || 0);
+
+  /* Recent exams table */
+  var tbody = document.getElementById('recentExamsBody');
+  if (!tbody) return;
+
+  if (!recentExams || recentExams.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><div class="empty-icon">📝</div><div class="empty-text">No exams yet</div><div class="empty-sub">Go to the Teacher Panel to create your first exam.</div></div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = recentExams.map(function(e) {
+    var statusBadge = {
+      draft:     '<span class="badge badge-muted">Draft</span>',
+      published: '<span class="badge badge-green">Published</span>',
+      active:    '<span class="badge badge-purple">Active</span>',
+      ended:     '<span class="badge badge-orange">Ended</span>',
+      archived:  '<span class="badge badge-muted">Archived</span>'
+    }[e.status] || '<span class="badge badge-muted">' + e.status + '</span>';
+
+    return '<tr>' +
+      '<td style="font-weight:700; color:#fff;">' + (e.title || '—') + '</td>' +
+      '<td>' + (e.subject || '—') + '</td>' +
+      '<td><span style="font-family:monospace; background:rgba(108,99,255,0.12); color:#a78bfa; padding:3px 10px; border-radius:6px; font-size:13px; font-weight:700;">' + (e.accessCode || '—') + '</span></td>' +
+      '<td>' + statusBadge + '</td>' +
+      '<td>' + (e.totalAttempts || 0) + '</td>' +
+      '<td>' + instFmtDate(e.createdAt) + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+/* ============================================
+   LOAD TEACHERS
+============================================ */
+async function loadTeachers() {
+  var res = await instApi('/school/teachers');
+  if (!res.ok) { instToast('Failed to load teachers.', 'error'); return; }
+
+  _teachers = res.data.teachers || [];
+  var invites = res.data.pendingInvites || [];
+
+  /* Teachers table */
+  var tbody = document.getElementById('teachersTableBody');
+  var countEl = document.getElementById('teacherCountBadge');
+  if (countEl) countEl.textContent = _teachers.length + ' member' + (_teachers.length !== 1 ? 's' : '');
+
+  if (tbody) {
+    if (_teachers.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><div class="empty-icon">👩‍🏫</div><div class="empty-text">No teachers yet</div><div class="empty-sub">Invite your first teacher using the button above.</div></div></td></tr>';
+    } else {
+      tbody.innerHTML = _teachers.map(function(t) {
+        return '<tr>' +
+          '<td style="font-weight:700; color:#fff;">' +
+            '<div style="display:flex; align-items:center; gap:10px;">' +
+              (t.avatar ? '<img src="' + t.avatar + '" style="width:30px; height:30px; border-radius:6px; object-fit:cover;" />' : '<div style="width:30px; height:30px; border-radius:6px; background:rgba(108,99,255,0.2); display:flex; align-items:center; justify-content:center; font-weight:800;">' + (t.name || 'T').charAt(0) + '</div>') +
+              (t.name || '—') +
+            '</div>' +
+          '</td>' +
+          '<td>' + (t.email || '—') + '</td>' +
+          '<td><span class="badge badge-purple">' + (t.role || 'teacher') + '</span></td>' +
+          '<td style="font-size:12px;">' + ((t.subjects || []).join(', ') || '—') + '</td>' +
+          '<td><span class="badge ' + (t.isActive ? 'badge-green' : 'badge-red') + '">' + (t.isActive ? 'Active' : 'Inactive') + '</span></td>' +
+          '<td>' + instFmtDate(t.joinedAt) + '</td>' +
+        '</tr>';
+      }).join('');
+    }
+  }
+
+  /* Pending invites */
+  var invContainer = document.getElementById('invitesContainer');
+  var invCountEl   = document.getElementById('inviteCountBadge');
+  if (invCountEl) invCountEl.textContent = invites.length + ' pending';
+
+  if (invContainer) {
+    if (invites.length === 0) {
+      invContainer.innerHTML = '<div style="text-align:center; padding:24px; color:var(--muted); font-size:14px;">No pending invitations.</div>';
+    } else {
+      invContainer.innerHTML = '<div style="padding:8px 0;">' +
+        invites.map(function(inv) {
+          return '<div style="display:flex; align-items:center; gap:14px; padding:12px 20px; border-bottom:1px solid var(--border);">' +
+            '<div style="width:36px; height:36px; border-radius:8px; background:rgba(255,165,0,0.12); display:flex; align-items:center; justify-content:center; font-size:18px;">📨</div>' +
+            '<div style="flex:1;">' +
+              '<div style="font-size:14px; font-weight:700; color:#fff;">' + (inv.email || '') + '</div>' +
+              '<div style="font-size:12px; color:var(--muted);">Invited as ' + (inv.role || 'teacher') + ' · Expires ' + instFmtDate(inv.expiresAt) + '</div>' +
+            '</div>' +
+            '<span class="badge badge-orange">Pending</span>' +
+          '</div>';
+        }).join('') +
+      '</div>';
+    }
+  }
+}
+
+/* ============================================
+   LOAD EXAMS
+============================================ */
+async function loadAllExams() {
+  var res = await instApi('/school/results?limit=1'); /* Just to check access */
+  var exRes = await instApi('/teacher/exams'); /* All exams via teacher route */
+
+  if (!exRes.ok) {
+    document.getElementById('allExamsBody').innerHTML =
+      '<tr><td colspan="7" style="text-align:center; padding:28px; color:var(--muted);">Could not load exams.</td></tr>';
+    return;
+  }
+
+  _allExams = exRes.data.exams || [];
+  var countEl = document.getElementById('examsTotalBadge');
+  if (countEl) countEl.textContent = _allExams.length + ' total';
+
+  /* Fill release modal select */
+  var selEl = document.getElementById('releaseExamSelect');
+  if (selEl) {
+    selEl.innerHTML = '<option value="">-- Select Exam --</option>' +
+      _allExams.filter(function(e) { return e.status === 'ended' || e.status === 'published'; }).map(function(e) {
+        return '<option value="' + e._id + '">' + e.title + ' (' + e.subject + ')</option>';
+      }).join('');
+  }
+
+  var tbody = document.getElementById('allExamsBody');
+  if (!tbody) return;
+
+  if (_allExams.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><div class="empty-icon">📝</div><div class="empty-text">No exams yet</div><div class="empty-sub">Teachers create exams from the Teacher Dashboard.</div></div></td></tr>';
+    return;
+  }
+
+  var statusBadgeMap = {
+    draft:     'badge-muted',  published: 'badge-green',
+    active:    'badge-purple', ended:     'badge-orange', archived: 'badge-muted'
+  };
+
+  tbody.innerHTML = _allExams.map(function(e) {
+    return '<tr>' +
+      '<td style="font-weight:700; color:#fff;">' + (e.title || '—') + '</td>' +
+      '<td>' + (e.subject || '—') + '</td>' +
+      '<td>' + (e.class || '—') + '</td>' +
+      '<td><span style="font-family:monospace; background:rgba(108,99,255,0.12); color:#a78bfa; padding:3px 10px; border-radius:6px; font-size:12px; font-weight:700;">' + (e.accessCode || '—') + '</span></td>' +
+      '<td><span class="badge ' + (statusBadgeMap[e.status] || 'badge-muted') + '">' + (e.status || '—') + '</span></td>' +
+      '<td style="font-weight:700;">' + (e.totalAttempts || 0) + '</td>' +
+      '<td>' +
+        (e.status === 'published'
+          ? '<button class="btn btn-danger btn-sm" onclick="endExam(\'' + e._id + '\')">End Exam</button>'
+          : '—') +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+async function endExam(examId) {
+  if (!confirm('End this exam? Students will no longer be able to join.')) return;
+  instToast('Ending exam...', 'info');
+  /* Teachers end exams — school admin view only */
+  instToast('Only teachers can end exams. Go to Teacher Panel.', 'warning');
+}
+
+/* ============================================
+   LOAD RESULTS
+============================================ */
+async function loadAllResults() {
+  var res = await instApi('/school/results?limit=50');
+  if (!res.ok) { instToast('Failed to load results.', 'error'); return; }
+
+  _allResults = res.data.results || [];
+  var countEl = document.getElementById('resultsTotalBadge');
+  if (countEl) countEl.textContent = _allResults.length + ' submissions';
+
+  var tbody = document.getElementById('resultsTableBody');
+  if (!tbody) return;
+
+  if (_allResults.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><div class="empty-icon">📊</div><div class="empty-text">No results yet</div><div class="empty-sub">Results will appear here once students complete exams.</div></div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = _allResults.map(function(r) {
+    var pct   = r.scorePercent || 0;
+    var color = r.isPassed ? 'var(--green)' : 'var(--red)';
+    var exam  = r.examId || {};
+
+    return '<tr>' +
+      '<td style="font-weight:700; color:#fff;">' + (r.studentName || '—') + '</td>' +
+      '<td>' + (exam.title || 'Exam') + '</td>' +
+      '<td style="font-weight:800; color:' + color + ';">' + pct + '%</td>' +
+      '<td><span class="badge ' + (r.isPassed ? 'badge-green' : 'badge-red') + '">' + (r.isPassed ? '✅ Passed' : '❌ Failed') + '</span></td>' +
+      '<td><span class="badge ' + (r.isReleased ? 'badge-green' : 'badge-muted') + '">' + (r.isReleased ? 'Released' : 'Pending') + '</span></td>' +
+      '<td>' + instFmtDate(r.createdAt) + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+/* ============================================
+   SUBSCRIPTION SECTION
+============================================ */
+async function loadSubscriptionSection() {
+  var res = await instApi('/school/dashboard');
+  if (!res.ok) return;
+
+  var school = res.data.school;
+  var stats  = res.data.stats;
+
+  /* Current plan display */
+  var planBody = document.getElementById('currentPlanBody');
+  if (planBody && school) {
+    var daysLeft   = stats ? stats.daysLeft : 0;
+    var statusCls  = daysLeft <= 0 ? 'expired' : daysLeft <= 3 ? 'warning' : school.status === 'trial' ? 'trial' : 'active';
+    var planLabel  = { trial:'🎁 Free Trial', monthly:'Monthly', quarterly:'Quarterly', biannual:'6-Month', annual:'Annual', none:'None' }[school.subscriptionPlan] || 'Unknown';
+
+    planBody.innerHTML =
+      '<div class="sub-banner ' + statusCls + '">' +
+        '<div>' +
+          '<div style="font-size:13px; color:var(--muted); margin-bottom:4px;">Current Plan</div>' +
+          '<div style="font-size:20px; font-weight:900; color:#fff;">' + planLabel + '</div>' +
+          '<div style="font-size:13px; color:var(--secondary); margin-top:4px;">' +
+            (daysLeft > 0
+              ? '✅ ' + daysLeft + ' days remaining · Expires ' + instFmtDate(school.subscriptionExpiry)
+              : '⚠️ Subscription expired — renew to restore access') +
+          '</div>' +
+        '</div>' +
+        '<div style="text-align:right;">' +
+          '<div style="font-size:36px; font-weight:900; color:' + (daysLeft <= 3 ? 'var(--red)' : 'var(--green)') + ';">' + Math.max(0, daysLeft) + '</div>' +
+          '<div style="font-size:12px; color:var(--muted);">days left</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  /* Load plans */
+  var planRes = await instApi('/school/plans');
+  var grid    = document.getElementById('subPlansGrid');
+  if (!grid) return;
+
+  if (!planRes.ok || !planRes.data.plans) {
+    grid.innerHTML = '<div style="color:var(--muted); text-align:center; padding:24px; grid-column:1/-1;">Could not load plans.</div>';
+    return;
+  }
+
+  grid.innerHTML = planRes.data.plans.filter(function(p) { return p.code !== 'trial'; }).map(function(p) {
+    return '<div class="plan-card" onclick="initPayment(\'' + p.code + '\')">' +
+      (p.isPopular ? '<div class="plan-popular">⭐ Popular</div>' : '') +
+      '<div class="plan-card-name">' + p.name + '</div>' +
+      '<div class="plan-card-price">₦' + (p.price || 0).toLocaleString() + '<small>/plan</small></div>' +
+      '<div class="plan-card-days">' + p.durationDays + ' days access</div>' +
+      '<button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="event.stopPropagation(); initPayment(\'' + p.code + '\')">Subscribe →</button>' +
+    '</div>';
+  }).join('');
+}
+
+async function initPayment(planCode) {
+  instToast('Preparing payment...', 'info');
+  var res = await instApi('/school/subscribe', 'POST', { planCode: planCode });
+
+  if (res.ok && res.data.paymentUrl) {
+    window.location.href = res.data.paymentUrl;
+  } else {
+    instToast(res.data.message || 'Could not start payment.', 'error');
+  }
+}
+
+/* ============================================
+   SETTINGS SECTION
+============================================ */
+function loadSettingsSection() {
+  if (!_school) return;
+
+  var fieldMap = {
+    'setSchoolName':    _school.name            || '',
+    'setPrincipalName': _school.principalName   || '',
+    'setPhone':         _school.phone           || '',
+    'setState':         _school.state           || '',
+    'setAddress':       _school.address         || '',
+    'setMotto':         _school.motto           || '',
+    'setWebsite':       _school.website         || '',
+    'setLogo':          _school.logo            || '',
+    'setPrimaryColor':  _school.primaryColor    || '#6c63ff',
+    'setSecondaryColor':_school.secondaryColor  || '#43e97b'
+  };
+
+  Object.keys(fieldMap).forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = fieldMap[id];
+  });
+
+  /* Toggle switches */
+  setToggle('setAutoRelease', _school.settings && _school.settings.examResultsAutoRelease);
+  setToggle('setLateEntry',   _school.settings && _school.settings.allowLateSubmission);
+}
+
+function setToggle(id, val) {
+  var cb  = document.getElementById(id);
+  var sl  = document.getElementById(id + 'Slider');
+  if (cb) cb.checked = !!val;
+  if (sl) sl.style.background = val ? 'var(--green)' : 'rgba(255,255,255,0.1)';
+}
+
+function toggleCheck(cb) {
+  var sl = document.getElementById(cb.id + 'Slider');
+  if (sl) sl.style.background = cb.checked ? 'var(--green)' : 'rgba(255,255,255,0.1)';
+}
+
+async function saveSettings() {
+  var payload = {
+    name:           (document.getElementById('setSchoolName')     || {}).value.trim(),
+    principalName:  (document.getElementById('setPrincipalName')  || {}).value.trim(),
+    phone:          (document.getElementById('setPhone')          || {}).value.trim(),
+    state:          (document.getElementById('setState')          || {}).value.trim(),
+    address:        (document.getElementById('setAddress')        || {}).value.trim(),
+    motto:          (document.getElementById('setMotto')          || {}).value.trim(),
+    website:        (document.getElementById('setWebsite')        || {}).value.trim(),
+    logo:           (document.getElementById('setLogo')           || {}).value.trim(),
+    primaryColor:   (document.getElementById('setPrimaryColor')   || {}).value,
+    secondaryColor: (document.getElementById('setSecondaryColor') || {}).value,
+    settings: {
+      examResultsAutoRelease: (document.getElementById('setAutoRelease') || {}).checked || false,
+      allowLateSubmission:    (document.getElementById('setLateEntry')   || {}).checked || false
+    }
+  };
+
+  if (!payload.name) { instToast('School name is required.', 'error'); return; }
+
+  var res = await instApi('/school/profile', 'PUT', payload);
+
+  if (res.ok) {
+    _school = res.data.school;
+    fillSidebar(_school, _dashStats);
+    instToast('Settings saved!', 'success');
+  } else {
+    instToast(res.data.message || 'Failed to save.', 'error');
+  }
+}
+
+/* ============================================
+   INVITE TEACHER
+============================================ */
+function openInviteModal() {
+  closeAllModals();
+  var errEl = document.getElementById('inviteErr');
+  var sucEl = document.getElementById('inviteSuccess');
+  if (errEl) errEl.style.display = 'none';
+  if (sucEl) sucEl.style.display = 'none';
+
+  /* Clear fields */
+  ['inviteEmail','inviteName','inviteSubjects','inviteClasses','inviteMessage'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+
+  document.getElementById('inviteModal').style.display = 'flex';
+}
+
+async function sendInvite() {
+  var btn    = document.getElementById('inviteBtn');
+  var errEl  = document.getElementById('inviteErr');
+  var sucEl  = document.getElementById('inviteSuccess');
+
+  if (errEl) errEl.style.display = 'none';
+  if (sucEl) sucEl.style.display = 'none';
+
+  var email    = (document.getElementById('inviteEmail')    || {}).value.trim();
+  var name     = (document.getElementById('inviteName')     || {}).value.trim();
+  var role     = (document.getElementById('inviteRole')     || {}).value;
+  var subjects = (document.getElementById('inviteSubjects') || {}).value.trim();
+  var classes  = (document.getElementById('inviteClasses')  || {}).value.trim();
+  var message  = (document.getElementById('inviteMessage')  || {}).value.trim();
+
+  if (!email) {
+    if (errEl) { errEl.textContent = '⚠️ Email is required.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  if (btn) { btn.innerHTML = '<span class="spinner"></span> Sending...'; btn.disabled = true; }
+
+  var res = await instApi('/school/invite-teacher', 'POST', {
+    email,    name,   role,
+    subjects: subjects ? subjects.split(',').map(function(s) { return s.trim(); }) : [],
+    classes:  classes  ? classes.split(',').map(function(s)  { return s.trim(); }) : [],
+    message
+  });
+
+  if (btn) { btn.innerHTML = 'Send Invitation →'; btn.disabled = false; }
+
+  if (res.ok) {
+    var inviteUrl = res.data.invite && res.data.invite.inviteUrl;
+
+    if (sucEl) {
+      sucEl.innerHTML = '✅ Invitation sent to <strong>' + email + '</strong>!' +
+        (inviteUrl ? '<br/><br/><div style="font-size:12px; color:var(--muted); margin-top:4px;">Invite link (share if email fails):</div>' +
+          '<div class="invite-link-box" style="margin-top:6px;">' + inviteUrl + '</div>' : '');
+      sucEl.style.display = 'block';
+    }
+    instToast('Invitation sent!', 'success');
+    loadTeachers();
+  } else {
+    if (errEl) { errEl.textContent = res.data.message || 'Failed to send invitation.'; errEl.style.display = 'block'; }
+  }
+}
+
+/* ============================================
+   RELEASE RESULTS
+============================================ */
+function openReleaseModal() {
+  closeAllModals();
+  loadAllExams();
+  document.getElementById('releaseModal').style.display = 'flex';
+}
+
+async function confirmRelease() {
+  var examId = (document.getElementById('releaseExamSelect') || {}).value;
+  if (!examId) { instToast('Please select an exam.', 'error'); return; }
+
+  var btn = document.getElementById('releaseBtn');
+  if (btn) { btn.innerHTML = '<span class="spinner"></span> Releasing...'; btn.disabled = true; }
+
+  var res = await instApi('/school/results/release', 'POST', { examId });
+
+  if (btn) { btn.innerHTML = '📤 Release Results'; btn.disabled = false; }
+
+  if (res.ok) {
+    instToast(res.data.message || 'Results released!', 'success');
+    closeModal('releaseModal');
+    loadAllResults();
+  } else {
+    instToast(res.data.message || 'Failed to release results.', 'error');
+  }
+}
+
+/* ============================================
+   MODAL HELPERS
+============================================ */
+function closeModal(id) {
+  var el = document.getElementById(id);
+  if (el) el.style.display = 'none';
+}
+
+function closeAllModals() {
+  document.querySelectorAll('.modal-overlay').forEach(function(m) { m.style.display = 'none'; });
+}
+
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('modal-overlay')) closeAllModals();
+});
+</script>
+</body>
+</html>

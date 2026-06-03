@@ -1,0 +1,39 @@
+# ============================================
+# LatLomp Platform — robots.txt
+# ============================================
+
+User-agent: *
+
+# Allow main public pages
+Allow: /
+Allow: /index.html
+Allow: /cbt.html
+Allow: /store.html
+Allow: /portfolio.html
+Allow: /games.html
+Allow: /institution/index.html
+
+# Block admin and internal pages
+Disallow: /admin.html
+Disallow: /admin-*
+Disallow: /institution/school/
+Disallow: /institution/teacher/
+Disallow: /institution/superadmin/
+Disallow: /institution/onboarding.html
+Disallow: /signin.html
+Disallow: /teacher-signin.html
+Disallow: /student-login.html
+Disallow: /verify-email.html
+Disallow: /reset-password.html
+
+# Block all API routes
+Disallow: /api/
+
+# Block common scanner paths (redundant with server-side block, defence in depth)
+Disallow: /.env
+Disallow: /.git/
+Disallow: /wp-admin/
+Disallow: /phpMyAdmin/
+
+# Sitemap
+Sitemap: https://latlompsystem.up.railway.app/sitemap.xml

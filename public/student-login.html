@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Exam Login — LatLomp Platform</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; background:var(--dark);">
+
+  <div style="width:100%; max-width:460px;">
+
+    <!-- LOGO -->
+    <div style="text-align:center; margin-bottom:32px;">
+      <a href="index.html" style="display:inline-flex; align-items:center; gap:8px; text-decoration:none;">
+        <span style="font-size:28px;">⚡</span>
+        <span style="font-size:22px; font-weight:800; color:var(--text-primary);">LatLomp</span>
+        <span style="background:linear-gradient(135deg,var(--primary),var(--secondary)); color:white; font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; letter-spacing:0.5px; text-transform:uppercase;">Platform</span>
+      </a>
+    </div>
+
+    <!-- CARD -->
+    <div style="background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:40px;">
+
+      <div style="text-align:center; margin-bottom:32px;">
+        <div style="font-size:52px; margin-bottom:12px;">🎓</div>
+        <h1 style="font-size:26px; font-weight:800; letter-spacing:-0.5px; margin-bottom:8px;">Student Exam Login</h1>
+        <p style="font-size:14px; color:var(--text-secondary);">Enter your name and the exam code your teacher gave you</p>
+      </div>
+
+      <!-- ERROR MESSAGE -->
+      <div id="studentError" style="display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--secondary); padding:12px 16px; border-radius:8px; font-size:14px; margin-bottom:20px;"></div>
+
+      <!-- SUCCESS MESSAGE -->
+      <div id="studentSuccess" style="display:none; background:rgba(67,233,123,0.1); border:1px solid rgba(67,233,123,0.3); color:#43e97b; padding:12px 16px; border-radius:8px; font-size:14px; margin-bottom:20px;"></div>
+
+      <!-- FORM -->
+      <div style="display:flex; flex-direction:column; gap:18px;">
+
+        <div>
+          <label style="display:block; font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">
+            Your Full Name *
+          </label>
+          <input id="sName" type="text" placeholder="Enter your full name"
+            style="width:100%; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:10px; padding:14px 16px; color:var(--text-primary); font-size:15px; font-family:inherit; outline:none; box-sizing:border-box; transition:border-color 0.2s;"
+            onfocus="this.style.borderColor='var(--primary)'"
+            onblur="this.style.borderColor='var(--border)'"
+            onkeydown="if(event.key==='Enter') document.getElementById('sCode').focus()" />
+        </div>
+
+        <div>
+          <label style="display:block; font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">
+            Exam Code *
+            <span style="font-size:11px; font-weight:400; text-transform:none; color:var(--text-muted);">(given by your teacher)</span>
+          </label>
+          <input id="sCode" type="text" placeholder="e.g. MATH2025"
+            style="width:100%; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:10px; padding:14px 16px; color:var(--text-primary); font-size:18px; font-family:inherit; outline:none; box-sizing:border-box; text-transform:uppercase; letter-spacing:3px; font-weight:700; transition:border-color 0.2s;"
+            onfocus="this.style.borderColor='var(--primary)'"
+            onblur="this.style.borderColor='var(--border)'"
+            oninput="this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '')"
+            onkeydown="if(event.key==='Enter') enterExam()" />
+        </div>
+
+        <button id="enterBtn" onclick="enterExam()"
+          style="width:100%; padding:16px; background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:white; border:none; border-radius:10px; font-size:16px; font-weight:700; cursor:pointer; font-family:inherit; transition:all 0.2s; margin-top:4px;">
+          Enter Exam →
+        </button>
+
+      </div>
+
+      <div style="text-align:center; margin-top:24px; padding-top:20px; border-top:1px solid var(--border);">
+        <p style="font-size:13px; color:var(--text-muted);">
+          Are you a teacher? <a href="teacher.html" style="color:var(--primary-light); font-weight:600;">Go to Teacher Dashboard →</a>
+        </p>
+        <p style="font-size:13px; color:var(--text-muted); margin-top:8px;">
+          <a href="index.html" style="color:var(--text-muted);">← Back to Home</a>
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/main.js"></script>
+  <script>
+    async function enterExam() {
+      const nameEl  = document.getElementById('sName');
+      const codeEl  = document.getElementById('sCode');
+      const errEl   = document.getElementById('studentError');
+      const sucEl   = document.getElementById('studentSuccess');
+      const btn     = document.getElementById('enterBtn');
+
+      errEl.style.display = 'none';
+      sucEl.style.display = 'none';
+
+      const name = nameEl.value.trim();
+      const code = codeEl.value.trim().toUpperCase();
+
+      // Validate inputs
+      if (!name) {
+        errEl.textContent   = '⚠️ Please enter your full name.';
+        errEl.style.display = 'block';
+        nameEl.focus();
+        return;
+      }
+
+      if (!code) {
+        errEl.textContent   = '⚠️ Please enter the exam code your teacher gave you.';
+        errEl.style.display = 'block';
+        codeEl.focus();
+        return;
+      }
+
+      // Show loading
+      btn.textContent = 'Checking code...';
+      btn.disabled    = true;
+
+      // Call API to validate code
+      const result = await apiRequest('/student-exam/access', 'POST', {
+        studentName: name,
+        examCode:    code
+      });
+
+      btn.disabled    = false;
+      btn.textContent = 'Enter Exam →';
+
+      if (!result.ok) {
+        errEl.textContent   = result.data.message || 'Invalid exam code. Please check with your teacher.';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      // Success — save exam data for the exam page
+      sucEl.textContent   = `✅ ${result.data.message} Redirecting to your exam...`;
+      sucEl.style.display = 'block';
+      btn.textContent     = 'Loading exam...';
+
+      // Save everything to sessionStorage
+      // (sessionStorage disappears when browser tab closes — good for exam security)
+      sessionStorage.setItem('student_name',    name);
+      sessionStorage.setItem('student_session', result.data.session);
+      sessionStorage.setItem('student_exam',    JSON.stringify(result.data.exam));
+      sessionStorage.setItem('student_questions', JSON.stringify(result.data.questions));
+
+      // Redirect to the exam page after a short pause
+      setTimeout(() => {
+        window.location.href = 'student-exam.html';
+      }, 1200);
+    }
+  </script>
+</body>
+</html>

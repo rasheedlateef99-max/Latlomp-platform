@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verify Email — LatLomp Platform</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .verify-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: var(--dark);
+    }
+
+    .verify-wrapper {
+      width: 100%;
+      max-width: 500px;
+    }
+
+    /* Logo at top */
+    .verify-logo {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .verify-logo a {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+    }
+
+    /* Main card */
+    .verify-card {
+      background: var(--dark-2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 48px 40px;
+      text-align: center;
+      animation: fadeIn 0.4s ease;
+    }
+
+    /* State icons */
+    .state-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+      display: block;
+      line-height: 1;
+    }
+
+    /* State titles */
+    .state-title {
+      font-size: 26px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      letter-spacing: -0.5px;
+    }
+
+    .state-title.green  { color: #43e97b; }
+    .state-title.orange { color: #ffa500; }
+    .state-title.red    { color: var(--secondary); }
+
+    /* State message */
+    .state-message {
+      font-size: 15px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: 24px;
+      max-width: 380px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* Info box (orange/warning) */
+    .info-box {
+      background: rgba(255,165,0,0.08);
+      border: 1px solid rgba(255,165,0,0.25);
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 28px;
+      text-align: left;
+    }
+
+    .info-box-title {
+      font-size: 14px;
+      color: #ffa500;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
+
+    .info-box p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin: 0 0 8px;
+    }
+
+    .info-box p:last-child { margin-bottom: 0; }
+
+    /* Info box (invalid/error) */
+    .info-box-invalid {
+      background: rgba(255,101,132,0.06);
+      border: 1px solid rgba(255,101,132,0.2);
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 28px;
+      text-align: left;
+    }
+
+    .info-box-invalid .info-box-title { color: var(--secondary); }
+
+    .info-box-invalid ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .info-box-invalid li {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    /* Button row */
+    .verify-btn-row {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* Buttons */
+    .v-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 13px 28px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
+      transition: all 0.2s;
+      min-width: 140px;
+      white-space: nowrap;
+    }
+
+    .v-btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+      box-shadow: 0 4px 16px rgba(108,99,255,0.3);
+    }
+
+    .v-btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(108,99,255,0.4);
+    }
+
+    .v-btn-green {
+      background: linear-gradient(135deg, #43e97b, #38f9d7);
+      color: #0f0f1a;
+      box-shadow: 0 4px 16px rgba(67,233,123,0.3);
+    }
+
+    .v-btn-green:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(67,233,123,0.4);
+    }
+
+    .v-btn-secondary {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+
+    .v-btn-secondary:hover {
+      background: rgba(255,255,255,0.09);
+      color: var(--text-primary);
+    }
+
+    /* Spinner for loading */
+    .verify-spinner {
+      width: 52px;
+      height: 52px;
+      border: 4px solid rgba(108,99,255,0.2);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 20px;
+    }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      .verify-card { padding: 36px 24px; }
+      .v-btn { min-width: 120px; padding: 12px 20px; font-size: 14px; }
+      .state-title { font-size: 22px; }
+    }
+  </style>
+</head>
+<body class="verify-page">
+
+  <div class="verify-wrapper">
+
+    <!-- LOGO -->
+    <div class="verify-logo">
+      <a href="index.html">
+        <span style="font-size:26px;">⚡</span>
+        <span style="font-size:20px; font-weight:800; color:var(--text-primary);">LatLomp</span>
+        <span style="background:linear-gradient(135deg,var(--primary),var(--secondary)); color:white; font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; text-transform:uppercase; letter-spacing:0.5px;">Platform</span>
+      </a>
+    </div>
+
+    <!-- CARD — only one state shows at a time -->
+    <div class="verify-card" id="verifyCard">
+
+      <!-- ===== LOADING STATE ===== -->
+      <div id="stateLoading">
+        <div class="verify-spinner"></div>
+        <p style="color:var(--text-secondary); font-size:15px; margin:0;">
+          Verifying your email address...
+        </p>
+      </div>
+
+      <!-- ===== SUCCESS STATE ===== -->
+      <div id="stateSuccess" style="display:none;">
+        <span class="state-icon">✅</span>
+        <h1 class="state-title green">Email Verified!</h1>
+        <p class="state-message" id="successMsg">
+          Your account has been activated successfully.
+        </p>
+        <p style="font-size:14px; color:var(--text-muted); margin-bottom:28px;">
+          You can now log in and start using the platform.
+        </p>
+        <!-- Buttons injected here by JS based on role -->
+        <div class="verify-btn-row" id="successBtns"></div>
+      </div>
+
+      <!-- ===== ALREADY VERIFIED STATE ===== -->
+      <div id="stateAlready" style="display:none;">
+        <span class="state-icon">✅</span>
+        <h1 class="state-title green">Already Verified</h1>
+        <p class="state-message">
+          Your account is already verified. You can go ahead and log in.
+        </p>
+        <div class="verify-btn-row" id="alreadyBtns"></div>
+      </div>
+
+      <!-- ===== EXPIRED STATE ===== -->
+      <div id="stateExpired" style="display:none;">
+        <span class="state-icon">⏰</span>
+        <h1 class="state-title orange">Link Expired</h1>
+        <p class="state-message" id="expiredMsg">
+          This verification link has expired.
+        </p>
+        <div class="info-box">
+          <div class="info-box-title">⏰ Your verification link expired</div>
+          <p>
+            Verification links are only valid for
+            <strong style="color:#ffa500;">1 minute</strong>
+            after registration. This is to keep your account secure.
+          </p>
+          <p>
+            ✅ <strong>What to do:</strong>
+            Register again using the same email.
+            A fresh link will be sent immediately.
+          </p>
+        </div>
+        <div class="verify-btn-row">
+          <a href="index.html" class="v-btn v-btn-secondary">← Go Home</a>
+          <a href="index.html" class="v-btn v-btn-primary" id="expiredRegisterBtn">
+            Register Again →
+          </a>
+        </div>
+      </div>
+
+      <!-- ===== INVALID STATE ===== -->
+      <div id="stateInvalid" style="display:none;">
+        <span class="state-icon">❌</span>
+        <h1 class="state-title red">Verification Failed</h1>
+        <p class="state-message" id="invalidMsg">
+          This verification link is invalid.
+        </p>
+        <div class="info-box-invalid">
+          <div class="info-box-title">What can you do?</div>
+          <ul>
+            <li>• Register again to receive a fresh link</li>
+            <li>• Use the <strong>latest</strong> email — old links are deleted</li>
+            <li>• Links expire after <strong>1 minute</strong> — click immediately</li>
+          </ul>
+        </div>
+        <div class="verify-btn-row">
+          <a href="index.html" class="v-btn v-btn-secondary">← Go Home</a>
+          <a href="index.html" class="v-btn v-btn-primary">Register Again →</a>
+        </div>
+      </div>
+<!-- ===== OTP INPUT STATE ===== -->
+<!-- Shows when user opens page without a token
+     OR when they want to use OTP instead of link -->
+<div id="stateOtp" style="display:none;">
+  <span class="state-icon">🔢</span>
+  <h1 class="state-title" style="color:var(--text-primary);">
+    Enter Verification Code
+  </h1>
+  <p class="state-message">
+    Enter the 6-digit code we sent to your email address.
+  </p>
+
+  <div id="otpError"
+    style="display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--secondary); padding:12px 16px; border-radius:8px; font-size:14px; margin-bottom:16px; text-align:left;">
+  </div>
+
+  <div id="otpSuccess"
+    style="display:none; background:rgba(67,233,123,0.1); border:1px solid rgba(67,233,123,0.3); color:#43e97b; padding:12px 16px; border-radius:8px; font-size:14px; margin-bottom:16px; text-align:left;">
+  </div>
+
+  <!-- Email input -->
+  <div style="margin-bottom:16px; text-align:left;">
+    <label style="display:block; font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">
+      Your Email Address
+    </label>
+    <input id="otpEmail" type="email" placeholder="your@email.com"
+      style="width:100%; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; padding:12px 16px; color:var(--text-primary); font-size:15px; font-family:inherit; outline:none; box-sizing:border-box; transition:border-color 0.2s;"
+      onfocus="this.style.borderColor='var(--primary)'"
+      onblur="this.style.borderColor='var(--border)'"
+      onkeydown="if(event.key==='Enter') document.getElementById('otpCode').focus()" />
+  </div>
+
+  <!-- OTP Code input -->
+  <div style="margin-bottom:24px; text-align:left;">
+    <label style="display:block; font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">
+      6-Digit Verification Code
+    </label>
+    <input id="otpCode" type="text"
+      placeholder="e.g. 847291"
+      maxlength="6"
+      inputmode="numeric"
+      pattern="[0-9]{6}"
+      style="width:100%; background:rgba(255,255,255,0.04); border:2px solid var(--border); border-radius:10px; padding:16px; color:var(--text-primary); font-size:32px; font-weight:900; font-family:monospace; outline:none; box-sizing:border-box; text-align:center; letter-spacing:8px; transition:border-color 0.2s;"
+      onfocus="this.style.borderColor='var(--primary)'"
+      onblur="this.style.borderColor='var(--border)'"
+      oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+      onkeydown="if(event.key==='Enter') submitOTP()" />
+    <p style="font-size:12px; color:var(--text-muted); margin-top:8px; text-align:center;">
+      Numbers only. Check your email for the code.
+    </p>
+  </div>
+
+  <!-- Submit OTP button -->
+  <button onclick="submitOTP()" id="otpSubmitBtn"
+    style="width:100%; padding:14px; background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:white; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; transition:all 0.2s; margin-bottom:16px;">
+    Verify Code →
+  </button>
+
+  <!-- Divider -->
+  <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+    <div style="flex:1; height:1px; background:var(--border);"></div>
+    <span style="font-size:12px; color:var(--text-muted); font-weight:600;">OR</span>
+    <div style="flex:1; height:1px; background:var(--border);"></div>
+  </div>
+
+  <!-- Go home -->
+  <div class="verify-btn-row">
+    <a href="index.html" class="v-btn v-btn-secondary">← Go Home</a>
+  </div>
+</div>
+      <!-- ===== NO TOKEN STATE ===== -->
+      <div id="stateNoToken" style="display:none;">
+        <span class="state-icon">🔗</span>
+        <h1 class="state-title" style="color:var(--text-primary);">No Token Found</h1>
+        <p class="state-message">
+          This page needs a verification token from the email we sent you.
+          Please check your inbox and click the verification link.
+        </p>
+        <div class="verify-btn-row">
+          <a href="index.html" class="v-btn v-btn-primary">← Back to Home</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/main.js"></script>
+  <script>
+    /* ============================================
+       VERIFY EMAIL PAGE — CLEAN VERSION
+       Only ONE state shows at a time.
+       No hardcoded buttons mixed with JS buttons.
+    ============================================ */
+
+    /* Show one state, hide all others */
+    function showState(name) {
+  const all = [
+    'stateLoading',
+    'stateSuccess',
+    'stateAlready',
+    'stateExpired',
+    'stateInvalid',
+    'stateNoToken',
+    'stateOtp'
+  ];
+      all.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
+      const target = document.getElementById(name);
+      if (target) target.style.display = 'block';
+    }
+
+    /* Build login button based on user role */
+    function buildLoginBtn(role) {
+      if (role === 'teacher') {
+        return `<a href="teacher.html" class="v-btn v-btn-green">
+                  📚 Go to Teacher Dashboard →
+                </a>`;
+      } else if (role === 'admin') {
+        return `<a href="admin.html" class="v-btn v-btn-primary">
+                  ⚙️ Go to Admin →
+                </a>`;
+      } else {
+        return `<a href="index.html" class="v-btn v-btn-primary">
+                  Login Now →
+                </a>`;
+      }
+    }
+
+    /* ---- MAIN LOGIC ---- */
+    document.addEventListener('DOMContentLoaded', async function () {
+
+      // Read token from URL
+      // Example: /verify-email.html?token=abc123...
+      const urlParams = new URLSearchParams(window.location.search);
+      const token     = urlParams.get('token');
+
+      // No token in URL — show OTP entry form instead
+if (!token) {
+  showState('stateOtp');
+  return;
+}
+
+      // Token found — send to server for verification
+      try {
+        const result = await apiRequest(
+          `/auth/verify-email?token=${encodeURIComponent(token)}`
+        );
+
+        if (result.ok) {
+          const role = result.data.role || 'student';
+
+          if (result.data.alreadyVerified) {
+            // Account was already verified before
+            showState('stateAlready');
+            document.getElementById('alreadyBtns').innerHTML =
+              `<a href="index.html" class="v-btn v-btn-secondary">← Home</a>
+               ${buildLoginBtn(role)}`;
+
+          } else {
+            // Fresh successful verification
+            showState('stateSuccess');
+
+            const msgEl = document.getElementById('successMsg');
+            if (msgEl && result.data.message) {
+              msgEl.textContent = result.data.message;
+            }
+
+            document.getElementById('successBtns').innerHTML =
+              `<a href="index.html" class="v-btn v-btn-secondary">← Back to Home</a>
+               ${buildLoginBtn(role)}`;
+          }
+
+        } else {
+          // Server returned an error
+          if (result.data.expired) {
+            // Token exists but expired
+            showState('stateExpired');
+            const msg = document.getElementById('expiredMsg');
+            if (msg && result.data.message) {
+              msg.textContent = result.data.message;
+            }
+
+          } else {
+            // Token does not exist / already used
+            showState('stateInvalid');
+            const msg = document.getElementById('invalidMsg');
+            if (msg && result.data.message) {
+              msg.textContent = result.data.message;
+            }
+          }
+        }
+
+      } catch (err) {
+        // Network error
+        showState('stateInvalid');
+        const msg = document.getElementById('invalidMsg');
+        if (msg) {
+          msg.textContent =
+            'A network error occurred. Please check your connection and try again.';
+        }
+      }
+    });
+    /* ============================================
+   SUBMIT OTP
+   Called when user clicks "Verify Code →"
+   ============================================ */
+async function submitOTP() {
+  const emailEl  = document.getElementById('otpEmail');
+  const codeEl   = document.getElementById('otpCode');
+  const errEl    = document.getElementById('otpError');
+  const sucEl    = document.getElementById('otpSuccess');
+  const btn      = document.getElementById('otpSubmitBtn');
+
+  // Clear previous messages
+  errEl.style.display = 'none';
+  sucEl.style.display = 'none';
+
+  const email = emailEl ? emailEl.value.trim() : '';
+  const code  = codeEl  ? codeEl.value.trim()  : '';
+
+  // Validate
+  if (!email) {
+    errEl.textContent   = '⚠️ Please enter your email address.';
+    errEl.style.display = 'block';
+    if (emailEl) emailEl.focus();
+    return;
+  }
+
+  if (!code || code.length !== 6 || !/^\d{6}$/.test(code)) {
+    errEl.textContent   = '⚠️ Please enter the 6-digit code from your email.';
+    errEl.style.display = 'block';
+    if (codeEl) codeEl.focus();
+    return;
+  }
+
+  // Show loading state
+  btn.textContent = 'Verifying...';
+  btn.disabled    = true;
+
+  try {
+    const result = await apiRequest('/auth/verify-otp', 'POST', {
+      email,
+      otp: code
+    });
+
+    btn.disabled    = false;
+    btn.textContent = 'Verify Code →';
+
+    if (result.ok) {
+      const role = result.data.role || 'student';
+
+      if (result.data.alreadyVerified) {
+        // Was already verified
+        showState('stateAlready');
+        document.getElementById('alreadyBtns').innerHTML =
+          `<a href="index.html" class="v-btn v-btn-secondary">← Home</a>
+           ${buildLoginBtn(role)}`;
+      } else {
+        // Fresh verification via OTP
+        showState('stateSuccess');
+        const msgEl = document.getElementById('successMsg');
+        if (msgEl) msgEl.textContent = result.data.message;
+        document.getElementById('successBtns').innerHTML =
+          `<a href="index.html" class="v-btn v-btn-secondary">← Back to Home</a>
+           ${buildLoginBtn(role)}`;
+      }
+
+    } else {
+      // Handle different error types
+      if (result.data.tooManyAttempts) {
+        errEl.innerHTML = `
+          🔒 <strong>Too many wrong attempts.</strong><br>
+          This code has been locked. Please register again to get a new code.
+        `;
+      } else if (result.data.expired) {
+        errEl.innerHTML = `
+          ⏰ <strong>Code expired.</strong><br>
+          ${result.data.message}
+        `;
+      } else if (result.data.wrongCode) {
+        errEl.textContent = `❌ ${result.data.message}`;
+        // Flash the input red briefly
+        if (codeEl) {
+          codeEl.style.borderColor = 'var(--secondary)';
+          codeEl.value = '';
+          codeEl.focus();
+          setTimeout(() => {
+            codeEl.style.borderColor = 'var(--border)';
+          }, 2000);
+        }
+      } else {
+        errEl.textContent = result.data.message || 'Verification failed. Please try again.';
+      }
+      errEl.style.display = 'block';
+    }
+
+  } catch (err) {
+    btn.disabled    = false;
+    btn.textContent = 'Verify Code →';
+    errEl.textContent   = '⚠️ Network error. Please check your connection.';
+    errEl.style.display = 'block';
+  }
+}
+  </script>
+</body>
+</html>

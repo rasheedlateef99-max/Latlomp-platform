@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Super Admin — LatLomp Institution</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --primary:   #6c63ff;
+      --pd:        #574fd6;
+      --green:     #43e97b;
+      --red:       #ff6584;
+      --orange:    #ffa500;
+      --yellow:    #ffd600;
+      --dark:      #0f0f1a;
+      --dark-2:    #1a1a2e;
+      --border:    rgba(255,255,255,0.08);
+      --text:      #fff;
+      --muted:     #6b6b8a;
+      --secondary: #a0a0c0;
+    }
+
+    html, body { margin:0; padding:0; background:var(--dark); color:var(--text); font-family:'Inter',sans-serif; }
+
+    @keyframes spin   { to { transform:rotate(360deg); } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+
+    .layout { display:flex; min-height:100vh; }
+
+    /* ---- SIDEBAR ---- */
+    .sidebar {
+      width:250px; flex-shrink:0;
+      background:var(--dark-2); border-right:1px solid var(--border);
+      display:flex; flex-direction:column;
+      position:fixed; top:0; left:0; bottom:0; z-index:400;
+      overflow-y:auto; overflow-x:hidden;
+      transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
+    }
+    @media (max-width:960px) {
+      .sidebar { transform:translateX(-100%); }
+      .sidebar.open { transform:translateX(0); box-shadow:8px 0 48px rgba(0,0,0,0.6); }
+    }
+    .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:399; }
+    .sidebar-overlay.visible { display:block; }
+
+    .sb-header {
+      padding:20px; border-bottom:1px solid var(--border);
+      display:flex; align-items:center; gap:12px;
+    }
+    .sb-icon { width:44px; height:44px; border-radius:10px; background:linear-gradient(135deg,#ff6584,#ff8e53); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+    .sb-title  { font-size:14px; font-weight:800; color:#fff; }
+    .sb-sub    { font-size:11px; color:#ff6584; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
+
+    .sb-nav { flex:1; padding:10px; }
+    .sb-sep { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.6px; padding:14px 10px 6px; }
+
+    .nav-item {
+      display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px;
+      font-size:14px; font-weight:500; color:var(--secondary);
+      cursor:pointer; transition:all 0.15s; margin-bottom:2px;
+      width:100%; border:none; background:none; font-family:inherit;
+      text-align:left; text-decoration:none; line-height:1.4;
+    }
+    .nav-item:hover { background:rgba(255,255,255,0.06); color:#fff; }
+    .nav-item.active { background:rgba(255,101,132,0.12); color:#ff6584; font-weight:700; }
+    .nav-icon { font-size:16px; width:22px; text-align:center; flex-shrink:0; }
+
+    .sb-footer { padding:10px; border-top:1px solid var(--border); }
+
+    /* ---- MOBILE BAR ---- */
+    .mobile-bar {
+      display:none; align-items:center; justify-content:space-between;
+      padding:0 16px; height:60px;
+      background:var(--dark-2); border-bottom:1px solid var(--border);
+      position:sticky; top:0; z-index:300;
+    }
+    @media (max-width:960px) { .mobile-bar { display:flex !important; } }
+    .ham-btn { background:none; border:none; color:#fff; font-size:22px; cursor:pointer; padding:8px; border-radius:8px; }
+
+    /* ---- MAIN ---- */
+    .main { margin-left:250px; flex:1; min-height:100vh; }
+    @media (max-width:960px) { .main { margin-left:0 !important; } }
+
+    .page-content { padding:24px 28px; }
+    @media (max-width:960px) { .page-content { padding:20px 16px; } }
+
+    .section { display:none; animation:fadeUp 0.3s ease; }
+    .section.active { display:block; }
+
+    /* ---- PAGE HEADER ---- */
+    .page-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:24px; gap:12px; flex-wrap:wrap; }
+    .page-header h1 { font-size:22px; font-weight:800; color:#fff; margin:0 0 4px; }
+    .page-header p  { font-size:13px; color:var(--muted); margin:0; }
+
+    /* ---- STATS ---- */
+    .stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:24px; }
+    @media (max-width:900px) { .stats-grid { grid-template-columns:1fr 1fr; } }
+    @media (max-width:480px) { .stats-grid { grid-template-columns:1fr; gap:10px; } }
+
+    .stat-card { background:var(--dark-2); border:1px solid var(--border); border-radius:14px; padding:20px; display:flex; align-items:center; gap:14px; }
+    .stat-icon { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+    .stat-val  { font-size:28px; font-weight:900; color:#fff; line-height:1; }
+    .stat-lbl  { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-top:3px; }
+
+    /* ---- CARD ---- */
+    .card { background:var(--dark-2); border:1px solid var(--border); border-radius:16px; overflow:hidden; margin-bottom:20px; }
+    .card-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:10px; }
+    .card-head h3 { font-size:15px; font-weight:700; color:#fff; margin:0; }
+    .card-body { padding:20px; }
+
+    /* ---- TABLE ---- */
+    .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    table { width:100%; border-collapse:collapse; min-width:520px; }
+    th { padding:11px 14px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); background:rgba(255,255,255,0.02); border-bottom:1px solid var(--border); white-space:nowrap; }
+    td { padding:12px 14px; font-size:14px; color:var(--secondary); border-bottom:1px solid var(--border); vertical-align:middle; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:rgba(255,255,255,0.02); }
+
+    /* ---- BUTTONS ---- */
+    .btn { display:inline-flex; align-items:center; gap:7px; padding:9px 16px; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; border:none; transition:all 0.2s; text-decoration:none; white-space:nowrap; }
+    .btn-primary  { background:linear-gradient(135deg,#ff6584,#ff8e53); color:#fff; }
+    .btn-primary:hover  { transform:translateY(-1px); box-shadow:0 4px 16px rgba(255,101,132,0.4); }
+    .btn-green    { background:linear-gradient(135deg,var(--green),#38f9d7); color:#0f0f1a; }
+    .btn-green:hover  { transform:translateY(-1px); }
+    .btn-secondary { background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--secondary); }
+    .btn-secondary:hover { color:#fff; }
+    .btn-danger   { background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); }
+    .btn-sm { padding:5px 11px; font-size:12px; border-radius:7px; }
+    .btn:disabled { opacity:0.5; cursor:not-allowed; }
+
+    /* ---- BADGE ---- */
+    .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+    .badge-green  { background:rgba(67,233,123,0.12);  color:var(--green); }
+    .badge-red    { background:rgba(255,101,132,0.12); color:var(--red); }
+    .badge-orange { background:rgba(255,165,0,0.12);   color:var(--orange); }
+    .badge-purple { background:rgba(108,99,255,0.12);  color:#a78bfa; }
+    .badge-muted  { background:rgba(255,255,255,0.06); color:var(--secondary); }
+    .badge-yellow { background:rgba(255,214,0,0.12);   color:var(--yellow); }
+
+    /* ---- MODAL ---- */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.78); z-index:600; display:flex; align-items:center; justify-content:center; padding:20px; overflow-y:auto; }
+    .modal-box { background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:28px; width:100%; max-width:500px; max-height:90vh; overflow-y:auto; }
+    .modal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:22px; }
+    .modal-header h2 { font-size:18px; font-weight:800; color:#fff; margin:0; }
+    .modal-close { width:32px; height:32px; border-radius:8px; background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--muted); cursor:pointer; font-size:15px; display:flex; align-items:center; justify-content:center; font-family:inherit; }
+    .modal-close:hover { background:rgba(255,101,132,0.15); color:var(--red); }
+    .modal-footer { display:flex; justify-content:flex-end; gap:10px; margin-top:20px; padding-top:16px; border-top:1px solid var(--border); }
+    @media (max-width:600px) { .modal-overlay { align-items:flex-end; padding:0; } .modal-box { border-radius:20px 20px 0 0; max-width:100%; } }
+
+    /* ---- FORM ---- */
+    .field { display:flex; flex-direction:column; gap:6px; margin-bottom:16px; }
+    .field label { font-size:12px; font-weight:700; color:var(--secondary); text-transform:uppercase; letter-spacing:0.4px; }
+    .field input, .field select, .field textarea { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:9px; padding:11px 13px; color:#fff; font-size:14px; font-family:inherit; outline:none; width:100%; transition:border-color 0.2s; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color:#ff6584; }
+    .field input::placeholder { color:var(--muted); }
+    .field select option { background:var(--dark-2); }
+    .field-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    @media (max-width:480px) { .field-row { grid-template-columns:1fr; } }
+
+    /* ---- REVENUE CARD ---- */
+    .rev-card {
+      background:linear-gradient(135deg,rgba(255,101,132,0.12),rgba(255,142,83,0.08));
+      border:1px solid rgba(255,101,132,0.25); border-radius:16px; padding:24px;
+      margin-bottom:20px; display:flex; align-items:center; gap:20px; flex-wrap:wrap;
+    }
+    .rev-amount { font-size:40px; font-weight:900; color:#fff; }
+    .rev-label  { font-size:13px; color:var(--muted); margin-top:4px; }
+
+    /* ---- SEARCH BAR ---- */
+    .search-bar { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+    .search-inp { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:9px; padding:10px 14px; color:#fff; font-size:14px; font-family:inherit; outline:none; flex:1; min-width:180px; transition:border-color 0.2s; }
+    .search-inp:focus { border-color:#ff6584; }
+    .search-inp::placeholder { color:var(--muted); }
+
+    /* ---- PLAN FEATURE LIST ---- */
+    .feature-tag { display:inline-block; background:rgba(108,99,255,0.1); color:#a78bfa; border:1px solid rgba(108,99,255,0.2); border-radius:6px; font-size:11px; padding:2px 8px; margin:2px; }
+
+    .spinner { width:18px; height:18px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block; }
+  </style>
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="sb-header">
+    <div class="sb-icon">🔧</div>
+    <div>
+      <div class="sb-title">Super Admin</div>
+      <div class="sb-sub">Platform Owner</div>
+    </div>
+  </div>
+
+  <nav class="sb-nav">
+    <div class="sb-sep">Platform</div>
+    <button class="nav-item active" data-sec="overview"  onclick="showSection('overview')">  <span class="nav-icon">📊</span> Overview       </button>
+    <button class="nav-item"        data-sec="schools"   onclick="showSection('schools')">   <span class="nav-icon">🏫</span> All Schools    </button>
+    <button class="nav-item"        data-sec="revenue"   onclick="showSection('revenue')">   <span class="nav-icon">💰</span> Revenue        </button>
+    <button class="nav-item"        data-sec="plans"     onclick="showSection('plans')">     <span class="nav-icon">📋</span> Pricing Plans  </button>
+    <div class="sb-sep">Links</div>
+    <a href="/admin.html"                        class="nav-item"><span class="nav-icon">⚙️</span>  Main Admin    </a>
+    <a href="/institution/index.html"            class="nav-item"><span class="nav-icon">🏠</span> Institution  </a>
+  </nav>
+
+  <div class="sb-footer">
+    <button class="nav-item" style="color:var(--red);" onclick="logout()">
+      <span class="nav-icon">🚪</span> Logout
+    </button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="mobile-bar">
+    <button class="ham-btn" onclick="openSidebar()">☰</button>
+    <span style="font-size:15px; font-weight:800; color:#ff6584;">🔧 Super Admin</span>
+    <span style="font-size:12px; color:var(--muted);" id="mobileSec">Overview</span>
+  </div>
+
+  <div class="page-content">
+
+    <!-- ===== OVERVIEW ===== -->
+    <div class="section active" id="sec-overview">
+      <div class="page-header">
+        <div><h1>Platform Overview</h1><p>LatLomp Institution — all schools at a glance</p></div>
+        <button class="btn btn-primary" onclick="showSection('schools')">View All Schools</button>
+      </div>
+
+      <div class="stats-grid" id="analyticsGrid">
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(108,99,255,0.12);">🏫</div><div><div class="stat-val" id="stTotal">—</div><div class="stat-lbl">Total Schools</div></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(67,233,123,0.12);">✅</div><div><div class="stat-val" id="stActive">—</div><div class="stat-lbl">Active</div></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(255,214,0,0.12);">🎁</div><div><div class="stat-val" id="stTrial">—</div><div class="stat-lbl">On Trial</div></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(255,165,0,0.12);">⚠️</div><div><div class="stat-val" id="stExpired">—</div><div class="stat-lbl">Expired</div></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(255,101,132,0.12);">🚫</div><div><div class="stat-val" id="stSuspended">—</div><div class="stat-lbl">Suspended</div></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:rgba(67,233,123,0.12);">💰</div><div><div class="stat-val" id="stRevenue">—</div><div class="stat-lbl">This Month (₦)</div></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Quick Actions</h3></div>
+        <div class="card-body" style="display:flex; flex-wrap:wrap; gap:12px;">
+          <button class="btn btn-primary" onclick="openActivateModal()">⚡ Activate School</button>
+          <button class="btn btn-secondary" onclick="showSection('plans')">📋 Manage Plans</button>
+          <button class="btn btn-secondary" onclick="showSection('schools')">🏫 View All Schools</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SCHOOLS ===== -->
+    <div class="section" id="sec-schools">
+      <div class="page-header">
+        <div><h1>All Schools</h1><p id="schoolsSubtitle">Platform-wide school directory</p></div>
+        <button class="btn btn-primary" onclick="openActivateModal()">⚡ Activate School</button>
+      </div>
+
+      <div class="search-bar">
+        <input type="text" id="schoolSearch" class="search-inp" placeholder="Search by name or email..." oninput="searchSchools()" />
+        <select id="schoolStatusFilter" style="background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:9px; padding:10px 14px; color:#fff; font-family:inherit; outline:none; cursor:pointer;" onchange="filterByStatus()">
+          <option value="">All Status</option>
+          <option value="trial">Trial</option>
+          <option value="active">Active</option>
+          <option value="expired">Expired</option>
+          <option value="suspended">Suspended</option>
+          <option value="pending_setup">Pending Setup</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>School</th><th>Email</th><th>State</th><th>Plan</th><th>Status</th><th>Expires</th><th>Registered</th><th>Actions</th></tr></thead>
+            <tbody id="schoolsTableBody"><tr><td colspan="8" style="text-align:center; padding:28px; color:var(--muted);">Loading...</td></tr></tbody>
+          </table>
+        </div>
+        <div id="schoolsPagination" style="padding:16px 20px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;"></div>
+      </div>
+    </div>
+
+    <!-- ===== REVENUE ===== -->
+    <div class="section" id="sec-revenue">
+      <div class="page-header">
+        <div><h1>Revenue Overview</h1><p>Subscription payments and income tracking</p></div>
+      </div>
+
+      <div class="rev-card">
+        <div>
+          <div style="font-size:13px; color:var(--muted); margin-bottom:4px;">This Month's Revenue</div>
+          <div class="rev-amount" id="revMonthly">₦—</div>
+          <div class="rev-label">From paid subscriptions · Excludes trials</div>
+        </div>
+        <div style="font-size:48px; opacity:0.3;">💰</div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Recent Payments</h3></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>School</th><th>Plan</th><th>Amount</th><th>Status</th><th>Reference</th><th>Date</th></tr></thead>
+            <tbody id="paymentsBody"><tr><td colspan="6" style="text-align:center; padding:28px; color:var(--muted);">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PLANS ===== -->
+    <div class="section" id="sec-plans">
+      <div class="page-header">
+        <div><h1>Pricing Plans</h1><p>Manage subscription plans visible to schools</p></div>
+        <button class="btn btn-primary" onclick="openPlanModal()">+ New Plan</button>
+      </div>
+
+      <div id="plansContainer">
+        <div style="text-align:center; padding:32px; color:var(--muted);">Loading plans...</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== ACTIVATE SCHOOL MODAL ===== -->
+<div class="modal-overlay" id="activateModal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>Activate School</h2>
+      <button class="modal-close" onclick="closeModal('activateModal')">✕</button>
+    </div>
+
+    <div id="activateErr" style="display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); padding:12px; border-radius:8px; font-size:13px; margin-bottom:16px;"></div>
+
+    <div class="field">
+      <label>School ID or Email</label>
+      <input type="text" id="activateSchoolId" placeholder="MongoDB ID or school@email.com" />
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Plan</label>
+        <select id="activatePlan">
+          <option value="monthly">Monthly</option>
+          <option value="quarterly">Quarterly</option>
+          <option value="biannual">6-Month</option>
+          <option value="annual">Annual</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Days to Grant</label>
+        <input type="number" id="activateDays" value="30" min="1" max="365" />
+      </div>
+    </div>
+    <div class="field">
+      <label>Reason / Note</label>
+      <input type="text" id="activateNote" placeholder="e.g. Manual activation, promo, support" />
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('activateModal')">Cancel</button>
+      <button class="btn btn-primary"   id="activateBtn" onclick="activateSchool()">⚡ Activate</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SUSPEND SCHOOL MODAL ===== -->
+<div class="modal-overlay" id="suspendModal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="suspendModalTitle">Suspend School</h2>
+      <button class="modal-close" onclick="closeModal('suspendModal')">✕</button>
+    </div>
+    <input type="hidden" id="suspendSchoolId" />
+    <input type="hidden" id="suspendAction" />
+
+    <p id="suspendDesc" style="font-size:14px; color:var(--secondary); margin:0 0 18px; line-height:1.6;"></p>
+
+    <div id="suspendReasonWrap" class="field">
+      <label>Reason</label>
+      <input type="text" id="suspendReason" placeholder="e.g. Policy violation, non-payment..." />
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('suspendModal')">Cancel</button>
+      <button class="btn btn-danger"    id="suspendBtn" onclick="confirmSuspend()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PLAN MODAL ===== -->
+<div class="modal-overlay" id="planModal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="planModalTitle">Add Plan</h2>
+      <button class="modal-close" onclick="closeModal('planModal')">✕</button>
+    </div>
+    <input type="hidden" id="editPlanId" />
+
+    <div class="field-row">
+      <div class="field"><label>Plan Name</label><input type="text" id="planName" placeholder="e.g. Annual Plan" /></div>
+      <div class="field"><label>Plan Code</label><input type="text" id="planCode" placeholder="e.g. annual" /></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Price (₦)</label><input type="number" id="planPrice" placeholder="5000" /></div>
+      <div class="field"><label>Duration (days)</label><input type="number" id="planDays" placeholder="30" /></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Max Teachers (-1 = unlimited)</label><input type="number" id="planMaxTeachers" value="20" /></div>
+      <div class="field"><label>Max Students (-1 = unlimited)</label><input type="number" id="planMaxStudents" value="500" /></div>
+    </div>
+    <div class="field">
+      <label>Features (one per line)</label>
+      <textarea id="planFeatures" style="background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:9px; padding:11px; color:#fff; font-family:inherit; width:100%; resize:vertical; min-height:80px; outline:none;" placeholder="10 teachers&#10;200 students&#10;Unlimited exams"></textarea>
+    </div>
+    <div class="field-row">
+      <div class="field" style="flex-direction:row; align-items:center; gap:10px;">
+        <input type="checkbox" id="planIsPopular" style="width:18px; height:18px;" />
+        <label style="text-transform:none; font-size:14px;">Mark as Popular</label>
+      </div>
+      <div class="field" style="flex-direction:row; align-items:center; gap:10px;">
+        <input type="checkbox" id="planIsActive" style="width:18px; height:18px;" checked />
+        <label style="text-transform:none; font-size:14px;">Active (visible)</label>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('planModal')">Cancel</button>
+      <button class="btn btn-primary"   id="savePlanBtn" onclick="savePlan()">Save Plan</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================
+   SUPER ADMIN DASHBOARD
+   Uses main platform admin token (latlomp_token)
+   not institution token
+============================================ */
+
+var _schools      = [];
+var _allSchools   = [];
+var _currentPage  = 1;
+var _perPage      = 15;
+
+/* ============================================ AUTH */
+function apiRequest(endpoint, method, body) {
+  method = method || 'GET';
+  var token = localStorage.getItem('latlomp_token');
+  var headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  var opts = { method: method.toUpperCase(), headers: headers };
+  if (body && method !== 'GET') opts.body = JSON.stringify(body);
+  return fetch('/api' + endpoint, opts).then(function(r) {
+    return r.json().then(function(d) { return { ok: r.ok, status: r.status, data: d }; });
+  }).catch(function(err) {
+    return { ok: false, status: 0, data: { message: err.message } };
+  });
+}
+
+function toast(msg, type) {
+  var el = document.getElementById('toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toast';
+    el.style.cssText = 'position:fixed; bottom:24px; right:24px; z-index:9999; background:#1a1a2e; border-radius:12px; padding:14px 20px; font-size:14px; font-weight:600; font-family:Inter,sans-serif; box-shadow:0 8px 32px rgba(0,0,0,0.5); max-width:340px; color:#fff; border:1px solid rgba(255,255,255,0.1);';
+    document.body.appendChild(el);
+  }
+  var color = type === 'success' ? '#43e97b' : type === 'error' ? '#ff6584' : type === 'warning' ? '#ffa500' : '#a78bfa';
+  el.style.color = color;
+  el.textContent = msg;
+  el.style.display = 'block';
+  clearTimeout(el._t);
+  el._t = setTimeout(function() { el.style.display = 'none'; }, 4000);
+}
+
+function logout() {
+  if (confirm('Log out?')) {
+    localStorage.removeItem('latlomp_token');
+    localStorage.removeItem('latlomp_user');
+    window.location.href = '/admin.html';
+  }
+}
+
+/* ============================================ INIT */
+document.addEventListener('DOMContentLoaded', async function() {
+  var token = localStorage.getItem('latlomp_token');
+  if (!token) { window.location.href = '/admin.html'; return; }
+
+  /* Verify admin role */
+  var me = await apiRequest('/auth/me');
+  if (!me.ok || !me.data.user || me.data.user.role !== 'admin') {
+    window.location.href = '/admin.html';
+    return;
+  }
+
+  loadOverview();
+});
+
+/* ============================================ SECTION NAV */
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
+  document.querySelectorAll('.nav-item[data-sec]').forEach(function(n) { n.classList.remove('active'); });
+
+  var sec = document.getElementById('sec-' + name);
+  if (sec) sec.classList.add('active');
+
+  var nav = document.querySelector('.nav-item[data-sec="' + name + '"]');
+  if (nav) nav.classList.add('active');
+
+  var ml = document.getElementById('mobileSec');
+  if (ml) ml.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+
+  if (window.innerWidth <= 960) closeSidebar();
+
+  if (name === 'overview')  loadOverview();
+  if (name === 'schools')   loadSchools();
+  if (name === 'revenue')   loadRevenue();
+  if (name === 'plans')     loadPlans();
+}
+
+/* ============================================ SIDEBAR */
+function openSidebar()  { document.getElementById('sidebar').classList.add('open');    document.getElementById('sidebarOverlay').classList.add('visible');    document.body.style.overflow='hidden'; }
+function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('visible'); document.body.style.overflow=''; }
+
+/* ============================================ OVERVIEW */
+async function loadOverview() {
+  var res = await apiRequest('/institution/superadmin/analytics');
+  if (!res.ok) { toast('Failed to load analytics.', 'error'); return; }
+
+  var s = res.data.stats || {};
+  function setEl(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
+
+  setEl('stTotal',     s.totalSchools    || 0);
+  setEl('stActive',    s.activeSchools   || 0);
+  setEl('stTrial',     s.trialSchools    || 0);
+  setEl('stExpired',   s.expiredSchools  || 0);
+  setEl('stSuspended', s.suspendedSchools|| 0);
+  setEl('stRevenue',   '₦' + ((s.monthlyRevenue || 0)).toLocaleString());
+}
+
+/* ============================================ SCHOOLS */
+async function loadSchools(page) {
+  page = page || 1;
+  _currentPage = page;
+
+  var search = (document.getElementById('schoolSearch')      || {}).value || '';
+  var status = (document.getElementById('schoolStatusFilter')|| {}).value || '';
+
+  var query = '?page=' + page + '&limit=' + _perPage;
+  if (search) query += '&search=' + encodeURIComponent(search);
+  if (status) query += '&status=' + status;
+
+  var res = await apiRequest('/institution/superadmin/schools' + query);
+  if (!res.ok) { toast('Failed to load schools.', 'error'); return; }
+
+  _schools = res.data.schools || [];
+  var total = (res.data.pagination || {}).total || 0;
+  var pages = (res.data.pagination || {}).pages || 1;
+
+  var sub = document.getElementById('schoolsSubtitle');
+  if (sub) sub.textContent = total + ' school' + (total !== 1 ? 's' : '') + ' registered';
+
+  renderSchoolsTable(_schools);
+  renderPagination(page, pages);
+}
+
+function renderSchoolsTable(schools) {
+  var tbody = document.getElementById('schoolsTableBody');
+  if (!tbody) return;
+
+  if (!schools || schools.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:32px; color:var(--muted);">No schools found.</td></tr>';
+    return;
+  }
+
+  var statusBadgeMap = {
+    trial:          '<span class="badge badge-yellow">Trial</span>',
+    active:         '<span class="badge badge-green">Active</span>',
+    expired:        '<span class="badge badge-orange">Expired</span>',
+    suspended:      '<span class="badge badge-red">Suspended</span>',
+    pending_setup:  '<span class="badge badge-muted">Setup Pending</span>'
+  };
+
+  var planMap = { trial:'Trial', monthly:'Monthly', quarterly:'Quarterly', biannual:'6-Month', annual:'Annual', none:'—' };
+
+  tbody.innerHTML = schools.map(function(s) {
+    var expiry   = s.subscriptionExpiry
+      ? new Date(s.subscriptionExpiry).toLocaleDateString('en-NG', { day:'numeric', month:'short', year:'numeric' })
+      : '—';
+    var created  = new Date(s.createdAt).toLocaleDateString('en-NG', { day:'numeric', month:'short', year:'numeric' });
+    var isSusp   = s.isSuspended;
+
+    return '<tr>' +
+      '<td>' +
+        '<div style="font-weight:700; color:#fff; font-size:14px;">' + (s.name || '—') + '</div>' +
+        (s.state ? '<div style="font-size:11px; color:var(--muted);">' + s.state + '</div>' : '') +
+      '</td>' +
+      '<td style="font-size:13px;">' + (s.email || '—') + '</td>' +
+      '<td style="font-size:13px;">' + (s.state || '—') + '</td>' +
+      '<td><span class="badge badge-purple">' + (planMap[s.subscriptionPlan] || '—') + '</span></td>' +
+      '<td>' + (statusBadgeMap[s.status] || '<span class="badge badge-muted">' + s.status + '</span>') + '</td>' +
+      '<td style="font-size:12px;">' + expiry + '</td>' +
+      '<td style="font-size:12px;">' + created + '</td>' +
+      '<td>' +
+        '<div style="display:flex; gap:5px; flex-wrap:wrap;">' +
+          '<button class="btn btn-sm btn-green" onclick="openActivateForSchool(\'' + s._id + '\')">⚡</button>' +
+          (isSusp
+            ? '<button class="btn btn-sm btn-secondary" onclick="openSuspendModal(\'' + s._id + '\',false,\'' + (s.name||'').replace(/'/g,'') + '\')">✅ Unsuspend</button>'
+            : '<button class="btn btn-sm btn-danger"    onclick="openSuspendModal(\'' + s._id + '\',true,\'' + (s.name||'').replace(/'/g,'') + '\')">🚫 Suspend</button>') +
+        '</div>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function renderPagination(current, total) {
+  var wrap = document.getElementById('schoolsPagination');
+  if (!wrap || total <= 1) { if (wrap) wrap.innerHTML = ''; return; }
+
+  var html = '';
+  if (current > 1) html += '<button class="btn btn-secondary btn-sm" onclick="loadSchools(' + (current-1) + ')">← Prev</button>';
+
+  for (var i = Math.max(1, current-2); i <= Math.min(total, current+2); i++) {
+    html += '<button class="btn btn-sm ' + (i===current ? 'btn-primary' : 'btn-secondary') + '" onclick="loadSchools(' + i + ')">' + i + '</button>';
+  }
+
+  if (current < total) html += '<button class="btn btn-secondary btn-sm" onclick="loadSchools(' + (current+1) + ')">Next →</button>';
+
+  wrap.innerHTML = html;
+}
+
+function searchSchools()  { clearTimeout(searchSchools._t); searchSchools._t = setTimeout(function() { loadSchools(1); }, 350); }
+function filterByStatus() { loadSchools(1); }
+
+/* ============================================ REVENUE */
+async function loadRevenue() {
+  var res = await apiRequest('/institution/superadmin/analytics');
+  if (!res.ok) return;
+
+  var revEl = document.getElementById('revMonthly');
+  if (revEl) revEl.textContent = '₦' + ((res.data.stats.monthlyRevenue || 0)).toLocaleString();
+
+  /* Load recent subscriptions */
+  var subRes = await apiRequest('/institution/superadmin/schools?limit=20');
+  var tbody  = document.getElementById('paymentsBody');
+  if (!tbody) return;
+
+  /* We approximate from subscription data */
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:28px; color:var(--muted); font-size:14px;">Payment history is available via your Paystack dashboard.<br/>Activate the detailed payment log in Phase 5.</td></tr>';
+}
+
+/* ============================================ PLANS */
+async function loadPlans() {
+  var res  = await apiRequest('/institution/superadmin/plans');
+  var wrap = document.getElementById('plansContainer');
+  if (!wrap) return;
+
+  if (!res.ok || !res.data.plans) {
+    wrap.innerHTML = '<div style="color:var(--muted); text-align:center; padding:32px;">Could not load plans.</div>';
+    return;
+  }
+
+  var plans = res.data.plans;
+  if (plans.length === 0) {
+    wrap.innerHTML = '<div style="color:var(--muted); text-align:center; padding:32px;">No plans yet. Click "+ New Plan".</div>';
+    return;
+  }
+
+  wrap.innerHTML = '<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px;">' +
+    plans.map(function(p) {
+      var features = (p.features || []).map(function(f) {
+        return '<span class="feature-tag">' + f + '</span>';
+      }).join('');
+
+      return '<div style="background:var(--dark-2); border:1px solid var(--border); border-radius:16px; padding:22px;">' +
+        '<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">' +
+          '<div>' +
+            '<div style="font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px;">' + (p.code || '') + '</div>' +
+            '<div style="font-size:18px; font-weight:800; color:#fff;">' + (p.name || '') + '</div>' +
+          '</div>' +
+          '<div style="display:flex; gap:6px;">' +
+            (p.isPopular  ? '<span class="badge badge-purple">Popular</span>' : '') +
+            (p.isActive   ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-muted">Hidden</span>') +
+          '</div>' +
+        '</div>' +
+        '<div style="font-size:28px; font-weight:900; color:#fff; margin-bottom:4px;">' +
+          (p.price === 0 ? 'FREE' : '₦' + (p.price||0).toLocaleString()) +
+        '</div>' +
+        '<div style="font-size:12px; color:var(--muted); margin-bottom:14px;">' + (p.durationDays||0) + ' days</div>' +
+        '<div style="margin-bottom:16px;">' + features + '</div>' +
+        '<button class="btn btn-secondary btn-sm" onclick="openPlanModal(\'' + p._id + '\')">Edit Plan</button>' +
+      '</div>';
+    }).join('') +
+  '</div>';
+}
+
+/* ============================================ ACTIVATE SCHOOL */
+function openActivateModal() {
+  document.getElementById('activateSchoolId').value = '';
+  document.getElementById('activateNote').value     = '';
+  var errEl = document.getElementById('activateErr');
+  if (errEl) errEl.style.display = 'none';
+  document.getElementById('activateModal').style.display = 'flex';
+}
+
+function openActivateForSchool(schoolId) {
+  document.getElementById('activateSchoolId').value = schoolId;
+  document.getElementById('activateNote').value     = '';
+  var errEl = document.getElementById('activateErr');
+  if (errEl) errEl.style.display = 'none';
+  document.getElementById('activateModal').style.display = 'flex';
+}
+
+async function activateSchool() {
+  var btn     = document.getElementById('activateBtn');
+  var errEl   = document.getElementById('activateErr');
+  var schoolId = (document.getElementById('activateSchoolId') || {}).value.trim();
+  var planCode = (document.getElementById('activatePlan')     || {}).value;
+  var days     = parseInt((document.getElementById('activateDays') || {}).value) || 30;
+
+  if (!schoolId) {
+    if (errEl) { errEl.textContent = '⚠️ School ID or email is required.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  if (btn) { btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true; }
+
+  var res = await apiRequest('/institution/superadmin/schools/' + encodeURIComponent(schoolId) + '/activate', 'POST', {
+    planCode:    planCode,
+    durationDays: days
+  });
+
+  if (btn) { btn.innerHTML = '⚡ Activate'; btn.disabled = false; }
+
+  if (res.ok) {
+    toast('School activated for ' + days + ' days!', 'success');
+    closeModal('activateModal');
+    loadSchools(_currentPage);
+  } else {
+    if (errEl) { errEl.textContent = res.data.message || 'Activation failed.'; errEl.style.display = 'block'; }
+  }
+}
+
+/* ============================================ SUSPEND / UNSUSPEND */
+function openSuspendModal(schoolId, isSuspending, schoolName) {
+  document.getElementById('suspendSchoolId').value = schoolId;
+  document.getElementById('suspendAction').value   = isSuspending ? 'suspend' : 'unsuspend';
+
+  var titleEl = document.getElementById('suspendModalTitle');
+  var descEl  = document.getElementById('suspendDesc');
+  var reasonWrap = document.getElementById('suspendReasonWrap');
+  var btn     = document.getElementById('suspendBtn');
+
+  if (isSuspending) {
+    if (titleEl) titleEl.textContent = 'Suspend School';
+    if (descEl)  descEl.textContent  = 'Suspending "' + schoolName + '" will immediately block all access for the school admin, teachers, and students. Data will be preserved.';
+    if (reasonWrap) reasonWrap.style.display = 'flex';
+    if (btn) { btn.textContent = '🚫 Suspend School'; btn.className = 'btn btn-danger'; }
+  } else {
+    if (titleEl) titleEl.textContent = 'Unsuspend School';
+    if (descEl)  descEl.textContent  = 'Unsuspending "' + schoolName + '" will restore access if the school has an active subscription.';
+    if (reasonWrap) reasonWrap.style.display = 'none';
+    if (btn) { btn.textContent = '✅ Unsuspend School'; btn.className = 'btn btn-green'; }
+  }
+
+  document.getElementById('suspendModal').style.display = 'flex';
+}
+
+async function confirmSuspend() {
+  var schoolId = (document.getElementById('suspendSchoolId') || {}).value;
+  var action   = (document.getElementById('suspendAction')   || {}).value;
+  var reason   = ((document.getElementById('suspendReason')  || {}).value || '').trim();
+  var isSusp   = action === 'suspend';
+
+  var btn = document.getElementById('suspendBtn');
+  if (btn) { btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true; }
+
+  var res = await apiRequest('/institution/superadmin/schools/' + schoolId + '/suspend', 'POST', {
+    suspend: isSusp,
+    reason:  reason
+  });
+
+  if (btn) { btn.innerHTML = isSusp ? '🚫 Suspend School' : '✅ Unsuspend School'; btn.disabled = false; }
+
+  if (res.ok) {
+    toast(isSusp ? 'School suspended.' : 'School unsuspended.', isSusp ? 'warning' : 'success');
+    closeModal('suspendModal');
+    loadSchools(_currentPage);
+  } else {
+    toast(res.data.message || 'Action failed.', 'error');
+  }
+}
+
+/* ============================================ PLANS */
+function openPlanModal(editId) {
+  var h = document.getElementById('planModalTitle');
+  var b = document.getElementById('savePlanBtn');
+  var i = document.getElementById('editPlanId');
+
+  if (editId) {
+    if (h) h.textContent = 'Edit Plan';
+    if (b) b.textContent = 'Save Changes';
+    if (i) i.value = editId;
+    /* Populate from DOM would need a plans cache — simplified */
+  } else {
+    if (h) h.textContent = 'New Plan';
+    if (b) b.textContent = 'Create Plan';
+    if (i) i.value = '';
+    ['planName','planCode','planPrice','planDays','planFeatures'].forEach(function(id) {
+      var el = document.getElementById(id); if (el) el.value = '';
+    });
+    var mt = document.getElementById('planMaxTeachers'); if (mt) mt.value = '20';
+    var ms = document.getElementById('planMaxStudents'); if (ms) ms.value = '500';
+    var pop = document.getElementById('planIsPopular');  if (pop) pop.checked = false;
+    var act = document.getElementById('planIsActive');   if (act) act.checked = true;
+  }
+
+  document.getElementById('planModal').style.display = 'flex';
+}
+
+async function savePlan() {
+  var btn    = document.getElementById('savePlanBtn');
+  var editId = (document.getElementById('editPlanId') || {}).value.trim();
+
+  var featuresText = ((document.getElementById('planFeatures') || {}).value || '');
+  var features = featuresText.split('\n').map(function(f) { return f.trim(); }).filter(Boolean);
+
+  var payload = {
+    name:         ((document.getElementById('planName')        || {}).value || '').trim(),
+    code:         ((document.getElementById('planCode')        || {}).value || '').trim().toLowerCase(),
+    price:        parseInt((document.getElementById('planPrice')        || {}).value) || 0,
+    durationDays: parseInt((document.getElementById('planDays')         || {}).value) || 30,
+    maxTeachers:  parseInt((document.getElementById('planMaxTeachers')  || {}).value) || 20,
+    maxStudents:  parseInt((document.getElementById('planMaxStudents')  || {}).value) || 500,
+    features:     features,
+    isPopular:    (document.getElementById('planIsPopular') || {}).checked || false,
+    isActive:     (document.getElementById('planIsActive')  || {}).checked !== false
+  };
+
+  if (!payload.name) { toast('Plan name is required.', 'error'); return; }
+  if (!payload.code) { toast('Plan code is required.', 'error'); return; }
+
+  if (btn) { btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true; }
+
+  var endpoint = editId ? '/institution/superadmin/plans/' + editId : '/institution/superadmin/plans';
+  var method   = editId ? 'PUT' : 'POST';
+  var res      = await apiRequest(endpoint, method, payload);
+
+  if (btn) { btn.innerHTML = editId ? 'Save Changes' : 'Create Plan'; btn.disabled = false; }
+
+  if (res.ok) {
+    toast('Plan saved!', 'success');
+    closeModal('planModal');
+    loadPlans();
+  } else {
+    toast(res.data.message || 'Failed.', 'error');
+  }
+}
+
+/* ============================================ HELPERS */
+function closeModal(id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; }
+document.addEventListener('click', function(e) { if (e.target.classList.contains('modal-overlay')) closeModal(e.target.id); });
+</script>
+</body>
+</html>

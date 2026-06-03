@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Exam Result — LatLomp Platform</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 0; min-height: 100vh;
+      background: var(--dark, #0f0f1a);
+      font-family: 'Inter', sans-serif;
+    }
+    @keyframes popIn { 0% { transform:scale(0.5); opacity:0; } 60% { transform:scale(1.1); } 100% { transform:scale(1); opacity:1; } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+
+    .result-nav {
+      padding: 0 20px; height: 60px;
+      background: var(--dark-2, #1a1a2e);
+      border-bottom: 1px solid var(--border, rgba(255,255,255,0.08));
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .result-nav a { color: var(--text-muted, #6b6b8a); font-size: 13px; text-decoration: none; }
+    .result-nav-title { font-size: 15px; font-weight: 800; color: #fff; }
+
+    .result-wrap { max-width: 640px; margin: 0 auto; padding: 32px 20px 60px; animation: fadeUp 0.4s ease; }
+
+    /* Score card */
+    .score-card {
+      background: var(--dark-2, #1a1a2e);
+      border: 1px solid var(--border, rgba(255,255,255,0.08));
+      border-radius: 20px; padding: 36px 28px;
+      text-align: center; margin-bottom: 24px;
+    }
+    .score-emoji { font-size: 64px; animation: popIn 0.5s ease 0.1s both; display: block; }
+    .score-title { font-size: 24px; font-weight: 800; color: #fff; margin: 16px 0 8px; }
+    .score-subtitle { font-size: 14px; color: var(--text-muted, #6b6b8a); margin: 0 0 28px; }
+
+    .score-circle {
+      width: 120px; height: 120px; border-radius: 50%;
+      border: 6px solid rgba(255,255,255,0.08);
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; margin: 0 auto 24px;
+      animation: popIn 0.5s ease 0.2s both;
+    }
+    .score-pct { font-size: 32px; font-weight: 900; }
+    .score-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+
+    .pass-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 20px; border-radius: 20px;
+      font-size: 14px; font-weight: 700;
+    }
+    .pass-badge.pass { background: rgba(67,233,123,0.15); color: #43e97b; }
+    .pass-badge.fail { background: rgba(255,101,132,0.15); color: #ff6584; }
+
+    /* Stats row */
+    .stats-row {
+      display: flex; gap: 12px; margin: 24px 0 0;
+      flex-wrap: wrap;
+    }
+    .stat-box {
+      flex: 1; min-width: 80px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border, rgba(255,255,255,0.08));
+      border-radius: 12px; padding: 14px 10px; text-align: center;
+    }
+    .stat-val { font-size: 22px; font-weight: 900; color: #fff; }
+    .stat-lbl { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-top: 4px; }
+
+    /* Subject breakdown */
+    .section-title {
+      font-size: 16px; font-weight: 800; color: #fff;
+      margin: 0 0 16px;
+    }
+
+    .subj-breakdown {
+      background: var(--dark-2, #1a1a2e);
+      border: 1px solid var(--border, rgba(255,255,255,0.08));
+      border-radius: 16px; overflow: hidden; margin-bottom: 24px;
+    }
+    .subj-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border, rgba(255,255,255,0.06));
+    }
+    .subj-row:last-child { border-bottom: none; }
+    .subj-row-name { font-size: 14px; font-weight: 700; color: #fff; }
+    .subj-row-score { font-size: 14px; font-weight: 800; }
+    .subj-bar-wrap { height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; margin-top: 6px; }
+    .subj-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+
+    /* Action buttons */
+    .result-actions { display: flex; flex-direction: column; gap: 12px; }
+    .r-btn {
+      display: block; width: 100%; padding: 15px; border-radius: 12px;
+      font-size: 15px; font-weight: 700; text-align: center;
+      cursor: pointer; font-family: inherit; border: none;
+      text-decoration: none; transition: all 0.2s;
+    }
+    .r-btn-primary { background: linear-gradient(135deg, var(--primary, #6c63ff), var(--primary-dark, #574fd6)); color: #fff; }
+    .r-btn-green   { background: linear-gradient(135deg, #43e97b, #38f9d7); color: #0f0f1a; }
+    .r-btn-secondary { background: rgba(255,255,255,0.06); border: 1px solid var(--border, rgba(255,255,255,0.08)); color: var(--text-secondary, #a0a0c0); }
+    .r-btn:hover { transform: translateY(-1px); }
+
+    /* Answers review */
+    .answers-toggle {
+      background: none; border: 1px solid var(--border, rgba(255,255,255,0.08));
+      color: var(--text-muted); padding: 12px 20px; border-radius: 10px;
+      width: 100%; cursor: pointer; font-family: inherit; font-size: 14px;
+      font-weight: 600; margin-bottom: 16px; transition: all 0.2s;
+    }
+    .answers-toggle:hover { background: rgba(255,255,255,0.04); color: #fff; }
+
+    .answer-item {
+      background: var(--dark-2, #1a1a2e);
+      border: 1px solid var(--border, rgba(255,255,255,0.08));
+      border-radius: 12px; padding: 16px; margin-bottom: 12px;
+      border-left-width: 3px;
+    }
+    .answer-item.correct { border-left-color: #43e97b; }
+    .answer-item.wrong   { border-left-color: #ff6584; }
+    .answer-item.skipped { border-left-color: #ffa500; }
+    .answer-q { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 8px; line-height: 1.5; }
+    .answer-meta { font-size: 12px; color: var(--text-muted); }
+    .answer-expl { font-size: 12px; color: var(--text-secondary); font-style: italic; margin-top: 6px; }
+  </style>
+</head>
+<body>
+
+<nav class="result-nav">
+  <a href="cbt.html">← CBT Home</a>
+  <span class="result-nav-title">📊 Your Result</span>
+  <span></span>
+</nav>
+
+<div class="result-wrap" id="resultWrap">
+  <div style="text-align:center; padding:60px; color:var(--text-muted);">Loading result...</div>
+</div>
+
+<script src="js/main.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var resultRaw  = sessionStorage.getItem('cbtResult');
+  var sessionRaw = sessionStorage.getItem('cbtSession');
+
+  var wrap = document.getElementById('resultWrap');
+
+  if (!resultRaw) {
+    wrap.innerHTML =
+      '<div style="text-align:center; padding:48px;">' +
+        '<div style="font-size:48px; margin-bottom:16px;">⚠️</div>' +
+        '<p style="font-size:18px; font-weight:700; color:#fff;">No result found</p>' +
+        '<p style="color:var(--text-muted);">Please complete an exam first.</p>' +
+        '<a href="cbt.html" style="display:inline-block; margin-top:20px; padding:12px 24px; background:var(--primary,#6c63ff); color:#fff; border-radius:10px; font-weight:700; text-decoration:none;">← Go to CBT</a>' +
+      '</div>';
+    return;
+  }
+
+  var result  = JSON.parse(resultRaw);
+  var session = sessionRaw ? JSON.parse(sessionRaw) : {};
+
+  var isPassed     = result.isPassed;
+  var scorePercent = result.scorePercent || 0;
+  var emoji        = scorePercent >= 80 ? '🏆' : scorePercent >= 60 ? '🥇' : scorePercent >= 50 ? '✅' : '📚';
+  var title        = scorePercent >= 80 ? 'Excellent!' : scorePercent >= 60 ? 'Great Job!' : scorePercent >= 50 ? 'You Passed!' : 'Keep Practising!';
+  var scoreColor   = isPassed ? '#43e97b' : '#ff6584';
+
+  var studentInfo = session.studentInfo || {};
+  var category    = (session.examCategory || 'practice').toUpperCase();
+
+  /* Build subject breakdown */
+  var breakdownHtml = '';
+  var breakdown = result.subjectBreakdown || {};
+
+  if (Object.keys(breakdown).length > 0 && session.subjects) {
+    var bRows = session.subjects.map(function(s) {
+      var sid   = s.subjectId.toString();
+      var data  = breakdown[sid] || { correct: 0, total: s.questionCount || 0 };
+      var pct   = data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0;
+      var color = pct >= 50 ? '#43e97b' : '#ff6584';
+      return '<div class="subj-row">' +
+        '<div style="flex:1;">' +
+          '<div class="subj-row-name">' + s.subjectName + '</div>' +
+          '<div class="subj-bar-wrap"><div class="subj-bar-fill" style="width:' + pct + '%; background:' + color + ';"></div></div>' +
+        '</div>' +
+        '<div class="subj-row-score" style="color:' + color + '; margin-left:16px;">' + pct + '%</div>' +
+      '</div>';
+    }).join('');
+
+    breakdownHtml =
+      '<p class="section-title">📊 Subject Breakdown</p>' +
+      '<div class="subj-breakdown">' + bRows + '</div>';
+  }
+
+  /* Build answers review (collapsible) */
+  var answersHtml = '';
+  if (result.gradedAnswers && result.gradedAnswers.length > 0) {
+    var letters = ['A', 'B', 'C', 'D', 'E'];
+    var items = result.gradedAnswers.map(function(a, i) {
+      var cls = a.isCorrect ? 'correct' : (a.userAnswer === null ? 'skipped' : 'wrong');
+      var icon = a.isCorrect ? '✅' : (a.userAnswer === null ? '⬜' : '❌');
+      var userAns = a.userAnswer !== null && a.userAnswer !== undefined
+        ? letters[a.userAnswer] + ': ' + (a.options[a.userAnswer] || '?')
+        : 'Not answered';
+      var correctAns = letters[a.correctAnswer] + ': ' + (a.options[a.correctAnswer] || '?');
+
+      return '<div class="answer-item ' + cls + '">' +
+        '<div class="answer-q">' + icon + ' Q' + (i+1) + '. ' + a.question + '</div>' +
+        '<div class="answer-meta">Your answer: <strong style="color:' + (a.isCorrect ? '#43e97b' : '#ff6584') + '">' + userAns + '</strong>' +
+          (!a.isCorrect ? ' · Correct: <strong style="color:#43e97b">' + correctAns + '</strong>' : '') +
+        '</div>' +
+        (a.explanation ? '<div class="answer-expl">💡 ' + a.explanation + '</div>' : '') +
+      '</div>';
+    }).join('');
+
+    answersHtml =
+      '<button class="answers-toggle" onclick="toggleAnswers(this)">📋 Review All Answers ▾</button>' +
+      '<div id="answersReview" style="display:none;">' + items + '</div>';
+  }
+
+  var mins = Math.floor((result.timeTaken || 0) / 60);
+  var secs = (result.timeTaken || 0) % 60;
+  var timeStr = mins + 'm ' + secs + 's';
+
+  wrap.innerHTML =
+    /* Score card */
+    '<div class="score-card">' +
+      (studentInfo.name ? '<p style="font-size:14px; color:var(--text-muted); margin:0 0 16px;">📋 ' + category + ' Exam Result for <strong style="color:#fff">' + studentInfo.name + '</strong></p>' : '') +
+      '<span class="score-emoji">' + emoji + '</span>' +
+      '<div class="score-title">' + title + '</div>' +
+      '<div class="score-subtitle">' +
+        (isPassed ? 'Congratulations, you passed this exam!' : 'Don\'t give up — review the answers and try again!') +
+      '</div>' +
+      '<div class="score-circle" style="border-color:' + scoreColor + '20;">' +
+        '<span class="score-pct" style="color:' + scoreColor + '">' + scorePercent + '%</span>' +
+        '<span class="score-label">Score</span>' +
+      '</div>' +
+      '<span class="pass-badge ' + (isPassed ? 'pass' : 'fail') + '">' +
+        (isPassed ? '✅ PASSED' : '❌ FAILED') +
+      '</span>' +
+      '<div class="stats-row">' +
+        '<div class="stat-box"><div class="stat-val" style="color:#43e97b">' + result.score + '</div><div class="stat-lbl">Correct</div></div>' +
+        '<div class="stat-box"><div class="stat-val">' + result.totalQuestions + '</div><div class="stat-lbl">Questions</div></div>' +
+        '<div class="stat-box"><div class="stat-val" style="color:#ffa500">' + (result.totalQuestions - result.score) + '</div><div class="stat-lbl">Wrong</div></div>' +
+        '<div class="stat-box"><div class="stat-val">' + timeStr + '</div><div class="stat-lbl">Time</div></div>' +
+      '</div>' +
+    '</div>' +
+
+    /* Subject breakdown */
+    breakdownHtml +
+
+    /* Answer review */
+    answersHtml +
+
+    /* Actions */
+    '<div class="result-actions">' +
+      '<a href="cbt-start.html" class="r-btn r-btn-green">🔄 Take Another Exam</a>' +
+      '<a href="cbt.html"       class="r-btn r-btn-primary">📚 CBT Dashboard</a>' +
+      '<a href="index.html"     class="r-btn r-btn-secondary">← Back to Platform</a>' +
+    '</div>';
+});
+
+function toggleAnswers(btn) {
+  var div = document.getElementById('answersReview');
+  if (!div) return;
+  var isOpen = div.style.display !== 'none';
+  div.style.display = isOpen ? 'none' : 'block';
+  btn.textContent = isOpen ? '📋 Review All Answers ▾' : '📋 Hide Answers ▴';
+}
+</script>
+</body>
+</html>

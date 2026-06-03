@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign In — LatLomp Platform</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.19/css/intlTelInput.css" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: var(--dark);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      font-family: 'Inter', sans-serif;
+    }
+    .sw { width: 100%; max-width: 420px; }
+    .s-logo { text-align: center; margin-bottom: 28px; }
+    .s-logo a { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+    .s-card {
+      background: var(--dark-2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 36px 32px;
+      width: 100%;
+    }
+    .s-title { text-align: center; margin-bottom: 24px; }
+    .s-title h1 { font-size: 24px; font-weight: 800; color: var(--text-primary); margin-bottom: 6px; }
+    .s-title p  { font-size: 14px; color: var(--text-secondary); }
+    .s-screen { display: none; }
+    .s-screen.active { display: block; }
+
+    .phone-tabs {
+      display: flex; background: rgba(255,255,255,0.04);
+      border-radius: 10px; padding: 4px; gap: 4px; margin-bottom: 20px;
+    }
+    .phone-tab {
+      flex: 1; padding: 10px; border: none; border-radius: 8px;
+      font-weight: 700; font-size: 14px; cursor: pointer;
+      font-family: inherit; transition: all 0.2s;
+      background: transparent; color: var(--text-secondary);
+    }
+    .phone-tab.active { background: var(--primary); color: white; }
+
+    /* ✅ RESTORED: Custom Google button — same as old working version */
+    .btn-google {
+      width: 100%; padding: 13px 20px;
+      background: white; border: 1px solid #dadce0;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      cursor: pointer; font-size: 15px; font-weight: 600; color: #3c4043;
+      font-family: inherit; transition: all 0.2s; margin-bottom: 12px;
+    }
+    .btn-google:hover { background: #f8f9fa; box-shadow: 0 2px 12px rgba(0,0,0,0.15); }
+
+    .btn-phone-opt {
+      width: 100%; padding: 13px 20px; background: transparent;
+      border: 1px solid var(--border); border-radius: 12px;
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      cursor: pointer; font-size: 15px; font-weight: 600;
+      color: var(--text-primary); font-family: inherit;
+      transition: all 0.2s; margin-bottom: 12px;
+    }
+    .btn-phone-opt:hover { background: rgba(255,255,255,0.05); border-color: rgba(108,99,255,0.4); }
+
+    .s-divider { display: flex; align-items: center; gap: 12px; margin: 8px 0 16px; }
+    .s-divider-line { flex: 1; height: 1px; background: var(--border); }
+    .s-divider span { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+
+    .s-field { margin-bottom: 16px; }
+    .s-field label {
+      display: block; font-size: 12px; font-weight: 700;
+      color: var(--text-secondary); text-transform: uppercase;
+      letter-spacing: 0.5px; margin-bottom: 8px;
+    }
+    .s-input {
+      width: 100%; background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border); border-radius: 10px;
+      padding: 13px 16px; color: var(--text-primary);
+      font-size: 15px; font-family: inherit; outline: none; transition: border-color 0.2s;
+    }
+    .s-input:focus { border-color: var(--primary); }
+    .s-input::placeholder { color: var(--text-muted); }
+    .pw-wrap { position: relative; }
+    .pw-wrap .s-input { padding-right: 48px; }
+    .pw-eye {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer;
+      font-size: 16px; color: var(--text-muted); padding: 4px;
+    }
+
+    .btn-main {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white; border: none; border-radius: 12px;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      font-family: inherit; transition: all 0.2s; margin-top: 4px;
+    }
+    .btn-main:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(108,99,255,0.4); }
+    .btn-main:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .otp-boxes { display: flex; gap: 10px; justify-content: center; margin: 20px 0; }
+    .otp-box {
+      width: 52px; height: 58px; background: rgba(255,255,255,0.04);
+      border: 2px solid var(--border); border-radius: 10px;
+      font-size: 24px; font-weight: 800; color: var(--text-primary);
+      text-align: center; font-family: monospace; outline: none; transition: border-color 0.2s;
+    }
+    .otp-box:focus  { border-color: var(--primary); }
+    .otp-box.filled { border-color: var(--primary); background: rgba(108,99,255,0.06); }
+
+    .s-err {
+      display: none; background: rgba(255,101,132,0.1); border: 1px solid rgba(255,101,132,0.3);
+      color: var(--secondary); padding: 12px 16px; border-radius: 8px;
+      font-size: 13px; margin-bottom: 16px; line-height: 1.5;
+    }
+    .s-suc {
+      display: none; background: rgba(67,233,123,0.1); border: 1px solid rgba(67,233,123,0.3);
+      color: #43e97b; padding: 12px 16px; border-radius: 8px;
+      font-size: 13px; margin-bottom: 16px; line-height: 1.5;
+    }
+    .s-dev {
+      display: none; background: rgba(255,165,0,0.1); border: 1px solid rgba(255,165,0,0.3);
+      color: #ffa500; padding: 12px 16px; border-radius: 8px;
+      font-size: 13px; margin-bottom: 16px; line-height: 1.5;
+    }
+
+    .s-link {
+      background: none; border: none; color: var(--primary-light);
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      font-family: inherit; text-decoration: underline; padding: 0;
+    }
+    .s-center { text-align: center; margin-top: 14px; font-size: 13px; color: var(--text-muted); }
+    .btn-back {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: none; border: none; color: var(--text-muted);
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      font-family: inherit; padding: 0; margin-bottom: 20px;
+    }
+    .btn-back:hover { color: var(--text-primary); }
+    .phone-pill {
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(108,99,255,0.1); border: 1px solid rgba(108,99,255,0.2);
+      border-radius: 20px; padding: 6px 16px;
+      font-size: 14px; font-weight: 700; color: var(--primary-light);
+      margin: 8px auto 16px;
+    }
+    .resend-area { text-align: center; margin-top: 14px; font-size: 13px; color: var(--text-muted); }
+    .s-footer { text-align: center; margin-top: 20px; }
+    .s-footer a { color: var(--text-muted); font-size: 13px; text-decoration: none; }
+    .s-footer a:hover { color: var(--text-primary); }
+
+    .iti { width: 100%; display: block; }
+    .iti__flag-container { background: rgba(255,255,255,0.04); }
+    .iti__selected-flag  { background: transparent !important; }
+    .iti__country-list {
+      background: #1a1a2e; border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px; color: #fff; z-index: 9999;
+    }
+    .iti__country-list .iti__country:hover,
+    .iti__country-list .iti__country.iti__highlight { background: rgba(108,99,255,0.2); }
+    .iti__dial-code  { color: rgba(255,255,255,0.5); }
+    .iti__divider    { border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .iti--allow-dropdown input { padding-left: 90px !important; }
+
+    @media (max-width: 480px) {
+      .s-card { padding: 28px 18px; }
+      .otp-box { width: 42px; height: 50px; font-size: 20px; }
+      .otp-boxes { gap: 7px; }
+    }
+  </style>
+</head>
+<body>
+<div class="sw">
+
+  <div class="s-logo">
+    <a href="index.html">
+      <span style="font-size:28px">⚡</span>
+      <span style="font-size:22px;font-weight:800;color:var(--text-primary)">LatLomp</span>
+      <span style="background:linear-gradient(135deg,var(--primary),var(--secondary));color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:4px;text-transform:uppercase">Platform</span>
+    </a>
+  </div>
+
+  <div class="s-card">
+
+    <!-- ===== SCREEN 1: MAIN OPTIONS ===== -->
+    <div class="s-screen active" id="scMain">
+      <div class="s-title">
+        <h1>Sign In</h1>
+        <p>Choose how to continue</p>
+      </div>
+
+      <!-- ✅ RESTORED: Custom button — click triggers prompt() overlay -->
+      <button class="btn-google" id="btnGoogle">
+        <svg width="20" height="20" viewBox="0 0 48 48">
+          <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+          <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+          <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+          <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.36-8.16 2.36-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+        </svg>
+        Continue with Google
+      </button>
+
+      <div class="s-divider">
+        <div class="s-divider-line"></div>
+        <span>OR</span>
+        <div class="s-divider-line"></div>
+      </div>
+
+      <button class="btn-phone-opt" id="btnPhoneOpt">
+        <span style="font-size:20px">📱</span>
+        Continue with Phone Number
+      </button>
+
+      <div class="s-center">
+        <button class="s-link" id="btnForgotOpt">Forgot Password?</button>
+      </div>
+    </div>
+
+    <!-- ===== SCREEN 2: PHONE ===== -->
+    <div class="s-screen" id="scPhone">
+      <button class="btn-back" id="backPhone">← Back</button>
+      <div class="phone-tabs">
+        <button class="phone-tab active" id="tabRegister">Register</button>
+        <button class="phone-tab"        id="tabLogin">Login</button>
+      </div>
+      <div class="s-err" id="phoneErr"></div>
+      <div class="s-suc" id="phoneSuc"></div>
+
+      <!-- REGISTER -->
+      <div id="registerFields">
+        <div class="s-field">
+          <label>Full Name *</label>
+          <input type="text" id="regName" class="s-input" placeholder="Your full name" />
+        </div>
+        <div class="s-field">
+          <label>Phone Number *</label>
+          <input type="tel" id="regPhone" class="s-input" placeholder="Enter phone number" />
+        </div>
+        <div class="s-field">
+          <label>Password * <span style="font-weight:400;font-size:11px;text-transform:none;color:var(--text-muted)">(min. 6 characters)</span></label>
+          <div class="pw-wrap">
+            <input type="password" id="regPassword" class="s-input" placeholder="Create a password" />
+            <button type="button" class="pw-eye" onclick="togglePw('regPassword',this)">👁</button>
+          </div>
+        </div>
+        <button class="btn-main" id="btnRegister">Send Verification Code →</button>
+        <div class="s-center" style="margin-top:12px;font-size:13px;">
+          Already have an account? <button class="s-link" id="switchToLogin">Login here →</button>
+        </div>
+      </div>
+
+      <!-- LOGIN -->
+      <div id="loginFields" style="display:none;">
+        <div class="s-field">
+          <label>Phone Number *</label>
+          <input type="tel" id="loginPhone" class="s-input" placeholder="Enter phone number" />
+        </div>
+        <div class="s-field">
+          <label>Password *</label>
+          <div class="pw-wrap">
+            <input type="password" id="loginPassword" class="s-input" placeholder="Your password" />
+            <button type="button" class="pw-eye" onclick="togglePw('loginPassword',this)">👁</button>
+          </div>
+        </div>
+        <button class="btn-main" id="btnLogin">Login →</button>
+        <div class="s-center" style="margin-top:12px;">
+          <button class="s-link" id="btnForgotFromLogin">Forgot Password?</button>
+        </div>
+        <div class="s-center" style="margin-top:8px;font-size:13px;">
+          No account yet? <button class="s-link" id="switchToRegister">Register here →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SCREEN 3: OTP ===== -->
+    <div class="s-screen" id="scOtp">
+      <div class="s-title">
+        <h1>Verify Your Number</h1>
+        <p>Enter the 6-digit code sent to</p>
+        <div class="phone-pill" id="otpPhone">...</div>
+      </div>
+      <div class="s-err" id="otpErr"></div>
+      <div class="s-suc" id="otpSuc"></div>
+      <div class="s-dev" id="otpDev"></div>
+      <div class="otp-boxes">
+        <input type="text" class="otp-box" maxlength="1" inputmode="numeric"/>
+        <input type="text" class="otp-box" maxlength="1" inputmode="numeric"/>
+        <input type="text" class="otp-box" maxlength="1" inputmode="numeric"/>
+        <input type="text" class="otp-box" maxlength="1" inputmode="numeric"/>
+        <input type="text" class="otp-box" maxlength="1" inputmode="numeric"/>
+        <input type="text" class="otp-box" maxlength="1" inputmode="numeric"/>
+      </div>
+      <button class="btn-main" id="btnVerify">Verify & Activate Account →</button>
+      <div class="resend-area" id="resendArea"></div>
+    </div>
+
+    <!-- ===== SCREEN 4: FORGOT ===== -->
+    <div class="s-screen" id="scForgot">
+      <button class="btn-back" id="backForgot">← Back</button>
+      <div class="s-title">
+        <h1>Reset Password</h1>
+        <p>Enter your phone number to receive a reset code</p>
+      </div>
+      <div class="s-err" id="forgotErr"></div>
+      <div class="s-suc" id="forgotSuc"></div>
+      <div class="s-field">
+        <label>Phone Number</label>
+        <input type="tel" id="forgotPhone" class="s-input" placeholder="Enter phone number" />
+      </div>
+      <button class="btn-main" id="btnForgot">Send Reset Code →</button>
+    </div>
+
+    <!-- ===== SCREEN 5: RESET ===== -->
+    <div class="s-screen" id="scReset">
+      <div class="s-title">
+        <h1>New Password</h1>
+        <p>Enter the code and your new password</p>
+      </div>
+      <div class="s-err" id="resetErr"></div>
+      <div class="s-suc" id="resetSuc"></div>
+      <div class="s-dev" id="resetDev"></div>
+      <div class="s-field">
+        <label>Verification Code</label>
+        <input type="text" id="resetOtp" class="s-input" placeholder="6-digit code"
+          maxlength="6" inputmode="numeric"
+          style="text-align:center;font-size:24px;font-weight:800;letter-spacing:8px;font-family:monospace"/>
+      </div>
+      <div class="s-field">
+        <label>New Password</label>
+        <div class="pw-wrap">
+          <input type="password" id="resetNew" class="s-input" placeholder="New password" />
+          <button type="button" class="pw-eye" onclick="togglePw('resetNew',this)">👁</button>
+        </div>
+      </div>
+      <div class="s-field">
+        <label>Confirm Password</label>
+        <div class="pw-wrap">
+          <input type="password" id="resetConfirm" class="s-input" placeholder="Repeat password" />
+          <button type="button" class="pw-eye" onclick="togglePw('resetConfirm',this)">👁</button>
+        </div>
+      </div>
+      <button class="btn-main" id="btnReset">Reset Password →</button>
+    </div>
+
+  </div><!-- end s-card -->
+
+  <div class="s-footer">
+    <a href="index.html">← Back to Platform</a>
+  </div>
+</div>
+
+<script src="js/main.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.19/js/intlTelInput.min.js"></script>
+<script>
+/* ============================================
+   SIGNIN.HTML — COMPLETE LOGIC
+   RESTORED: prompt() approach — same as old working version
+============================================ */
+
+var currentPhone   = '';
+var regIti         = null;
+var loginIti       = null;
+var forgotIti      = null;
+var resendInterval = null;
+
+function showScreen(id) {
+  document.querySelectorAll('.s-screen').forEach(function(s) { s.classList.remove('active'); });
+  var t = document.getElementById(id); if (t) t.classList.add('active');
+  document.querySelectorAll('.s-err,.s-suc,.s-dev').forEach(function(el) {
+    el.style.display = 'none'; el.innerHTML = '';
+  });
+}
+
+function showErr(id, msg) {
+  var el = document.getElementById(id); if (!el) return;
+  el.style.display = 'block'; el.textContent = msg;
+}
+
+function showDev(id, otp) {
+  var el = document.getElementById(id); if (!el) return;
+  el.style.display = 'block';
+  el.innerHTML = '🛠️ Dev Mode — OTP: <strong style="font-size:22px;letter-spacing:5px;font-family:monospace">' + otp + '</strong>';
+}
+
+function setLoading(btnId, loading, txt) {
+  var btn = document.getElementById(btnId); if (!btn) return;
+  btn.disabled = loading; btn.textContent = loading ? 'Please wait...' : txt;
+}
+
+function bind(id, ev, fn) {
+  var el = document.getElementById(id); if (el) el.addEventListener(ev, fn);
+}
+
+function onEnter(id, fn) {
+  var el = document.getElementById(id);
+  if (el) el.addEventListener('keydown', function(e) { if (e.key === 'Enter') fn(); });
+}
+
+function getPhone(iti, fallbackId) {
+  if (iti) return iti.getNumber();
+  var el = document.getElementById(fallbackId); return el ? el.value.trim() : '';
+}
+
+function switchTab(tab) {
+  var regF = document.getElementById('registerFields');
+  var logF = document.getElementById('loginFields');
+  var t1   = document.getElementById('tabRegister');
+  var t2   = document.getElementById('tabLogin');
+  document.querySelectorAll('.s-err,.s-suc').forEach(function(el) { el.style.display='none'; el.innerHTML=''; });
+  if (tab === 'register') {
+    if (regF) regF.style.display = 'block'; if (logF) logF.style.display = 'none';
+    if (t1) t1.classList.add('active');     if (t2) t2.classList.remove('active');
+  } else {
+    if (regF) regF.style.display = 'none';  if (logF) logF.style.display = 'block';
+    if (t1) t1.classList.remove('active');  if (t2) t2.classList.add('active');
+  }
+}
+
+function getOTP() {
+  var c = '';
+  document.querySelectorAll('.otp-box').forEach(function(b) { c += (b.value || ''); });
+  return c;
+}
+
+function clearOTP() {
+  document.querySelectorAll('.otp-box').forEach(function(b) {
+    b.value = ''; b.classList.remove('filled'); b.style.borderColor = '';
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+
+  /* Session conflict: clear teacher session if present */
+  var existingUser = getCurrentUser();
+  if (existingUser && existingUser.role === 'teacher') { clearSession(); existingUser = null; }
+
+  /* Already logged in as student → redirect */
+  if (existingUser && existingUser.role === 'student') {
+    window.location.replace(getRedirectTarget()); return;
+  }
+
+  /* ✅ RESTORED: Initialize Google with callback — button click uses prompt() */
+  if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+    google.accounts.id.initialize({
+      client_id:             '804260807914-tl2i27hblh8f3s1g4a5ip12hejosk0ab.apps.googleusercontent.com',
+      callback:              handleGoogleResponse,
+      auto_select:           false,
+      cancel_on_tap_outside: true
+    });
+    google.accounts.id.disableAutoSelect();
+  }
+
+  /* intl-tel-input */
+  var itiOpts = {
+    initialCountry: 'ng', preferredCountries: ['ng','gh','ke','za','gb','us'],
+    separateDialCode: true,
+    utilsScript: 'https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.19/js/utils.js'
+  };
+  var regEl    = document.getElementById('regPhone');
+  var loginEl  = document.getElementById('loginPhone');
+  var forgotEl = document.getElementById('forgotPhone');
+  if (regEl    && typeof intlTelInput !== 'undefined') regIti    = intlTelInput(regEl,    itiOpts);
+  if (loginEl  && typeof intlTelInput !== 'undefined') loginIti  = intlTelInput(loginEl,  itiOpts);
+  if (forgotEl && typeof intlTelInput !== 'undefined') forgotIti = intlTelInput(forgotEl, itiOpts);
+
+  /* ✅ RESTORED: Button click calls prompt() — shows overlay on same page */
+  bind('btnGoogle', 'click', function() {
+    if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
+      showErr('phoneErr', '⚠️ Google Sign In is still loading. Please wait and try again.');
+      showScreen('scPhone'); return;
+    }
+    google.accounts.id.disableAutoSelect();
+    google.accounts.id.prompt(function(notification) {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        showErr('phoneErr', '⚠️ Google sign in was blocked. Please allow popups or use phone number login.');
+        showScreen('scPhone');
+      }
+    });
+  });
+
+  bind('btnPhoneOpt',       'click', function() { showScreen('scPhone'); });
+  bind('btnForgotOpt',      'click', function() { showScreen('scForgot'); });
+  bind('backPhone',         'click', function() { showScreen('scMain'); });
+  bind('backForgot',        'click', function() { showScreen('scMain'); });
+  bind('tabRegister',       'click', function() { switchTab('register'); });
+  bind('tabLogin',          'click', function() { switchTab('login'); });
+  bind('switchToLogin',     'click', function() { switchTab('login'); });
+  bind('switchToRegister',  'click', function() { switchTab('register'); });
+  bind('btnForgotFromLogin','click', function() { showScreen('scForgot'); });
+  bind('btnRegister','click',submitRegister);
+  bind('btnLogin',   'click',submitLogin);
+  bind('btnVerify',  'click',verifyOTP);
+  bind('btnForgot',  'click',submitForgot);
+  bind('btnReset',   'click',submitReset);
+  onEnter('regPassword',   submitRegister);
+  onEnter('loginPassword', submitLogin);
+  onEnter('forgotPhone',   submitForgot);
+
+  /* OTP boxes */
+  var boxes = document.querySelectorAll('.otp-box');
+  boxes.forEach(function(box, i) {
+    box.addEventListener('input', function() {
+      var v = box.value.replace(/[^0-9]/g,''); box.value = v;
+      if (v) { box.classList.add('filled'); if (i < boxes.length-1) boxes[i+1].focus(); else verifyOTP(); }
+      else    box.classList.remove('filled');
+    });
+    box.addEventListener('keydown', function(e) { if (e.key==='Backspace'&&!box.value&&i>0) boxes[i-1].focus(); });
+    box.addEventListener('paste', function(e) {
+      e.preventDefault();
+      var txt    = (e.clipboardData||window.clipboardData).getData('text');
+      var digits = txt.replace(/[^0-9]/g,'').slice(0,6);
+      digits.split('').forEach(function(d,j) { if (boxes[j]) { boxes[j].value=d; boxes[j].classList.add('filled'); } });
+      if (digits.length===6) verifyOTP();
+    });
+  });
+});
+
+/* ============================================
+   GOOGLE CALLBACK
+============================================ */
+function handleGoogleResponse(response) {
+  clearSession();
+  apiRequest('/auth/google', 'POST', { credential: response.credential, role: 'student' })
+    .then(function(r) {
+      if (r.ok) {
+        saveAuthData(r.data.token, r.data.user);
+        updateNavForAuthState();
+        window.location.replace(getRedirectTarget());
+      } else {
+        showErr('phoneErr', r.data.message || 'Google sign in failed. Please try again.');
+        showScreen('scPhone');
+      }
+    })
+    .catch(function() {
+      showErr('phoneErr', '❌ Network error. Please check your connection.');
+      showScreen('scPhone');
+    });
+}
+
+/* ============================================
+   REGISTER
+============================================ */
+function submitRegister() {
+  var name     = ((document.getElementById('regName')||{}).value||'').trim();
+  var password =  (document.getElementById('regPassword')||{}).value||'';
+  var phone    = getPhone(regIti, 'regPhone');
+  document.getElementById('phoneErr').style.display = 'none';
+  if (!name)                           { showErr('phoneErr','⚠️ Please enter your full name.');         return; }
+  if (!phone||phone.length<8)          { showErr('phoneErr','⚠️ Please enter your phone number.');      return; }
+  if (!password)                       { showErr('phoneErr','⚠️ Please enter a password.');             return; }
+  if (regIti&&!regIti.isValidNumber()) { showErr('phoneErr','⚠️ Please enter a valid phone number.');   return; }
+  setLoading('btnRegister',true,'Send Verification Code →');
+  apiRequest('/auth/phone-send-otp','POST',{name:name,phone:phone,password:password,role:'student'})
+    .then(function(r) {
+      setLoading('btnRegister',false,'Send Verification Code →');
+      if (r.ok) {
+        currentPhone = r.data.phone||phone; showScreen('scOtp');
+        var p = document.getElementById('otpPhone'); if (p) p.textContent = currentPhone;
+        if (r.data.devOtp) showDev('otpDev',r.data.devOtp);
+        var first = document.querySelector('.otp-box'); if (first) first.focus();
+        startResend();
+      } else {
+        if (r.data.alreadyExists) { showErr('phoneErr',r.data.message); setTimeout(function(){switchTab('login');},2000); }
+        else showErr('phoneErr',r.data.message||'Could not send OTP.');
+      }
+    }).catch(function(){setLoading('btnRegister',false,'Send Verification Code →');showErr('phoneErr','❌ Network error.');});
+}
+
+/* ============================================
+   LOGIN
+============================================ */
+function submitLogin() {
+  var phone    = getPhone(loginIti,'loginPhone');
+  var password = (document.getElementById('loginPassword')||{}).value||'';
+  document.getElementById('phoneErr').style.display='none';
+  if (!phone||phone.length<8)              { showErr('phoneErr','⚠️ Please enter your phone number.');    return; }
+  if (!password)                           { showErr('phoneErr','⚠️ Please enter your password.');        return; }
+  if (loginIti&&!loginIti.isValidNumber()) { showErr('phoneErr','⚠️ Please enter a valid phone number.'); return; }
+  setLoading('btnLogin',true,'Login →');
+  apiRequest('/auth/phone-login','POST',{phone:phone,password:password})
+    .then(function(r) {
+      setLoading('btnLogin',false,'Login →');
+      if (r.ok) {
+        clearSession(); saveAuthData(r.data.token,r.data.user);
+        updateNavForAuthState(); window.location.replace(getRedirectTarget());
+      } else {
+        if (r.data.notRegistered) { showErr('phoneErr',r.data.message); setTimeout(function(){switchTab('register');},2000); }
+        else showErr('phoneErr',r.data.message||'Login failed.');
+      }
+    }).catch(function(){setLoading('btnLogin',false,'Login →');showErr('phoneErr','❌ Network error.');});
+}
+
+/* ============================================
+   VERIFY OTP
+============================================ */
+function verifyOTP() {
+  var code  = getOTP();
+  var errEl = document.getElementById('otpErr');
+  var sucEl = document.getElementById('otpSuc');
+  errEl.style.display='none'; sucEl.style.display='none';
+  if (code.length!==6) { errEl.style.display='block'; errEl.textContent='⚠️ Please enter all 6 digits.'; return; }
+  setLoading('btnVerify',true,'Verify & Activate Account →');
+  apiRequest('/auth/phone-verify-otp','POST',{phone:currentPhone,otp:code})
+    .then(function(r) {
+      setLoading('btnVerify',false,'Verify & Activate Account →');
+      if (r.ok) {
+        sucEl.style.display='block'; sucEl.textContent='✅ '+r.data.message;
+        clearSession(); saveAuthData(r.data.token,r.data.user); updateNavForAuthState();
+        setTimeout(function(){window.location.replace(getRedirectTarget());},1200);
+      } else {
+        errEl.style.display='block'; errEl.textContent=r.data.message||'Incorrect code.';
+        document.querySelectorAll('.otp-box').forEach(function(b){b.style.borderColor='var(--secondary)';});
+        setTimeout(function(){clearOTP();var f=document.querySelector('.otp-box');if(f)f.focus();},1500);
+      }
+    }).catch(function(){setLoading('btnVerify',false,'Verify & Activate Account →');document.getElementById('otpErr').style.display='block';document.getElementById('otpErr').textContent='❌ Network error.';});
+}
+
+function startResend() {
+  if (resendInterval) clearInterval(resendInterval);
+  var secs=60; var area=document.getElementById('resendArea');
+  if (area) area.textContent='Resend code in '+secs+'s';
+  resendInterval=setInterval(function(){
+    secs--; if(area)area.textContent='Resend code in '+secs+'s';
+    if(secs<=0){
+      clearInterval(resendInterval);
+      if(area){
+        area.innerHTML=''; var b=document.createElement('button');
+        b.className='s-link'; b.textContent='Resend Code';
+        b.addEventListener('click',function(){
+          if(area)area.textContent='Sending...';
+          apiRequest('/auth/phone-send-otp','POST',{phone:currentPhone,password:'__resend__',role:'student'})
+            .then(function(r){clearOTP();startResend();if(r.ok&&r.data.devOtp)showDev('otpDev',r.data.devOtp);});
+        }); area.appendChild(b);
+      }
+    }
+  },1000);
+}
+
+function submitForgot() {
+  var phone=getPhone(forgotIti,'forgotPhone');
+  document.getElementById('forgotErr').style.display='none';
+  if(!phone||phone.length<8){showErr('forgotErr','⚠️ Please enter your phone number.');return;}
+  currentPhone=phone; setLoading('btnForgot',true,'Send Reset Code →');
+  apiRequest('/auth/phone-forgot-password','POST',{phone:phone})
+    .then(function(r){
+      setLoading('btnForgot',false,'Send Reset Code →');
+      if(r.ok){showScreen('scReset');if(r.data.devOtp)showDev('resetDev',r.data.devOtp);}
+      else showErr('forgotErr',r.data.message||'Could not send code.');
+    }).catch(function(){setLoading('btnForgot',false,'Send Reset Code →');showErr('forgotErr','❌ Network error.');});
+}
+
+function submitReset() {
+  var otp=((document.getElementById('resetOtp')||{}).value||'').trim();
+  var newPw=(document.getElementById('resetNew')||{}).value||'';
+  var confirm=(document.getElementById('resetConfirm')||{}).value||'';
+  document.getElementById('resetErr').style.display='none';
+  if(otp.length!==6) {showErr('resetErr','⚠️ Please enter the 6-digit code.'); return;}
+  if(newPw.length<6) {showErr('resetErr','⚠️ Password must be at least 6 chars.'); return;}
+  if(newPw!==confirm){showErr('resetErr','⚠️ Passwords do not match.'); return;}
+  setLoading('btnReset',true,'Reset Password →');
+  apiRequest('/auth/phone-reset-password','POST',{phone:currentPhone,otp:otp,newPassword:newPw})
+    .then(function(r){
+      setLoading('btnReset',false,'Reset Password →');
+      if(r.ok){var s=document.getElementById('resetSuc');if(s){s.textContent='✅ '+r.data.message;s.style.display='block';}setTimeout(function(){showScreen('scPhone');switchTab('login');},2000);}
+      else showErr('resetErr',r.data.message||'Reset failed.');
+    }).catch(function(){setLoading('btnReset',false,'Reset Password →');showErr('resetErr','❌ Network error.');});
+}
+</script>
+</body>
+</html>

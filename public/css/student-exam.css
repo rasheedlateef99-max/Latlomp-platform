@@ -1,0 +1,181 @@
+/* ============================================
+   STUDENT EXAM STYLES
+   ============================================ */
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.s-exam-body { overflow-x: hidden; background: var(--dark); }
+
+/* Instructions card */
+.s-inst-card {
+  background: var(--dark-2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 40px;
+  max-width: 600px;
+  width: 100%;
+}
+
+.s-inst-meta {
+  display: flex;
+  gap: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.s-inst-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 20px;
+  flex: 1;
+  border-right: 1px solid var(--border);
+}
+
+.s-inst-meta-item:last-child { border-right: none; }
+
+/* Top bar */
+.s-topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 58px;
+  background: var(--dark-2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+  z-index: 100;
+  gap: 12px;
+}
+
+.s-timer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 7px 16px;
+  flex-shrink: 0;
+  transition: all 0.3s;
+}
+
+.s-timer.warning { background: rgba(255,165,0,0.1); border-color: rgba(255,165,0,0.4); }
+.s-timer.warning span:last-child { color: #ffa500; }
+.s-timer.danger  { background: rgba(255,101,132,0.1); border-color: rgba(255,101,132,0.4); animation: pulse 1s infinite; }
+.s-timer.danger  span:last-child { color: var(--secondary); }
+
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
+
+.s-submit-btn {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+/* Exam layout */
+.s-exam-main {
+  display: flex;
+  padding-top: 58px;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.s-question-area {
+  flex: 1;
+  padding: 28px 32px;
+  overflow-y: auto;
+  max-width: calc(100% - 240px);
+}
+
+/* Options */
+.s-option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--card-bg);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.s-option:hover:not(.s-selected) { border-color: rgba(108,99,255,0.4); }
+.s-option.s-selected { border-color: var(--primary); background: rgba(108,99,255,0.1); }
+
+.s-opt-letter {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  border: 2px solid rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+}
+
+.s-option.s-selected .s-opt-letter { background: var(--primary); border-color: var(--primary); color: white; }
+
+/* Nav panel */
+.s-nav-panel {
+  width: 240px;
+  background: var(--dark-2);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+/* Question nav buttons */
+.s-qnav {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 2px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-muted);
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.s-qnav:hover     { border-color: rgba(108,99,255,0.4); }
+.s-qnav.answered  { background: rgba(67,233,123,0.12); border-color: rgba(67,233,123,0.4); color: #43e97b; }
+.s-qnav.current   { border-color: var(--primary); background: rgba(108,99,255,0.15); color: var(--primary-light); }
+
+/* Responsive */
+@media (max-width: 700px) {
+  .s-exam-body { overflow: auto; }
+  .s-exam-main { flex-direction: column-reverse; height: auto; overflow: visible; }
+  .s-question-area { max-width: 100%; padding: 18px 14px; }
+  .s-nav-panel { width: 100%; border-left: none; border-bottom: 1px solid var(--border); max-height: 160px; }
+  .s-topbar span:nth-child(2) { display: none; }
+}
+
+@media (max-width: 480px) {
+  .s-inst-meta { flex-direction: column; }
+  .s-inst-meta-item { border-right: none; border-bottom: 1px solid var(--border); }
+}

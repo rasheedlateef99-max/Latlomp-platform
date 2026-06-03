@@ -1,0 +1,1392 @@
+/* ============================================
+   LATLOMP PLATFORM — MAIN STYLESHEET
+   ============================================ */
+
+/* ---- CSS Variables (Color System) ---- */
+:root {
+  --primary: #6c63ff;
+  --primary-dark: #574fd6;
+  --primary-light: #8b84ff;
+  --secondary: #ff6584;
+  --accent: #43e97b;
+  --accent-blue: #38f9d7;
+  --dark: #0f0f1a;
+  --dark-2: #1a1a2e;
+  --dark-3: #16213e;
+  --card-bg: #1e1e35;
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0c0;
+  --text-muted: #6b6b8a;
+  --border: rgba(255, 255, 255, 0.08);
+  --shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  --radius: 16px;
+  --radius-sm: 8px;
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+--page-top: 65px;     /* navbar height — used by content padding */
+--radius-lg: 20px;
+}
+
+/* ---- Reset & Base ---- */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--dark);
+  color: var(--text-primary);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+  transition: var(--transition);
+}
+
+ul {
+  list-style: none;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* ---- Utility Classes ---- */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ============================================
+   NAVBAR — ALWAYS FIXED AT TOP
+   ============================================ */
+.navbar {
+  position: fixed;       /* Never moves — always at top */
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 1000;
+  padding: 0;
+  background: rgba(15, 15, 26, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  box-sizing: border-box;
+}
+
+.navbar.scrolled {
+  background: rgba(15, 15, 26, 1);
+  box-shadow: 0 2px 20px rgba(0,0,0,0.3);
+}
+
+.nav-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 65px;          /* Fixed height — used by mobile dropdown top:65px */
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  flex-shrink: 0;
+  z-index: 1001;         /* Always above mobile menu overlay */
+}
+
+.logo-icon  { font-size: 24px; }
+
+.logo-text {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+}
+
+.logo-badge {
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* Desktop nav links — horizontal row */
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-link {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: color 0.2s, background 0.2s;
+  text-decoration: none;
+  cursor: pointer;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.nav-link:hover,
+.nav-link.active {
+  color: var(--text-primary);
+  background: rgba(108, 99, 255, 0.15);
+}
+
+.admin-link {
+  background: rgba(255, 101, 132, 0.1) !important;
+  color: var(--secondary) !important;
+  border: 1px solid rgba(255, 101, 132, 0.3);
+}
+
+.admin-link:hover {
+  background: rgba(255, 101, 132, 0.2) !important;
+}
+
+.teacher-nav-btn {
+  background: rgba(67, 233, 123, 0.1) !important;
+  color: #43e97b !important;
+  border: 1px solid rgba(67, 233, 123, 0.25) !important;
+  font-weight: 700 !important;
+}
+
+.student-nav-btn {
+  background: rgba(108, 99, 255, 0.1) !important;
+  color: var(--primary-light) !important;
+  border: 1px solid rgba(108, 99, 255, 0.25) !important;
+  font-weight: 700 !important;
+}
+
+/* Divider dot between link groups */
+.nav-divider-item {
+  color: var(--border);
+  font-size: 16px;
+  padding: 0 2px;
+  user-select: none;
+  list-style: none;
+  flex-shrink: 0;
+}
+
+/* Hamburger — hidden on desktop, shown on mobile */
+.hamburger {
+  display: none;           /* Hidden on desktop */
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  z-index: 1001;           /* Always above menu overlay */
+  flex-shrink: 0;
+  position: relative;      /* NOT moved by any CSS — stays in navbar */
+}
+
+.hamburger span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--text-primary);
+  border-radius: 2px;
+  transition: all 0.3s ease;
+  pointer-events: none;
+}
+
+/* ============================================
+   HERO SECTION
+   ============================================ */
+.hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  padding: 120px 24px 80px;
+  overflow: hidden;
+}
+
+.hero-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.hero-shape {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.15;
+}
+
+.shape-1 {
+  width: 600px;
+  height: 600px;
+  background: var(--primary);
+  top: -200px;
+  right: -200px;
+}
+
+.shape-2 {
+  width: 400px;
+  height: 400px;
+  background: var(--secondary);
+  bottom: -100px;
+  left: -100px;
+}
+
+.shape-3 {
+  width: 300px;
+  height: 300px;
+  background: var(--accent);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  max-width: 800px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.hero-badge {
+  display: inline-block;
+  background: rgba(108, 99, 255, 0.15);
+  border: 1px solid rgba(108, 99, 255, 0.3);
+  color: var(--primary-light);
+  padding: 8px 20px;
+  border-radius: 30px;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 24px;
+  letter-spacing: 0.5px;
+}
+
+.hero-title {
+  font-size: clamp(2.5rem, 6vw, 5rem);
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 24px;
+  letter-spacing: -2px;
+  color: var(--text-primary);
+}
+
+.highlight {
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-subtitle {
+  font-size: 18px;
+  color: var(--text-secondary);
+  max-width: 600px;
+  margin: 0 auto 40px;
+  line-height: 1.7;
+}
+
+.hero-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 60px;
+}
+
+/* ---- Buttons ---- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 32px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  border: none;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  box-shadow: 0 8px 30px rgba(108, 99, 255, 0.35);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(108, 99, 255, 0.5);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+/* ---- Hero Stats ---- */
+.hero-stats {
+  display: flex;
+  justify-content: center;
+  gap: 48px;
+  flex-wrap: wrap;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.stat-number {
+  font-size: 2rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* ============================================
+   MODULES SECTION
+   ============================================ */
+.modules {
+  padding: 100px 0;
+  background: var(--dark-2);
+}
+
+.section-header {
+  text-align: center;
+  margin-bottom: 60px;
+}
+
+.section-tag {
+  display: inline-block;
+  background: rgba(108, 99, 255, 0.1);
+  color: var(--primary-light);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 6px 16px;
+  border-radius: 20px;
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-weight: 800;
+  letter-spacing: -1px;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+
+.section-subtitle {
+  font-size: 17px;
+  color: var(--text-secondary);
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+/* ---- Module Cards Grid ---- */
+.modules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+.module-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.module-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  opacity: 0;
+  transition: var(--transition);
+}
+
+.cbt-card::before { background: linear-gradient(90deg, var(--primary), var(--primary-light)); }
+.store-card::before { background: linear-gradient(90deg, var(--accent), var(--accent-blue)); }
+.portfolio-card::before { background: linear-gradient(90deg, #f093fb, #f5576c); }
+.games-card::before { background: linear-gradient(90deg, #4facfe, #00f2fe); }
+.admin-card::before { background: linear-gradient(90deg, var(--secondary), #ffd89b); }
+
+.module-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(108, 99, 255, 0.3);
+  box-shadow: var(--shadow);
+}
+
+.module-card:hover::before {
+  opacity: 1;
+}
+
+.card-icon {
+  font-size: 40px;
+  margin-bottom: 16px;
+}
+
+.card-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.card-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+}
+
+.card-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+
+.card-features {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.card-features li {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.card-btn {
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary-light);
+  transition: var(--transition);
+}
+
+.card-btn:hover {
+  gap: 8px;
+  color: var(--primary);
+}
+
+/* ============================================
+   HOW IT WORKS
+   ============================================ */
+.how-it-works {
+  padding: 100px 0;
+  background: var(--dark);
+}
+
+.steps-grid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.step {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 40px 32px;
+  text-align: center;
+  flex: 1;
+  min-width: 220px;
+  max-width: 280px;
+  transition: var(--transition);
+}
+
+.step:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow);
+}
+
+.step-number {
+  font-size: 3rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 16px;
+  line-height: 1;
+}
+
+.step h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+}
+
+.step p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+.step-arrow {
+  font-size: 32px;
+  color: var(--text-muted);
+  font-weight: 300;
+}
+
+/* ============================================
+   FOOTER
+   ============================================ */
+.footer {
+  background: var(--dark-2);
+  border-top: 1px solid var(--border);
+  padding: 60px 0 30px;
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 40px;
+  margin-bottom: 48px;
+}
+
+.footer-brand p {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-top: 16px;
+  max-width: 280px;
+  line-height: 1.7;
+}
+
+.footer-links h4 {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+
+.footer-links ul {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.footer-links a {
+  font-size: 14px;
+  color: var(--text-muted);
+  transition: var(--transition);
+}
+
+.footer-links a:hover {
+  color: var(--text-primary);
+}
+
+.footer-bottom {
+  border-top: 1px solid var(--border);
+  padding-top: 24px;
+  text-align: center;
+}
+
+.footer-bottom p {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ============================================
+   PAGE HEADER (for inner pages)
+   ============================================ */
+.page-header {
+  padding: 140px 24px 60px;
+  text-align: center;
+  background: var(--dark-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.page-header h1 {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 800;
+  letter-spacing: -1.5px;
+  margin-bottom: 16px;
+}
+
+.page-header p {
+  font-size: 17px;
+  color: var(--text-secondary);
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+/* ============================================
+   NAVBAR — TEACHER & STUDENT BUTTONS
+   ============================================ */
+
+.nav-divider-item {
+  color: var(--border);
+  font-size: 18px;
+  padding: 0 4px;
+  user-select: none;
+}
+
+.teacher-nav-btn {
+  background: rgba(67, 233, 123, 0.1) !important;
+  color: #43e97b !important;
+  border: 1px solid rgba(67, 233, 123, 0.25) !important;
+  font-weight: 700 !important;
+}
+
+.teacher-nav-btn:hover {
+  background: rgba(67, 233, 123, 0.2) !important;
+  transform: translateY(-1px);
+}
+
+.student-nav-btn {
+  background: rgba(108, 99, 255, 0.1) !important;
+  color: var(--primary-light) !important;
+  border: 1px solid rgba(108, 99, 255, 0.25) !important;
+  font-weight: 700 !important;
+}
+
+.student-nav-btn:hover {
+  background: rgba(108, 99, 255, 0.2) !important;
+  transform: translateY(-1px);
+}
+
+/* ============================================
+   HERO — ROLE PILLS
+   ============================================ */
+.hero-role-pills {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: -32px;
+  margin-bottom: 48px;
+}
+
+.role-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  border-radius: 30px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: var(--transition);
+}
+
+.teacher-pill {
+  background: rgba(67, 233, 123, 0.1);
+  border-color: rgba(67, 233, 123, 0.3);
+  color: #43e97b;
+}
+
+.teacher-pill:hover {
+  background: rgba(67, 233, 123, 0.2);
+  transform: translateY(-2px);
+}
+
+.student-pill {
+  background: rgba(108, 99, 255, 0.1);
+  border-color: rgba(108, 99, 255, 0.3);
+  color: var(--primary-light);
+}
+
+.student-pill:hover {
+  background: rgba(108, 99, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.cbt-pill {
+  background: rgba(255, 101, 132, 0.1);
+  border-color: rgba(255, 101, 132, 0.3);
+  color: var(--secondary);
+}
+
+.cbt-pill:hover {
+  background: rgba(255, 101, 132, 0.2);
+  transform: translateY(-2px);
+}
+
+/* ============================================
+   LOGIN ENTRY SECTION
+   ============================================ */
+.login-entry-section {
+  padding: 100px 0;
+  background: var(--dark);
+  position: relative;
+}
+
+/* Entry Cards Wrapper */
+.entry-cards-wrapper {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin-bottom: 40px;
+  background: var(--dark-2);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+/* Individual Entry Card */
+.entry-card {
+  flex: 1;
+  padding: 48px 40px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: var(--transition);
+}
+
+.entry-card:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Glowing background accent */
+.entry-card-glow {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.06;
+  top: -100px;
+  right: -80px;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+.entry-card:hover .entry-card-glow {
+  opacity: 0.1;
+}
+
+.teacher-glow { background: #43e97b; }
+.student-glow { background: var(--primary); }
+
+/* Icon wrapper */
+.entry-icon-wrapper {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.teacher-icon-wrapper {
+  background: rgba(67, 233, 123, 0.12);
+  border: 1px solid rgba(67, 233, 123, 0.25);
+}
+
+.student-icon-wrapper {
+  background: rgba(108, 99, 255, 0.12);
+  border: 1px solid rgba(108, 99, 255, 0.25);
+}
+
+.entry-icon { font-size: 32px; }
+
+/* Entry card text */
+.entry-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+}
+
+.entry-desc {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* Feature list */
+.entry-features {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  margin: 4px 0;
+}
+
+.entry-features li {
+  font-size: 14px;
+  color: var(--text-secondary);
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.entry-features li:last-child {
+  border-bottom: none;
+}
+
+/* CTA Button */
+.entry-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: var(--transition);
+  margin-top: 8px;
+  text-align: center;
+}
+
+.teacher-entry-btn {
+  background: linear-gradient(135deg, #43e97b, #38f9d7);
+  color: #0f0f1a;
+  box-shadow: 0 6px 24px rgba(67, 233, 123, 0.3);
+}
+
+.teacher-entry-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 32px rgba(67, 233, 123, 0.45);
+}
+
+.student-entry-btn {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  box-shadow: 0 6px 24px rgba(108, 99, 255, 0.3);
+}
+
+.student-entry-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 32px rgba(108, 99, 255, 0.45);
+}
+
+/* Divider between cards */
+.entry-divider {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+  width: 60px;
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.entry-divider-line {
+  flex: 1;
+  width: 1px;
+  background: var(--border);
+}
+
+.entry-divider-text {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+/* ============================================
+   INFO BAR below the cards
+   ============================================ */
+.entry-info-bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.entry-info-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 28px;
+  flex: 1;
+  font-size: 14px;
+  color: var(--text-secondary);
+  transition: var(--transition);
+}
+
+.entry-info-item:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.entry-info-item strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.entry-info-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.entry-info-divider {
+  width: 1px;
+  height: 40px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* ============================================
+   RESPONSIVE — Mobile Adjustments
+   ============================================ */
+@media (max-width: 860px) {
+
+  /* Stack cards vertically on mobile */
+  .entry-cards-wrapper {
+    flex-direction: column;
+  }
+
+  .entry-divider {
+    flex-direction: row;
+    width: 100%;
+    padding: 0 40px;
+    height: 50px;
+  }
+
+  .entry-divider-line {
+    flex: 1;
+    width: auto;
+    height: 1px;
+  }
+
+  .entry-divider-text {
+    writing-mode: horizontal-tb;
+  }
+
+  .entry-card {
+    padding: 36px 28px;
+  }
+
+  /* Stack info bar vertically */
+  .entry-info-bar {
+    flex-direction: column;
+  }
+
+  .entry-info-divider {
+    width: 100%;
+    height: 1px;
+  }
+
+  .entry-info-item {
+    justify-content: center;
+    text-align: center;
+  }
+
+  /* Hide nav divider and pills on mobile */
+  .nav-divider-item {
+    display: none;
+  }
+
+  .hero-role-pills {
+    gap: 8px;
+  }
+
+  .role-pill {
+    font-size: 12px;
+    padding: 7px 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .entry-card {
+    padding: 28px 20px;
+  }
+
+  .entry-title {
+    font-size: 20px;
+  }
+
+  .hero-role-pills {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+/* ============================================
+   NAVBAR COMPACT FIX
+   Fixes wrapping, icon stacking, and auth layout
+   ============================================ */
+
+/* Make the overall navbar container not wrap */
+.nav-container {
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+
+/* Shrink all nav links so they fit on one line */
+.nav-links {
+  flex-wrap: nowrap !important;
+  gap: 2px !important;
+  overflow: visible !important;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.nav-link {
+  padding: 6px 10px !important;
+  font-size: 13px !important;
+  white-space: nowrap !important;
+}
+
+/* Fix Teacher button — keep icon and text on same line */
+.teacher-nav-btn {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 5px !important;
+  padding: 6px 10px !important;
+  white-space: nowrap !important;
+  line-height: 1 !important;
+}
+
+/* Fix Student button — same treatment */
+.student-nav-btn {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 5px !important;
+  padding: 6px 10px !important;
+  white-space: nowrap !important;
+  line-height: 1 !important;
+}
+
+/* Fix the auth box — username + logout together */
+.nav-auth-box {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 5px 8px 5px 6px !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+}
+
+/* Keep the right group from shrinking */
+.nav-right-group {
+  flex-shrink: 0 !important;
+  margin-left: 8px !important;
+}
+
+/* Prevent logo from shrinking */
+.nav-logo {
+  flex-shrink: 0 !important;
+}
+
+/* ============================================
+   MEDIUM SCREENS — hide less important items
+   ============================================ */
+@media (max-width: 1100px) {
+  .nav-link {
+    padding: 6px 8px !important;
+    font-size: 12px !important;
+  }
+
+  /* Hide the text divider line between regular and teacher/student nav */
+  .nav-divider-item {
+    display: none !important;
+  }
+}
+
+@media (max-width: 960px) {
+  /* Hide Portfolio and Games from nav on smaller screens
+     (they are still accessible from the homepage modules) */
+  .nav-links li:nth-child(4),
+  .nav-links li:nth-child(5) {
+    display: none;
+  }
+}
+
+/* ============================================
+   RESPONSIVE — SINGLE BLOCK (no duplicates)
+   ============================================ */
+@media (max-width: 768px) {
+
+  /* Show the hamburger button */
+  .hamburger {
+    display: flex;
+  }
+
+  /*
+    MOBILE MENU — drops down from below navbar.
+
+    KEY POINTS:
+    - position:fixed to VIEWPORT (not to navbar)
+    - top:65px = exactly the navbar height
+    - The hamburger button is in nav-container
+      which is NOT affected by this
+    - hamburger NEVER moves or shifts
+  */
+  .nav-links {
+    /* Hidden state */
+    display: none;
+
+    /* When open (class added by JS) */
+    position: fixed;
+    top: 65px;             /* below navbar */
+    left: 0;
+    right: 0;
+    width: 100%;
+
+    /* Fit content height but cap it */
+    max-height: calc(100vh - 65px);
+    overflow-y: auto;      /* scroll if many items */
+
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    padding: 16px 20px 32px;
+    box-sizing: border-box;
+
+    background: var(--dark-2);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+    z-index: 998;          /* below hamburger z-index 1001 */
+  }
+
+  /* Class toggled by JavaScript to show menu */
+  .nav-links.open {
+    display: flex;
+  }
+
+  /* Each list item full width */
+  .nav-links li {
+    width: 100%;
+    list-style: none;
+    flex-shrink: 0;        /* never collapse */
+  }
+
+  /* Each link fills full width — large tap target */
+  .nav-links .nav-link {
+    display: block;
+    width: 100%;
+    padding: 13px 16px;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 10px;
+    color: var(--text-secondary);
+    box-sizing: border-box;
+    text-decoration: none;
+    text-align: left;
+    white-space: normal;   /* allow wrapping if needed */
+  }
+
+  .nav-links .nav-link:hover,
+  .nav-links .nav-link.active {
+    background: rgba(108, 99, 255, 0.12);
+    color: var(--text-primary);
+  }
+
+  /* Divider becomes a line on mobile */
+  .nav-divider-item {
+    display: block !important;
+    height: 1px !important;
+    background: var(--border) !important;
+    margin: 6px 0 !important;
+    padding: 0 !important;
+    width: 100%;
+    color: transparent;
+    font-size: 0;
+  }
+
+  /* Auth nav item full width */
+  #authNavItem {
+    width: 100%;
+    margin-top: 6px;
+    list-style: none;
+  }
+
+  #authNavItem a,
+  #authNavItem > div {
+    display: flex !important;
+    width: 100% !important;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+/* Auth nav item full width New  #authModal*/
+#authModal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  /* Prevent background scroll */
+  overflow-y: auto;
+}
+
+  /* ---- PAGE SECTIONS ---- */
+  .hero {
+    padding: 100px 20px 60px;
+  }
+
+  .hero-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .hero-stats { gap: 20px; }
+
+  .steps-grid {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .step-arrow { display: none; }
+
+  .footer-grid { grid-template-columns: 1fr; }
+  .modules-grid { grid-template-columns: 1fr; }
+
+  .entry-cards-wrapper { flex-direction: column; }
+
+  .entry-divider {
+    flex-direction: row;
+    width: 100%;
+    padding: 0 40px;
+    height: 50px;
+  }
+
+  .entry-divider-line {
+    flex: 1;
+    width: auto;
+    height: 1px;
+  }
+
+  .entry-divider-text { writing-mode: horizontal-tb; }
+  .entry-info-bar     { flex-direction: column; }
+
+  .entry-info-divider {
+    width: 100%;
+    height: 1px;
+  }
+
+  .entry-info-item {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .hero-role-pills { gap: 8px; }
+
+  .role-pill {
+    font-size: 12px;
+    padding: 7px 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  html { font-size: 15px; }
+
+  .hero-role-pills {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+/* ============================================
+   PASSWORD SHOW/HIDE TOGGLE (Clean Version)
+   ============================================ */
+
+/* Wrapper holds the input + eye button together */
+.pw-field-wrap {
+  position: relative;
+  width: 100%;
+  display: block;
+}
+
+/* The input inside the wrapper */
+.pw-field-wrap input {
+  width: 100% !important;
+  padding-right: 48px !important;
+  box-sizing: border-box !important;
+}
+
+/* The eye button — sits inside the input on the right */
+.pw-eye {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--text-muted);
+  padding: 4px;
+  line-height: 1;
+  transition: color 0.2s;
+  z-index: 2;
+}
+
+.pw-eye:hover { color: var(--text-primary); }

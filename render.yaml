@@ -1,0 +1,73 @@
+# ============================================
+# LATLOMP PLATFORM — RENDER.COM DEPLOYMENT
+# ============================================
+# This file tells Render how to deploy your app.
+# One file = automatic deployment setup.
+#
+# HOW TO USE:
+# 1. Push your code to GitHub
+# 2. Go to render.com and create a new Web Service
+# 3. Connect your GitHub repo
+# 4. Render reads this file automatically
+# ============================================
+
+services:
+  - type: web
+    name: latlomp-platform
+    runtime: node
+    region: oregon              # Free tier region
+    plan: free                  # Free plan
+
+    # Where your server file is
+    rootDir: .
+    buildCommand: npm install
+    startCommand: node server/server.js
+
+    # Environment variables
+    # You will add the actual values in Render dashboard
+    # DO NOT put real passwords here — this file is public
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      - key: PORT
+        value: 10000             # Render uses port 10000
+
+      - key: MONGODB_URI
+        sync: false              # You enter this in Render dashboard
+
+      - key: JWT_SECRET
+        sync: false              # You enter this in Render dashboard
+
+      - key: JWT_EXPIRES_IN
+        value: 7d
+
+      - key: EMAIL_ENABLED
+        value: true
+
+      - key: EMAIL_FROM
+        sync: false              # Your gmail address
+
+      - key: EMAIL_FROM_NAME
+        value: LatLomp Platform
+
+      - key: EMAIL_PASSWORD
+        sync: false              # Your Gmail App Password
+
+      - key: VERIFY_TOKEN_EXPIRES
+        value: 300000
+
+      - key: OTP_EXPIRY
+        value: 120
+
+      - key: APP_URL
+        sync: false              # Your Render URL (set after first deploy)
+
+      - key: ADMIN_EMAIL
+        sync: false
+
+      - key: ADMIN_PASSWORD
+        sync: false
+
+      - key: ADMIN_NAME
+        value: Platform Admin

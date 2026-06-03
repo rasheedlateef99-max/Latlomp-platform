@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Educational Games — LatLomp Platform</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/loading.css" />
+  <link rel="stylesheet" href="css/games.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body>
+<!-- ============================================
+     PAGE LOADING SCREEN
+     Shown briefly while page loads.
+     Fades out automatically when ready.
+     main.js handles the fade out.
+============================================ -->
+<div id="pageLoader">
+  <div class="loader-progress"></div>
+  <div class="loader-logo">
+    <span class="loader-logo-icon">⚡</span>
+    <span class="loader-logo-text">LatLomp</span>
+    <span class="loader-logo-badge">Platform</span>
+  </div>
+  <div class="loader-spinner-wrap">
+    <div class="loader-spinner"></div>
+    <span class="loader-text">Loading...</span>
+  </div>
+</div>
+ <ul class="nav-links" id="navLinks">
+  <li><a href="index.html"     class="nav-link active">Home</a></li>
+  <li><a href="cbt.html"       class="nav-link">CBT Exam</a></li>
+  <li><a href="store.html"     class="nav-link">Store</a></li>
+  <li><a href="portfolio.html" class="nav-link">Portfolio</a></li>
+  <li><a href="games.html"     class="nav-link">Games</a></li>
+  <li><a href="admin.html"     class="nav-link admin-link">Admin</a></li>
+  <li class="nav-divider-item">|</li>
+<<li><a href="teacher-signin.html" class="nav-link teacher-nav-btn">📚 Teacher</a></li>
+  <li><a href="student-login.html" class="nav-link student-nav-btn">🎓 Student</a></li>
+<!-- Add this as the LAST item inside <ul class="nav-links"> -->
+<li id="authNavItem">
+  <a href="index.html"
+    class="nav-link"
+    style="background:rgba(108,99,255,0.1); border:1px solid rgba(108,99,255,0.2); color:var(--primary-light); font-weight:700; padding:8px 16px; border-radius:8px; font-size:14px; white-space:nowrap; display:inline-block;">
+    Login / Register
+  </a>
+</li>
+</ul>
+      <button class="hamburger" id="hamburger">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    <span class="section-tag">🎮 Learn & Play</span>
+    <h1>Educational <span class="highlight">Games</span></h1>
+    <p>Three fun games to sharpen your mind — quiz, maths, and word challenges</p>
+  </div>
+
+  <section class="games-page">
+    <div class="container">
+
+      <!-- =============================================
+           GAME SELECTION (shown by default)
+      ============================================== -->
+      <div class="games-grid" id="gameSelection">
+
+        <!-- QUIZ CHALLENGE -->
+        <div class="game-card game-card-quiz">
+          <div class="game-big-icon">🧠</div>
+          <h3>Quick Quiz Challenge</h3>
+          <p>Answer 10 general knowledge questions. Earn 10 points for each correct answer. How high can you score?</p>
+          <div class="game-stats-row">
+            <span class="game-stat-pill" id="quiz-plays">Loading...</span>
+            <span class="game-stat-pill" id="quiz-high">Best: —</span>
+            <span class="game-stat-pill">10 questions</span>
+          </div>
+          <button class="game-play-btn btn-quiz" onclick="startGame('quiz')">
+            🎯 Play Now
+          </button>
+        </div>
+
+        <!-- MATH BLITZ -->
+        <div class="game-card game-card-math">
+          <div class="game-big-icon">⚡</div>
+          <h3>Math Blitz</h3>
+          <p>Answer as many maths questions as you can in 60 seconds! Addition, subtraction, and multiplication.</p>
+          <div class="game-stats-row">
+            <span class="game-stat-pill" id="mathblitz-plays">Loading...</span>
+            <span class="game-stat-pill" id="mathblitz-high">Best: —</span>
+            <span class="game-stat-pill">60 seconds</span>
+          </div>
+          <button class="game-play-btn btn-math" onclick="startGame('math')">
+            ⚡ Play Now
+          </button>
+        </div>
+
+        <!-- WORD CHALLENGE -->
+        <div class="game-card game-card-word">
+          <div class="game-big-icon">🔤</div>
+          <h3>Word Challenge</h3>
+          <p>Unscramble the letters to form the correct word. 8 words, 30 seconds each. Can you beat the clock?</p>
+          <div class="game-stats-row">
+            <span class="game-stat-pill" id="wordgame-plays">Loading...</span>
+            <span class="game-stat-pill" id="wordgame-high">Best: —</span>
+            <span class="game-stat-pill">8 words</span>
+          </div>
+          <button class="game-play-btn btn-word" onclick="startGame('word')">
+            🔤 Play Now
+          </button>
+        </div>
+
+      </div>
+
+      <!-- =============================================
+           GAME 1: QUIZ CHALLENGE INTERFACE
+      ============================================== -->
+      <div class="game-interface" id="game-quiz">
+        <div class="game-topbar">
+          <div class="game-title-bar">🧠 Quiz Challenge</div>
+          <div class="game-score-display" id="quiz-score">Score: 0</div>
+          <button onclick="backToGames()"
+            style="padding:7px 14px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text-secondary); border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit;">
+            ✕ Quit
+          </button>
+        </div>
+
+        <div class="game-question-card">
+          <div class="game-q-number" id="quiz-q-number">Question 1 of 10</div>
+          <div class="game-q-text"   id="quiz-q-text">Loading...</div>
+          <div class="game-options"  id="quiz-options"></div>
+          <div class="game-feedback" id="quiz-feedback"></div>
+        </div>
+      </div>
+      <!-- Game over screen for quiz -->
+      <div id="gameover-quiz" style="display:none; max-width:700px; margin:0 auto;"></div>
+
+      <!-- =============================================
+           GAME 2: MATH BLITZ INTERFACE
+      ============================================== -->
+      <div class="game-interface" id="game-math">
+        <div class="game-topbar">
+          <div class="game-title-bar">⚡ Math Blitz</div>
+          <div class="game-score-display" id="math-score">Score: 0</div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:13px; color:var(--text-muted);">Time:</span>
+            <div class="game-timer-bar" id="math-timer">60</div>
+          </div>
+          <button onclick="backToGames()"
+            style="padding:7px 14px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text-secondary); border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit;">
+            ✕ Quit
+          </button>
+        </div>
+
+        <div class="game-question-card">
+          <div class="game-q-number">Solve as fast as you can!</div>
+          <div class="math-display" id="math-display">? + ? = ?</div>
+
+          <div class="math-input-wrapper">
+            <input type="number" id="math-input" class="math-answer-input"
+              placeholder="?"
+              onkeydown="if(event.key==='Enter') checkMathAnswer()" />
+            <button class="math-submit-btn" onclick="checkMathAnswer()">✓</button>
+          </div>
+
+          <div class="game-feedback" id="math-feedback"></div>
+        </div>
+      </div>
+      <div id="gameover-math" style="display:none; max-width:700px; margin:0 auto;"></div>
+
+      <!-- =============================================
+           GAME 3: WORD CHALLENGE INTERFACE
+      ============================================== -->
+      <div class="game-interface" id="game-word">
+        <div class="game-topbar">
+          <div class="game-title-bar">🔤 Word Challenge</div>
+          <div class="game-score-display" id="word-score">Score: 0</div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:13px; color:var(--text-muted);">Time:</span>
+            <div class="game-timer-bar" id="word-timer">30</div>
+          </div>
+          <button onclick="backToGames()"
+            style="padding:7px 14px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text-secondary); border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit;">
+            ✕ Quit
+          </button>
+        </div>
+
+        <div class="game-question-card">
+          <div class="game-q-number" id="word-number">Word 1 of 8</div>
+          <div style="margin-bottom:8px; font-size:13px; color:var(--text-muted); text-align:center;">
+            Unscramble this word:
+          </div>
+          <div class="word-scrambled" id="word-scrambled">?</div>
+          <div class="word-hint"      id="word-hint">Hint: ...</div>
+
+          <div class="word-input-wrapper">
+            <input type="text" id="word-input" class="word-answer-input"
+              placeholder="TYPE HERE"
+              oninput="this.value = this.value.toUpperCase()"
+              onkeydown="if(event.key==='Enter') checkWordAnswer()" />
+            <button class="word-submit-btn" onclick="checkWordAnswer()">Submit →</button>
+          </div>
+
+          <div class="game-feedback" id="word-feedback"></div>
+        </div>
+      </div>
+      <div id="gameover-word" style="display:none; max-width:700px; margin:0 auto;"></div>
+
+      <!-- =============================================
+           LEADERBOARD SECTION
+      ============================================== -->
+      <div class="leaderboard-section">
+        <div class="section-header" style="text-align:left; margin-bottom:28px;">
+          <span class="section-tag">🏆 Top Players</span>
+          <h2 class="section-title" style="font-size:24px;">Leaderboard</h2>
+          <p style="color:var(--text-secondary); font-size:14px; margin-top:4px;">
+            Login to save your score and compete with others!
+          </p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="leaderboard-tabs">
+          <button class="lb-tab active" data-game="quiz" onclick="switchLeaderboard('quiz')">
+            🧠 Quiz
+          </button>
+          <button class="lb-tab" data-game="math" onclick="switchLeaderboard('math')">
+            ⚡ Math Blitz
+          </button>
+          <button class="lb-tab" data-game="word" onclick="switchLeaderboard('word')">
+            🔤 Word Challenge
+          </button>
+        </div>
+
+        <div class="leaderboard-card">
+          <div class="lb-header">
+            <h3 id="lb-current-title">🧠 Quiz Challenge — Top 10</h3>
+            <span style="font-size:12px; color:var(--text-muted);">Updates after each game</span>
+          </div>
+
+          <!-- Quiz leaderboard (shown by default) -->
+          <div id="lb-quiz">
+            <div class="lb-empty">Loading leaderboard...</div>
+          </div>
+
+          <!-- Math leaderboard (hidden) -->
+          <div id="lb-math" style="display:none;">
+            <div class="lb-empty">Loading leaderboard...</div>
+          </div>
+
+          <!-- Word leaderboard (hidden) -->
+          <div id="lb-word" style="display:none;">
+            <div class="lb-empty">Loading leaderboard...</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-bottom">
+        <p>© 2025 LatLomp Platform. <a href="index.html" style="color:var(--primary)">← Back to Home</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script src="js/games.js"></script>
+  <script>
+    // Load initial leaderboard after page loads
+    document.addEventListener('DOMContentLoaded', function() {
+      // Give loadGameIds() a moment to finish, then show quiz leaderboard
+      setTimeout(() => {
+        switchLeaderboard('quiz');
+      }, 800);
+    });
+  </script>
+</body>
+</html>
