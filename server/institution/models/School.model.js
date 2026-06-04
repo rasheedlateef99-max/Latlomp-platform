@@ -63,10 +63,38 @@ const schoolSchema = new mongoose.Schema(
     },
 
     /* ---- Ownership ---- */
+    /*
+      ✅ FIX: required removed.
+
+      ownerId was designed to link a school to a main platform
+      User account. However, institution admins register via
+      Google Sign-In directly — they become a SchoolUser, not
+      a main platform User. platformUserId is never available
+      during institution Google registration, so this field
+      was always null, crashing school creation.
+
+      ownerGoogleId stores the Google sub (permanent unique ID)
+      so we can always identify the original school owner even
+      without a main platform User account.
+    */
     ownerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref:  'User',      /* references main platform User */
-      required: true
+      type:     mongoose.Schema.Types.ObjectId,
+      ref:      'User',
+      default:  null        /* ✅ optional — not required */
+    },
+
+    /* ✅ ADDED: stores Google sub as permanent owner identifier */
+    ownerGoogleId: {
+      type:    String,
+      default: ''
+    },
+
+    /* ✅ ADDED: stores owner email for admin lookup */
+    ownerEmail: {
+      type:    String,
+      default: '',
+      lowercase: true,
+      trim: true
     },
 
     /* ---- Metadata ---- */
@@ -84,6 +112,7 @@ schoolSchema.index({ email: 1 });
 schoolSchema.index({ slug: 1 });
 schoolSchema.index({ status: 1 });
 schoolSchema.index({ subscriptionExpiry: 1 });
+schoolSchema.index({ ownerGoogleId: 1 });
 
 /* Generate slug from name */
 schoolSchema.pre('save', function(next) {
