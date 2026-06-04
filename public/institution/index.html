@@ -3,304 +3,592 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Institution Portal — LatLomp Platform</title>
+  <title>LatLomp Schools — School Management Platform</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
-    *, *::before, *::after { box-sizing: border-box; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     :root {
-      --primary:      #6c63ff;
-      --primary-dark: #574fd6;
-      --green:        #43e97b;
-      --dark:         #0f0f1a;
-      --dark-2:       #1a1a2e;
-      --border:       rgba(255,255,255,0.08);
-      --text:         #fff;
-      --text-muted:   #6b6b8a;
-      --text-secondary: #a0a0c0;
+      --primary:    #6c63ff;
+      --primary-d:  #574fd6;
+      --green:      #43e97b;
+      --green-d:    #38f9d7;
+      --dark:       #0f0f1a;
+      --dark-2:     #1a1a2e;
+      --dark-3:     #16213e;
+      --border:     rgba(255,255,255,0.08);
+      --text:       #fff;
+      --text-2:     #a0a0c0;
+      --text-3:     #6b6b8a;
+      --red:        #ff6584;
     }
 
-    body { margin:0; padding:0; background:var(--dark); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--dark); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; }
 
-    @keyframes fadeUp   { from { opacity:0; transform:translateY(30px); } to { opacity:1; transform:translateY(0); } }
-    @keyframes float    { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-12px); } }
-
-    /* ---- NAV ---- */
-    nav {
-      position:sticky; top:0; z-index:100;
-      background:rgba(15,15,26,0.95);
-      backdrop-filter:blur(12px);
-      border-bottom:1px solid var(--border);
-      padding:0 32px; height:64px;
-      display:flex; align-items:center; justify-content:space-between;
+    /* =========================================
+       NAV
+    ========================================= */
+    .nav {
+      position: sticky; top: 0; z-index: 200;
+      background: rgba(15,15,26,0.97);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      height: 64px;
+      display: flex; align-items: center;
     }
-    .nav-logo { display:flex; align-items:center; gap:10px; text-decoration:none; }
-    .nav-logo-text { font-size:20px; font-weight:800; color:#fff; }
-    .nav-logo-badge { background:linear-gradient(135deg,var(--primary),var(--green)); color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; text-transform:uppercase; }
-    .nav-links { display:flex; align-items:center; gap:24px; }
-    .nav-links a { color:var(--text-secondary); font-size:14px; text-decoration:none; font-weight:500; transition:color 0.2s; }
-    .nav-links a:hover { color:#fff; }
+    .nav-inner {
+      width: 100%; max-width: 1100px; margin: 0 auto;
+      padding: 0 24px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo { display: flex; align-items: center; gap: 8px; text-decoration: none; }
+    .nav-logo-name { font-size: 20px; font-weight: 800; color: #fff; }
+    .nav-logo-badge {
+      background: linear-gradient(135deg, var(--primary), var(--green));
+      color: #fff; font-size: 10px; font-weight: 700;
+      padding: 2px 8px; border-radius: 20px; text-transform: uppercase;
+    }
+    .nav-links { display: flex; align-items: center; gap: 28px; }
+    .nav-links a {
+      color: var(--text-2); font-size: 14px; font-weight: 500;
+      text-decoration: none; transition: color 0.2s;
+    }
+    .nav-links a:hover { color: #fff; }
+    .nav-cta {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .btn-nav-signin {
+      padding: 8px 18px; border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent; color: var(--text-2);
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      font-family: inherit; text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn-nav-signin:hover { border-color: rgba(108,99,255,0.4); color: #fff; }
+    .btn-nav-start {
+      padding: 8px 18px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-d));
+      color: #fff; font-size: 14px; font-weight: 700;
+      cursor: pointer; font-family: inherit; text-decoration: none;
+      border: none; transition: all 0.2s;
+    }
+    .btn-nav-start:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(108,99,255,0.4); }
 
-    /* ---- HERO ---- */
+    /* Mobile hamburger */
+    .nav-ham {
+      display: none; flex-direction: column; gap: 5px;
+      background: none; border: none; cursor: pointer; padding: 4px;
+    }
+    .nav-ham span {
+      display: block; width: 22px; height: 2px;
+      background: var(--text-2); border-radius: 2px;
+      transition: all 0.3s;
+    }
+
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .nav-cta   { display: none; }
+      .nav-ham   { display: flex; }
+      .nav-links.open {
+        display: flex; flex-direction: column;
+        position: absolute; top: 64px; left: 0; right: 0;
+        background: var(--dark-2);
+        border-bottom: 1px solid var(--border);
+        padding: 20px 24px; gap: 16px;
+      }
+    }
+
+    /* =========================================
+       HERO
+    ========================================= */
     .hero {
-      padding:100px 32px 80px; text-align:center;
-      position:relative; overflow:hidden;
+      padding: 96px 24px 80px;
+      text-align: center;
+      position: relative; overflow: hidden;
     }
     .hero::before {
-      content:''; position:absolute; inset:0;
-      background:radial-gradient(ellipse 80% 60% at 50% 0%, rgba(108,99,255,0.18), transparent);
+      content: ''; position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 70% 50% at 50% -10%, rgba(108,99,255,0.22), transparent),
+        radial-gradient(ellipse 40% 40% at 80% 60%, rgba(67,233,123,0.08), transparent);
     }
+    .hero-content { position: relative; max-width: 760px; margin: 0 auto; }
+
     .hero-badge {
-      display:inline-flex; align-items:center; gap:8px;
-      background:rgba(108,99,255,0.12); border:1px solid rgba(108,99,255,0.3);
-      color:#a78bfa; font-size:13px; font-weight:700;
-      padding:6px 18px; border-radius:20px; margin-bottom:28px;
-      animation:fadeUp 0.5s ease;
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(67,233,123,0.1); border: 1px solid rgba(67,233,123,0.25);
+      color: var(--green); font-size: 12px; font-weight: 700;
+      padding: 5px 16px; border-radius: 20px; margin-bottom: 24px;
+      text-transform: uppercase; letter-spacing: 0.5px;
     }
+
     .hero-title {
-      font-size:clamp(36px,6vw,68px); font-weight:900; line-height:1.1;
-      margin:0 0 20px; animation:fadeUp 0.5s ease 0.1s both;
+      font-size: clamp(36px, 6vw, 72px);
+      font-weight: 900; line-height: 1.08;
+      margin: 0 0 20px;
     }
-    .hero-title span { background:linear-gradient(135deg,var(--primary),var(--green)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .hero-title .hl {
+      background: linear-gradient(135deg, var(--primary), var(--green));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
     .hero-sub {
-      font-size:18px; color:var(--text-secondary); line-height:1.7;
-      max-width:640px; margin:0 auto 40px; animation:fadeUp 0.5s ease 0.2s both;
+      font-size: 18px; color: var(--text-2); line-height: 1.7;
+      max-width: 560px; margin: 0 auto 36px;
     }
-    .hero-btns { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; animation:fadeUp 0.5s ease 0.3s both; }
 
-    /* ---- BUTTONS ---- */
-    .btn { display:inline-flex; align-items:center; gap:8px; padding:14px 28px; border-radius:12px; font-size:15px; font-weight:700; text-decoration:none; cursor:pointer; font-family:inherit; border:none; transition:all 0.2s; }
-    .btn-primary { background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:#fff; }
-    .btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(108,99,255,0.45); }
-    .btn-outline { background:transparent; border:1px solid var(--border); color:var(--text-secondary); }
-    .btn-outline:hover { background:rgba(255,255,255,0.06); color:#fff; }
-    .btn-green { background:linear-gradient(135deg,var(--green),#38f9d7); color:#0f0f1a; }
-    .btn-green:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(67,233,123,0.4); }
-
-    /* ---- STATS ---- */
-    .stats-bar { display:flex; justify-content:center; gap:48px; flex-wrap:wrap; padding:48px 32px; border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
-    .stat-item { text-align:center; }
-    .stat-num { font-size:36px; font-weight:900; background:linear-gradient(135deg,var(--primary),var(--green)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-    .stat-lbl { font-size:13px; color:var(--text-muted); margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; }
-
-    /* ---- FEATURES ---- */
-    .section { padding:80px 32px; max-width:1100px; margin:0 auto; }
-    .section-tag { display:inline-block; background:rgba(67,233,123,0.1); color:var(--green); font-size:12px; font-weight:700; padding:4px 14px; border-radius:20px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:16px; }
-    .section-title { font-size:clamp(24px,4vw,40px); font-weight:800; margin:0 0 12px; }
-    .section-sub { font-size:16px; color:var(--text-secondary); line-height:1.7; max-width:560px; margin:0 0 52px; }
-
-    .features-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px; }
-    .feature-card {
-      background:var(--dark-2); border:1px solid var(--border); border-radius:16px; padding:28px;
-      transition:transform 0.2s, box-shadow 0.2s;
+    .hero-btns {
+      display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+      margin-bottom: 48px;
     }
-    .feature-card:hover { transform:translateY(-4px); box-shadow:0 12px 40px rgba(0,0,0,0.3); border-color:rgba(108,99,255,0.25); }
-    .feature-icon { font-size:36px; margin-bottom:16px; animation:float 3s ease-in-out infinite; display:inline-block; }
-    .feature-title { font-size:18px; font-weight:700; margin:0 0 10px; }
-    .feature-desc { font-size:14px; color:var(--text-secondary); line-height:1.6; margin:0; }
-
-    /* ---- ROLES ---- */
-    .roles-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; }
-    .role-card { background:var(--dark-2); border:1px solid var(--border); border-radius:14px; padding:24px; text-align:center; }
-    .role-icon { font-size:44px; margin-bottom:14px; }
-    .role-title { font-size:16px; font-weight:800; margin:0 0 8px; }
-    .role-desc { font-size:13px; color:var(--text-secondary); line-height:1.6; margin:0 0 16px; }
-
-    /* ---- PRICING ---- */
-    .plans-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:20px; }
-    .plan-card {
-      background:var(--dark-2); border:1px solid var(--border); border-radius:18px; padding:28px;
-      position:relative; transition:transform 0.2s;
+    .btn-hero-primary {
+      padding: 14px 32px; border-radius: 12px;
+      background: linear-gradient(135deg, var(--green), var(--green-d));
+      color: #0f0f1a; font-size: 15px; font-weight: 800;
+      text-decoration: none; border: none; cursor: pointer;
+      font-family: inherit; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;
     }
-    .plan-card:hover { transform:translateY(-4px); }
-    .plan-card.popular { border-color:rgba(108,99,255,0.5); box-shadow:0 0 0 1px rgba(108,99,255,0.3); }
-    .plan-popular-badge { position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:var(--primary); color:#fff; font-size:11px; font-weight:700; padding:3px 16px; border-radius:20px; white-space:nowrap; }
-    .plan-name { font-size:15px; font-weight:700; color:var(--text-secondary); margin:0 0 4px; }
-    .plan-price { font-size:40px; font-weight:900; margin:8px 0 4px; }
-    .plan-price span { font-size:15px; font-weight:400; color:var(--text-muted); }
-    .plan-duration { font-size:13px; color:var(--text-muted); margin:0 0 20px; }
-    .plan-features { list-style:none; padding:0; margin:0 0 24px; }
-    .plan-features li { font-size:13px; color:var(--text-secondary); padding:6px 0; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; }
-    .plan-features li:last-child { border-bottom:none; }
-    .plan-features li::before { content:'✓'; color:var(--green); font-weight:700; }
+    .btn-hero-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(67,233,123,0.4); }
+    .btn-hero-outline {
+      padding: 14px 32px; border-radius: 12px;
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text-2); font-size: 15px; font-weight: 700;
+      text-decoration: none; cursor: pointer; font-family: inherit;
+      transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn-hero-outline:hover { background: rgba(255,255,255,0.05); color: #fff; border-color: rgba(255,255,255,0.2); }
 
-    /* ---- SIGN IN CARD ---- */
-    .signin-section { padding:80px 32px; text-align:center; }
+    .hero-stats {
+      display: flex; justify-content: center; gap: 48px; flex-wrap: wrap;
+    }
+    .hero-stat { text-align: center; }
+    .hero-stat-num {
+      font-size: 32px; font-weight: 900;
+      background: linear-gradient(135deg, var(--primary), var(--green));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .hero-stat-lbl { font-size: 12px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+    /* =========================================
+       SECTION COMMON
+    ========================================= */
+    .section { padding: 80px 24px; max-width: 1100px; margin: 0 auto; }
+    .section-full { padding: 80px 0; background: var(--dark-2); }
+    .section-full .section { padding: 0 24px; }
+    .section-tag {
+      display: inline-block;
+      background: rgba(108,99,255,0.1); color: #a78bfa;
+      font-size: 12px; font-weight: 700; padding: 4px 14px;
+      border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;
+    }
+    .section-title { font-size: clamp(24px, 4vw, 40px); font-weight: 800; margin: 0 0 12px; }
+    .section-sub { font-size: 16px; color: var(--text-2); line-height: 1.7; max-width: 560px; margin: 0 0 48px; }
+
+    /* =========================================
+       HOW IT WORKS
+    ========================================= */
+    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+    .step-card {
+      background: var(--dark-2); border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px 24px;
+      position: relative; overflow: hidden;
+    }
+    .step-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--primary), var(--green));
+    }
+    .step-num {
+      font-size: 48px; font-weight: 900; line-height: 1;
+      background: linear-gradient(135deg, var(--primary), var(--green));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      margin-bottom: 14px;
+    }
+    .step-title { font-size: 16px; font-weight: 700; margin: 0 0 8px; }
+    .step-desc  { font-size: 13px; color: var(--text-2); line-height: 1.6; margin: 0; }
+
+    /* =========================================
+       FEATURES GRID
+    ========================================= */
+    .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
+    .feature {
+      background: var(--dark); border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .feature:hover { border-color: rgba(108,99,255,0.3); transform: translateY(-3px); }
+    .feature-icon { font-size: 32px; margin-bottom: 14px; display: block; }
+    .feature-title { font-size: 16px; font-weight: 700; margin: 0 0 8px; }
+    .feature-desc  { font-size: 14px; color: var(--text-2); line-height: 1.6; margin: 0; }
+
+    /* =========================================
+       PRICING
+    ========================================= */
+    .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+    .plan {
+      background: var(--dark); border: 1px solid var(--border);
+      border-radius: 20px; padding: 32px 28px;
+      position: relative; transition: transform 0.2s;
+    }
+    .plan:hover { transform: translateY(-4px); }
+    .plan.featured {
+      border-color: rgba(108,99,255,0.5);
+      box-shadow: 0 0 0 1px rgba(108,99,255,0.3), 0 12px 40px rgba(108,99,255,0.15);
+    }
+    .plan-badge {
+      position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+      background: linear-gradient(135deg, var(--primary), var(--primary-d));
+      color: #fff; font-size: 11px; font-weight: 700;
+      padding: 3px 18px; border-radius: 20px; white-space: nowrap;
+    }
+    .plan-name { font-size: 14px; font-weight: 700; color: var(--text-2); margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .plan-price { margin: 0 0 4px; }
+    .plan-price-num { font-size: 44px; font-weight: 900; }
+    .plan-price-period { font-size: 14px; color: var(--text-3); font-weight: 400; }
+    .plan-trial { font-size: 13px; color: var(--green); font-weight: 600; margin: 0 0 20px; }
+    .plan-features-list { list-style: none; padding: 0; margin: 0 0 28px; }
+    .plan-features-list li {
+      font-size: 13px; color: var(--text-2); padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .plan-features-list li:last-child { border-bottom: none; }
+    .plan-features-list li::before { content: '✓'; color: var(--green); font-weight: 700; flex-shrink: 0; }
+    .plan-btn {
+      width: 100%; padding: 13px; border-radius: 12px;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      font-family: inherit; text-decoration: none;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s; border: none;
+    }
+    .plan-btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-d)); color: #fff; }
+    .plan-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(108,99,255,0.4); }
+    .plan-btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-2); }
+    .plan-btn-outline:hover { background: rgba(255,255,255,0.05); color: #fff; }
+
+    /* =========================================
+       SIGN IN SECTION
+    ========================================= */
+    .signin-section {
+      padding: 80px 24px 100px;
+      text-align: center;
+    }
     .signin-card {
-      background:var(--dark-2); border:1px solid var(--border); border-radius:24px;
-      padding:48px 40px; max-width:480px; margin:0 auto;
+      background: var(--dark-2); border: 1px solid var(--border);
+      border-radius: 24px; padding: 52px 44px;
+      max-width: 480px; margin: 0 auto;
+      position: relative; overflow: hidden;
+    }
+    .signin-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+      background: linear-gradient(90deg, var(--primary), var(--green));
     }
 
-    .err-msg { display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:#ff6584; padding:12px 16px; border-radius:8px; font-size:14px; margin-bottom:16px; }
+    .signin-icon { font-size: 52px; margin-bottom: 16px; display: block; }
+    .signin-title { font-size: 26px; font-weight: 800; margin: 0 0 8px; }
+    .signin-desc  { font-size: 14px; color: var(--text-2); margin: 0 0 32px; line-height: 1.6; }
 
-    /* ---- INVITE BANNER ---- */
-    .invite-banner { background:linear-gradient(135deg,rgba(67,233,123,0.12),rgba(56,249,215,0.08)); border:1px solid rgba(67,233,123,0.3); border-radius:16px; padding:24px; margin-bottom:24px; text-align:left; }
-    .invite-banner h3 { font-size:16px; font-weight:800; margin:0 0 6px; color:#fff; }
-    .invite-banner p  { font-size:14px; color:var(--text-secondary); margin:0; line-height:1.5; }
+    .err-box {
+      display: none;
+      background: rgba(255,101,132,0.1); border: 1px solid rgba(255,101,132,0.3);
+      color: var(--red); padding: 12px 16px; border-radius: 10px;
+      font-size: 13px; margin-bottom: 18px; line-height: 1.5; text-align: left;
+    }
 
-    /* ---- FOOTER ---- */
-    footer { border-top:1px solid var(--border); padding:40px 32px; text-align:center; color:var(--text-muted); font-size:13px; }
-    footer a { color:var(--primary); text-decoration:none; }
+    .btn-google-inst {
+      width: 100%; padding: 14px 20px;
+      background: #fff; border: 1px solid #dadce0;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      cursor: pointer; font-size: 15px; font-weight: 600; color: #3c4043;
+      font-family: inherit; transition: all 0.2s;
+    }
+    .btn-google-inst:hover { background: #f8f9fa; box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+    .btn-google-inst:disabled { opacity: 0.6; cursor: not-allowed; }
 
-    @media (max-width:600px) {
-      nav { padding:0 16px; }
-      .hero { padding:60px 16px 48px; }
-      .signin-card { padding:32px 20px; }
+    .signin-note {
+      font-size: 12px; color: var(--text-3); margin: 20px 0 0;
+      line-height: 1.7;
+    }
+    .signin-note a { color: var(--primary); text-decoration: none; }
+
+    /* INVITE BANNER */
+    .invite-banner {
+      background: linear-gradient(135deg, rgba(67,233,123,0.1), rgba(56,249,215,0.06));
+      border: 1px solid rgba(67,233,123,0.25); border-radius: 12px;
+      padding: 16px 20px; margin-bottom: 24px; text-align: left;
+    }
+    .invite-banner h4 { font-size: 14px; font-weight: 700; margin: 0 0 4px; }
+    .invite-banner p  { font-size: 13px; color: var(--text-2); margin: 0; }
+
+    /* =========================================
+       ROLES SECTION
+    ========================================= */
+    .roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+    .role {
+      background: var(--dark-2); border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px 24px; text-align: center;
+    }
+    .role-icon  { font-size: 44px; margin-bottom: 14px; }
+    .role-title { font-size: 16px; font-weight: 800; margin: 0 0 8px; }
+    .role-desc  { font-size: 13px; color: var(--text-2); line-height: 1.6; margin: 0 0 18px; }
+    .role-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 700;
+      text-decoration: none; cursor: pointer; font-family: inherit;
+      border: none; transition: all 0.2s;
+    }
+    .role-link-primary { background: linear-gradient(135deg, var(--primary), var(--primary-d)); color: #fff; }
+    .role-link-outline  { background: transparent; border: 1px solid var(--border); color: var(--text-2); }
+    .role-link-green    { background: linear-gradient(135deg, var(--green), var(--green-d)); color: #0f0f1a; }
+
+    /* =========================================
+       FOOTER
+    ========================================= */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 24px; text-align: center;
+      color: var(--text-3); font-size: 13px;
+    }
+    footer a { color: var(--primary); text-decoration: none; }
+
+    /* =========================================
+       RESPONSIVE
+    ========================================= */
+    @media (max-width: 600px) {
+      .hero { padding: 64px 16px 56px; }
+      .signin-card { padding: 36px 20px; }
+      .section { padding: 60px 16px; }
+      .hero-stats { gap: 28px; }
     }
   </style>
 </head>
 <body>
 
-<nav>
-  <a href="index.html" class="nav-logo">
-    <span style="font-size:24px;">⚡</span>
-    <span class="nav-logo-text">LatLomp</span>
-    <span class="nav-logo-badge">Institutions</span>
-  </a>
-  <div class="nav-links">
-    <a href="#features">Features</a>
-    <a href="#pricing">Pricing</a>
-    <a href="#signin">Sign In</a>
-    <a href="../index.html" style="font-size:12px;">← Platform</a>
+<!-- =========================================
+     NAV
+========================================= -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">
+      <span style="font-size:22px;">⚡</span>
+      <span class="nav-logo-name">LatLomp</span>
+      <span class="nav-logo-badge">Schools</span>
+    </a>
+
+    <div class="nav-links" id="navLinks">
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#roles">Who It's For</a>
+      <a href="../index.html">← Main Platform</a>
+    </div>
+
+    <div class="nav-cta">
+      <a href="#signin" class="btn-nav-signin">Sign In</a>
+      <a href="#signin" class="btn-nav-start">Get Started Free</a>
+    </div>
+
+    <button class="nav-ham" id="navHam" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
   </div>
 </nav>
 
-<!-- INVITE BANNER -->
-<div id="inviteBannerWrap" style="max-width:900px; margin:20px auto; padding:0 32px; display:none;">
+<!-- =========================================
+     INVITE BANNER
+========================================= -->
+<div id="inviteBannerWrap" style="max-width:900px; margin:20px auto; padding:0 24px; display:none;">
   <div class="invite-banner">
-    <h3>📨 You have been invited!</h3>
-    <p id="inviteBannerText">You have been invited to join an institution on LatLomp. Sign in with Google to accept.</p>
+    <h4>📨 You have been invited!</h4>
+    <p id="inviteBannerText">You have been invited to join an institution on LatLomp. Sign in with Google to accept your invitation.</p>
   </div>
 </div>
 
-<!-- HERO -->
-<section class="hero" id="hero">
-  <div class="hero-badge">🏫 Multi-Tenant Educational SaaS</div>
-  <h1 class="hero-title">
-    Institution Management<br/>
-    <span>Made Professional</span>
-  </h1>
-  <p class="hero-sub">
-    Complete CBT examination platform, teacher management, and student tracking — built for Nigerian institutions of all sizes.
-  </p>
-  <div class="hero-btns">
-    <a href="#signin" class="btn btn-green">🚀 Get Started Free</a>
-    <a href="#features" class="btn btn-outline">See Features</a>
+<!-- =========================================
+     HERO
+========================================= -->
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-badge">🏫 Multi-Tenant Educational SaaS for Nigeria</div>
+    <h1 class="hero-title">
+      Run Your School<br/>
+      <span class="hl">Like a Professional</span>
+    </h1>
+    <p class="hero-sub">
+      CBT exams, teacher management, student tracking, automated grading,
+      and subscription billing — all in one platform built for Nigerian schools.
+    </p>
+    <div class="hero-btns">
+      <a href="#signin" class="btn-hero-primary">🚀 Start Free 7-Day Trial</a>
+      <a href="#features" class="btn-hero-outline">See Features</a>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="hero-stat-num">7-Day</div>
+        <div class="hero-stat-lbl">Free Trial</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-num">∞</div>
+        <div class="hero-stat-lbl">Exam Questions</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-num">100%</div>
+        <div class="hero-stat-lbl">Auto-Graded</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-num">Multi-School</div>
+        <div class="hero-stat-lbl">Isolated Data</div>
+      </div>
+    </div>
   </div>
 </section>
 
-<!-- STATS -->
-<div class="stats-bar">
-  <div class="stat-item"><div class="stat-num">7-Day</div><div class="stat-lbl">Free Trial</div></div>
-  <div class="stat-item"><div class="stat-num">∞</div><div class="stat-lbl">Exam Questions</div></div>
-  <div class="stat-item"><div class="stat-num">100%</div><div class="stat-lbl">Auto-Graded</div></div>
-  <div class="stat-item"><div class="stat-num">Multi-Tenant</div><div class="stat-lbl">Isolated Data</div></div>
-</div>
-
-<!-- ROLES -->
-<div class="section">
-  <div class="section-tag">Who uses it</div>
-  <h2 class="section-title">Built for every role</h2>
-  <p class="section-sub">One platform, four distinct experiences — each isolated and secure.</p>
-  <div class="roles-grid">
-    <div class="role-card">
-      <div class="role-icon">🏫</div>
-      <div class="role-title">Institution Admin</div>
-      <div class="role-desc">Manage teachers, view all results, control exam releases, handle subscriptions.</div>
-      <a href="#signin" class="btn btn-primary" style="font-size:13px; padding:10px 18px; justify-content:center;">Get Started</a>
-    </div>
-    <div class="role-card">
-      <div class="role-icon">👩‍🏫</div>
-      <div class="role-title">Teacher</div>
-      <div class="role-desc">Create exams, add questions, monitor submissions, grade theory answers.</div>
-      <a href="#signin" class="btn btn-outline" style="font-size:13px; padding:10px 18px; justify-content:center;">Accept Invite</a>
-    </div>
-    <div class="role-card">
-      <div class="role-icon">🎓</div>
-      <div class="role-title">Student</div>
-      <div class="role-desc">Enter exam code, take timed CBT exam, get instant objective results.</div>
-      <a href="student/exam.html" class="btn btn-green" style="font-size:13px; padding:10px 18px; color:#0f0f1a; justify-content:center;">Take Exam</a>
-    </div>
-    <div class="role-card">
-      <div class="role-icon">⚙️</div>
-      <div class="role-title">Platform Admin</div>
-      <div class="role-desc">Monitor all institutions, manage subscriptions, view revenue analytics.</div>
-      <a href="../admin.html" class="btn btn-outline" style="font-size:13px; padding:10px 18px; justify-content:center;">Admin Panel</a>
-    </div>
-  </div>
-</div>
-
-<!-- FEATURES -->
-<div class="section" id="features" style="background:var(--dark-2); max-width:none; padding:80px 0;">
-  <div style="max-width:1100px; margin:0 auto; padding:0 32px;">
-    <div class="section-tag">Features</div>
-    <h2 class="section-title">Everything you need</h2>
-    <p class="section-sub">Professional tools built specifically for Nigerian institutions.</p>
-    <div class="features-grid">
-      <div class="feature-card">
-        <div class="feature-icon">📝</div>
-        <h3 class="feature-title">CBT Exam Engine</h3>
-        <p class="feature-desc">Objective and theory exams with auto-grading, randomized questions, timers, and anti-cheat measures.</p>
+<!-- =========================================
+     HOW IT WORKS
+========================================= -->
+<div class="section-full">
+  <div class="section">
+    <div class="section-tag">How It Works</div>
+    <h2 class="section-title">Up and running in minutes</h2>
+    <p class="section-sub">From sign-up to your first exam — four simple steps.</p>
+    <div class="steps">
+      <div class="step-card">
+        <div class="step-num">01</div>
+        <div class="step-title">Sign In with Google</div>
+        <div class="step-desc">No separate username or password. Your Google account creates your institution instantly.</div>
       </div>
-      <div class="feature-card">
-        <div class="feature-icon">👥</div>
-        <h3 class="feature-title">Teacher Management</h3>
-        <p class="feature-desc">Invite teachers via email, manage roles, track performance, and isolate data per institution.</p>
+      <div class="step-card">
+        <div class="step-num">02</div>
+        <div class="step-title">Set Up Your Institution</div>
+        <div class="step-desc">Add your school name, logo, and details. Your 7-day free trial starts immediately.</div>
       </div>
-      <div class="feature-card">
-        <div class="feature-icon">🔒</div>
-        <h3 class="feature-title">Multi-Tenant Security</h3>
-        <p class="feature-desc">Every institution's data is completely isolated. No institution can access another's data.</p>
+      <div class="step-card">
+        <div class="step-num">03</div>
+        <div class="step-title">Invite Teachers</div>
+        <div class="step-desc">Send invite links to your teachers. They join with their own Google accounts.</div>
       </div>
-      <div class="feature-card">
-        <div class="feature-icon">📊</div>
-        <h3 class="feature-title">Result Analytics</h3>
-        <p class="feature-desc">Pass rates, averages, class performance, and individual student breakdowns.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">💳</div>
-        <h3 class="feature-title">Automated Subscriptions</h3>
-        <p class="feature-desc">Paystack-powered payments. Auto-expiry. No manual activation. Zero underpayments accepted.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">📱</div>
-        <h3 class="feature-title">Mobile Ready</h3>
-        <p class="feature-desc">Students can take exams on any device. Teachers manage from anywhere.</p>
+      <div class="step-card">
+        <div class="step-num">04</div>
+        <div class="step-title">Start Running Exams</div>
+        <div class="step-desc">Teachers create exams, students use exam codes — instant auto-graded results.</div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- PRICING -->
+<!-- =========================================
+     FEATURES
+========================================= -->
+<div class="section" id="features">
+  <div class="section-tag">Features</div>
+  <h2 class="section-title">Everything your school needs</h2>
+  <p class="section-sub">Professional tools built specifically for Nigerian institutions.</p>
+  <div class="features">
+    <div class="feature">
+      <span class="feature-icon">📝</span>
+      <div class="feature-title">CBT Exam Engine</div>
+      <div class="feature-desc">Objective and theory exams with auto-grading, randomized questions, countdown timers, and anti-cheat measures.</div>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">👥</span>
+      <div class="feature-title">Teacher Management</div>
+      <div class="feature-desc">Invite teachers via email link. Assign subjects and classes. Track teacher activity and exam creation.</div>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">🔒</span>
+      <div class="feature-title">Multi-Tenant Security</div>
+      <div class="feature-desc">Every school's data is completely isolated. No school can access another's students, teachers, or exams.</div>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">📊</span>
+      <div class="feature-title">Result Analytics</div>
+      <div class="feature-desc">Pass rates, class averages, subject performance breakdowns, and individual student answer reviews.</div>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">💳</span>
+      <div class="feature-title">Automated Subscriptions</div>
+      <div class="feature-desc">Paystack-powered payments. Automatic expiry notifications. No manual activation. No partial payments accepted.</div>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">📱</span>
+      <div class="feature-title">Mobile Ready</div>
+      <div class="feature-desc">Students take exams on any device. Teachers manage from anywhere. Fully responsive on all screen sizes.</div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================
+     WHO IT'S FOR
+========================================= -->
+<div class="section-full">
+  <div class="section" id="roles">
+    <div class="section-tag">Who Uses It</div>
+    <h2 class="section-title">Built for every role</h2>
+    <p class="section-sub">One platform, four distinct experiences — each isolated and secure.</p>
+    <div class="roles">
+      <div class="role">
+        <div class="role-icon">🏫</div>
+        <div class="role-title">Institution Admin</div>
+        <div class="role-desc">Register your school, invite teachers, view all results, manage subscription and billing.</div>
+        <a href="#signin" class="role-link role-link-primary">Get Started →</a>
+      </div>
+      <div class="role">
+        <div class="role-icon">👩‍🏫</div>
+        <div class="role-title">Teacher</div>
+        <div class="role-desc">Accept your school invite, create exams and questions, monitor student submissions.</div>
+        <a href="#signin" class="role-link role-link-outline">Accept Invite →</a>
+      </div>
+      <div class="role">
+        <div class="role-icon">🎓</div>
+        <div class="role-title">Student</div>
+        <div class="role-desc">Enter exam code given by your teacher — no account needed. Get instant results.</div>
+        <a href="student/exam.html" class="role-link role-link-green">Take Exam →</a>
+      </div>
+      <div class="role">
+        <div class="role-icon">⚙️</div>
+        <div class="role-title">Platform Admin</div>
+        <div class="role-desc">Monitor all institutions, manage subscriptions, view platform-wide revenue analytics.</div>
+        <a href="../admin.html" class="role-link role-link-outline">Admin Panel →</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================
+     PRICING
+========================================= -->
 <div class="section" id="pricing">
   <div class="section-tag">Pricing</div>
   <h2 class="section-title">Simple, transparent pricing</h2>
-  <p class="section-sub">Start free. Scale as you grow.</p>
-  <div class="plans-grid" id="plansGrid">
-    <div style="color:var(--text-muted); font-size:14px; text-align:center; padding:40px; grid-column:1/-1;">Loading plans...</div>
+  <p class="section-sub">Start free. No credit card needed for your trial.</p>
+  <div class="plans" id="plansGrid">
+    <!-- Populated by JS or shown as loading -->
+    <div style="color:var(--text-3); text-align:center; padding:48px; grid-column:1/-1; font-size:14px;">
+      Loading plans...
+    </div>
   </div>
 </div>
 
-<!-- SIGN IN -->
-<!-- ✅ FIX: Both closing </div> tags were missing in your version -->
+<!-- =========================================
+     SIGN IN
+========================================= -->
 <div class="signin-section" id="signin">
   <div class="signin-card">
-    <div style="font-size:48px; margin-bottom:16px;" id="signinIcon">🏫</div>
-    <h2 style="font-size:24px; font-weight:800; margin:0 0 8px;" id="signinTitle">Join LatLomp Institutions</h2>
-    <p style="font-size:14px; color:var(--text-secondary); margin:0 0 28px;" id="signinDesc">
-      Sign in with your institution Google account to get started.
-    </p>
 
-    <div id="signinError" class="err-msg"></div>
+    <span class="signin-icon" id="signinIcon">🏫</span>
+    <div class="signin-title" id="signinTitle">Join LatLomp Schools</div>
+    <div class="signin-desc"  id="signinDesc">
+      Sign in with your school Google account to get started.<br/>
+      Admins get a free 7-day trial automatically.
+    </div>
 
-    <!-- Custom Google button — click triggers prompt() overlay -->
-    <button id="instBtnGoogle"
-      style="width:100%; padding:13px 20px; background:white; border:1px solid #dadce0;
-             border-radius:12px; display:flex; align-items:center; justify-content:center;
-             gap:12px; cursor:pointer; font-size:15px; font-weight:600; color:#3c4043;
-             font-family:inherit; transition:all 0.2s; margin-bottom:16px;"
-      onmouseover="this.style.boxShadow='0 2px 12px rgba(0,0,0,0.15)'"
-      onmouseout="this.style.boxShadow='none'">
+    <div id="signinError" class="err-box"></div>
+
+    <!-- Custom Google button — click triggers Google One Tap / account chooser -->
+    <button class="btn-google-inst" id="instBtnGoogle">
       <svg width="20" height="20" viewBox="0 0 48 48">
         <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
         <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
@@ -310,30 +598,34 @@
       Continue with Google
     </button>
 
-    <p style="font-size:12px; color:var(--text-muted); margin:0; line-height:1.7;">
-      By signing in you agree to our Terms of Service. Institution admins get a free 7-day trial automatically.
+    <p class="signin-note">
+      By signing in you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.<br/>
+      Institution admins receive a free 7-day trial on first sign-in.
     </p>
 
-  </div><!-- ✅ FIX: closes signin-card -->
-</div><!-- ✅ FIX: closes signin-section -->
+  </div>
+</div>
 
 <footer>
-  <p>© 2025 LatLomp Platform. All rights reserved. · <a href="../index.html">← Back to Platform</a></p>
+  <p>© 2025 LatLomp Platform. All rights reserved. · <a href="../index.html">← Back to Main Platform</a></p>
 </footer>
 
 <script>
 /* ============================================
-   INSTITUTION PORTAL — ENTRY LOGIC
-   Self-contained: does NOT depend on main.js
+   INSTITUTION PORTAL — COMPLETE LOGIC
+   Self-contained — does NOT depend on main.js
+   Google auth: prompt() approach (same as
+   working main/teacher login)
 ============================================ */
+
 var INST_TOKEN_KEY = 'latlomp_inst_token';
 var INST_USER_KEY  = 'latlomp_inst_user';
 var _inviteToken   = null;
 
-/* ✅ FIX: Initialize Google — button click uses prompt() */
-function instInitGoogleSignIn(callbackFn) {
+/* ---- Google init ---- */
+function instInitGoogle(callbackFn) {
   if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
-    setTimeout(function() { instInitGoogleSignIn(callbackFn); }, 500);
+    setTimeout(function() { instInitGoogle(callbackFn); }, 500);
     return;
   }
   google.accounts.id.initialize({
@@ -345,56 +637,60 @@ function instInitGoogleSignIn(callbackFn) {
   google.accounts.id.disableAutoSelect();
 }
 
-/* ✅ FIX: ALL initialization code is inside DOMContentLoaded.
-   Your version called instInitGoogleSignIn() and the button
-   listener at the TOP LEVEL of the script — this runs before
-   the DOM exists, so getElementById returns null. */
+/* ---- DOM ready ---- */
 document.addEventListener('DOMContentLoaded', function() {
 
-  /* Check for invite token in URL */
+  /* Mobile nav toggle */
+  var ham     = document.getElementById('navHam');
+  var navList = document.getElementById('navLinks');
+  if (ham && navList) {
+    ham.addEventListener('click', function() {
+      navList.classList.toggle('open');
+    });
+  }
+
+  /* Invite token check */
   var params   = new URLSearchParams(window.location.search);
   _inviteToken = params.get('invite');
-
   if (_inviteToken) {
-    var bannerWrap = document.getElementById('inviteBannerWrap');
-    if (bannerWrap) bannerWrap.style.display = 'block';
+    var wrap = document.getElementById('inviteBannerWrap');
+    if (wrap) wrap.style.display = 'block';
     var iconEl  = document.getElementById('signinIcon');
     var titleEl = document.getElementById('signinTitle');
     var descEl  = document.getElementById('signinDesc');
     if (iconEl)  iconEl.textContent  = '👩‍🏫';
     if (titleEl) titleEl.textContent = 'Accept Your Invitation';
-    if (descEl)  descEl.textContent  = 'Sign in with Google to join your institution on LatLomp.';
+    if (descEl)  descEl.innerHTML    = 'Sign in with Google to join your institution on LatLomp.<br/>Your invitation will be activated automatically.';
   }
 
-  /* Check if already logged in */
+  /* Already logged in check */
   var existingToken = localStorage.getItem(INST_TOKEN_KEY);
   if (existingToken) { verifyAndRedirect(existingToken); }
 
-  /* Initialize Google */
-  instInitGoogleSignIn(handleGoogleResponse);
+  /* Init Google + button */
+  instInitGoogle(handleGoogleResponse);
 
-  /* Button click triggers prompt() overlay */
-  var instBtn = document.getElementById('instBtnGoogle');
-  if (instBtn) {
-    instBtn.addEventListener('click', function() {
+  var btn = document.getElementById('instBtnGoogle');
+  if (btn) {
+    btn.addEventListener('click', function() {
       if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
-        showErr('Google Sign In is still loading. Please wait and try again.');
+        showErr('Google Sign In is still loading. Please wait a moment and try again.');
         return;
       }
       google.accounts.id.disableAutoSelect();
       google.accounts.id.prompt(function(notification) {
         if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          showErr('Google sign in was blocked. Please allow popups or try a different browser.');
+          showErr('Google sign in was blocked. Please ensure popups are allowed for this site, or try a different browser.');
         }
       });
     });
   }
 
-  /* ✅ FIX: loadPlans() was never called in your version */
+  /* Load pricing plans */
   loadPlans();
 });
 
-/* Verify existing token and redirect */
+/* ---- Verify existing session ---- */
 async function verifyAndRedirect(token) {
   try {
     var res  = await fetch('/api/institution/auth/me', {
@@ -402,7 +698,7 @@ async function verifyAndRedirect(token) {
     });
     var data = await res.json();
     if (data.success) {
-      redirect(data.user, data.school);
+      doRedirect(data.user, data.school);
     } else {
       localStorage.removeItem(INST_TOKEN_KEY);
       localStorage.removeItem(INST_USER_KEY);
@@ -413,12 +709,11 @@ async function verifyAndRedirect(token) {
   }
 }
 
-/* Google callback */
+/* ---- Google callback ---- */
 async function handleGoogleResponse(response) {
   var errEl = document.getElementById('signinError');
   if (errEl) errEl.style.display = 'none';
 
-  /* Show loading state on button */
   var btn = document.getElementById('instBtnGoogle');
   if (btn) { btn.disabled = true; btn.style.opacity = '0.7'; btn.textContent = 'Signing in...'; }
 
@@ -431,71 +726,110 @@ async function handleGoogleResponse(response) {
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(body)
     });
+
+    /* ✅ Check if response is actually JSON before parsing */
+    var contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      /* Server returned HTML (likely 404) — route not found */
+      throw new Error('API_NOT_FOUND:' + res.status);
+    }
+
     var data = await res.json();
 
     if (data.success) {
       localStorage.setItem(INST_TOKEN_KEY, data.token);
       localStorage.setItem(INST_USER_KEY,  JSON.stringify(data.user));
-      redirect(data.user, data.school, data.redirectTo);
+      doRedirect(data.user, data.school, data.redirectTo);
     } else {
-      /* ✅ FIX: Re-enable button and show error — no re-init needed with prompt() approach */
-      if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'Continue with Google'; }
+      resetBtn(btn);
       showErr(data.message || 'Sign in failed. Please try again.');
     }
+
   } catch (err) {
-    if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'Continue with Google'; }
-    showErr('Network error. Please check your connection.');
+    resetBtn(btn);
+    /* Distinguish between route-not-found and real network error */
+    if (err.message && err.message.startsWith('API_NOT_FOUND:')) {
+      showErr('⚠️ Institution authentication is not yet configured on the server. Please contact the platform administrator.');
+    } else {
+      showErr('❌ Network error. Please check your connection and try again.');
+    }
+    console.error('Institution auth error:', err);
   }
 }
 
-function redirect(user, school, redirectTo) {
-  var dest = redirectTo || (
-    user.role === 'school_admin'
-      ? (school && school.onboardingDone
-          ? '/institution/school/dashboard.html'
-          : '/institution/onboarding.html')
-      : (user.role === 'teacher' || user.role === 'vice_principal')
-        ? '/institution/teacher/dashboard.html'
-        : '/institution/school/dashboard.html'
-  );
-  window.location.replace(dest);
+function resetBtn(btn) {
+  if (!btn) return;
+  btn.disabled = false;
+  btn.style.opacity = '1';
+  btn.innerHTML =
+    '<svg width="20" height="20" viewBox="0 0 48 48">' +
+    '<path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>' +
+    '<path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>' +
+    '<path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>' +
+    '<path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.36-8.16 2.36-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>' +
+    '</svg> Continue with Google';
 }
 
+/* ---- Redirect logic ---- */
+function doRedirect(user, school, redirectTo) {
+  if (redirectTo) { window.location.replace(redirectTo); return; }
+  if (user.role === 'school_admin') {
+    window.location.replace(
+      school && school.onboardingDone
+        ? '/institution/school/dashboard.html'
+        : '/institution/onboarding.html'
+    );
+  } else if (user.role === 'teacher' || user.role === 'vice_principal') {
+    window.location.replace('/institution/teacher/dashboard.html');
+  } else {
+    window.location.replace('/institution/school/dashboard.html');
+  }
+}
+
+/* ---- Show error ---- */
 function showErr(msg) {
   var el = document.getElementById('signinError');
   if (el) { el.textContent = msg; el.style.display = 'block'; }
 }
 
-/* ✅ FIX: loadPlans is now called from DOMContentLoaded above */
+/* ---- Load pricing plans ---- */
 async function loadPlans() {
+  var grid = document.getElementById('plansGrid');
   try {
     var res  = await fetch('/api/institution/school/plans');
-    var data = await res.json();
-    var grid = document.getElementById('plansGrid');
-    if (!data.success || !data.plans || !data.plans.length) {
-      if (grid) grid.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:40px; grid-column:1/-1;">No plans available yet.</div>';
+    var contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      if (grid) grid.innerHTML = '<div style="color:var(--text-3);text-align:center;padding:48px;grid-column:1/-1;font-size:14px;">Plans not available yet.</div>';
       return;
     }
-    grid.innerHTML = data.plans.map(function(plan) {
-      var isPopular = plan.isPopular;
-      var features  = (plan.features || []).map(function(f) { return '<li>' + f + '</li>'; }).join('');
-      return '<div class="plan-card' + (isPopular ? ' popular' : '') + '">' +
-        (isPopular ? '<div class="plan-popular-badge">⭐ Most Popular</div>' : '') +
-        '<div class="plan-name">' + plan.name + '</div>' +
-        '<div class="plan-price">' +
-          (plan.price === 0 ? '<span style="font-size:28px;">FREE</span>' : '₦' + plan.price.toLocaleString()) +
-          (plan.price > 0 ? '<span>/ ' + Math.round(plan.durationDays / 30) + (plan.durationDays < 60 ? ' month' : ' months') + '</span>' : '') +
-        '</div>' +
-        '<div class="plan-duration">' + plan.durationDays + ' days access</div>' +
-        '<ul class="plan-features">' + features + '</ul>' +
-        '<a href="#signin" class="btn ' + (isPopular ? 'btn-primary' : 'btn-outline') + '" style="width:100%; justify-content:center;">' +
-          (plan.price === 0 ? '🚀 Start Free Trial' : 'Get This Plan') +
-        '</a>' +
-      '</div>';
+    var data = await res.json();
+    if (!data.success || !data.plans || !data.plans.length) {
+      if (grid) grid.innerHTML = '<div style="color:var(--text-3);text-align:center;padding:48px;grid-column:1/-1;font-size:14px;">No plans available yet.</div>';
+      return;
+    }
+    grid.innerHTML = data.plans.map(function(plan, idx) {
+      var isFeat   = plan.isPopular;
+      var features = (plan.features || []).map(function(f) { return '<li>' + f + '</li>'; }).join('');
+      return (
+        '<div class="plan' + (isFeat ? ' featured' : '') + '">' +
+          (isFeat ? '<div class="plan-badge">⭐ Most Popular</div>' : '') +
+          '<div class="plan-name">' + plan.name + '</div>' +
+          '<div class="plan-price">' +
+            (plan.price === 0
+              ? '<span class="plan-price-num">FREE</span>'
+              : '<span class="plan-price-num">₦' + plan.price.toLocaleString() + '</span>' +
+                '<span class="plan-price-period"> / ' + (plan.durationDays < 60 ? 'month' : 'year') + '</span>') +
+          '</div>' +
+          (plan.price === 0 ? '<div class="plan-trial">✓ 7-day free trial included</div>' : '<div class="plan-trial">' + plan.durationDays + ' days access</div>') +
+          '<ul class="plan-features-list">' + features + '</ul>' +
+          '<a href="#signin" class="plan-btn ' + (isFeat ? 'plan-btn-primary' : 'plan-btn-outline') + '">' +
+            (plan.price === 0 ? '🚀 Start Free Trial' : 'Get This Plan →') +
+          '</a>' +
+        '</div>'
+      );
     }).join('');
   } catch (err) {
-    var grid = document.getElementById('plansGrid');
-    if (grid) grid.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:40px; grid-column:1/-1;">Could not load plans.</div>';
+    if (grid) grid.innerHTML = '<div style="color:var(--text-3);text-align:center;padding:48px;grid-column:1/-1;font-size:14px;">Could not load plans.</div>';
   }
 }
 </script>
