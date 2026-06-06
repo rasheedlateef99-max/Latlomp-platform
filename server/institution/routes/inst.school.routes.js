@@ -26,23 +26,18 @@ router.post('/onboarding', instProtect, async (req, res) => {
       'principalName', 'totalStudents', 'primaryColor', 'secondaryColor',
       'motto', 'website'
     ];
-
     allowed.forEach(function(field) {
       if (req.body[field] !== undefined) school[field] = req.body[field];
     });
-
     if (req.body.logo) school.logo = req.body.logo;
-
     school.onboardingDone = true;
 
-    /* Start free trial if not used */
     if (!school.trialUsed) {
       school.status             = 'trial';
       school.subscriptionPlan   = 'trial';
       school.trialUsed          = true;
       school.trialStartDate     = new Date();
       school.subscriptionExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-
       await Subscription.create({
         schoolId:    school._id,
         plan:        'trial',
@@ -57,7 +52,6 @@ router.post('/onboarding', instProtect, async (req, res) => {
         paidAmount:  0
       });
     }
-
     await school.save();
 
     try {
@@ -78,7 +72,6 @@ router.post('/onboarding', instProtect, async (req, res) => {
       school:     school,
       redirectTo: '/institution/school/dashboard.html'
     });
-
   } catch (err) {
     console.error('[Onboarding] Error:', err.message);
     return res.status(500).json({ success: false, message: err.message });
@@ -91,27 +84,22 @@ router.post('/onboarding', instProtect, async (req, res) => {
 router.get('/dashboard', instProtect, requireActiveSubscription, async (req, res) => {
   try {
     var schoolId = req.schoolId;
-
     var [teacherCount, examCount, resultCount, inviteCount] = await Promise.all([
       SchoolUser.countDocuments({ schoolId, role: { $in: ['teacher','vice_principal'] }, isActive: true }),
       SchoolExam.countDocuments({ schoolId }),
       SchoolResult.countDocuments({ schoolId }),
       Invitation.countDocuments({ schoolId, status: 'pending' })
     ]);
-
     var recentExams = await SchoolExam.find({ schoolId })
-      .sort({ createdAt: -1 })
-      .limit(5)
+      .sort({ createdAt: -1 }).limit(5)
       .select('title subject status createdAt totalAttempts accessCode');
-
-    var school  = req.school;
+    var school   = req.school;
     var daysLeft = 0;
     if (school.subscriptionExpiry) {
       daysLeft = Math.max(0, Math.ceil(
         (new Date(school.subscriptionExpiry) - new Date()) / (1000 * 60 * 60 * 24)
       ));
     }
-
     return res.status(200).json({
       success: true,
       stats: {
@@ -126,7 +114,6 @@ router.get('/dashboard', instProtect, requireActiveSubscription, async (req, res
       recentExams: recentExams,
       school:      school
     });
-
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -151,50 +138,37 @@ router.get('/plans', async (req, res) => {
 router.post('/subscribe', instProtect, async (req, res) => {
   try {
     var { planCode } = req.body;
-
     var school = await School.findById(req.schoolId);
     var plan   = await SubscriptionPlan.findOne({ code: planCode, isActive: true });
-
     if (!school) return res.status(404).json({ success: false, message: 'School not found.' });
     if (!plan)   return res.status(400).json({ success: false, message: 'Plan not found.' });
 
-    var reference = 'INST-' + school._id + '-' + Date.now();
-
-    /* ✅ FIX: Added callback_url so Paystack redirects back
-       to the dashboard after payment completes.
-       The dashboard reads ?payment=success&ref= from the URL
-       and calls /api/institution/payment/verify/:ref to confirm. */
+    var reference   = 'INST-' + school._id + '-' + Date.now();
     var callbackUrl = (process.env.APP_URL || 'https://latlompsystem.up.railway.app') +
       '/institution/school/dashboard.html?payment=success&ref=' + reference;
 
     var paystackRes = await fetch('https://api.paystack.co/transaction/initialize', {
       method:  'POST',
-      headers: {
-        'Authorization': 'Bearer ' + process.env.PAYSTACK_SECRET_KEY,
-        'Content-Type':  'application/json'
-      },
+      headers: { 'Authorization': 'Bearer ' + process.env.PAYSTACK_SECRET_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email:        school.email,
-        amount:       plan.price * 100,   /* Naira → kobo */
+        amount:       plan.price * 100,
         reference:    reference,
-        callback_url: callbackUrl,        /* ✅ Paystack redirects here after payment */
+        callback_url: callbackUrl,
         metadata: {
-          schoolId:  school._id.toString(),
-          planCode:  planCode,
-          planName:  plan.name,
-          schoolName:school.name,
-          type:      'institution_subscription'
+          schoolId:   school._id.toString(),
+          planCode:   planCode,
+          planName:   plan.name,
+          schoolName: school.name,
+          type:       'institution_subscription'
         }
       })
     });
-
     var paystackData = await paystackRes.json();
-
     if (!paystackData.status) {
       return res.status(400).json({ success: false, message: 'Payment initialization failed.' });
     }
 
-    /* Create pending subscription record */
     await Subscription.create({
       schoolId:   school._id,
       plan:       planCode,
@@ -213,7 +187,6 @@ router.post('/subscribe', instProtect, async (req, res) => {
       amount:     plan.price,
       plan:       plan
     });
-
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -225,29 +198,18 @@ router.post('/subscribe', instProtect, async (req, res) => {
 router.post('/invite-teacher', instProtect, schoolAdminOnly, requireActiveSubscription, async (req, res) => {
   try {
     var { email, name, role, subjects, classes, message } = req.body;
-
     if (!email) return res.status(400).json({ success: false, message: 'Email is required.' });
 
-    /* Block if already a member */
-    var existing = await SchoolUser.findOne({
-      schoolId: req.schoolId,
-      email:    email.toLowerCase()
-    });
+    var existing = await SchoolUser.findOne({ schoolId: req.schoolId, email: email.toLowerCase() });
     if (existing) {
       return res.status(400).json({ success: false, message: 'This person is already a member of your school.' });
     }
 
-    /* Cancel any previous pending invites */
     await Invitation.updateMany(
       { schoolId: req.schoolId, email: email.toLowerCase(), status: 'pending' },
       { $set: { status: 'cancelled' } }
     );
 
-    /*
-      ✅ NOTE: token and expiresAt are generated automatically
-      by the pre('validate') hook in Invitation.model.js.
-      Do NOT pass them here — the model handles generation.
-    */
     var invite = await Invitation.create({
       schoolId:  req.schoolId,
       invitedBy: req.schoolUser._id,
@@ -290,7 +252,6 @@ router.post('/invite-teacher', instProtect, schoolAdminOnly, requireActiveSubscr
         expiresAt: invite.expiresAt
       }
     });
-
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -304,9 +265,7 @@ router.get('/teachers', instProtect, schoolAdminOnly, requireActiveSubscription,
     var teachers = await SchoolUser.find({
       schoolId: req.schoolId,
       role:     { $in: ['teacher', 'vice_principal'] }
-    })
-    .select('-googleId')
-    .sort({ name: 1 });
+    }).select('-googleId').sort({ name: 1 });
 
     var pendingInvites = await Invitation.find({
       schoolId: req.schoolId,
@@ -320,27 +279,118 @@ router.get('/teachers', instProtect, schoolAdminOnly, requireActiveSubscription,
 });
 
 /* ============================================
+   DELETE /api/institution/school/teachers/:id
+   Permanently remove a teacher from the school.
+   Their login immediately stops working.
+============================================ */
+router.delete('/teachers/:id', instProtect, schoolAdminOnly, requireActiveSubscription, async (req, res) => {
+  try {
+    var teacher = await SchoolUser.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId,
+      role:     { $in: ['teacher', 'vice_principal'] }
+    });
+
+    if (!teacher) {
+      return res.status(404).json({ success: false, message: 'Teacher not found in your school.' });
+    }
+
+    /* Cancel any pending invites for this email */
+    await Invitation.updateMany(
+      { schoolId: req.schoolId, email: teacher.email, status: 'pending' },
+      { $set: { status: 'cancelled' } }
+    );
+
+    await SchoolUser.findByIdAndDelete(req.params.id);
+
+    return res.status(200).json({
+      success: true,
+      message: teacher.name + ' has been permanently removed from your school.'
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   PUT /api/institution/school/teachers/:id/deactivate
+   Blocks teacher login immediately.
+   instProtect middleware checks isActive on every
+   request, so this takes effect instantly.
+============================================ */
+router.put('/teachers/:id/deactivate', instProtect, schoolAdminOnly, requireActiveSubscription, async (req, res) => {
+  try {
+    var teacher = await SchoolUser.findOneAndUpdate(
+      {
+        _id:      req.params.id,
+        schoolId: req.schoolId,
+        role:     { $in: ['teacher', 'vice_principal'] }
+      },
+      { $set: { isActive: false } },
+      { new: true }
+    ).select('-googleId');
+
+    if (!teacher) {
+      return res.status(404).json({ success: false, message: 'Teacher not found in your school.' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: teacher.name + '\'s account has been deactivated. They can no longer log in.',
+      teacher: teacher
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   PUT /api/institution/school/teachers/:id/reactivate
+   Restores teacher login access immediately.
+============================================ */
+router.put('/teachers/:id/reactivate', instProtect, schoolAdminOnly, requireActiveSubscription, async (req, res) => {
+  try {
+    var teacher = await SchoolUser.findOneAndUpdate(
+      {
+        _id:      req.params.id,
+        schoolId: req.schoolId,
+        role:     { $in: ['teacher', 'vice_principal'] }
+      },
+      { $set: { isActive: true } },
+      { new: true }
+    ).select('-googleId');
+
+    if (!teacher) {
+      return res.status(404).json({ success: false, message: 'Teacher not found in your school.' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: teacher.name + '\'s account has been reactivated. They can now log in.',
+      teacher: teacher
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
    GET /api/institution/school/results
 ============================================ */
 router.get('/results', instProtect, schoolAdminOnly, requireActiveSubscription, async (req, res) => {
   try {
     var { examId, page, limit } = req.query;
-    var filter = { schoolId: req.schoolId };
+    var filter   = { schoolId: req.schoolId };
     if (examId) filter.examId = examId;
-
     var pageNum  = parseInt(page)  || 1;
     var limitNum = parseInt(limit) || 30;
     var skip     = (pageNum - 1) * limitNum;
-
     var [results, total] = await Promise.all([
       SchoolResult.find(filter)
         .populate('examId', 'title subject class examType')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limitNum),
+        .sort({ createdAt: -1 }).skip(skip).limit(limitNum),
       SchoolResult.countDocuments(filter)
     ]);
-
     return res.status(200).json({
       success: true,
       results,
@@ -358,15 +408,13 @@ router.post('/results/release', instProtect, schoolAdminOnly, requireActiveSubsc
   try {
     var { examId } = req.body;
     if (!examId) return res.status(400).json({ success: false, message: 'examId is required.' });
-
     var updated = await SchoolResult.updateMany(
       { schoolId: req.schoolId, examId },
       { $set: { isReleased: true, releasedAt: new Date(), releasedBy: req.schoolUser._id } }
     );
-
     return res.status(200).json({
       success: true,
-      message: updated.modifiedCount + ' result' + (updated.modifiedCount !== 1 ? 's' : '') + ' released to students.',
+      message: updated.modifiedCount + ' result' + (updated.modifiedCount !== 1 ? 's' : '') + ' released.',
       count:   updated.modifiedCount
     });
   } catch (err) {
@@ -381,23 +429,11 @@ router.put('/profile', instProtect, schoolAdminOnly, async (req, res) => {
   try {
     var school = await School.findById(req.schoolId);
     if (!school) return res.status(404).json({ success: false, message: 'School not found.' });
-
-    var allowed = [
-      'name', 'phone', 'address', 'state', 'country', 'type',
-      'principalName', 'motto', 'website', 'logo',
-      'primaryColor', 'secondaryColor'
-    ];
-
-    allowed.forEach(function(field) {
-      if (req.body[field] !== undefined) school[field] = req.body[field];
-    });
-
+    var allowed = ['name','phone','address','state','country','type','principalName','motto','website','logo','primaryColor','secondaryColor'];
+    allowed.forEach(function(field) { if (req.body[field] !== undefined) school[field] = req.body[field]; });
     if (req.body.settings && typeof req.body.settings === 'object') {
-      Object.keys(req.body.settings).forEach(function(key) {
-        school.settings[key] = req.body.settings[key];
-      });
+      Object.keys(req.body.settings).forEach(function(key) { school.settings[key] = req.body.settings[key]; });
     }
-
     await school.save();
     return res.status(200).json({ success: true, message: 'Profile updated.', school });
   } catch (err) {
