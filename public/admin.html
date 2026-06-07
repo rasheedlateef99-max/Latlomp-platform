@@ -109,7 +109,6 @@
     .badge-suspended { background:rgba(255,101,132,0.12); color:#ff6584; }
     .badge-pending   { background:rgba(255,255,255,0.06); color:var(--text-muted,#6b6b8a); }
 
-    /* Institution section sub-tabs */
     .inst-tabs { display:flex; gap:4px; background:rgba(255,255,255,0.04); border-radius:10px; padding:4px; margin-bottom:20px; flex-wrap:wrap; }
     .inst-tab  { flex:1; min-width:100px; padding:10px 16px; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; transition:all 0.2s; background:transparent; color:var(--text-secondary,#a0a0c0); }
     .inst-tab.active { background:linear-gradient(135deg,#ff6584,#ff8e53); color:#fff; }
@@ -218,11 +217,11 @@
       </div>
     </div>
     <nav class="sb-nav">
-      <button class="sb-link admin-nav-link active" data-section="overview"        onclick="showAdminSection('overview')">       <span class="sb-icon">📊</span> Overview        </button>
-      <button class="sb-link admin-nav-link"         data-section="products"        onclick="showAdminSection('products')">       <span class="sb-icon">🛍️</span> Products        </button>
+      <button class="sb-link admin-nav-link active" data-section="overview"       onclick="showAdminSection('overview')">       <span class="sb-icon">📊</span> Overview        </button>
+      <button class="sb-link admin-nav-link"         data-section="products"       onclick="showAdminSection('products')">       <span class="sb-icon">🛍️</span> Products        </button>
       <button class="sb-link admin-nav-link"         data-section="cbt-management" onclick="showAdminSection('cbt-management')"> <span class="sb-icon">📝</span> CBT Management </button>
-      <!-- ✅ NEW: Institution section in sidebar -->
-      <button class="sb-link admin-nav-link"         data-section="institutions"   onclick="showAdminSection('institutions')">   <span class="sb-icon">🏫</span> Institutions    </button>
+      <!-- ✅ FIX: onclick now calls showAdminSection AND instOnActivate -->
+      <button class="sb-link admin-nav-link"         data-section="institutions"   onclick="showAdminSection('institutions'); setTimeout(instOnActivate, 200);"> <span class="sb-icon">🏫</span> Institutions    </button>
       <a href="store.html"   class="sb-link"><span class="sb-icon">🏪</span> View Store    </a>
       <a href="teacher.html" class="sb-link"><span class="sb-icon">📚</span> Teacher Panel </a>
       <button class="sb-link" onclick="adminLogout()"><span class="sb-icon">🚪</span> Logout</button>
@@ -251,7 +250,7 @@
           <div style="padding:22px; display:flex; flex-wrap:wrap; gap:12px;">
             <button class="a-btn a-btn-green"   onclick="showAdminSection('products'); setTimeout(openCreateProduct,300)">+ Add Product</button>
             <button class="a-btn a-btn-primary"  onclick="showAdminSection('cbt-management')">📝 Manage CBT</button>
-            <button class="a-btn a-btn-blue"     onclick="showAdminSection('institutions')">🏫 Institutions</button>
+            <button class="a-btn a-btn-blue"     onclick="showAdminSection('institutions'); setTimeout(instOnActivate,200)">🏫 Institutions</button>
             <a href="store.html"   class="a-btn a-btn-secondary">🏪 View Store</a>
             <a href="teacher.html" class="a-btn a-btn-secondary">📚 Teacher Dashboard</a>
           </div>
@@ -316,14 +315,13 @@
         </div>
       </section>
 
-      <!-- ===== INSTITUTIONS (NEW) ===== -->
+      <!-- ===== INSTITUTIONS ===== -->
       <section class="admin-section" id="as-institutions">
         <div class="a-page-header">
           <div><h1>🏫 Institution Management</h1><p>Super Admin control over all registered schools</p></div>
-          <button class="a-btn a-btn-green" onclick="instLoadStats(); instLoadSchools()">↻ Refresh</button>
+          <button class="a-btn a-btn-green" onclick="instOnActivate()">↻ Refresh</button>
         </div>
 
-        <!-- Stats row -->
         <div class="a-stats-grid" style="grid-template-columns:repeat(5,1fr); margin-bottom:20px;">
           <div class="a-stat-card"><div class="a-stat-icon" style="background:rgba(108,99,255,0.1);">🏫</div><div><div class="a-stat-val" id="instStatTotal">—</div><div class="a-stat-lbl">Total</div></div></div>
           <div class="a-stat-card"><div class="a-stat-icon" style="background:rgba(67,233,123,0.1);">✅</div><div><div class="a-stat-val" id="instStatActive">—</div><div class="a-stat-lbl">Active</div></div></div>
@@ -332,7 +330,6 @@
           <div class="a-stat-card"><div class="a-stat-icon" style="background:rgba(67,233,123,0.1);">💰</div><div><div class="a-stat-val" id="instStatRevenue">—</div><div class="a-stat-lbl">Revenue</div></div></div>
         </div>
 
-        <!-- Sub-tabs -->
         <div class="inst-tabs">
           <button class="inst-tab active" id="instTabSchools"       onclick="instSwitchTab('schools')">🏫 Schools</button>
           <button class="inst-tab"         id="instTabPlans"         onclick="instSwitchTab('plans')">📋 Plans</button>
@@ -340,7 +337,7 @@
           <button class="inst-tab"         id="instTabLogs"          onclick="instSwitchTab('logs')">📋 Audit Logs</button>
         </div>
 
-        <!-- ---- SCHOOLS TAB ---- -->
+        <!-- SCHOOLS TAB -->
         <div id="instPanelSchools">
           <div class="inst-search-bar">
             <input type="text" id="instSearch" placeholder="Search by name or email..." oninput="instLoadSchools()" />
@@ -355,17 +352,7 @@
           <div class="a-card">
             <div class="a-table-wrap">
               <table class="admin-table">
-                <thead>
-                  <tr>
-                    <th>School Name</th>
-                    <th>Email</th>
-                    <th>Status</th>
-                    <th>Plan</th>
-                    <th>Expiry</th>
-                    <th>Teachers</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
+                <thead><tr><th>School Name</th><th>Email</th><th>Status</th><th>Plan</th><th>Expiry</th><th>Teachers</th><th>Actions</th></tr></thead>
                 <tbody id="instSchoolsTable">
                   <tr><td colspan="7" style="text-align:center; padding:32px; color:var(--text-muted);">Loading institutions...</td></tr>
                 </tbody>
@@ -375,27 +362,16 @@
           </div>
         </div>
 
-        <!-- ---- PLANS TAB ---- -->
+        <!-- PLANS TAB -->
         <div id="instPanelPlans" style="display:none;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
-            <p style="color:var(--text-muted); font-size:14px; margin:0;">Changes apply immediately platform-wide. Institutions pay the current price.</p>
+            <p style="color:var(--text-muted); font-size:14px; margin:0;">Changes apply immediately platform-wide.</p>
             <button class="a-btn a-btn-primary" onclick="instOpenPlanModal(null)">+ Create New Plan</button>
           </div>
           <div class="a-card">
             <div class="a-table-wrap">
               <table class="admin-table">
-                <thead>
-                  <tr>
-                    <th>Plan Name</th>
-                    <th>Code</th>
-                    <th>Price (₦)</th>
-                    <th>Duration</th>
-                    <th>Max Teachers</th>
-                    <th>Max Students</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
+                <thead><tr><th>Plan Name</th><th>Code</th><th>Price (₦)</th><th>Duration</th><th>Max Teachers</th><th>Max Students</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody id="instPlansTable">
                   <tr><td colspan="8" style="text-align:center; padding:32px; color:var(--text-muted);">Loading plans...</td></tr>
                 </tbody>
@@ -404,48 +380,38 @@
           </div>
         </div>
 
-        <!-- ---- ANNOUNCEMENTS TAB ---- -->
+        <!-- ANNOUNCEMENTS TAB -->
         <div id="instPanelAnnouncements" style="display:none;">
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; flex-wrap:wrap;">
-            <div class="a-card" style="grid-column:1">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+            <div class="a-card">
               <div class="a-card-head"><h3>Send Announcement</h3></div>
-              <div style="padding:22px;">
-                <div style="display:flex; flex-direction:column; gap:14px;">
-                  <div class="t-form-group">
-                    <label>Target</label>
-                    <select id="instAnnouncementTarget" onchange="instTargetChanged()">
-                      <option value="all">📢 All Institutions</option>
-                      <option value="specific">🏫 Specific Institution</option>
-                    </select>
-                  </div>
-                  <div class="t-form-group" id="instAnnouncementSchoolWrap" style="display:none;">
-                    <label>Select Institution</label>
-                    <select id="instAnnouncementSchoolId">
-                      <option value="">Loading...</option>
-                    </select>
-                  </div>
-                  <div class="t-form-group">
-                    <label>Type</label>
-                    <select id="instAnnouncementType">
-                      <option value="info">ℹ️ Info</option>
-                      <option value="warning">⚠️ Warning</option>
-                      <option value="success">✅ Good News</option>
-                      <option value="maintenance">🔧 Maintenance</option>
-                    </select>
-                  </div>
-                  <div class="t-form-group">
-                    <label>Title *</label>
-                    <input type="text" id="instAnnouncementTitle" placeholder="e.g. Scheduled Maintenance Notice" />
-                  </div>
-                  <div class="t-form-group">
-                    <label>Message *</label>
-                    <textarea id="instAnnouncementMsg" rows="4" placeholder="Enter your announcement..."></textarea>
-                  </div>
-                  <button class="a-btn a-btn-primary" onclick="instSendAnnouncement()" style="align-self:flex-start;">📢 Send Announcement</button>
+              <div style="padding:22px; display:flex; flex-direction:column; gap:14px;">
+                <div class="t-form-group">
+                  <label>Target</label>
+                  <select id="instAnnouncementTarget" onchange="instTargetChanged()">
+                    <option value="all">📢 All Institutions</option>
+                    <option value="specific">🏫 Specific Institution</option>
+                  </select>
                 </div>
+                <div class="t-form-group" id="instAnnouncementSchoolWrap" style="display:none;">
+                  <label>Select Institution</label>
+                  <select id="instAnnouncementSchoolId"><option value="">Loading...</option></select>
+                </div>
+                <div class="t-form-group">
+                  <label>Type</label>
+                  <select id="instAnnouncementType">
+                    <option value="info">ℹ️ Info</option>
+                    <option value="warning">⚠️ Warning</option>
+                    <option value="success">✅ Good News</option>
+                    <option value="maintenance">🔧 Maintenance</option>
+                  </select>
+                </div>
+                <div class="t-form-group"><label>Title *</label><input type="text" id="instAnnouncementTitle" placeholder="e.g. Scheduled Maintenance Notice" /></div>
+                <div class="t-form-group"><label>Message *</label><textarea id="instAnnouncementMsg" rows="4" placeholder="Enter your announcement..."></textarea></div>
+                <button class="a-btn a-btn-primary" onclick="instSendAnnouncement()" style="align-self:flex-start;">📢 Send Announcement</button>
               </div>
             </div>
-            <div class="a-card" style="grid-column:2">
+            <div class="a-card">
               <div class="a-card-head"><h3>Recent Announcements</h3></div>
               <div id="instAnnouncementsList" style="padding:16px;">
                 <div style="color:var(--text-muted); font-size:14px; text-align:center; padding:24px;">Loading...</div>
@@ -454,14 +420,12 @@
           </div>
         </div>
 
-        <!-- ---- LOGS TAB ---- -->
+        <!-- LOGS TAB -->
         <div id="instPanelLogs" style="display:none;">
           <div class="a-card">
             <div class="a-table-wrap">
               <table class="admin-table">
-                <thead>
-                  <tr><th>Action</th><th>Actor</th><th>School</th><th>Status</th><th>Date</th></tr>
-                </thead>
+                <thead><tr><th>Action</th><th>Actor</th><th>School</th><th>Status</th><th>Date</th></tr></thead>
                 <tbody id="instLogsTable">
                   <tr><td colspan="5" style="text-align:center; padding:32px; color:var(--text-muted);">Loading logs...</td></tr>
                 </tbody>
@@ -471,16 +435,10 @@
         </div>
 
       </section>
-      <!-- ===== END INSTITUTIONS ===== -->
 
-    </div><!-- end .a-content -->
-  </div><!-- end .admin-main -->
-</div><!-- end #adminApp -->
-
-
-<!-- =============================================
-     EXISTING MODALS (unchanged)
-============================================== -->
+    </div>
+  </div>
+</div>
 
 <!-- PRODUCT MODAL -->
 <div class="t-modal-overlay" id="productModal" style="display:none;">
@@ -580,8 +538,8 @@
         <div class="t-form-group t-full"><label>Option B *</label><input type="text" id="cbtQOptB" placeholder="Second option" required /></div>
         <div class="t-form-group t-full"><label>Option C</label><input type="text" id="cbtQOptC" placeholder="Third option (optional)" /></div>
         <div class="t-form-group t-full"><label>Option D</label><input type="text" id="cbtQOptD" placeholder="Fourth option (optional)" /></div>
-        <div class="t-form-group"><label>Correct Answer *</label><select id="cbtQCorrect" required><option value="">Select correct answer...</option><option value="0">A — First option</option><option value="1">B — Second option</option><option value="2">C — Third option</option><option value="3">D — Fourth option</option></select></div>
-        <div class="t-form-group"><label>Exam Category</label><select id="cbtQCat"><option value="all">All Categories</option><option value="jamb">JAMB</option><option value="waec">WAEC</option><option value="neco">NECO</option><option value="post-utme">POST-UTME</option><option value="practice">Practice</option></select></div>
+        <div class="t-form-group"><label>Correct Answer *</label><select id="cbtQCorrect" required><option value="">Select correct answer...</option><option value="0">A</option><option value="1">B</option><option value="2">C</option><option value="3">D</option></select></div>
+        <div class="t-form-group"><label>Exam Category</label><select id="cbtQCat"><option value="all">All</option><option value="jamb">JAMB</option><option value="waec">WAEC</option><option value="neco">NECO</option><option value="post-utme">POST-UTME</option><option value="practice">Practice</option></select></div>
         <div class="t-form-group t-full"><label>Explanation (optional)</label><textarea id="cbtQExpl" rows="2" placeholder="Why is this answer correct?"></textarea></div>
       </div>
       <div class="t-modal-footer">
@@ -591,10 +549,6 @@
     </form>
   </div>
 </div>
-
-<!-- =============================================
-     NEW INSTITUTION MODALS
-============================================== -->
 
 <!-- School Detail Modal -->
 <div class="t-modal-overlay" id="instSchoolDetailModal" style="display:none;">
@@ -619,9 +573,7 @@
     <div style="margin-bottom:16px;">
       <div style="font-size:13px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; margin-bottom:8px;">School</div>
       <div style="font-size:15px; font-weight:700; color:#fff;" id="instSubSchoolName">—</div>
-      <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">
-        Current expiry: <span id="instSubCurrentExpiry" style="color:#a78bfa;">—</span>
-      </div>
+      <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">Current expiry: <span id="instSubCurrentExpiry" style="color:#a78bfa;">—</span></div>
     </div>
     <div class="t-form-grid">
       <div class="t-form-group t-full">
@@ -645,11 +597,7 @@
       </div>
       <div class="t-form-group t-full" id="instSubPlanWrap" style="display:none;">
         <label>New Plan</label>
-        <select id="instSubPlan">
-          <option value="trial">Free Trial</option>
-          <option value="monthly">Monthly</option>
-          <option value="annual">Annual</option>
-        </select>
+        <select id="instSubPlan"><option value="trial">Free Trial</option><option value="monthly">Monthly</option><option value="annual">Annual</option></select>
       </div>
       <div class="t-form-group t-full">
         <label>Admin Note (optional)</label>
@@ -691,35 +639,48 @@
   </div>
 </div>
 
-<!-- TOAST -->
 <div id="adminToast" style="display:none;"></div>
 
 <script src="js/main.js"></script>
 <script src="js/admin.js"></script>
 
-<!-- =============================================
-     INSTITUTION MANAGEMENT JAVASCRIPT
-     Inline — does not conflict with admin.js
-============================================== -->
 <script>
-/* ============================================
+/* ============================================================
    INSTITUTION MANAGEMENT — COMPLETE JS
-   All functions prefixed with 'inst' to avoid
-   conflicts with existing admin.js functions.
-============================================ */
+   ✅ FIXED: Uses instAdminApi() throughout — NOT apiRequest()
+      instAdminApi sends to /api/admin + path
+      apiRequest was sending to /api + path (wrong for these routes)
+   All functions prefixed 'inst' to avoid conflicts with admin.js
+============================================================ */
+
+/* ---- Self-contained API wrapper for institution admin calls ---- */
+async function instAdminApi(path, method, body) {
+  var token = localStorage.getItem('latlomp_token');
+  var opts  = {
+    method:  method || 'GET',
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+  };
+  if (body && method !== 'GET') opts.body = JSON.stringify(body);
+  try {
+    var res  = await fetch('/api/admin' + path, opts);
+    var data = await res.json();
+    return { ok: res.ok, status: res.status, data: data };
+  } catch(e) {
+    return { ok: false, status: 0, data: { message: 'Network error: ' + e.message } };
+  }
+}
 
 var _instCurrentFilter = 'all';
 var _instCurrentPage   = 1;
 var _instCurrentTab    = 'schools';
-var _instSchoolsCache  = {};
 
-/* ---- Toast helper (uses existing adminToast if available) ---- */
+/* ---- Toast ---- */
 function instToast(msg, type) {
   var t = document.getElementById('adminToast');
   if (!t) return;
-  t.textContent = msg;
-  t.style.display = 'block';
-  t.style.borderColor = type === 'error' ? 'rgba(255,101,132,0.4)' :
+  t.textContent    = msg;
+  t.style.display  = 'block';
+  t.style.borderColor = type === 'error'   ? 'rgba(255,101,132,0.4)' :
                         type === 'success' ? 'rgba(67,233,123,0.4)' :
                         'var(--border,rgba(255,255,255,0.08))';
   t.style.color = type === 'error' ? '#ff6584' : type === 'success' ? '#43e97b' : '#fff';
@@ -727,20 +688,19 @@ function instToast(msg, type) {
   t._to = setTimeout(function() { t.style.display = 'none'; }, 3500);
 }
 
-/* ---- Called when institutions section is activated ---- */
+/* ---- Main entry point — called when Institutions tab is opened ---- */
 function instOnActivate() {
   instLoadStats();
   instLoadSchools();
   instLoadPlansForSelect();
 }
 
-/* ---- Switch sub-tab ---- */
+/* ---- Sub-tab switching ---- */
 function instSwitchTab(tab) {
   _instCurrentTab = tab;
-  var panels = ['schools','plans','announcements','logs'];
-  panels.forEach(function(p) {
+  ['schools','plans','announcements','logs'].forEach(function(p) {
     var panel = document.getElementById('instPanel' + p.charAt(0).toUpperCase() + p.slice(1));
-    var btn   = document.getElementById('instTab' + p.charAt(0).toUpperCase() + p.slice(1));
+    var btn   = document.getElementById('instTab'  + p.charAt(0).toUpperCase() + p.slice(1));
     if (panel) panel.style.display = (p === tab) ? 'block' : 'none';
     if (btn)   btn.classList.toggle('active', p === tab);
   });
@@ -749,7 +709,7 @@ function instSwitchTab(tab) {
   if (tab === 'logs')          instLoadLogs();
 }
 
-/* ---- Set filter ---- */
+/* ---- Filter ---- */
 function instSetFilter(filter, el) {
   _instCurrentFilter = filter;
   _instCurrentPage   = 1;
@@ -761,16 +721,16 @@ function instSetFilter(filter, el) {
 /* ---- Load stats ---- */
 async function instLoadStats() {
   try {
-    var r = await apiRequest('/admin/institutions/stats', 'GET');
+    /* ✅ FIXED: instAdminApi('/institutions/stats') → /api/admin/institutions/stats */
+    var r = await instAdminApi('/institutions/stats');
     if (!r.ok) return;
-    var s = r.data.stats;
+    var s = r.data.stats || {};
     document.getElementById('instStatTotal').textContent     = s.total     || 0;
     document.getElementById('instStatActive').textContent    = s.active    || 0;
     document.getElementById('instStatTrial').textContent     = s.trial     || 0;
     document.getElementById('instStatSuspended').textContent = s.suspended || 0;
     document.getElementById('instStatRevenue').textContent   = s.totalRevenue
-      ? '₦' + Number(s.totalRevenue).toLocaleString()
-      : '₦0';
+      ? '₦' + Number(s.totalRevenue).toLocaleString() : '₦0';
   } catch(e) { /* silent */ }
 }
 
@@ -778,11 +738,16 @@ async function instLoadStats() {
 async function instLoadSchools() {
   var tbody  = document.getElementById('instSchoolsTable');
   var search = (document.getElementById('instSearch') || {}).value || '';
+  if (!tbody) return;
   tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-muted);">Loading...</td></tr>';
   try {
+    /* ✅ FIXED: instAdminApi('/institutions?...') → /api/admin/institutions?... */
     var params = '?page=' + _instCurrentPage + '&limit=15&status=' + _instCurrentFilter + '&search=' + encodeURIComponent(search);
-    var r = await apiRequest('/admin/institutions' + params, 'GET');
-    if (!r.ok) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:#ff6584;">Failed to load.</td></tr>'; return; }
+    var r = await instAdminApi('/institutions' + params);
+    if (!r.ok) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:#ff6584;">Failed to load. ' + (r.data.message || '') + '</td></tr>';
+      return;
+    }
     var schools = r.data.schools || [];
     if (!schools.length) {
       tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:32px; color:var(--text-muted);">No institutions found.</td></tr>';
@@ -791,48 +756,48 @@ async function instLoadSchools() {
     tbody.innerHTML = schools.map(function(s) {
       var statusBadge = s.isSuspended
         ? '<span class="badge badge-suspended">Suspended</span>'
-        : s.status === 'active'   ? '<span class="badge badge-active">Active</span>'
-        : s.status === 'trial'    ? '<span class="badge badge-trial">Trial</span>'
-        : s.status === 'expired'  ? '<span class="badge badge-expired">Expired</span>'
-        : '<span class="badge badge-pending">' + s.status + '</span>';
-      var expiry = s.subscriptionExpiry
-        ? new Date(s.subscriptionExpiry).toLocaleDateString('en-NG')
-        : '—';
-      var daysLeft = (s.daysLeft > 0)
+        : s.status === 'active'  ? '<span class="badge badge-active">Active</span>'
+        : s.status === 'trial'   ? '<span class="badge badge-trial">Trial</span>'
+        : s.status === 'expired' ? '<span class="badge badge-expired">Expired</span>'
+        : '<span class="badge badge-pending">' + (s.status || '—') + '</span>';
+      var expiry   = s.subscriptionExpiry ? new Date(s.subscriptionExpiry).toLocaleDateString('en-NG') : '—';
+      var daysLeft = s.daysLeft > 0
         ? '<span style="font-size:11px; color:' + (s.daysLeft < 7 ? '#ffa500' : '#43e97b') + '"> (' + s.daysLeft + 'd)</span>'
         : '';
+      var safeName = (s.name || '').replace(/'/g,'&#39;');
       return '<tr>' +
         '<td><span style="font-weight:700; color:#fff;">' + (s.logo ? '<img src="' + s.logo + '" style="width:22px; height:22px; border-radius:4px; margin-right:8px; vertical-align:middle;" />' : '') + s.name + '</span></td>' +
-        '<td>' + s.email + '</td>' +
+        '<td>' + (s.email || '—') + '</td>' +
         '<td>' + statusBadge + '</td>' +
         '<td style="font-size:12px; text-transform:uppercase; letter-spacing:0.4px;">' + (s.subscriptionPlan || '—') + '</td>' +
         '<td>' + expiry + daysLeft + '</td>' +
         '<td>' + (s.teacherCount || 0) + '</td>' +
-        '<td>' +
-          '<div style="display:flex; gap:6px; flex-wrap:wrap;">' +
-            '<button class="a-btn a-btn-secondary a-btn-sm" onclick="instShowDetail(\'' + s._id + '\')">👁 View</button>' +
-            '<button class="a-btn a-btn-blue a-btn-sm" onclick="instOpenSubModal(\'' + s._id + '\',\'' + s.name.replace(/'/g,'') + '\',\'' + expiry + '\')">⚙ Sub</button>' +
-            (s.isSuspended
-              ? '<button class="a-btn a-btn-green a-btn-sm" onclick="instActivate(\'' + s._id + '\')">✅ Activate</button>'
-              : '<button class="a-btn a-btn-danger a-btn-sm" onclick="instSuspend(\'' + s._id + '\')">⛔ Suspend</button>') +
-            '<button class="a-btn a-btn-danger a-btn-sm" onclick="instDelete(\'' + s._id + '\',\'' + s.name.replace(/'/g,'') + '\')">🗑</button>' +
-          '</div>' +
-        '</td>' +
+        '<td><div style="display:flex; gap:6px; flex-wrap:wrap;">' +
+          '<button class="a-btn a-btn-secondary a-btn-sm" onclick="instShowDetail(\'' + s._id + '\')">👁 View</button>' +
+          '<button class="a-btn a-btn-blue a-btn-sm" onclick="instOpenSubModal(\'' + s._id + '\',\'' + safeName + '\',\'' + expiry + '\')">⚙ Sub</button>' +
+          (s.isSuspended
+            ? '<button class="a-btn a-btn-green a-btn-sm" onclick="instActivate(\'' + s._id + '\')">✅</button>'
+            : '<button class="a-btn a-btn-danger a-btn-sm" onclick="instSuspend(\'' + s._id + '\')">⛔</button>') +
+          '<button class="a-btn a-btn-danger a-btn-sm" onclick="instDelete(\'' + s._id + '\',\'' + safeName + '\')">🗑</button>' +
+        '</div></td>' +
       '</tr>';
     }).join('');
 
     /* Pagination */
     var pages  = r.data.pages || 1;
     var pagDiv = document.getElementById('instPagination');
-    if (pages > 1) {
-      var btns = '';
-      for (var p = 1; p <= pages; p++) {
-        btns += '<button class="a-btn ' + (p === _instCurrentPage ? 'a-btn-primary' : 'a-btn-secondary') + ' a-btn-sm" onclick="instGoPage(' + p + ')">' + p + '</button>';
-      }
-      pagDiv.innerHTML = btns;
-    } else { pagDiv.innerHTML = ''; }
-
-  } catch(e) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:#ff6584;">Error: ' + e.message + '</td></tr>'; }
+    if (pagDiv) {
+      if (pages > 1) {
+        var btns = '';
+        for (var p = 1; p <= pages; p++) {
+          btns += '<button class="a-btn ' + (p === _instCurrentPage ? 'a-btn-primary' : 'a-btn-secondary') + ' a-btn-sm" onclick="instGoPage(' + p + ')">' + p + '</button>';
+        }
+        pagDiv.innerHTML = btns;
+      } else { pagDiv.innerHTML = ''; }
+    }
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:#ff6584;">Error: ' + e.message + '</td></tr>';
+  }
 }
 
 function instGoPage(p) { _instCurrentPage = p; instLoadSchools(); }
@@ -843,70 +808,52 @@ async function instShowDetail(id) {
   var body   = document.getElementById('instDetailBody');
   var footer = document.getElementById('instDetailFooter');
   body.innerHTML = '<div style="text-align:center; padding:24px; color:var(--text-muted);">Loading...</div>';
-
   try {
-    var r = await apiRequest('/admin/institutions/' + id, 'GET');
-    if (!r.ok) { body.innerHTML = '<p style="color:#ff6584;">' + r.data.message + '</p>'; return; }
-    var d   = r.data;
-    var s   = d.school;
+    /* ✅ FIXED: instAdminApi('/institutions/' + id) */
+    var r = await instAdminApi('/institutions/' + id);
+    if (!r.ok) { body.innerHTML = '<p style="color:#ff6584;">' + (r.data.message || 'Failed') + '</p>'; return; }
+    var d = r.data;
+    var s = d.school;
     document.getElementById('instDetailTitle').textContent = s.name;
-
     var statusColor = s.isSuspended ? '#ff6584' : s.status === 'active' ? '#43e97b' : s.status === 'trial' ? '#a78bfa' : '#ffa500';
     body.innerHTML =
       '<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">' +
-        '<div style="background:rgba(255,255,255,0.04); border-radius:10px; padding:14px;">' +
-          '<div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Email</div>' +
-          '<div style="font-weight:700; color:#fff;">' + s.email + '</div>' +
-        '</div>' +
-        '<div style="background:rgba(255,255,255,0.04); border-radius:10px; padding:14px;">' +
-          '<div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Status</div>' +
-          '<div style="font-weight:700; color:' + statusColor + ';">' + (s.isSuspended ? 'SUSPENDED' : s.status.toUpperCase()) + '</div>' +
-        '</div>' +
-        '<div style="background:rgba(255,255,255,0.04); border-radius:10px; padding:14px;">' +
-          '<div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Plan</div>' +
-          '<div style="font-weight:700; color:#fff;">' + (s.subscriptionPlan || '—') + '</div>' +
-        '</div>' +
-        '<div style="background:rgba(255,255,255,0.04); border-radius:10px; padding:14px;">' +
-          '<div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Expiry</div>' +
-          '<div style="font-weight:700; color:#fff;">' + (s.subscriptionExpiry ? new Date(s.subscriptionExpiry).toDateString() : '—') + '</div>' +
-        '</div>' +
-        '<div style="background:rgba(255,255,255,0.04); border-radius:10px; padding:14px;">' +
-          '<div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Teachers</div>' +
-          '<div style="font-weight:700; color:#fff;">' + d.stats.teachers + ' active</div>' +
-        '</div>' +
-        '<div style="background:rgba(255,255,255,0.04); border-radius:10px; padding:14px;">' +
-          '<div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Total Results</div>' +
-          '<div style="font-weight:700; color:#fff;">' + d.totalResults + '</div>' +
-        '</div>' +
-        '<div style="background:rgba(255,255,255,0.04); border-radius:10px; padding:14px;">' +
-          '<div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Address</div>' +
-          '<div style="color:var(--text-secondary);">' + (s.address || '—') + (s.state ? ', ' + s.state : '') + '</div>' +
-        '</div>' +
-        '<div style="background:rgba(255,255,255,0.04); border-radius:10px; padding:14px;">' +
-          '<div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Joined</div>' +
-          '<div style="color:var(--text-secondary);">' + new Date(s.createdAt).toDateString() + '</div>' +
-        '</div>' +
+        _detailItem('Email',         s.email || '—') +
+        _detailItem('Status',        (s.isSuspended ? 'SUSPENDED' : (s.status || '').toUpperCase()), statusColor) +
+        _detailItem('Plan',          s.subscriptionPlan || '—') +
+        _detailItem('Expiry',        s.subscriptionExpiry ? new Date(s.subscriptionExpiry).toDateString() : '—') +
+        _detailItem('Teachers',      (d.stats ? d.stats.teachers : 0) + ' active') +
+        _detailItem('Total Results', d.totalResults || 0) +
+        _detailItem('Address',       (s.address || '—') + (s.state ? ', ' + s.state : '')) +
+        _detailItem('Joined',        new Date(s.createdAt).toDateString()) +
       '</div>' +
-      '<div style="font-size:13px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; margin-bottom:10px; letter-spacing:0.5px;">Recent Exams</div>' +
-      (d.recentExams.length
+      '<div style="font-size:13px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; margin-bottom:10px;">Recent Exams</div>' +
+      ((d.recentExams || []).length
         ? '<div style="background:rgba(255,255,255,0.02); border-radius:8px; overflow:hidden;">' +
-            d.recentExams.map(function(e) {
+            (d.recentExams || []).map(function(e) {
               return '<div style="padding:10px 14px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between;">' +
                 '<span style="font-weight:600; color:#fff;">' + e.title + '</span>' +
                 '<span style="font-size:12px; color:var(--text-muted);">' + (e.totalAttempts || 0) + ' attempts</span>' +
               '</div>';
-            }).join('') +
-          '</div>'
+            }).join('') + '</div>'
         : '<p style="color:var(--text-muted); font-size:13px;">No exams yet.</p>');
 
+    var expStr  = s.subscriptionExpiry ? new Date(s.subscriptionExpiry).toDateString() : '—';
+    var safeName = (s.name || '').replace(/'/g,'&#39;');
     footer.innerHTML =
-      '<button type="button" class="a-btn a-btn-blue" onclick="closeAdminModal(\'instSchoolDetailModal\'); instOpenSubModal(\'' + s._id + '\',\'' + s.name.replace(/'/g,'') + '\',\'' + (s.subscriptionExpiry ? new Date(s.subscriptionExpiry).toDateString() : '—') + '\')">⚙ Manage Subscription</button>' +
+      '<button type="button" class="a-btn a-btn-blue" onclick="closeAdminModal(\'instSchoolDetailModal\'); instOpenSubModal(\'' + s._id + '\',\'' + safeName + '\',\'' + expStr + '\')">⚙ Manage Subscription</button>' +
       (s.isSuspended
         ? '<button type="button" class="a-btn a-btn-green" onclick="closeAdminModal(\'instSchoolDetailModal\'); instActivate(\'' + s._id + '\')">✅ Activate</button>'
         : '<button type="button" class="a-btn a-btn-danger" onclick="closeAdminModal(\'instSchoolDetailModal\'); instSuspend(\'' + s._id + '\')">⛔ Suspend</button>') +
       '<button type="button" class="a-btn a-btn-secondary" onclick="closeAdminModal(\'instSchoolDetailModal\')">Close</button>';
-
   } catch(e) { body.innerHTML = '<p style="color:#ff6584;">Error: ' + e.message + '</p>'; }
+}
+
+function _detailItem(label, value, color) {
+  return '<div style="background:rgba(255,255,255,0.04); border-radius:10px; padding:14px;">' +
+    '<div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">' + label + '</div>' +
+    '<div style="font-weight:700; color:' + (color || '#fff') + ';">' + value + '</div>' +
+  '</div>';
 }
 
 /* ---- Suspend ---- */
@@ -914,7 +861,8 @@ async function instSuspend(id) {
   var reason = prompt('Reason for suspension (optional):') || '';
   if (!confirm('Suspend this institution? They will lose all access immediately.')) return;
   try {
-    var r = await apiRequest('/admin/institutions/' + id + '/suspend', 'PUT', { reason });
+    /* ✅ FIXED */
+    var r = await instAdminApi('/institutions/' + id + '/suspend', 'PUT', { reason });
     if (r.ok) { instToast(r.data.message, 'success'); instLoadSchools(); instLoadStats(); }
     else       instToast(r.data.message || 'Failed.', 'error');
   } catch(e) { instToast('Network error.', 'error'); }
@@ -924,7 +872,8 @@ async function instSuspend(id) {
 async function instActivate(id) {
   if (!confirm('Activate this institution?')) return;
   try {
-    var r = await apiRequest('/admin/institutions/' + id + '/activate', 'PUT');
+    /* ✅ FIXED */
+    var r = await instAdminApi('/institutions/' + id + '/activate', 'PUT');
     if (r.ok) { instToast(r.data.message, 'success'); instLoadSchools(); instLoadStats(); }
     else       instToast(r.data.message || 'Failed.', 'error');
   } catch(e) { instToast('Network error.', 'error'); }
@@ -932,35 +881,33 @@ async function instActivate(id) {
 
 /* ---- Delete ---- */
 async function instDelete(id, name) {
-  if (!confirm('PERMANENTLY DELETE "' + name + '" and ALL data?\n\nThis includes all teachers, exams, results, and subscriptions.\n\nThis CANNOT be undone.')) return;
-  if (!confirm('Are you absolutely sure? Type YES in the next prompt to confirm.')) return;
-  var confirm2 = prompt('Type YES to confirm deletion:');
-  if (confirm2 !== 'YES') { instToast('Deletion cancelled.', 'error'); return; }
+  if (!confirm('PERMANENTLY DELETE "' + name + '" and ALL data?\n\nThis CANNOT be undone.')) return;
+  var c2 = prompt('Type YES to confirm deletion:');
+  if (c2 !== 'YES') { instToast('Deletion cancelled.', 'error'); return; }
   try {
-    var r = await apiRequest('/admin/institutions/' + id, 'DELETE');
+    /* ✅ FIXED */
+    var r = await instAdminApi('/institutions/' + id, 'DELETE');
     if (r.ok) { instToast(r.data.message, 'success'); instLoadSchools(); instLoadStats(); }
     else       instToast(r.data.message || 'Failed.', 'error');
   } catch(e) { instToast('Network error.', 'error'); }
 }
 
-/* ---- Open subscription modal ---- */
+/* ---- Subscription modal ---- */
 function instOpenSubModal(id, name, expiry) {
   document.getElementById('instSubSchoolId').value = id;
   document.getElementById('instSubSchoolName').textContent = name;
   document.getElementById('instSubCurrentExpiry').textContent = expiry;
   document.getElementById('instSubAction').value = 'add_days';
-  document.getElementById('instSubDays').value  = '30';
-  document.getElementById('instSubNote').value  = '';
+  document.getElementById('instSubDays').value   = '30';
+  document.getElementById('instSubNote').value   = '';
   instSubActionChanged();
   document.getElementById('instSubModal').style.display = 'flex';
 }
 
 function instSubActionChanged() {
-  var action    = document.getElementById('instSubAction').value;
-  var daysWrap  = document.getElementById('instSubDaysWrap');
-  var planWrap  = document.getElementById('instSubPlanWrap');
-  daysWrap.style.display = (action === 'add_days')   ? 'block' : 'none';
-  planWrap.style.display = (action === 'set_plan')   ? 'block' : 'none';
+  var action = document.getElementById('instSubAction').value;
+  document.getElementById('instSubDaysWrap').style.display = (action === 'add_days') ? 'block' : 'none';
+  document.getElementById('instSubPlanWrap').style.display = (action === 'set_plan') ? 'block' : 'none';
 }
 
 async function instSaveSubscription() {
@@ -969,14 +916,13 @@ async function instSaveSubscription() {
   var days   = document.getElementById('instSubDays').value;
   var plan   = document.getElementById('instSubPlan').value;
   var note   = document.getElementById('instSubNote').value;
-
-  var body = { action, note };
-  if (action === 'add_days')  body.days = parseInt(days);
-  if (action === 'set_plan')  body.plan = plan;
+  var body   = { action, note };
+  if (action === 'add_days')       body.days = parseInt(days);
+  if (action === 'set_plan')       body.plan = plan;
   if (action === 'grant_unlimited') body.plan = plan;
-
   try {
-    var r = await apiRequest('/admin/institutions/' + id + '/subscription', 'PUT', body);
+    /* ✅ FIXED */
+    var r = await instAdminApi('/institutions/' + id + '/subscription', 'PUT', body);
     if (r.ok) {
       closeAdminModal('instSubModal');
       instToast(r.data.message, 'success');
@@ -985,12 +931,14 @@ async function instSaveSubscription() {
   } catch(e) { instToast('Network error.', 'error'); }
 }
 
-/* ---- Load plans ---- */
+/* ---- Plans ---- */
 async function instLoadPlans() {
   var tbody = document.getElementById('instPlansTable');
+  if (!tbody) return;
   tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:24px; color:var(--text-muted);">Loading...</td></tr>';
   try {
-    var r = await apiRequest('/admin/subscription-plans', 'GET');
+    /* ✅ FIXED */
+    var r = await instAdminApi('/subscription-plans');
     if (!r.ok) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#ff6584;">Failed.</td></tr>'; return; }
     var plans = r.data.plans || [];
     if (!plans.length) {
@@ -998,6 +946,7 @@ async function instLoadPlans() {
       return;
     }
     tbody.innerHTML = plans.map(function(p) {
+      var pStr = JSON.stringify(p).replace(/\\/g,'\\\\').replace(/'/g,'\\\'').replace(/"/g,"'");
       return '<tr>' +
         '<td style="font-weight:700; color:#fff;">' + p.name + (p.isPopular ? ' ⭐' : '') + '</td>' +
         '<td style="font-family:monospace; font-size:12px; color:#a78bfa;">' + p.code + '</td>' +
@@ -1006,48 +955,44 @@ async function instLoadPlans() {
         '<td>' + (p.maxTeachers === -1 ? '∞' : p.maxTeachers) + '</td>' +
         '<td>' + (p.maxStudents === -1 ? '∞' : p.maxStudents) + '</td>' +
         '<td>' + (p.isActive ? '<span class="badge badge-active">Active</span>' : '<span class="badge badge-expired">Disabled</span>') + '</td>' +
-        '<td>' +
-          '<div style="display:flex; gap:6px;">' +
-            '<button class="a-btn a-btn-secondary a-btn-sm" onclick="instOpenPlanModal(' + JSON.stringify(p).replace(/"/g,"'") + ')">✏ Edit</button>' +
-            '<button class="a-btn a-btn-' + (p.isActive ? 'danger' : 'green') + ' a-btn-sm" onclick="instTogglePlan(\'' + p._id + '\')">' + (p.isActive ? 'Disable' : 'Enable') + '</button>' +
-          '</div>' +
-        '</td>' +
+        '<td><div style="display:flex; gap:6px;">' +
+          '<button class="a-btn a-btn-secondary a-btn-sm" onclick=\'instOpenPlanModal(' + JSON.stringify(p) + ')\'>✏ Edit</button>' +
+          '<button class="a-btn a-btn-' + (p.isActive ? 'danger' : 'green') + ' a-btn-sm" onclick="instTogglePlan(\'' + p._id + '\')">' + (p.isActive ? 'Disable' : 'Enable') + '</button>' +
+        '</div></td>' +
       '</tr>';
     }).join('');
-  } catch(e) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#ff6584;">Error.</td></tr>'; }
+  } catch(e) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#ff6584;">Error: ' + e.message + '</td></tr>'; }
 }
 
-/* Load plans into select for subscription modal */
 async function instLoadPlansForSelect() {
   try {
-    var r = await apiRequest('/admin/subscription-plans', 'GET');
-    if (!r.ok) return;
-    var sel   = document.getElementById('instSubPlan');
-    if (!sel) return;
+    /* ✅ FIXED */
+    var r   = await instAdminApi('/subscription-plans');
+    var sel = document.getElementById('instSubPlan');
+    if (!sel || !r.ok) return;
     sel.innerHTML = (r.data.plans || []).map(function(p) {
       return '<option value="' + p.code + '">' + p.name + ' — ₦' + Number(p.price).toLocaleString() + '</option>';
     }).join('');
   } catch(e) { /* silent */ }
 }
 
-/* ---- Open plan create/edit modal ---- */
 function instOpenPlanModal(plan) {
   var isEdit = plan && plan._id;
   document.getElementById('instPlanModalTitle').textContent = isEdit ? 'Edit Plan' : 'Create Plan';
   document.getElementById('instPlanSaveBtn').textContent    = isEdit ? 'Save Changes' : 'Create Plan';
   document.getElementById('instPlanEditId').value   = isEdit ? plan._id : '';
-  document.getElementById('instPlanName').value     = isEdit ? plan.name        : '';
-  document.getElementById('instPlanCode').value     = isEdit ? plan.code        : '';
-  document.getElementById('instPlanPrice').value    = isEdit ? plan.price       : '';
-  document.getElementById('instPlanDays').value     = isEdit ? plan.durationDays: '';
-  document.getElementById('instPlanTeachers').value = isEdit ? plan.maxTeachers : '20';
-  document.getElementById('instPlanStudents').value = isEdit ? plan.maxStudents : '500';
-  document.getElementById('instPlanExams').value    = isEdit ? plan.maxExams    : '-1';
-  document.getElementById('instPlanOrder').value    = isEdit ? (plan.sortOrder||0) : '0';
-  document.getElementById('instPlanFeatures').value = isEdit ? (plan.features||[]).join('\n') : '';
-  document.getElementById('instPlanPopular').value  = isEdit ? String(plan.isPopular) : 'false';
-  document.getElementById('instPlanActive').value   = isEdit ? String(plan.isActive)  : 'true';
-  document.getElementById('instPlanCode').disabled  = isEdit; /* code cannot change once created */
+  document.getElementById('instPlanName').value     = isEdit ? (plan.name || '') : '';
+  document.getElementById('instPlanCode').value     = isEdit ? (plan.code || '') : '';
+  document.getElementById('instPlanPrice').value    = isEdit ? (plan.price || '') : '';
+  document.getElementById('instPlanDays').value     = isEdit ? (plan.durationDays || '') : '';
+  document.getElementById('instPlanTeachers').value = isEdit ? (plan.maxTeachers !== undefined ? plan.maxTeachers : 20) : '20';
+  document.getElementById('instPlanStudents').value = isEdit ? (plan.maxStudents !== undefined ? plan.maxStudents : 500) : '500';
+  document.getElementById('instPlanExams').value    = isEdit ? (plan.maxExams    !== undefined ? plan.maxExams    : -1)  : '-1';
+  document.getElementById('instPlanOrder').value    = isEdit ? (plan.sortOrder   || 0) : '0';
+  document.getElementById('instPlanFeatures').value = isEdit ? ((plan.features || []).join('\n')) : '';
+  document.getElementById('instPlanPopular').value  = isEdit ? String(!!plan.isPopular) : 'false';
+  document.getElementById('instPlanActive').value   = isEdit ? String(plan.isActive !== false) : 'true';
+  document.getElementById('instPlanCode').disabled  = !!isEdit;
   document.getElementById('instPlanModal').style.display = 'flex';
 }
 
@@ -1065,15 +1010,16 @@ async function instSavePlan() {
     maxExams:    Number(document.getElementById('instPlanExams').value),
     sortOrder:   Number(document.getElementById('instPlanOrder').value),
     features,
-    isPopular:   document.getElementById('instPlanPopular').value === 'true',
-    isActive:    document.getElementById('instPlanActive').value  === 'true'
+    isPopular: document.getElementById('instPlanPopular').value === 'true',
+    isActive:  document.getElementById('instPlanActive').value  === 'true'
   };
   if (!body.name || !body.code || isNaN(body.price) || isNaN(body.durationDays)) {
     instToast('Please fill in all required fields.', 'error'); return;
   }
   try {
-    var url = isEdit ? '/admin/subscription-plans/' + id : '/admin/subscription-plans';
-    var r   = await apiRequest(url, isEdit ? 'PUT' : 'POST', body);
+    /* ✅ FIXED */
+    var url = isEdit ? '/subscription-plans/' + id : '/subscription-plans';
+    var r   = await instAdminApi(url, isEdit ? 'PUT' : 'POST', body);
     if (r.ok) {
       closeAdminModal('instPlanModal');
       instToast(r.data.message, 'success');
@@ -1084,7 +1030,8 @@ async function instSavePlan() {
 
 async function instTogglePlan(id) {
   try {
-    var r = await apiRequest('/admin/subscription-plans/' + id + '/toggle', 'PUT');
+    /* ✅ FIXED */
+    var r = await instAdminApi('/subscription-plans/' + id + '/toggle', 'PUT');
     if (r.ok) { instToast(r.data.message, 'success'); instLoadPlans(); }
     else       instToast(r.data.message || 'Failed.', 'error');
   } catch(e) { instToast('Network error.', 'error'); }
@@ -1093,7 +1040,8 @@ async function instTogglePlan(id) {
 /* ---- Announcements ---- */
 async function instLoadSchoolsForSelect() {
   try {
-    var r   = await apiRequest('/admin/institutions?limit=100', 'GET');
+    /* ✅ FIXED */
+    var r   = await instAdminApi('/institutions?limit=100');
     var sel = document.getElementById('instAnnouncementSchoolId');
     if (!sel || !r.ok) return;
     sel.innerHTML = '<option value="">-- Select institution --</option>' +
@@ -1104,9 +1052,8 @@ async function instLoadSchoolsForSelect() {
 }
 
 function instTargetChanged() {
-  var target = document.getElementById('instAnnouncementTarget').value;
-  var wrap   = document.getElementById('instAnnouncementSchoolWrap');
-  if (wrap) wrap.style.display = (target === 'specific') ? 'block' : 'none';
+  var wrap = document.getElementById('instAnnouncementSchoolWrap');
+  if (wrap) wrap.style.display = (document.getElementById('instAnnouncementTarget').value === 'specific') ? 'block' : 'none';
 }
 
 async function instSendAnnouncement() {
@@ -1115,12 +1062,11 @@ async function instSendAnnouncement() {
   var title    = document.getElementById('instAnnouncementTitle').value.trim();
   var message  = document.getElementById('instAnnouncementMsg').value.trim();
   var type     = document.getElementById('instAnnouncementType').value;
-
   if (!title || !message) { instToast('Title and message are required.', 'error'); return; }
   if (target === 'specific' && !schoolId) { instToast('Please select an institution.', 'error'); return; }
-
   try {
-    var r = await apiRequest('/admin/institutions/announcements', 'POST', { schoolId, title, message, type });
+    /* ✅ FIXED */
+    var r = await instAdminApi('/institutions/announcements', 'POST', { schoolId, title, message, type });
     if (r.ok) {
       instToast(r.data.message, 'success');
       document.getElementById('instAnnouncementTitle').value = '';
@@ -1132,15 +1078,17 @@ async function instSendAnnouncement() {
 
 async function instLoadAnnouncements() {
   var list = document.getElementById('instAnnouncementsList');
+  if (!list) return;
   list.innerHTML = '<div style="color:var(--text-muted); font-size:13px; padding:12px;">Loading...</div>';
   try {
-    var r = await apiRequest('/admin/institutions/announcements?limit=10', 'GET');
+    /* ✅ FIXED */
+    var r = await instAdminApi('/institutions/announcements?limit=10');
     if (!r.ok) { list.innerHTML = '<p style="color:#ff6584; font-size:13px;">Failed.</p>'; return; }
     var items = r.data.announcements || [];
     if (!items.length) { list.innerHTML = '<p style="color:var(--text-muted); font-size:13px;">No announcements yet.</p>'; return; }
     var typeColors = { info:'#a78bfa', warning:'#ffa500', success:'#43e97b', maintenance:'#ff8e53' };
     list.innerHTML = items.map(function(a) {
-      var color = typeColors[a.type] || '#a78bfa';
+      var color  = typeColors[a.type] || '#a78bfa';
       var target = a.schoolId ? (a.schoolId.name || 'School') : 'All Institutions';
       return '<div style="padding:12px; border-bottom:1px solid var(--border); border-left:3px solid ' + color + ';">' +
         '<div style="font-weight:700; color:#fff; font-size:14px;">' + a.title + '</div>' +
@@ -1154,9 +1102,11 @@ async function instLoadAnnouncements() {
 /* ---- Audit logs ---- */
 async function instLoadLogs() {
   var tbody = document.getElementById('instLogsTable');
+  if (!tbody) return;
   tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color:var(--text-muted);">Loading...</td></tr>';
   try {
-    var r = await apiRequest('/admin/institution-logs?limit=30', 'GET');
+    /* ✅ FIXED */
+    var r = await instAdminApi('/institution-logs?limit=30');
     if (!r.ok) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#ff6584;">Failed.</td></tr>'; return; }
     var logs = r.data.logs || [];
     if (!logs.length) {
@@ -1165,7 +1115,7 @@ async function instLoadLogs() {
     }
     tbody.innerHTML = logs.map(function(l) {
       return '<tr>' +
-        '<td style="font-size:12px; font-family:monospace; color:#a78bfa;">' + l.action + '</td>' +
+        '<td style="font-size:12px; font-family:monospace; color:#a78bfa;">' + (l.action || '—') + '</td>' +
         '<td style="font-size:13px; color:#fff;">' + (l.actorEmail || '—') + '</td>' +
         '<td style="font-size:12px; color:var(--text-muted);">' + (l.schoolId || '—') + '</td>' +
         '<td>' + (l.success ? '<span class="badge badge-active">OK</span>' : '<span class="badge badge-suspended">FAIL</span>') + '</td>' +
@@ -1175,12 +1125,8 @@ async function instLoadLogs() {
   } catch(e) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#ff6584;">Error.</td></tr>'; }
 }
 
-/* ---- Hook into showAdminSection ---- */
-/* Override or extend existing showAdminSection to trigger instOnActivate */
-var _origShowAdminSection = typeof showAdminSection === 'function' ? showAdminSection : null;
-/* We patch by listening to the section — safe approach */
+/* ---- MutationObserver auto-trigger when section becomes visible ---- */
 document.addEventListener('DOMContentLoaded', function() {
-  /* Watch for institutions section being shown by MutationObserver */
   var target = document.getElementById('as-institutions');
   if (!target) return;
   var observer = new MutationObserver(function(mutations) {
