@@ -74,6 +74,7 @@ app.use("/api/institution/student",    require("./institution/routes/inst.studen
 app.use("/api/institution/superadmin", require("./institution/routes/inst.superadmin.routes"));
 /* ✅ FIX: Payment route was missing — webhook was unreachable */
 app.use("/api/institution/payment",    require("./institution/routes/inst.payment.routes"));
+app.use("/api/institution/structure",  require("./institution/routes/inst.structure.routes"));
 /* ============================================
    HEALTH CHECK
 ============================================ */

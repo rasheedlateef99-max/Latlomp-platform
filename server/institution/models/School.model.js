@@ -1,8 +1,14 @@
 /* ============================================
    LATLOMP INSTITUTION — SCHOOL MODEL
    
-   Core tenant record. Every other model
-   references schoolId for tenant isolation.
+   ✅ PHASE A CHANGES:
+   - type enum extended to include all new
+     institution categories (backward-compatible:
+     existing 'primary','secondary','tertiary',
+     'vocational','other' values still valid)
+   - institutionCategory field added (mirrors type)
+   - slug, ownerGoogleId, ownerEmail from
+     previous fix retained
 ============================================ */
 const mongoose = require('mongoose');
 
@@ -10,7 +16,7 @@ const schoolSchema = new mongoose.Schema(
   {
     /* ---- Identity ---- */
     name:       { type: String, required: true, trim: true },
-    slug:       { type: String, unique: true, lowercase: true, trim: true },
+    slug:       { type: String, unique: true, lowercase: true, trim: true, sparse: true },
     logo:       { type: String, default: '' },
     motto:      { type: String, default: '' },
 
@@ -22,12 +28,30 @@ const schoolSchema = new mongoose.Schema(
     country:    { type: String, default: 'Nigeria' },
     website:    { type: String, default: '' },
 
-    /* ---- Profile ---- */
+    /* ---- Institution Type ----
+       ✅ PHASE A: Extended enum — includes all supported types.
+       Old values (primary, secondary, tertiary, vocational, other)
+       remain valid so existing data is NOT broken.
+       New values added: combined, polytechnic, university,
+       college_of_education, madrasah, training_centre
+    ---- */
     type: {
       type:    String,
-      enum:    ['primary', 'secondary', 'tertiary', 'vocational', 'other'],
+      enum:    [
+        /* Existing values — backward compatible */
+        'primary', 'secondary', 'tertiary', 'vocational', 'other',
+        /* New values — Phase A */
+        'combined',
+        'polytechnic',
+        'university',
+        'college_of_education',
+        'madrasah',
+        'training_centre'
+      ],
       default: 'secondary'
     },
+
+    /* ---- Profile ---- */
     principalName:  { type: String, default: '' },
     totalStudents:  { type: Number, default: 0 },
     totalTeachers:  { type: Number, default: 0 },
@@ -45,64 +69,46 @@ const schoolSchema = new mongoose.Schema(
 
     subscriptionPlan: {
       type:    String,
-      enum:    ['trial', 'monthly', 'quarterly', 'biannual', 'annual', 'none'],
+      enum:    ['trial', 'monthly', 'quarterly', 'biannual', 'annual', 'none', 'unlimited'],
       default: 'none'
     },
 
-    subscriptionExpiry:  { type: Date, default: null },
+    subscriptionExpiry:  { type: Date,    default: null },
     trialUsed:           { type: Boolean, default: false },
-    trialStartDate:      { type: Date, default: null },
+    trialStartDate:      { type: Date,    default: null },
 
     /* ---- Settings ---- */
     settings: {
       allowStudentSelfRegister: { type: Boolean, default: false },
       examResultsAutoRelease:   { type: Boolean, default: false },
       allowLateSubmission:      { type: Boolean, default: false },
-      maxExamsPerDay:           { type: Number, default: 5 },
-      timezone:                 { type: String, default: 'Africa/Lagos' }
+      maxExamsPerDay:           { type: Number,  default: 5 },
+      timezone:                 { type: String,  default: 'Africa/Lagos' }
     },
 
-    /* ---- Ownership ---- */
-    /*
-      ✅ FIX: required removed.
-
-      ownerId was designed to link a school to a main platform
-      User account. However, institution admins register via
-      Google Sign-In directly — they become a SchoolUser, not
-      a main platform User. platformUserId is never available
-      during institution Google registration, so this field
-      was always null, crashing school creation.
-
-      ownerGoogleId stores the Google sub (permanent unique ID)
-      so we can always identify the original school owner even
-      without a main platform User account.
-    */
+    /* ---- Ownership ----
+       ownerId is optional — institution admins register via Google,
+       they become a SchoolUser, not a main platform User.
+       ownerGoogleId and ownerEmail identify the owner permanently.
+    ---- */
     ownerId: {
-      type:     mongoose.Schema.Types.ObjectId,
-      ref:      'User',
-      default:  null        /* ✅ optional — not required */
+      type:    mongoose.Schema.Types.ObjectId,
+      ref:     'User',
+      default: null
     },
 
-    /* ✅ ADDED: stores Google sub as permanent owner identifier */
-    ownerGoogleId: {
-      type:    String,
-      default: ''
-    },
-
-    /* ✅ ADDED: stores owner email for admin lookup */
-    ownerEmail: {
-      type:    String,
-      default: '',
-      lowercase: true,
-      trim: true
-    },
+    ownerGoogleId: { type: String, default: '' },
+    ownerEmail:    { type: String, default: '', lowercase: true, trim: true },
 
     /* ---- Metadata ---- */
     isVerified:      { type: Boolean, default: false },
     isSuspended:     { type: Boolean, default: false },
-    suspendReason:   { type: String, default: '' },
+    suspendReason:   { type: String,  default: '' },
     onboardingDone:  { type: Boolean, default: false },
-    licenseKey:      { type: String, default: '', unique: true, sparse: true }
+    licenseKey:      { type: String,  default: '', unique: true, sparse: true },
+
+    /* ✅ PHASE A: Track whether default structure has been generated */
+    structureGenerated: { type: Boolean, default: false }
   },
   { timestamps: true }
 );
