@@ -11,6 +11,10 @@
    Examples:
      Polytechnic:  Computer Science, Electrical Engineering
      University:   Faculty of Science → Dept of Physics
+   
+   ✅ FIX: Registered as 'SchoolDepartment' (not 'Department')
+      to avoid collision with the main platform's CBT
+      Department model which is already registered.
 ============================================ */
 const mongoose = require('mongoose');
 
@@ -33,9 +37,9 @@ const departmentSchema = new mongoose.Schema(
 
     /* Short code for the department */
     code: {
-      type:    String,
-      default: '',
-      trim:    true,
+      type:      String,
+      default:   '',
+      trim:      true,
       uppercase: true
       /* e.g. "CSC", "MEE" */
     },
@@ -55,7 +59,7 @@ const departmentSchema = new mongoose.Schema(
       default: null
     },
 
-    description: { type: String, default: '' },
+    description: { type: String,  default: '' },
     isActive:    { type: Boolean, default: true },
     sortOrder:   { type: Number,  default: 0 }
   },
@@ -65,4 +69,5 @@ const departmentSchema = new mongoose.Schema(
 departmentSchema.index({ schoolId: 1, isActive: 1 });
 departmentSchema.index({ schoolId: 1, name: 1 });
 
-module.exports = mongoose.model('Department', departmentSchema);
+/* ✅ FIX: 'SchoolDepartment' — avoids collision with CBT Department model */
+module.exports = mongoose.model('SchoolDepartment', departmentSchema);
