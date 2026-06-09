@@ -1,11 +1,12 @@
 /* ============================================
    LATLOMP INSTITUTION — SCHOOL EXAM MODEL
    
-   ✅ PHASE A CHANGES:
-   - classId added (optional ref to SchoolClass)
-   - subjectId added (optional ref to SchoolSubject)
-   - termId added (optional ref to AcademicTerm)
-   All three are nullable — existing exams not broken.
+   ✅ CBT UPGRADE CHANGES:
+   - examYear added (e.g. 2025)
+   - scheduledStart/scheduledEnd now ENFORCED
+     in student route (not just stored)
+   - shuffleOptions re-enabled with safe
+     per-session index mapping approach
 ============================================ */
 const mongoose = require('mongoose');
 
@@ -15,36 +16,22 @@ const schoolExamSchema = new mongoose.Schema(
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'SchoolUser', required: true },
 
     /* ---- Identity ---- */
-    title:       { type: String, required: true, trim: true },
-    subject:     { type: String, required: true },
-    class:       { type: String, default: '' },
-    term:        { type: String, enum: ['first','second','third',''], default: '' },
-    session:     { type: String, default: '' },
+    title:   { type: String, required: true, trim: true },
+    subject: { type: String, required: true },
+    class:   { type: String, default: '' },
+    term:    { type: String, enum: ['first','second','third',''], default: '' },
+    session: { type: String, default: '' },
 
-    /* ---- ✅ PHASE A: Structured references (all optional) ---- */
-    classId: {
-      type:    mongoose.Schema.Types.ObjectId,
-      ref:     'SchoolClass',
-      default: null
-      /* Links to the Class model. Old exams with class as plain
-         string remain valid. New exams can reference the model. */
+    /* ✅ NEW: Dedicated exam year field */
+    examYear: {
+      type:    Number,
+      default: function() { return new Date().getFullYear(); }
     },
 
-    subjectId: {
-      type:    mongoose.Schema.Types.ObjectId,
-      ref:     'SchoolSubject',
-      default: null
-      /* Links to the Subject model. Old exams with subject as plain
-         string remain valid. New exams can reference the model. */
-    },
-
-    termId: {
-      type:    mongoose.Schema.Types.ObjectId,
-      ref:     'AcademicTerm',
-      default: null
-      /* Links to the AcademicTerm model. Allows grouping
-         all exams by term for reports and analytics. */
-    },
+    /* ---- Phase A structure refs ---- */
+    classId:   { type: mongoose.Schema.Types.ObjectId, ref: 'SchoolClass',   default: null },
+    subjectId: { type: mongoose.Schema.Types.ObjectId, ref: 'SchoolSubject', default: null },
+    termId:    { type: mongoose.Schema.Types.ObjectId, ref: 'AcademicTerm',  default: null },
 
     /* ---- Type ---- */
     examType: {
@@ -58,16 +45,27 @@ const schoolExamSchema = new mongoose.Schema(
     instructions: { type: String, default: '' },
 
     /* ---- Settings ---- */
-    duration:           { type: Number,  default: 60 },
-    totalQuestions:     { type: Number,  default: 0 },
-    totalMarks:         { type: Number,  default: 100 },
-    passMark:           { type: Number,  default: 50 },
-    shuffleQuestions:   { type: Boolean, default: true },
-    shuffleOptions:     { type: Boolean, default: false },
-    showResultsAfter:   { type: Boolean, default: false },
-    allowLateEntry:     { type: Boolean, default: false },
+    duration:         { type: Number,  default: 60 },
+    totalQuestions:   { type: Number,  default: 0 },
+    totalMarks:       { type: Number,  default: 100 },
+    passMark:         { type: Number,  default: 50 },
+    shuffleQuestions: { type: Boolean, default: true },
 
-    /* ---- Schedule ---- */
+    /* ✅ FIXED: shuffleOptions re-enabled.
+       Options are shuffled per-student session.
+       The shuffled index mapping is embedded in
+       the session token so correct answer lookup
+       always uses the original DB index. */
+    shuffleOptions: { type: Boolean, default: false },
+
+    showResultsAfter: { type: Boolean, default: false },
+    allowLateEntry:   { type: Boolean, default: false },
+
+    /* ---- ✅ Activation window ----
+       Students CANNOT use the access code outside
+       this window. Both are optional — if null the
+       exam is open from publish until manually ended.
+    ---- */
     scheduledStart: { type: Date, default: null },
     scheduledEnd:   { type: Date, default: null },
 
@@ -89,7 +87,6 @@ const schoolExamSchema = new mongoose.Schema(
 
 schoolExamSchema.index({ schoolId: 1, status: 1 });
 schoolExamSchema.index({ accessCode: 1 });
-/* ✅ PHASE A: New indexes for structure-based filtering */
 schoolExamSchema.index({ schoolId: 1, classId: 1 });
 schoolExamSchema.index({ schoolId: 1, subjectId: 1 });
 schoolExamSchema.index({ schoolId: 1, termId: 1 });

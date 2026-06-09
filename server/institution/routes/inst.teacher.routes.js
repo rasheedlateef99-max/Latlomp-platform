@@ -1,5 +1,11 @@
 /* ============================================
    LATLOMP INSTITUTION — TEACHER ROUTES
+   
+   ✅ CBT UPGRADE CHANGES:
+   - examYear added to create/update
+   - scheduledStart/scheduledEnd exposed
+     properly in create/update (they existed
+     in model but were not passed through)
 ============================================ */
 const express        = require('express');
 const router         = express.Router();
@@ -12,7 +18,6 @@ const { requireActiveSubscription }   = require('../middleware/inst.tenant');
 
 var guard = [instProtect, teacherOrAdmin, requireActiveSubscription];
 
-/* Fisher-Yates */
 function shuffle(arr) {
   var a = arr.slice();
   for (var i = a.length - 1; i > 0; i--) {
@@ -33,13 +38,17 @@ router.post('/exams', guard, async (req, res) => {
       class:            req.body.class            || '',
       term:             req.body.term             || '',
       session:          req.body.session          || '',
+      /* ✅ NEW */
+      examYear:         parseInt(req.body.examYear) || new Date().getFullYear(),
       examType:         req.body.examType         || 'objective',
       instructions:     req.body.instructions     || '',
       duration:         parseInt(req.body.duration)   || 60,
       totalMarks:       parseInt(req.body.totalMarks) || 100,
       passMark:         parseInt(req.body.passMark)   || 50,
       shuffleQuestions: req.body.shuffleQuestions !== false,
+      shuffleOptions:   !!req.body.shuffleOptions,
       showResultsAfter: req.body.showResultsAfter || false,
+      /* ✅ Now properly passed through */
       scheduledStart:   req.body.scheduledStart   || null,
       scheduledEnd:     req.body.scheduledEnd     || null,
       status: 'draft'
@@ -84,9 +93,13 @@ router.put('/exams/:id', guard, async (req, res) => {
     if (exam.status === 'active') {
       return res.status(400).json({ success: false, message: 'Cannot edit an active exam.' });
     }
-    var fields = ['title','subject','class','term','session','instructions','duration',
-                  'totalMarks','passMark','shuffleQuestions','showResultsAfter',
-                  'scheduledStart','scheduledEnd'];
+    /* ✅ examYear, shuffleOptions, scheduledStart/End now included */
+    var fields = [
+      'title','subject','class','term','session','examYear',
+      'instructions','duration','totalMarks','passMark',
+      'shuffleQuestions','shuffleOptions','showResultsAfter',
+      'scheduledStart','scheduledEnd'
+    ];
     fields.forEach(function(f) { if (req.body[f] !== undefined) exam[f] = req.body[f]; });
     await exam.save();
     return res.status(200).json({ success: true, message: 'Exam updated.', exam });
@@ -199,8 +212,6 @@ router.get('/exams/:id/results', guard, async (req, res) => {
 });
 
 /* ---- Grade theory questions ---- */
-/* ✅ FIX: Removed duplicate route. Was defined twice causing the
-   second definition to be unreachable. Kept single clean version. */
 router.post('/results/:id/grade', guard, async (req, res) => {
   try {
     var result = await SchoolResult.findOne({ _id: req.params.id, schoolId: req.schoolId });
@@ -223,14 +234,14 @@ router.post('/results/:id/grade', guard, async (req, res) => {
       }
     });
 
-    result.theoryScore   = theoryScore;
-    result.theoryMarked  = true;
-    result.markedBy      = req.schoolUser._id;
-    result.markedAt      = new Date();
-    var totalScore       = result.objectiveScore + theoryScore;
-    result.score         = totalScore;
-    result.scorePercent  = result.totalMarks > 0 ? Math.round((totalScore / result.totalMarks) * 100) : 0;
-    result.isPassed      = result.scorePercent >= result.passMark;
+    result.theoryScore  = theoryScore;
+    result.theoryMarked = true;
+    result.markedBy     = req.schoolUser._id;
+    result.markedAt     = new Date();
+    var totalScore      = result.objectiveScore + theoryScore;
+    result.score        = totalScore;
+    result.scorePercent = result.totalMarks > 0 ? Math.round((totalScore / result.totalMarks) * 100) : 0;
+    result.isPassed     = result.scorePercent >= result.passMark;
 
     await result.save();
     return res.status(200).json({ success: true, message: 'Theory marked.', result });
@@ -239,21 +250,12 @@ router.post('/results/:id/grade', guard, async (req, res) => {
   }
 });
 
-/* ============================================
-   GET /api/institution/teacher/analytics
-   Analytics scoped to this teacher's exams.
-   School admins see all exams in the school.
-   ✅ NEW ENDPOINT — was missing, causing analytics page to fail
-============================================ */
+/* ---- Analytics ---- */
 router.get('/analytics', guard, async (req, res) => {
   try {
-    var schoolId = req.schoolId;
-
-    /* School admins see all exams; teachers see only their own */
+    var schoolId   = req.schoolId;
     var examFilter = { schoolId };
-    if (req.schoolUser.role === 'teacher') {
-      examFilter.createdBy = req.schoolUser._id;
-    }
+    if (req.schoolUser.role === 'teacher') examFilter.createdBy = req.schoolUser._id;
 
     var exams = await SchoolExam.find(examFilter)
       .select('_id title subject class status totalAttempts createdAt')
@@ -276,10 +278,6 @@ router.get('/analytics', guard, async (req, res) => {
     var lowestScore      = scores.length > 0 ? Math.min.apply(null, scores) : 0;
     var needsGrading     = allResults.filter(function(r) { return !r.theoryMarked; }).length;
 
-    /* Per-exam stats */
-    var examMap = {};
-    exams.forEach(function(e) { examMap[e._id.toString()] = e; });
-
     var examStats = exams.map(function(exam) {
       var eResults = allResults.filter(function(r) {
         return r.examId && r.examId.toString() === exam._id.toString();
@@ -300,7 +298,6 @@ router.get('/analytics', guard, async (req, res) => {
       };
     });
 
-    /* Timeline — last 30 days */
     var thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
     var timelineMap   = {};
     allResults.filter(function(r) { return new Date(r.createdAt) >= thirtyDaysAgo; })
@@ -323,7 +320,6 @@ router.get('/analytics', guard, async (req, res) => {
       examStats,
       timeline
     });
-
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }

@@ -1,100 +1,107 @@
 /* ============================================
    LATLOMP PLATFORM — TEACHER EXAM MODEL
-   ============================================
-   This stores exams created by teachers.
    
-   Key difference from the CBT exam system:
-   - Teachers set their OWN exam code manually
-   - Students use this code to enter the exam
-   - Supports Objective, Theory, or Both types
-   ============================================ */
-
+   ✅ CBT UPGRADE CHANGES:
+   - examYear added (e.g. 2025)
+   - activatesAt added (code not valid before this)
+   - expiresAt added (code not valid after this)
+============================================ */
 const mongoose = require('mongoose');
 
 const teacherExamSchema = new mongoose.Schema(
   {
-    // Which teacher created this exam
     teacherId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      type:     mongoose.Schema.Types.ObjectId,
+      ref:      'User',
       required: [true, 'Teacher ID is required']
     },
 
-    // Basic exam info
     title: {
-      type: String,
+      type:     String,
       required: [true, 'Exam title is required'],
-      trim: true,
-      maxlength: [100, 'Title cannot exceed 100 characters']
+      trim:     true,
+      maxlength:[100, 'Title cannot exceed 100 characters']
     },
 
     subject: {
-      type: String,
+      type:     String,
       required: [true, 'Subject is required'],
-      trim: true
+      trim:     true
     },
 
-    // Type of exam
     examType: {
-      type: String,
-      enum: ['objective', 'theory', 'both'],
+      type:     String,
+      enum:     ['objective', 'theory', 'both'],
       required: [true, 'Exam type is required']
     },
 
-    // How long students have (in minutes)
     duration: {
-      type: Number,
+      type:     Number,
       required: [true, 'Duration is required'],
-      min: [1, 'Duration must be at least 1 minute']
+      min:      [1, 'Duration must be at least 1 minute']
     },
 
-    // THE EXAM CODE — teacher types this manually
-    // Students use this exact code to enter the exam
+    /* ✅ NEW: Dedicated year field */
+    examYear: {
+      type:    Number,
+      default: function() { return new Date().getFullYear(); }
+    },
+
     examCode: {
-      type: String,
+      type:     String,
       required: [true, 'Exam code is required'],
-      unique: true,              // No two exams can share the same code
-      uppercase: true,           // Always stored as uppercase (e.g. MATH2025)
-      trim: true,
-      minlength: [4,  'Exam code must be at least 4 characters'],
-      maxlength: [20, 'Exam code cannot exceed 20 characters'],
-      match: [
-        /^[A-Z0-9]+$/,
-        'Exam code can only contain letters and numbers (no spaces)'
-      ]
+      unique:   true,
+      uppercase:true,
+      trim:     true,
+      minlength:[4,  'Exam code must be at least 4 characters'],
+      maxlength:[20, 'Exam code cannot exceed 20 characters'],
+      match:    [/^[A-Z0-9]+$/, 'Exam code can only contain letters and numbers']
     },
 
-    // Optional instructions shown to students
     instructions: {
-      type: String,
-      default: 'Read all questions carefully before answering.',
-      maxlength: [500, 'Instructions cannot exceed 500 characters']
+      type:     String,
+      default:  'Read all questions carefully before answering.',
+      maxlength:[500, 'Instructions cannot exceed 500 characters']
     },
 
-    // Pass mark percentage
     passMark: {
-      type: Number,
+      type:    Number,
       default: 50,
-      min: 0,
-      max: 100
+      min:     0,
+      max:     100
     },
 
-    // Is this exam open for students to access?
     isActive: {
-      type: Boolean,
+      type:    Boolean,
       default: true
     },
 
-    // Track how many students attempted this exam
+    /* ✅ NEW: Activation window.
+       Students cannot use the code before activatesAt
+       or after expiresAt. Both are optional — null
+       means no restriction in that direction. */
+    activatesAt: {
+      type:    Date,
+      default: null
+      /* Example: new Date('2025-06-10T14:00:00') */
+    },
+
+    expiresAt: {
+      type:    Date,
+      default: null
+      /* Example: new Date('2025-06-10T14:30:00') */
+    },
+
     totalAttempts: {
-      type: Number,
+      type:    Number,
       default: 0
     }
   },
-  {
-    timestamps: true // adds createdAt and updatedAt automatically
-  }
+  { timestamps: true }
 );
+
+teacherExamSchema.index({ teacherId: 1 });
+teacherExamSchema.index({ examCode: 1 });
 
 const TeacherExam = mongoose.model('TeacherExam', teacherExamSchema);
 module.exports = TeacherExam;

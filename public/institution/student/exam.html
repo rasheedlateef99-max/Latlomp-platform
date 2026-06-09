@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Student Exam — LatLomp Institution</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <!-- ✅ KaTeX for math/science equations -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" crossorigin="anonymous" />
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js" crossorigin="anonymous"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"
+    crossorigin="anonymous" onload="window._katexReady = true;"></script>
+
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     :root {
@@ -22,11 +29,9 @@
     @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
     @keyframes pulse  { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
 
-    /* ---- SCREENS ---- */
     .screen { display:none; min-height:100vh; padding:24px 20px; align-items:center; justify-content:center; flex-direction:column; }
     .screen.active { display:flex; animation:fadeUp 0.3s ease; }
 
-    /* ---- ENTRY SCREEN ---- */
     .entry-card { background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:36px 30px; width:100%; max-width:420px; }
     .entry-logo { font-size:48px; margin-bottom:12px; }
     .entry-title { font-size:22px; font-weight:800; margin:0 0 6px; }
@@ -43,7 +48,6 @@
 
     .err-box { display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); padding:12px 16px; border-radius:8px; font-size:13px; margin-bottom:16px; line-height:1.5; }
 
-    /* ---- BRIEFING SCREEN ---- */
     .briefing-card { background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:36px 30px; width:100%; max-width:480px; }
     .school-logo-wrap { display:flex; align-items:center; gap:12px; margin-bottom:24px; padding-bottom:20px; border-bottom:1px solid var(--border); }
     .school-logo-img  { width:52px; height:52px; border-radius:10px; object-fit:cover; }
@@ -57,20 +61,10 @@
 
     .instructions-box { background:rgba(108,99,255,0.06); border:1px solid rgba(108,99,255,0.2); border-radius:10px; padding:14px 16px; font-size:13px; color:#a0a0c0; line-height:1.7; margin-bottom:24px; }
 
-    /* ---- EXAM SCREEN ---- */
-    #examScreen {
-      display:none; flex-direction:column;
-      height:100vh; height:100dvh;
-      overflow:hidden;
-    }
+    #examScreen { display:none; flex-direction:column; height:100vh; height:100dvh; overflow:hidden; }
     #examScreen.active { display:flex; }
 
-    .exam-topbar {
-      display:flex; align-items:center; justify-content:space-between;
-      padding:0 16px; height:54px;
-      background:var(--dark-2); border-bottom:1px solid var(--border);
-      flex-shrink:0; gap:10px;
-    }
+    .exam-topbar { display:flex; align-items:center; justify-content:space-between; padding:0 16px; height:54px; background:var(--dark-2); border-bottom:1px solid var(--border); flex-shrink:0; gap:10px; }
     .exam-title-tag { font-size:13px; font-weight:700; color:#a78bfa; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; }
 
     .timer-display { font-size:15px; font-weight:900; font-family:monospace; padding:6px 12px; border-radius:8px; white-space:nowrap; flex-shrink:0; transition:all 0.3s; background:rgba(67,233,123,0.1); border:1px solid rgba(67,233,123,0.25); color:var(--green); }
@@ -85,7 +79,11 @@
     .exam-body { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:20px 16px 24px; }
 
     .q-counter { font-size:12px; font-weight:700; color:#6b6b8a; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px; }
-    .q-text    { font-size:17px; font-weight:600; color:#fff; line-height:1.6; margin-bottom:20px; }
+    .q-text    { font-size:17px; font-weight:600; color:#fff; line-height:1.7; margin-bottom:20px; }
+
+    /* ✅ KaTeX display math centering */
+    .q-text .katex-display { margin: 12px 0; }
+
     .q-image   { max-width:100%; border-radius:10px; margin-bottom:16px; }
 
     .options-list { display:flex; flex-direction:column; gap:11px; margin-bottom:28px; }
@@ -100,9 +98,11 @@
     .option-btn:active:not(:disabled) { transform:scale(0.99); }
     .opt-letter { width:28px; height:28px; border-radius:50%; border:1px solid var(--border); background:rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:#6b6b8a; flex-shrink:0; transition:all 0.15s; }
     .option-btn.selected .opt-letter { background:var(--primary); border-color:var(--primary); color:#fff; }
-    .opt-text  { font-size:15px; color:#fff; line-height:1.5; flex:1; }
+    .opt-text  { font-size:15px; color:#fff; line-height:1.6; flex:1; }
 
-    /* Theory input */
+    /* ✅ KaTeX in options */
+    .opt-text .katex { font-size: 1em; }
+
     .theory-input { width:100%; min-height:140px; background:rgba(255,255,255,0.04); border:2px solid var(--border); border-radius:12px; padding:14px; color:#fff; font-size:14px; font-family:inherit; resize:vertical; outline:none; transition:border-color 0.2s; }
     .theory-input:focus { border-color:var(--primary); }
     .theory-input::placeholder { color:#6b6b8a; }
@@ -117,7 +117,6 @@
 
     .q-grid-btn { padding:8px 13px; background:rgba(255,255,255,0.06); border:1px solid var(--border); color:#a0a0c0; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; border-radius:8px; white-space:nowrap; flex-shrink:0; }
 
-    /* Q Navigator overlay */
     .q-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:500; display:none; flex-direction:column; align-items:flex-end; }
     .q-overlay.open { display:flex; }
     .q-panel { background:var(--dark-2); border-left:1px solid var(--border); width:min(300px,88vw); height:100%; padding:20px; overflow-y:auto; }
@@ -128,7 +127,6 @@
     .q-dot.answered { background:rgba(67,233,123,0.15); border-color:rgba(67,233,123,0.3); color:var(--green); }
     .q-dot.current  { background:rgba(108,99,255,0.25); border-color:var(--primary); color:#a78bfa; }
 
-    /* ---- RESULT SCREEN ---- */
     .result-card { background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:40px 28px; width:100%; max-width:440px; text-align:center; }
     .result-emoji  { font-size:64px; margin-bottom:16px; }
     .result-title  { font-size:26px; font-weight:900; margin:0 0 8px; }
@@ -148,7 +146,7 @@
 </head>
 <body>
 
-<!-- ===== ENTRY SCREEN ===== -->
+<!-- ENTRY SCREEN -->
 <div class="screen active" id="entryScreen">
   <div class="entry-card">
     <div class="entry-logo">🎓</div>
@@ -173,10 +171,9 @@
   </div>
 </div>
 
-<!-- ===== BRIEFING SCREEN ===== -->
+<!-- BRIEFING SCREEN -->
 <div class="screen" id="briefingScreen">
   <div class="briefing-card">
-
     <div class="school-logo-wrap">
       <div id="briefSchoolLogo" class="school-logo-icon">🏫</div>
       <div>
@@ -197,19 +194,17 @@
     <div id="briefInstructions" class="instructions-box" style="display:none;"></div>
 
     <div style="background:rgba(255,101,132,0.06); border:1px solid rgba(255,101,132,0.2); border-radius:10px; padding:12px 14px; font-size:13px; color:#a0a0c0; margin-bottom:24px; line-height:1.6;">
-      ⚠️ <strong style="color:#fff;">Important:</strong> Do not close this tab, switch apps, or refresh the page during the exam. Tab-switching is recorded and may flag your submission.
+      ⚠️ <strong style="color:#fff;">Important:</strong> Do not close this tab, switch apps, or refresh the page during the exam.
     </div>
 
-    <button class="btn-start" id="beginBtn" onclick="beginExam()">
-      🚀 Begin Exam
-    </button>
+    <button class="btn-start" id="beginBtn" onclick="beginExam()">🚀 Begin Exam</button>
     <div style="text-align:center; margin-top:12px;">
       <button style="background:none; border:none; color:#6b6b8a; font-size:13px; cursor:pointer; font-family:inherit;" onclick="showScreen('entry')">← Back</button>
     </div>
   </div>
 </div>
 
-<!-- ===== EXAM SCREEN ===== -->
+<!-- EXAM SCREEN -->
 <div id="examScreen">
   <div class="exam-topbar">
     <span class="exam-title-tag" id="examTitleTag">Exam</span>
@@ -252,7 +247,7 @@
   </div>
 </div>
 
-<!-- ===== RESULT SCREEN ===== -->
+<!-- RESULT SCREEN -->
 <div class="screen" id="resultScreen">
   <div class="result-card">
     <div class="result-emoji"  id="resultEmoji">🏆</div>
@@ -271,10 +266,10 @@
     </div>
 
     <div id="pendingNotice" class="pending-notice" style="display:none;">
-      ⏳ Your theory answers are being reviewed by your teacher. Results will be released after grading.
+      ⏳ Your theory answers are being reviewed by your teacher.
     </div>
 
-    <button class="btn-home" onclick="window.location.href='/institution/student/exam.html'">
+    <button class="btn-home" onclick="window.location.replace('/institution/student/exam.html')">
       ← Back to Exam Portal
     </button>
   </div>
@@ -284,11 +279,12 @@
 <script>
 /* ============================================
    STUDENT EXAM ENGINE
+   ✅ CBT UPGRADE: KaTeX math rendering added
 ============================================ */
 
-var _session     = null;  /* from API: { exam, school, questions, sessionToken } */
+var _session     = null;
 var _questions   = [];
-var _answers     = {};    /* { questionId: answerValue } */
+var _answers     = {};
 var _currentIdx  = 0;
 var _timerInt    = null;
 var _timeLeft    = 0;
@@ -296,12 +292,30 @@ var _startTime   = Date.now();
 var _submitted   = false;
 var _tabSwitches = 0;
 
+/* ✅ KaTeX configuration */
+var _katexOpts = {
+  delimiters: [
+    { left: '$$', right: '$$', display: true },
+    { left: '$',  right: '$',  display: false }
+  ],
+  throwOnError: false,
+  output: 'html'
+};
+
+/* ✅ Safely set text content and render math */
+function setTextWithMath(element, text) {
+  if (!element) return;
+  element.textContent = text || '';
+  if (window._katexReady && typeof renderMathInElement !== 'undefined') {
+    try { renderMathInElement(element, _katexOpts); } catch(e) {}
+  }
+}
+
 /* ============================================ SCREEN NAV */
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
   var examEl = document.getElementById('examScreen');
   examEl.classList.remove('active');
-
   if (name === 'exam') {
     examEl.classList.add('active');
   } else {
@@ -312,13 +326,13 @@ function showScreen(name) {
 
 /* ============================================ VERIFY CODE */
 async function verifyCode() {
-  var btn    = document.getElementById('startBtn');
-  var errEl  = document.getElementById('entryErr');
+  var btn   = document.getElementById('startBtn');
+  var errEl = document.getElementById('entryErr');
   errEl.style.display = 'none';
 
-  var name   = ((document.getElementById('studentName')  || {}).value || '').trim();
-  var admNo  = ((document.getElementById('admissionNo')  || {}).value || '').trim();
-  var code   = ((document.getElementById('accessCode')   || {}).value || '').trim().toUpperCase();
+  var name  = ((document.getElementById('studentName')  || {}).value || '').trim();
+  var admNo = ((document.getElementById('admissionNo')  || {}).value || '').trim();
+  var code  = ((document.getElementById('accessCode')   || {}).value || '').trim().toUpperCase();
 
   if (!name) { errEl.textContent = '⚠️ Please enter your full name.'; errEl.style.display = 'block'; return; }
   if (!code || code.length < 4) { errEl.textContent = '⚠️ Please enter a valid access code.'; errEl.style.display = 'block'; return; }
@@ -326,9 +340,9 @@ async function verifyCode() {
   if (btn) { btn.innerHTML = '<span class="spinner"></span> Verifying...'; btn.disabled = true; }
 
   var res = await instApi('/student/verify-code', 'POST', {
-    accessCode:   code,
-    studentName:  name,
-    admissionNo:  admNo
+    accessCode:  code,
+    studentName: name,
+    admissionNo: admNo
   });
 
   if (btn) { btn.innerHTML = 'Start Exam →'; btn.disabled = false; }
@@ -375,7 +389,6 @@ function beginExam() {
   showScreen('exam');
   document.getElementById('examTitleTag').textContent = (_session.exam || {}).title || 'Exam';
 
-  /* Anti-cheat: detect tab switch */
   document.addEventListener('visibilitychange', function() {
     if (_submitted) return;
     if (document.hidden) {
@@ -384,12 +397,10 @@ function beginExam() {
     }
   });
 
-  /* Prevent page refresh */
   window.addEventListener('beforeunload', function(e) {
     if (!_submitted) { e.preventDefault(); e.returnValue = ''; }
   });
 
-  /* Back button */
   window.history.pushState({ exam: true }, '');
   window.addEventListener('popstate', function() {
     if (!_submitted) { window.history.pushState({ exam: true }, ''); confirmQuit(); }
@@ -409,7 +420,9 @@ function renderQuestion(idx) {
   var letters = ['A','B','C','D','E'];
 
   document.getElementById('qCounter').textContent = 'Question ' + (idx+1) + ' of ' + _questions.length;
-  document.getElementById('qText').textContent    = q.question || '';
+
+  /* ✅ Set question text and render KaTeX math */
+  setTextWithMath(document.getElementById('qText'), q.question || '');
 
   /* Image */
   var imgWrap = document.getElementById('qImageWrap');
@@ -417,11 +430,9 @@ function renderQuestion(idx) {
   if (q.imageUrl) { imgEl.src = q.imageUrl; imgWrap.style.display = 'block'; }
   else { imgWrap.style.display = 'none'; }
 
-  /* Options or theory */
   var optList    = document.getElementById('optionsList');
   var theoryInp  = document.getElementById('theoryInput');
   var qId        = q._id.toString();
-
   var savedAnswer = _answers[qId];
 
   if (q.questionType === 'theory') {
@@ -430,31 +441,35 @@ function renderQuestion(idx) {
     theoryInp.dataset.qid   = qId;
     theoryInp.value         = savedAnswer || '';
   } else {
-    theoryInp.style.display  = 'none';
-    optList.style.display    = 'flex';
+    theoryInp.style.display = 'none';
+    optList.style.display   = 'flex';
 
     var options = q.options || [];
 
+    /* ✅ Build options with safe text content + KaTeX rendering */
     optList.innerHTML = options.map(function(opt, i) {
       var isSelected = savedAnswer === i;
       return '<button class="option-btn' + (isSelected ? ' selected' : '') + '" onclick="selectAnswer(' + i + ')">' +
         '<span class="opt-letter">' + (letters[i] || i) + '</span>' +
-        '<span class="opt-text">' + opt + '</span>' +
+        '<span class="opt-text" id="optText_' + idx + '_' + i + '"></span>' +
       '</button>';
     }).join('');
+
+    /* Set option text with KaTeX after DOM is ready */
+    options.forEach(function(opt, i) {
+      var el = document.getElementById('optText_' + idx + '_' + i);
+      if (el) setTextWithMath(el, opt);
+    });
   }
 
-  /* Progress */
   var pct = ((idx+1) / _questions.length) * 100;
   document.getElementById('progressFill').style.width = pct + '%';
 
-  /* Nav buttons */
   document.getElementById('prevBtn').disabled = idx === 0;
   var isLast = idx === _questions.length - 1;
-  document.getElementById('nextBtn').style.display   = isLast ? 'none'  : 'inline-flex';
-  document.getElementById('submitBtn').style.display = isLast ? 'inline-flex' : 'none';
+  document.getElementById('nextBtn').style.display   = isLast ? 'none'       : 'inline-flex';
+  document.getElementById('submitBtn').style.display = isLast ? 'inline-flex': 'none';
 
-  /* Scroll to top */
   var body = document.getElementById('examBody');
   if (body) body.scrollTop = 0;
 
@@ -480,17 +495,12 @@ function selectAnswer(optIdx) {
 function saveTheoryAnswer() {
   var inp = document.getElementById('theoryInput');
   if (!inp) return;
-  var qId = inp.dataset.qid;
-  _answers[qId] = inp.value;
+  _answers[inp.dataset.qid] = inp.value;
 }
 
 /* ============================================ NAVIGATION */
 function prevQuestion() { if (_currentIdx > 0) renderQuestion(_currentIdx - 1); }
-
-function nextQuestion() {
-  if (_currentIdx < _questions.length - 1) renderQuestion(_currentIdx + 1);
-}
-
+function nextQuestion() { if (_currentIdx < _questions.length - 1) renderQuestion(_currentIdx + 1); }
 function goToQuestion(idx) { renderQuestion(idx); toggleQGrid(); }
 
 /* ============================================ Q GRID */
@@ -567,10 +577,10 @@ async function submitExam(wasAuto, retryCount) {
   var timeTaken = Math.round((Date.now() - _startTime) / 1000);
 
   var res = await instApi('/student/submit', 'POST', {
-    sessionToken:  _session.sessionToken,
-    answers:       _answers,
-    timeTaken:     timeTaken,
-    wasAutoSubmit: wasAuto,
+    sessionToken:   _session.sessionToken,
+    answers:        _answers,
+    timeTaken:      timeTaken,
+    wasAutoSubmit:  wasAuto,
     tabSwitchCount: _tabSwitches
   });
 
@@ -579,7 +589,6 @@ async function submitExam(wasAuto, retryCount) {
   } else if (res.status >= 500 && retryCount < 2) {
     _submitted = false;
     setTimeout(function() { submitExam(wasAuto, retryCount + 1); }, 2500);
-    if (submitBtn) submitBtn.innerHTML = '<span class="spinner spinner-dark"></span>';
   } else {
     _submitted = false;
     if (submitBtn) { submitBtn.innerHTML = 'Submit ✓'; submitBtn.disabled = false; }
@@ -614,20 +623,15 @@ function showResult(result, timeTaken) {
   document.getElementById('rsTotalQ').textContent  = result.totalQuestions || _questions.length;
   document.getElementById('rsTime').textContent    = mins + 'm ' + secs + 's';
 
-  if (result.hasTheory) {
+  if (result.hasTheory || !result.isReleased) {
     document.getElementById('pendingNotice').style.display = 'block';
-  }
-
-  /* Show score only if results are released */
-  if (!result.isReleased && !result.hasTheory) {
-    /* Objective — results are held */
-    document.getElementById('scorePct').textContent = '?';
-    document.getElementById('pendingNotice').style.display = 'block';
-    document.getElementById('pendingNotice').textContent = '⏳ Your results will be released by your teacher or school admin.';
+    if (!result.isReleased && !result.hasTheory) {
+      document.getElementById('pendingNotice').textContent = '⏳ Your results will be released by your teacher or school admin.';
+      document.getElementById('scorePct').textContent = '?';
+    }
   }
 }
 
-/* ============================================ QUIT */
 function confirmQuit() {
   if (confirm('Are you sure you want to quit?\n\nYour progress will be LOST and you will need to start over.')) {
     _submitted = true;

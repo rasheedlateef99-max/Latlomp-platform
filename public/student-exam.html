@@ -7,6 +7,19 @@
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/student-exam.css" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- ✅ KaTeX for math/science equations -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" crossorigin="anonymous" />
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js" crossorigin="anonymous"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"
+    crossorigin="anonymous" onload="window._katexReady = true;"></script>
+
+  <style>
+    /* ✅ KaTeX display math centering for question text */
+    #sQuestionText .katex-display { margin: 12px 0; }
+    .s-option-text .katex { font-size: 1em; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
 <body class="s-exam-body">
 
@@ -17,7 +30,7 @@
   </div>
 
   <!-- INSTRUCTIONS SCREEN -->
-  <div id="sInstructions" style="display:none; min-height:100vh; display:none; align-items:center; justify-content:center; padding:24px; overflow-y:auto;">
+  <div id="sInstructions" style="display:none; min-height:100vh; align-items:center; justify-content:center; padding:24px; overflow-y:auto;">
     <div class="s-inst-card">
       <div style="text-align:center; margin-bottom:28px;">
         <div style="font-size:48px; margin-bottom:12px;">📋</div>
@@ -55,9 +68,7 @@
       </div>
 
       <div style="margin-bottom:28px; background:rgba(255,165,0,0.07); border:1px solid rgba(255,165,0,0.2); border-radius:10px; padding:14px 16px;">
-        <p style="font-size:13px; color:#ffa500; font-weight:600;">
-          ⚠️ Important Rules
-        </p>
+        <p style="font-size:13px; color:#ffa500; font-weight:600;">⚠️ Important Rules</p>
         <ul style="list-style:none; margin-top:8px; display:flex; flex-direction:column; gap:6px;">
           <li style="font-size:13px; color:var(--text-secondary);">• The timer starts immediately when you click Begin</li>
           <li style="font-size:13px; color:var(--text-secondary);">• Your exam auto-submits when time runs out</li>
@@ -78,7 +89,6 @@
   <!-- EXAM INTERFACE -->
   <div id="sExamInterface" style="display:none;">
 
-    <!-- TOP BAR -->
     <header class="s-topbar">
       <div style="display:flex; align-items:center; gap:12px; min-width:0;">
         <div style="font-size:13px; font-weight:800; color:#43e97b; white-space:nowrap;">⚡ LatLomp</div>
@@ -98,10 +108,8 @@
       </div>
     </header>
 
-    <!-- MAIN AREA -->
     <div class="s-exam-main">
 
-      <!-- QUESTION AREA -->
       <div class="s-question-area">
 
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:20px;">
@@ -111,18 +119,16 @@
           <div id="sQTypeBadge" style="font-size:12px; font-weight:700; padding:4px 12px; border-radius:20px; background:rgba(108,99,255,0.12); color:var(--primary-light);">Objective</div>
         </div>
 
-        <div id="sQuestionText" style="font-size:18px; font-weight:600; line-height:1.6; color:var(--text-primary); background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); padding:24px; margin-bottom:24px; min-height:80px;">
+        <!-- ✅ Question text — KaTeX rendered via student-exam.js -->
+        <div id="sQuestionText" style="font-size:18px; font-weight:600; line-height:1.7; color:var(--text-primary); background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); padding:24px; margin-bottom:24px; min-height:80px;">
           Loading...
         </div>
 
-        <!-- Objective Options -->
+        <!-- ✅ Options — rendered with KaTeX by student-exam.js -->
         <div id="sOptionsArea" style="display:flex; flex-direction:column; gap:12px; margin-bottom:24px;"></div>
 
-        <!-- Theory Text Area -->
         <div id="sTheoryArea" style="display:none; margin-bottom:24px;">
-          <label style="display:block; font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:10px;">
-            Write your answer below:
-          </label>
+          <label style="display:block; font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:10px;">Write your answer below:</label>
           <textarea id="sTheoryAnswer" rows="8"
             placeholder="Type your answer here..."
             oninput="saveTheoryAnswer()"
@@ -132,7 +138,6 @@
           </textarea>
         </div>
 
-        <!-- Navigation -->
         <div style="display:flex; align-items:center; justify-content:space-between; padding-top:16px;">
           <button onclick="sNavigate(-1)" id="sPrevBtn"
             style="padding:12px 28px; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; background:var(--card-bg); border:1px solid var(--border); color:var(--text-secondary); transition:var(--transition);">
@@ -149,11 +154,8 @@
 
       </div>
 
-      <!-- NAV PANEL -->
       <aside class="s-nav-panel">
-        <div style="padding:16px 16px 12px; border-bottom:1px solid var(--border); font-size:14px; font-weight:700;">
-          Questions
-        </div>
+        <div style="padding:16px 16px 12px; border-bottom:1px solid var(--border); font-size:14px; font-weight:700;">Questions</div>
         <div id="sNavGrid" style="padding:14px; display:grid; grid-template-columns:repeat(5,1fr); gap:6px; flex:1; overflow-y:auto;"></div>
         <div style="padding:16px; border-top:1px solid var(--border);">
           <button onclick="sConfirmSubmit()" style="width:100%; padding:13px; background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:white; border:none; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit;">
@@ -166,7 +168,7 @@
   </div>
 
   <!-- SUBMIT MODAL -->
-  <div id="sSubmitModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:9000; display:none; align-items:center; justify-content:center; padding:20px;">
+  <div id="sSubmitModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:9000; align-items:center; justify-content:center; padding:20px;">
     <div style="background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:40px; max-width:400px; width:100%; text-align:center;">
       <div style="font-size:48px; margin-bottom:16px;">⚠️</div>
       <h2 style="font-size:22px; font-weight:800; margin-bottom:8px;">Submit Exam?</h2>
@@ -182,7 +184,6 @@
     </div>
   </div>
 
-  <!-- AUTO SUBMIT NOTICE -->
   <div id="sAutoNotice" style="display:none; position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--secondary); color:white; padding:14px 28px; border-radius:30px; font-weight:700; font-size:15px; z-index:9999; box-shadow:0 8px 30px rgba(255,101,132,0.4);">
     ⏰ Time is up! Submitting your exam...
   </div>
@@ -205,6 +206,70 @@
   </div>
 
   <script src="js/main.js"></script>
+
+  <!-- ✅ student-exam.js patched inline for KaTeX support -->
   <script src="js/student-exam.js"></script>
+
+  <!-- ✅ KaTeX patch: override renderQuestion to use setTextWithMath -->
+  <script>
+  /* ============================================
+     KaTeX integration patch for student-exam.js
+     
+     This runs AFTER student-exam.js loads and
+     overrides just the question/option rendering
+     to add KaTeX math support. All other
+     student-exam.js functionality is preserved.
+  ============================================ */
+  (function() {
+    var _katexOpts = {
+      delimiters: [
+        { left: '$$', right: '$$', display: true },
+        { left: '$',  right: '$',  display: false }
+      ],
+      throwOnError: false,
+      output: 'html'
+    };
+
+    /* ✅ Safe text + math setter */
+    window.sSetTextWithMath = function(element, text) {
+      if (!element) return;
+      element.textContent = text || '';
+      if (window._katexReady && typeof renderMathInElement !== 'undefined') {
+        try { renderMathInElement(element, _katexOpts); } catch(e) {}
+      }
+    };
+
+    /* ✅ Patch the existing renderCurrentQuestion (or equivalent)
+       by watching DOM mutations on the question text element.
+       This is the safest way to add KaTeX without modifying
+       the existing student-exam.js logic. */
+    document.addEventListener('DOMContentLoaded', function() {
+      var qTextEl = document.getElementById('sQuestionText');
+      var optArea = document.getElementById('sOptionsArea');
+      if (!qTextEl || !optArea) return;
+
+      /* Watch for question text changes */
+      var qObserver = new MutationObserver(function() {
+        if (window._katexReady && typeof renderMathInElement !== 'undefined') {
+          try { renderMathInElement(qTextEl, _katexOpts); } catch(e) {}
+        }
+      });
+      qObserver.observe(qTextEl, { childList: true, subtree: true, characterData: true });
+
+      /* Watch for options changes */
+      var optObserver = new MutationObserver(function() {
+        if (!window._katexReady || typeof renderMathInElement === 'undefined') return;
+        optArea.querySelectorAll('.s-option-text, [data-opt-text]').forEach(function(el) {
+          if (!el.dataset.katexDone) {
+            el.dataset.katexDone = '1';
+            try { renderMathInElement(el, _katexOpts); } catch(e) {}
+          }
+        });
+      });
+      optObserver.observe(optArea, { childList: true, subtree: true });
+    });
+  })();
+  </script>
+
 </body>
 </html>
