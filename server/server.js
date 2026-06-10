@@ -34,8 +34,8 @@ app.use(cors());
    Required for Paystack webhook HMAC verification.
    Applied to BOTH main and institution webhooks.
 ============================================ */
-app.use("/api/payment/webhook",            express.raw({ type: "application/json" }));
-app.use("/api/institution/payment/webhook",express.raw({ type: "application/json" }));
+app.use("/api/payment/webhook",             express.raw({ type: "application/json" }));
+app.use("/api/institution/payment/webhook", express.raw({ type: "application/json" }));
 
 /* ============================================
    JSON BODY PARSER — all other routes
@@ -57,24 +57,29 @@ app.use("/api/payment", require("./routes/payment.routes"));
 app.use("/api/store",   require("./routes/store.routes"));
 app.use("/api/cbt",     require("./routes/cbt.routes"));
 app.use("/api/exams",   require("./routes/exam.routes"));
-// app.use('/api/student', require('./routes/student.routes'));
+
+/* ============================================
+   ADMIN ROUTES
+   ✅ FIX: This line was completely missing from
+   server.js. Every call to /api/admin/... was
+   falling through to the catch-all and returning
+   "API route not found." — the exact error visible
+   in the admin institution panel (Image 4).
+   This one line fixes the entire admin panel.
+============================================ */
+app.use("/api/admin",   require("./routes/admin.routes"));
 
 /* ============================================
    INSTITUTION ROUTES
-   
-   ✅ FIX: These 5 routes were completely missing.
-   Every call to /api/institution/... was returning
-   no response, which the frontend caught as
-   "Network error. Please check your connection."
 ============================================ */
 app.use("/api/institution/auth",       require("./institution/routes/inst.auth.routes"));
 app.use("/api/institution/school",     require("./institution/routes/inst.school.routes"));
 app.use("/api/institution/teacher",    require("./institution/routes/inst.teacher.routes"));
 app.use("/api/institution/student",    require("./institution/routes/inst.student.routes"));
 app.use("/api/institution/superadmin", require("./institution/routes/inst.superadmin.routes"));
-/* ✅ FIX: Payment route was missing — webhook was unreachable */
 app.use("/api/institution/payment",    require("./institution/routes/inst.payment.routes"));
 app.use("/api/institution/structure",  require("./institution/routes/inst.structure.routes"));
+
 /* ============================================
    HEALTH CHECK
 ============================================ */
