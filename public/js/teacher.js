@@ -1,6 +1,13 @@
 /* ============================================
    TEACHER DASHBOARD — JAVASCRIPT
-   ============================================ */
+   
+   ✅ CBT UPGRADES ADDED:
+   - KaTeX math rendering for question editor
+   - examYear field support
+   - activatesAt / expiresAt support
+   - shuffleQuestions / shuffleOptions support
+   - Live math preview in question editor
+============================================ */
 
 var teacherState = {
   exams:         [],
@@ -8,8 +15,38 @@ var teacherState = {
 };
 
 /* ============================================
+   KATEX — MATH RENDERING
+============================================ */
+var _tKatexOpts = {
+  delimiters: [
+    { left: '$$', right: '$$', display: true  },
+    { left: '$',  right: '$',  display: false }
+  ],
+  throwOnError: false
+};
+
+function tKatexRender(el) {
+  if (!el || !window._katexReady || typeof renderMathInElement === 'undefined') return;
+  try { renderMathInElement(el, _tKatexOpts); } catch(e) {}
+}
+
+/* Live math preview in question editor */
+function updateMathPreview() {
+  var text = (document.getElementById('qText') || {}).value || '';
+  var wrap = document.getElementById('qMathPreviewWrap');
+  var prev = document.getElementById('qMathPreviewEl');
+  if (!wrap || !prev) return;
+  var hasMath = text.indexOf('$') !== -1;
+  wrap.style.display = hasMath ? 'block' : 'none';
+  if (hasMath) {
+    prev.textContent = text;
+    tKatexRender(prev);
+  }
+}
+
+/* ============================================
    SWITCH BETWEEN LOGIN AND REGISTER TABS
-   ============================================ */
+============================================ */
 function switchTeacherTab(tab) {
   var loginForm    = document.getElementById('teacherLoginForm');
   var registerForm = document.getElementById('teacherRegisterForm');
@@ -32,7 +69,6 @@ function switchTeacherTab(tab) {
     registerBtn.style.color      = '#0f0f1a';
     loginBtn.style.background    = 'transparent';
     loginBtn.style.color         = 'var(--text-secondary)';
-
     var errEl = document.getElementById('teacherRegisterError');
     var sucEl = document.getElementById('teacherRegisterSuccess');
     if (errEl) errEl.style.display = 'none';
@@ -42,7 +78,7 @@ function switchTeacherTab(tab) {
 
 /* ============================================
    TEACHER REGISTER
-   ============================================ */
+============================================ */
 async function teacherRegister() {
   var nameEl     = document.getElementById('regTeacherName');
   var emailEl    = document.getElementById('regTeacherEmail');
@@ -60,30 +96,10 @@ async function teacherRegister() {
   var password = passwordEl.value;
   var confirm  = confirmEl.value;
 
-  if (!name) {
-    errEl.textContent   = '⚠️ Please enter your full name.';
-    errEl.style.display = 'block';
-    nameEl.focus();
-    return;
-  }
-  if (!email) {
-    errEl.textContent   = '⚠️ Please enter your email address.';
-    errEl.style.display = 'block';
-    emailEl.focus();
-    return;
-  }
-  if (password.length < 6) {
-    errEl.textContent   = '⚠️ Password must be at least 6 characters long.';
-    errEl.style.display = 'block';
-    passwordEl.focus();
-    return;
-  }
-  if (password !== confirm) {
-    errEl.textContent   = '⚠️ Passwords do not match. Please check and try again.';
-    errEl.style.display = 'block';
-    confirmEl.focus();
-    return;
-  }
+  if (!name)    { errEl.textContent = '⚠️ Please enter your full name.';            errEl.style.display = 'block'; nameEl.focus();    return; }
+  if (!email)   { errEl.textContent = '⚠️ Please enter your email address.';        errEl.style.display = 'block'; emailEl.focus();   return; }
+  if (password.length < 6) { errEl.textContent = '⚠️ Password must be at least 6 characters long.'; errEl.style.display = 'block'; passwordEl.focus(); return; }
+  if (password !== confirm) { errEl.textContent = '⚠️ Passwords do not match.';     errEl.style.display = 'block'; confirmEl.focus(); return; }
 
   btnEl.textContent = 'Creating account...';
   btnEl.disabled    = true;
@@ -104,13 +120,11 @@ async function teacherRegister() {
       '<div style="font-size:48px; margin-bottom:12px;">📧</div>' +
       '<strong style="font-size:16px; display:block; margin-bottom:8px;">Check Your Email!</strong>' +
       result.data.message +
-      (result.data.devNote ?
-        '<div style="margin-top:12px; background:rgba(255,165,0,0.1); border:1px solid rgba(255,165,0,0.3); border-radius:8px; padding:10px 14px; font-size:12px; color:#ffa500;">🛠️ <strong>Dev Mode:</strong> Check your VS Code terminal for the verification link.</div>'
-        : '') +
+      (result.data.devNote ? '<div style="margin-top:12px; background:rgba(255,165,0,0.1); border:1px solid rgba(255,165,0,0.3); border-radius:8px; padding:10px 14px; font-size:12px; color:#ffa500;">🛠️ <strong>Dev Mode:</strong> Check your VS Code terminal for the verification link.</div>' : '') +
     '</div>';
   sucEl.style.display = 'block';
-
   btnEl.style.display = 'none';
+
   document.getElementById('regTeacherName').disabled     = true;
   document.getElementById('regTeacherEmail').disabled    = true;
   document.getElementById('regTeacherPassword').disabled = true;
@@ -122,7 +136,7 @@ async function teacherRegister() {
 
 /* ============================================
    TEACHER LOGIN
-   ============================================ */
+============================================ */
 async function teacherLogin() {
   var emailEl = document.getElementById('teacherLoginEmail');
   var passEl  = document.getElementById('teacherLoginPassword');
@@ -134,16 +148,8 @@ async function teacherLogin() {
   var email    = emailEl ? emailEl.value.trim() : '';
   var password = passEl  ? passEl.value         : '';
 
-  if (!email) {
-    if (errEl) { errEl.textContent = '⚠️ Please enter your email address.'; errEl.style.display = 'block'; }
-    if (emailEl) emailEl.focus();
-    return;
-  }
-  if (!password) {
-    if (errEl) { errEl.textContent = '⚠️ Please enter your password.'; errEl.style.display = 'block'; }
-    if (passEl) passEl.focus();
-    return;
-  }
+  if (!email)    { if (errEl) { errEl.textContent = '⚠️ Please enter your email address.'; errEl.style.display = 'block'; } if (emailEl) emailEl.focus(); return; }
+  if (!password) { if (errEl) { errEl.textContent = '⚠️ Please enter your password.';      errEl.style.display = 'block'; } if (passEl)  passEl.focus();  return; }
 
   if (btnEl) { btnEl.textContent = 'Logging in...'; btnEl.disabled = true; }
 
@@ -154,24 +160,13 @@ async function teacherLogin() {
 
     if (result.ok) {
       var user = result.data.user;
-
       if (user.role !== 'teacher' && user.role !== 'admin') {
-        if (errEl) {
-          errEl.textContent   = '⛔ This account is not a teacher account. Please use the main login instead.';
-          errEl.style.display = 'block';
-        }
+        if (errEl) { errEl.textContent = '⛔ This account is not a teacher account. Please use the main login instead.'; errEl.style.display = 'block'; }
         return;
       }
-
       saveAuthData(result.data.token, user);
-
-      if (btnEl) {
-        btnEl.textContent      = '✅ Welcome back! Loading...';
-        btnEl.style.background = 'linear-gradient(135deg,#43e97b,#38f9d7)';
-      }
-
+      if (btnEl) { btnEl.textContent = '✅ Welcome back! Loading...'; btnEl.style.background = 'linear-gradient(135deg,#43e97b,#38f9d7)'; }
       setTimeout(function() { window.location.reload(); }, 600);
-
     } else {
       if (result.data && result.data.requiresVerification) {
         showTeacherVerificationNotice(email);
@@ -186,7 +181,6 @@ async function teacherLogin() {
         if (errEl) { errEl.textContent = result.data.message || '❌ Login failed. Please try again.'; errEl.style.display = 'block'; }
       }
     }
-
   } catch (unexpectedError) {
     console.error('teacherLogin unexpected error:', unexpectedError);
     if (btnEl) { btnEl.textContent = 'Login →'; btnEl.disabled = false; }
@@ -196,14 +190,12 @@ async function teacherLogin() {
 
 /* ============================================
    PAGE INIT
-   ============================================ */
+============================================ */
 document.addEventListener('DOMContentLoaded', async function() {
 
-  /* Initialize sidebar */
   initSidebarOverlay();
   initSidebarNavLinks();
 
-  /* Initialize Google */
   if (typeof google !== 'undefined' && google.accounts) {
     google.accounts.id.initialize({
       client_id:   '804260807914-tl2i27hblh8f3s1g4a5ip12hejosk0ab.apps.googleusercontent.com',
@@ -218,9 +210,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   function showScreen(which) {
     if (loaderEl) loaderEl.style.display = 'none';
-
     if (which === 'app') {
-      /* ✅ FIX: Use 'block' not 'flex' — sidebar is position:fixed */
       if (appEl)    appEl.style.display    = 'block';
       if (deniedEl) deniedEl.style.display = 'none';
     } else {
@@ -236,15 +226,9 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   try {
     var user = getCurrentUser();
-
-    if (!user) {
-      clearTimeout(safetyTimeout);
-      showScreen('denied');
-      return;
-    }
+    if (!user) { clearTimeout(safetyTimeout); showScreen('denied'); return; }
 
     var meRes = await apiRequest('/auth/me');
-
     if (!meRes.ok) {
       localStorage.removeItem('latlomp_token');
       localStorage.removeItem('latlomp_user');
@@ -254,27 +238,15 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     var serverUser = meRes.data.user;
-    if (!serverUser) {
-      clearTimeout(safetyTimeout);
-      showScreen('denied');
-      return;
-    }
-
-    if (serverUser.role !== 'teacher' && serverUser.role !== 'admin') {
-      clearTimeout(safetyTimeout);
-      showScreen('denied');
-      return;
-    }
+    if (!serverUser) { clearTimeout(safetyTimeout); showScreen('denied'); return; }
+    if (serverUser.role !== 'teacher' && serverUser.role !== 'admin') { clearTimeout(safetyTimeout); showScreen('denied'); return; }
 
     clearTimeout(safetyTimeout);
     showScreen('app');
 
     var name = serverUser.name || user.name || 'Teacher';
 
-    var nameEls = [
-      document.getElementById('teacherName'),
-      document.getElementById('overviewTeacherName')
-    ];
+    var nameEls = [document.getElementById('teacherName'), document.getElementById('overviewTeacherName')];
     nameEls.forEach(function(el) {
       if (el) el.textContent = el.id === 'overviewTeacherName' ? name.split(' ')[0] : name;
     });
@@ -284,13 +256,17 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     var dateEl = document.getElementById('teacherDate');
     if (dateEl) {
-      dateEl.textContent = new Date().toLocaleDateString('en-NG', {
+      dateEl.textContent = new Date().toLocaleDateString('en-GB', {
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
       });
     }
 
     await loadTeacherOverview();
     await loadTeacherExams();
+
+    /* Default exam year to current year */
+    var yrEl = document.getElementById('newExamYear');
+    if (yrEl) yrEl.value = new Date().getFullYear();
 
   } catch (err) {
     console.error('Teacher dashboard init error:', err);
@@ -301,7 +277,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 /* ============================================
    SECTION NAVIGATION
-   ============================================ */
+============================================ */
 function showTeacherSection(name) {
   document.querySelectorAll('.teacher-section').forEach(function(s) {
     s.classList.remove('active');
@@ -316,38 +292,31 @@ function showTeacherSection(name) {
   var link = document.querySelector('.teacher-nav-link[data-section="' + name + '"]');
   if (link) link.classList.add('active');
 
-  /* ✅ FIX: Correct element ID */
   var mobileSection = document.getElementById('mobileBarSection');
   if (mobileSection) {
     var labels = { overview: 'Overview', exams: 'My Exams', questions: 'Questions', students: 'Students' };
     mobileSection.textContent = labels[name] || name;
   }
 
-  /* Close sidebar on mobile after navigation */
-  if (window.innerWidth <= 960) {
-    closeSidebar();
-  }
+  if (window.innerWidth <= 960) closeSidebar();
 
   if (name === 'students')  populateStudentExamSelector();
   if (name === 'questions') populateQuestionExamSelector();
 }
 
 /* ============================================
-   SIDEBAR — MOBILE NAVIGATION
-   ============================================ */
+   SIDEBAR — MOBILE
+============================================ */
 var _sidebarOpen = false;
 
 function openSidebar() {
   if (_sidebarOpen) return;
   _sidebarOpen = true;
-
   var sidebar = document.getElementById('teacherSidebar');
   var overlay = document.getElementById('teacherSidebarOverlay');
-
   if (sidebar) sidebar.classList.add('open');
   if (overlay) overlay.classList.add('visible');
   document.body.style.overflow = 'hidden';
-
   if (window.history && window.history.pushState) {
     window.history.pushState({ sidebarOpen: true }, '');
   }
@@ -356,28 +325,19 @@ function openSidebar() {
 function closeSidebar() {
   if (!_sidebarOpen) return;
   _sidebarOpen = false;
-
   var sidebar = document.getElementById('teacherSidebar');
   var overlay = document.getElementById('teacherSidebarOverlay');
-
   if (sidebar) sidebar.classList.remove('open');
   if (overlay) overlay.classList.remove('visible');
   document.body.style.overflow = '';
 }
 
 function toggleSidebar() {
-  if (_sidebarOpen) {
-    closeSidebar();
-  } else {
-    openSidebar();
-  }
+  if (_sidebarOpen) { closeSidebar(); } else { openSidebar(); }
 }
 
-window.addEventListener('popstate', function() {
-  if (_sidebarOpen) closeSidebar();
-});
-
-window.addEventListener('resize', function() {
+window.addEventListener('popstate',  function() { if (_sidebarOpen) closeSidebar(); });
+window.addEventListener('resize',    function() {
   if (window.innerWidth > 960 && _sidebarOpen) {
     _sidebarOpen = false;
     var sidebar = document.getElementById('teacherSidebar');
@@ -389,23 +349,14 @@ window.addEventListener('resize', function() {
 });
 
 function initSidebarNavLinks() {
-  /* ✅ FIX: Correct class name */
-  var links = document.querySelectorAll('.sb-link');
-  links.forEach(function(link) {
-    link.addEventListener('click', function() {
-      if (window.innerWidth <= 960) {
-        closeSidebar();
-      }
-    });
+  document.querySelectorAll('.sb-link').forEach(function(link) {
+    link.addEventListener('click', function() { if (window.innerWidth <= 960) closeSidebar(); });
   });
 }
 
 function initSidebarOverlay() {
   var overlay = document.getElementById('teacherSidebarOverlay');
-  if (overlay) {
-    overlay.removeEventListener('click', closeSidebar);
-    overlay.addEventListener('click', closeSidebar);
-  }
+  if (overlay) { overlay.removeEventListener('click', closeSidebar); overlay.addEventListener('click', closeSidebar); }
 }
 
 function teacherLogout() {
@@ -414,7 +365,7 @@ function teacherLogout() {
 
 /* ============================================
    TOAST
-   ============================================ */
+============================================ */
 function teacherToast(msg, type) {
   type = type || 'info';
   var el = document.getElementById('teacherToast');
@@ -428,7 +379,7 @@ function teacherToast(msg, type) {
 
 /* ============================================
    MODAL HELPERS
-   ============================================ */
+============================================ */
 function closeTeacherModal(id) {
   var el = document.getElementById(id);
   if (el) el.style.display = 'none';
@@ -441,8 +392,8 @@ document.addEventListener('click', function(e) {
 });
 
 /* ============================================
-   OVERVIEW — Load stats
-   ============================================ */
+   OVERVIEW
+============================================ */
 async function loadTeacherOverview() {
   var res = await apiRequest('/teacher/dashboard');
   if (!res.ok) return;
@@ -465,7 +416,7 @@ async function loadTeacherOverview() {
     return '<div style="display:flex; align-items:center; gap:14px; padding:14px 22px; border-top:1px solid var(--border);">' +
       '<div style="flex:1;">' +
         '<div style="font-weight:700; color:var(--text-primary); font-size:14px;">' + e.title + '</div>' +
-        '<div style="font-size:12px; color:var(--text-muted); margin-top:3px;">' + e.subject + '</div>' +
+        '<div style="font-size:12px; color:var(--text-muted); margin-top:3px;">' + (e.subject || '') + (e.examYear ? ' · ' + e.examYear : '') + '</div>' +
       '</div>' +
       '<span class="exam-code">' + e.examCode + '</span>' +
       '<span style="font-size:12px; color:var(--text-muted);">' + e.totalAttempts + ' attempts</span>' +
@@ -477,8 +428,8 @@ async function loadTeacherOverview() {
 }
 
 /* ============================================
-   EXAMS — Load all teacher exams
-   ============================================ */
+   EXAMS — Load all
+============================================ */
 async function loadTeacherExams() {
   var res = await apiRequest('/teacher/exams');
   if (!res.ok) { teacherToast('Failed to load exams', 'error'); return; }
@@ -489,25 +440,38 @@ async function loadTeacherExams() {
   var tbody = document.getElementById('examsTableBody');
 
   if (res.data.exams.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="teacher-loading">No exams yet. Click "+ Create Exam" to start.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="teacher-loading">No exams yet. Click "+ Create Exam" to start.</td></tr>';
     return;
   }
 
   var typeLabels = { objective: 'Objective', theory: 'Theory', both: 'Obj + Theory' };
 
   tbody.innerHTML = res.data.exams.map(function(e) {
+    var windowBadge = '';
+    if (e.activatesAt || e.expiresAt) {
+      var now = new Date();
+      if (e.activatesAt && new Date(e.activatesAt) > now) {
+        windowBadge = '<span style="font-size:10px; color:#ffa500; margin-left:4px;">⏳ Scheduled</span>';
+      } else if (e.expiresAt && new Date(e.expiresAt) < now) {
+        windowBadge = '<span style="font-size:10px; color:var(--secondary); margin-left:4px;">⛔ Expired</span>';
+      }
+    }
     return '<tr>' +
       '<td style="font-weight:700; color:var(--text-primary);">' + e.title + '</td>' +
       '<td><span style="font-size:12px; background:rgba(108,99,255,0.1); color:var(--primary-light); padding:3px 10px; border-radius:20px; font-weight:700;">' + (typeLabels[e.examType] || e.examType) + '</span></td>' +
       '<td>' + e.duration + ' mins</td>' +
       '<td><span class="exam-code">' + e.examCode + '</span></td>' +
-      '<td style="font-weight:700; color:var(--primary-light);">—</td>' +
+      '<td style="font-family:monospace; font-weight:700; color:var(--primary-light);">' + (e.examYear || '—') + '</td>' +
       '<td>' + e.totalAttempts + '</td>' +
-      '<td><span style="font-size:11px; padding:3px 10px; border-radius:20px; font-weight:700; background:' + (e.isActive ? 'rgba(67,233,123,0.12)' : 'rgba(255,255,255,0.06)') + '; color:' + (e.isActive ? '#43e97b' : 'var(--text-muted)') + ';">' + (e.isActive ? 'Active' : 'Draft') + '</span></td>' +
+      '<td>' +
+        '<span style="font-size:11px; padding:3px 10px; border-radius:20px; font-weight:700; background:' + (e.isActive ? 'rgba(67,233,123,0.12)' : 'rgba(255,255,255,0.06)') + '; color:' + (e.isActive ? '#43e97b' : 'var(--text-muted)') + ';">' +
+          (e.isActive ? 'Active' : 'Draft') +
+        '</span>' + windowBadge +
+      '</td>' +
       '<td><div style="display:flex; gap:6px; flex-wrap:wrap;">' +
         '<button class="tbl-btn" onclick="editExam(\'' + e._id + '\')">Edit</button>' +
         '<button class="tbl-btn" onclick="goToExamQuestions(\'' + e._id + '\')">Questions</button>' +
-        '<button class="tbl-btn tbl-btn-danger" onclick="deleteTeacherExam(\'' + e._id + '\', \'' + e.title + '\')">🗑</button>' +
+        '<button class="tbl-btn tbl-btn-danger" onclick="deleteTeacherExam(\'' + e._id + '\', \'' + e.title.replace(/'/g, '') + '\')">🗑</button>' +
       '</div></td>' +
     '</tr>';
   }).join('');
@@ -515,32 +479,62 @@ async function loadTeacherExams() {
 
 /* ============================================
    CREATE / EDIT EXAM MODAL
-   ============================================ */
+   ✅ UPDATED: handles examYear, activatesAt,
+   expiresAt, shuffleQuestions, shuffleOptions
+============================================ */
 function openCreateExamModal(examId) {
   examId = examId || null;
-  document.getElementById('createExamForm').reset();
+
+  /* Clear all fields */
+  var form = document.getElementById('createExamForm');
+  if (form) form.reset();
   document.getElementById('editExamId').value = '';
+
+  /* Reset new fields explicitly (form.reset() may not cover all) */
+  var yrEl = document.getElementById('newExamYear');
+  if (yrEl) yrEl.value = new Date().getFullYear();
+  var ssEl = document.getElementById('newExamActivatesAt');
+  if (ssEl) ssEl.value = '';
+  var seEl = document.getElementById('newExamExpiresAt');
+  if (seEl) seEl.value = '';
+  var shEl = document.getElementById('newExamShuffle');
+  if (shEl) shEl.value = 'false';
+  var soEl = document.getElementById('newExamShuffleOptions');
+  if (soEl) soEl.value = 'false';
 
   if (examId) {
     var exam = teacherState.exams.find(function(e) { return e._id === examId; });
     if (!exam) return;
+
     document.getElementById('examModalHeading').textContent  = 'Edit Exam';
     document.getElementById('saveExamBtn').textContent       = 'Save Changes';
     document.getElementById('editExamId').value              = exam._id;
-    document.getElementById('newExamTitle').value            = exam.title;
-    document.getElementById('newExamSubject').value          = exam.subject;
-    document.getElementById('newExamType').value             = exam.examType;
-    document.getElementById('newExamDuration').value         = exam.duration;
-    document.getElementById('newExamPassMark').value         = exam.passMark;
-    document.getElementById('newExamCode').value             = exam.examCode;
-    document.getElementById('newExamInstructions').value     = exam.instructions;
-    document.getElementById('newExamActive').value           = String(exam.isActive);
+    document.getElementById('newExamTitle').value            = exam.title        || '';
+    document.getElementById('newExamSubject').value          = exam.subject      || '';
+    document.getElementById('newExamType').value             = exam.examType     || '';
+    document.getElementById('newExamDuration').value         = exam.duration     || 60;
+    document.getElementById('newExamPassMark').value         = exam.passMark     || 50;
+    document.getElementById('newExamCode').value             = exam.examCode     || '';
+    document.getElementById('newExamInstructions').value     = exam.instructions || '';
+    document.getElementById('newExamActive').value           = String(exam.isActive !== false);
+
+    /* ✅ New fields */
+    if (yrEl) yrEl.value = exam.examYear || new Date().getFullYear();
+    if (shEl) shEl.value = String(exam.shuffleQuestions === true);
+    if (soEl) soEl.value = String(exam.shuffleOptions   === true);
+    if (ssEl && exam.activatesAt) ssEl.value = new Date(exam.activatesAt).toISOString().slice(0, 16);
+    if (seEl && exam.expiresAt)   seEl.value = new Date(exam.expiresAt).toISOString().slice(0, 16);
+
   } else {
-    document.getElementById('examModalHeading').textContent  = 'Create New Exam';
-    document.getElementById('saveExamBtn').textContent       = 'Create Exam';
+    document.getElementById('examModalHeading').textContent = 'Create New Exam';
+    document.getElementById('saveExamBtn').textContent      = 'Create Exam';
   }
 
   document.getElementById('createExamModal').style.display = 'flex';
+  setTimeout(function() {
+    var t = document.getElementById('newExamTitle');
+    if (t) t.focus();
+  }, 120);
 }
 
 function editExam(id) { openCreateExamModal(id); }
@@ -551,16 +545,26 @@ async function saveTeacherExam(e) {
   btn.textContent = 'Saving...';
   btn.disabled    = true;
 
-  var examId  = document.getElementById('editExamId').value;
+  var examId = document.getElementById('editExamId').value;
+
+  var ssVal = (document.getElementById('newExamActivatesAt') || {}).value || '';
+  var seVal = (document.getElementById('newExamExpiresAt')   || {}).value || '';
+
   var payload = {
-    title:        document.getElementById('newExamTitle').value,
-    subject:      document.getElementById('newExamSubject').value,
-    examType:     document.getElementById('newExamType').value,
-    duration:     parseInt(document.getElementById('newExamDuration').value),
-    passMark:     parseInt(document.getElementById('newExamPassMark').value),
-    examCode:     document.getElementById('newExamCode').value.toUpperCase().trim(),
-    instructions: document.getElementById('newExamInstructions').value,
-    isActive:     document.getElementById('newExamActive').value === 'true'
+    title:            document.getElementById('newExamTitle').value.trim(),
+    subject:          document.getElementById('newExamSubject').value.trim(),
+    examType:         document.getElementById('newExamType').value,
+    duration:         parseInt(document.getElementById('newExamDuration').value),
+    passMark:         parseInt(document.getElementById('newExamPassMark').value),
+    examCode:         document.getElementById('newExamCode').value.toUpperCase().trim(),
+    instructions:     document.getElementById('newExamInstructions').value,
+    isActive:         document.getElementById('newExamActive').value === 'true',
+    /* ✅ NEW fields */
+    examYear:         parseInt(document.getElementById('newExamYear').value) || new Date().getFullYear(),
+    activatesAt:      ssVal ? new Date(ssVal).toISOString() : null,
+    expiresAt:        seVal ? new Date(seVal).toISOString() : null,
+    shuffleQuestions: (document.getElementById('newExamShuffle')        || {}).value === 'true',
+    shuffleOptions:   (document.getElementById('newExamShuffleOptions') || {}).value === 'true'
   };
 
   var method   = examId ? 'PUT'  : 'POST';
@@ -584,7 +588,6 @@ async function saveTeacherExam(e) {
 
 async function deleteTeacherExam(id, title) {
   if (!confirm('Delete exam "' + title + '"?\n\nThis will also delete all questions and student submissions for this exam.')) return;
-
   var res = await apiRequest('/teacher/exams/' + id, 'DELETE');
   if (res.ok) {
     teacherToast(res.data.message, 'success');
@@ -597,9 +600,9 @@ async function deleteTeacherExam(id, title) {
 
 /* ============================================
    QUESTIONS
-   ============================================ */
+============================================ */
 function populateQuestionExamSelector() {
-  var sel      = document.getElementById('questionExamSelector');
+  var sel       = document.getElementById('questionExamSelector');
   var currentVal = sel.value;
   sel.innerHTML = '<option value="">-- Choose an exam --</option>' +
     teacherState.exams.map(function(e) {
@@ -613,11 +616,7 @@ async function loadTeacherQuestions() {
   var cardEl = document.getElementById('questionsCardWrapper');
   var addBtn = document.getElementById('addQuestionBtn');
 
-  if (!examId) {
-    cardEl.style.display = 'none';
-    addBtn.style.display = 'none';
-    return;
-  }
+  if (!examId) { cardEl.style.display = 'none'; addBtn.style.display = 'none'; return; }
 
   cardEl.style.display = 'block';
   addBtn.style.display = 'inline-flex';
@@ -662,7 +661,9 @@ async function loadTeacherQuestions() {
       optionsHtml = '<div style="font-size:12px; color:var(--text-muted); font-style:italic; margin-top:6px;">Theory question — written answer required</div>';
     }
 
-    return '<div style="display:flex; align-items:flex-start; gap:14px; padding:16px 22px; border-top:1px solid var(--border);">' +
+    /* ✅ Use q-text-render class for KaTeX rendering */
+    var rowId = 'qrow_' + i;
+    return '<div style="display:flex; align-items:flex-start; gap:14px; padding:16px 22px; border-top:1px solid var(--border);" id="' + rowId + '">' +
       '<div style="width:28px; height:28px; border-radius:8px; background:rgba(108,99,255,0.12); color:var(--primary-light); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; flex-shrink:0;">' + (i + 1) + '</div>' +
       '<div style="flex:1; min-width:0;">' +
         '<span style="font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; margin-bottom:8px; display:inline-block; background:' +
@@ -670,13 +671,18 @@ async function loadTeacherQuestions() {
         '; color:' + (q.questionType === 'objective' ? 'var(--primary-light)' : '#ffa500') + ';">' +
           q.questionType +
         '</span>' +
-        '<div style="font-size:14px; font-weight:600; color:var(--text-primary); margin-bottom:4px;">' + q.questionText + '</div>' +
+        '<div class="q-text-render" style="font-size:14px; font-weight:600; color:var(--text-primary); margin-bottom:4px;">' + (q.questionText || '') + '</div>' +
         optionsHtml +
         '<div style="font-size:12px; color:var(--text-muted); margin-top:6px;">Marks: ' + q.marks + '</div>' +
       '</div>' +
       '<button class="tbl-btn tbl-btn-danger" onclick="deleteTeacherQuestion(\'' + q._id + '\')">🗑</button>' +
     '</div>';
   }).join('');
+
+  /* ✅ Render KaTeX on all question texts after DOM is ready */
+  setTimeout(function() {
+    listEl.querySelectorAll('.q-text-render').forEach(function(el) { tKatexRender(el); });
+  }, 50);
 }
 
 function goToExamQuestions(examId) {
@@ -690,7 +696,8 @@ function goToExamQuestions(examId) {
 
 /* ============================================
    ADD QUESTION MODAL
-   ============================================ */
+   ✅ UPDATED: KaTeX support + toggleQuestionType
+============================================ */
 function toggleQuestionType(type) {
   document.getElementById('objectiveFields').style.display = type === 'objective' ? 'grid' : 'none';
   document.getElementById('theoryFields').style.display    = type === 'theory'    ? 'flex' : 'none';
@@ -709,7 +716,12 @@ function openAddQuestionModal() {
   ['optA', 'optB', 'qCorrectAnswer'].forEach(function(id) {
     document.getElementById(id).required = true;
   });
+  /* Clear math preview */
+  var pw = document.getElementById('qMathPreviewWrap');
+  if (pw) pw.style.display = 'none';
+
   document.getElementById('addQuestionModal').style.display = 'flex';
+  setTimeout(function() { var t = document.getElementById('qText'); if (t) t.focus(); }, 120);
 }
 
 async function saveTeacherQuestion(e) {
@@ -740,6 +752,11 @@ async function saveTeacherQuestion(e) {
   };
 
   if (qType === 'objective') {
+    if (options.length < 2) {
+      teacherToast('Please enter at least 2 answer options.', 'error');
+      btn.disabled = false; btn.textContent = 'Add Question';
+      return;
+    }
     payload.options       = options;
     payload.correctAnswer = parseInt(document.getElementById('qCorrectAnswer').value);
   } else {
@@ -773,7 +790,7 @@ async function deleteTeacherQuestion(id) {
 
 /* ============================================
    STUDENT MONITORING
-   ============================================ */
+============================================ */
 function populateStudentExamSelector() {
   var sel = document.getElementById('studentExamSelector');
   sel.innerHTML = '<option value="">-- Choose an exam to see its students --</option>' +
@@ -821,7 +838,7 @@ async function loadStudentSubmissions() {
       '</span></td>' +
       '<td style="color:var(--text-muted);">' + (s.timeTaken || 0) + ' min</td>' +
       '<td style="color:var(--text-muted);">' +
-        new Date(s.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) +
+        new Date(s.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) +
       '</td>' +
       '<td><button class="tbl-btn" onclick="viewStudentAnswers(\'' + s._id + '\')">View Answers</button></td>' +
     '</tr>';
@@ -878,12 +895,9 @@ async function viewStudentAnswers(submissionId) {
             (a.studentAnswer || '<em style="color:var(--text-muted);">No answer written</em>') +
           '</div>';
       }
-
       return '<div style="background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:10px; padding:16px; border-left:3px solid ' +
         (a.isCorrect === null ? '#ffa500' : a.isCorrect ? '#43e97b' : 'var(--secondary)') + ';">' +
-        '<div style="font-size:12px; font-weight:700; color:var(--text-muted); margin-bottom:8px;">' +
-          'Q' + (i + 1) + ' — ' + (a.questionType === 'theory' ? '📝 Theory' : '🔘 Objective') +
-        '</div>' +
+        '<div style="font-size:12px; font-weight:700; color:var(--text-muted); margin-bottom:8px;">Q' + (i + 1) + ' — ' + (a.questionType === 'theory' ? '📝 Theory' : '🔘 Objective') + '</div>' +
         '<div style="font-size:14px; font-weight:600; color:var(--text-primary); margin-bottom:12px;">' + a.questionText + '</div>' +
         answerHtml +
       '</div>';
@@ -895,14 +909,12 @@ async function viewStudentAnswers(submissionId) {
 }
 
 /* ============================================
-   SHOW TEACHER PANEL (login/forgot switcher)
-   ============================================ */
+   LOGIN / FORGOT PANEL SWITCHER
+============================================ */
 function showTeacherPanel(panel) {
   var loginForm   = document.getElementById('teacherLoginForm');
   var forgotPanel = document.getElementById('teacherForgotPanel');
-
   if (!loginForm || !forgotPanel) return;
-
   if (panel === 'forgot') {
     loginForm.style.display   = 'none';
     forgotPanel.style.display = 'block';
@@ -918,39 +930,25 @@ function showTeacherPanel(panel) {
   }
 }
 
-/* ============================================
-   SEND TEACHER FORGOT PASSWORD
-   ============================================ */
 async function sendTeacherForgot() {
   var emailEl = document.getElementById('teacherForgotEmail');
   var errEl   = document.getElementById('teacherForgotError');
   var sucEl   = document.getElementById('teacherForgotSuccess');
   var btn     = document.getElementById('teacherForgotBtn');
-
   if (errEl) errEl.style.display = 'none';
   if (sucEl) sucEl.style.display = 'none';
-
   var email = emailEl ? emailEl.value.trim() : '';
-
   if (!email) {
     if (errEl) { errEl.textContent = '⚠️ Please enter your email address.'; errEl.style.display = 'block'; }
     return;
   }
-
   btn.textContent = 'Sending...';
   btn.disabled    = true;
-
   var result = await apiRequest('/auth/forgot-password', 'POST', { email });
-
   btn.disabled    = false;
   btn.textContent = 'Send Reset Link →';
-
   if (result.ok) {
-    if (sucEl) {
-      sucEl.innerHTML = '✅ ' + result.data.message +
-        (result.data.devNote ? '<div style="margin-top:8px; font-size:12px; color:#ffa500;">🛠️ Dev Mode: Check your VS Code terminal.</div>' : '');
-      sucEl.style.display = 'block';
-    }
+    if (sucEl) { sucEl.innerHTML = '✅ ' + result.data.message + (result.data.devNote ? '<div style="margin-top:8px; font-size:12px; color:#ffa500;">🛠️ Dev Mode: Check your VS Code terminal.</div>' : ''); sucEl.style.display = 'block'; }
     if (emailEl) emailEl.value = '';
   } else {
     if (errEl) { errEl.textContent = result.data.message || 'Something went wrong. Please try again.'; errEl.style.display = 'block'; }
@@ -958,8 +956,8 @@ async function sendTeacherForgot() {
 }
 
 /* ============================================
-   TEACHER VERIFICATION NOTICE
-   ============================================ */
+   VERIFICATION OTP FLOW
+============================================ */
 function showTeacherVerificationNotice(email) {
   var loginForm   = document.getElementById('teacherLoginForm');
   var forgotPanel = document.getElementById('teacherForgotPanel');
@@ -970,74 +968,46 @@ function showTeacherVerificationNotice(email) {
   if (existing) existing.remove();
 
   var notice = document.createElement('div');
-  notice.id = 'teacherVerifyNotice';
+  notice.id  = 'teacherVerifyNotice';
   notice.innerHTML =
-    '<div style="text-align:center; margin-bottom:20px;">' +
-      '<div style="font-size:48px; margin-bottom:10px;">📧</div>' +
-      '<h3 style="font-size:18px; font-weight:800; color:var(--text-primary); margin:0 0 8px;">Verify Your Email First</h3>' +
-      '<p style="font-size:13px; color:var(--text-secondary); line-height:1.6; margin:0;">Your account for <strong style="color:var(--primary-light);">' + email + '</strong> is registered but not yet verified.</p>' +
-    '</div>' +
-    '<div style="background:rgba(108,99,255,0.07); border:1px solid rgba(108,99,255,0.2); border-radius:10px; padding:16px 18px; margin-bottom:20px;">' +
-      '<p style="font-size:13px; font-weight:700; color:var(--primary-light); margin:0 0 10px;">Choose how to verify:</p>' +
-      '<div style="font-size:13px; color:var(--text-secondary); margin-bottom:6px;">📬 <strong>Option 1:</strong> Click the verification link in your email.</div>' +
-      '<div style="font-size:13px; color:var(--text-secondary);">🔢 <strong>Option 2:</strong> Enter the 6-digit OTP code below.</div>' +
-    '</div>' +
+    '<div style="text-align:center; margin-bottom:20px;"><div style="font-size:48px; margin-bottom:10px;">📧</div>' +
+    '<h3 style="font-size:18px; font-weight:800; color:var(--text-primary); margin:0 0 8px;">Verify Your Email First</h3>' +
+    '<p style="font-size:13px; color:var(--text-secondary); line-height:1.6; margin:0;">Your account for <strong style="color:var(--primary-light);">' + email + '</strong> is registered but not yet verified.</p></div>' +
     '<div id="teacherOtpSection">' +
-      '<div id="teacherOtpError" style="display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--secondary); padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:12px;"></div>' +
-      '<div id="teacherOtpSuccess" style="display:none; background:rgba(67,233,123,0.1); border:1px solid rgba(67,233,123,0.3); color:#43e97b; padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:12px;"></div>' +
-      '<label style="display:block; font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Enter OTP Code</label>' +
-      '<input id="teacherOtpInput" type="text" maxlength="6" inputmode="numeric" placeholder="6-digit code" ' +
-        'style="width:100%; background:rgba(255,255,255,0.04); border:2px solid var(--border); border-radius:10px; padding:14px; color:var(--text-primary); font-size:28px; font-weight:900; font-family:monospace; outline:none; box-sizing:border-box; text-align:center; letter-spacing:8px; margin-bottom:12px;" ' +
-        'oninput="this.value=this.value.replace(/[^0-9]/g,\'\')" ' +
-        'onkeydown="if(event.key===\'Enter\') submitTeacherOtp(\'' + email + '\')" />' +
-      '<button onclick="submitTeacherOtp(\'' + email + '\')" id="teacherOtpBtn" ' +
-        'style="width:100%; padding:13px; background:linear-gradient(135deg,#43e97b,#38f9d7); color:#0f0f1a; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; margin-bottom:12px;">' +
-        'Verify Code →' +
-      '</button>' +
-      '<button onclick="resendTeacherVerification(\'' + email + '\')" id="teacherResendBtn" ' +
-        'style="width:100%; padding:12px; background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:white; border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; margin-bottom:8px;">' +
-        '📨 Resend Verification Email' +
-      '</button>' +
+    '<div id="teacherOtpError"   style="display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--secondary); padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:12px;"></div>' +
+    '<div id="teacherOtpSuccess" style="display:none; background:rgba(67,233,123,0.1);  border:1px solid rgba(67,233,123,0.3);  color:#43e97b;           padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:12px;"></div>' +
+    '<label style="display:block; font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Enter OTP Code</label>' +
+    '<input id="teacherOtpInput" type="text" maxlength="6" inputmode="numeric" placeholder="6-digit code" ' +
+      'style="width:100%; background:rgba(255,255,255,0.04); border:2px solid var(--border); border-radius:10px; padding:14px; color:var(--text-primary); font-size:28px; font-weight:900; font-family:monospace; outline:none; box-sizing:border-box; text-align:center; letter-spacing:8px; margin-bottom:12px;" ' +
+      'oninput="this.value=this.value.replace(/[^0-9]/g,\'\')" onkeydown="if(event.key===\'Enter\') submitTeacherOtp(\'' + email + '\')" />' +
+    '<button onclick="submitTeacherOtp(\'' + email + '\')" id="teacherOtpBtn" ' +
+      'style="width:100%; padding:13px; background:linear-gradient(135deg,#43e97b,#38f9d7); color:#0f0f1a; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; margin-bottom:12px;">Verify Code →</button>' +
+    '<button onclick="resendTeacherVerification(\'' + email + '\')" id="teacherResendBtn" ' +
+      'style="width:100%; padding:12px; background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:white; border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; margin-bottom:8px;">📨 Resend Verification Email</button>' +
     '</div>' +
     '<button onclick="backToTeacherLogin()" ' +
-      'style="width:100%; padding:10px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text-secondary); border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;">' +
-      '← Back to Login' +
-    '</button>';
+      'style="width:100%; padding:10px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text-secondary); border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;">← Back to Login</button>';
 
   var card = document.querySelector('#accessDenied > div:last-of-type');
-  if (card) {
-    card.appendChild(notice);
-  } else {
-    document.getElementById('accessDenied').appendChild(notice);
-  }
+  if (card) { card.appendChild(notice); } else { document.getElementById('accessDenied').appendChild(notice); }
 }
 
-/* ============================================
-   SUBMIT OTP
-   ============================================ */
 async function submitTeacherOtp(email) {
   var codeEl = document.getElementById('teacherOtpInput');
   var errEl  = document.getElementById('teacherOtpError');
   var sucEl  = document.getElementById('teacherOtpSuccess');
   var btn    = document.getElementById('teacherOtpBtn');
-
   if (errEl) errEl.style.display = 'none';
   if (sucEl) sucEl.style.display = 'none';
-
   var code = codeEl ? codeEl.value.trim() : '';
-
   if (!code || code.length !== 6 || !/^\d{6}$/.test(code)) {
     if (errEl) { errEl.textContent = '⚠️ Please enter the 6-digit code from your email.'; errEl.style.display = 'block'; }
     if (codeEl) codeEl.focus();
     return;
   }
-
   if (btn) { btn.textContent = 'Verifying...'; btn.disabled = true; }
-
   var result = await apiRequest('/auth/verify-otp', 'POST', { email: email, otp: code });
-
   if (btn) { btn.textContent = 'Verify Code →'; btn.disabled = false; }
-
   if (result.ok) {
     if (sucEl) { sucEl.textContent = '✅ Email verified! You can now login.'; sucEl.style.display = 'block'; }
     var otpSection = document.getElementById('teacherOtpSection');
@@ -1057,13 +1027,9 @@ async function submitTeacherOtp(email) {
     }, 1500);
   } else {
     if (errEl) {
-      if (result.data.tooManyAttempts) {
-        errEl.innerHTML = '🔒 Too many wrong attempts. Please register again.';
-      } else if (result.data.expired) {
-        errEl.innerHTML = '⏰ Code expired. Please register again to get a new code.';
-      } else {
-        errEl.textContent = result.data.message || '❌ Incorrect code. Please try again.';
-      }
+      if (result.data.tooManyAttempts) { errEl.innerHTML = '🔒 Too many wrong attempts. Please register again.'; }
+      else if (result.data.expired)    { errEl.innerHTML = '⏰ Code expired. Please register again.'; }
+      else { errEl.textContent = result.data.message || '❌ Incorrect code. Please try again.'; }
       errEl.style.display = 'block';
       if (codeEl) {
         codeEl.style.borderColor = 'var(--secondary)';
@@ -1074,9 +1040,6 @@ async function submitTeacherOtp(email) {
   }
 }
 
-/* ============================================
-   BACK TO TEACHER LOGIN
-   ============================================ */
 function backToTeacherLogin() {
   var notice = document.getElementById('teacherVerifyNotice');
   if (notice) notice.remove();
@@ -1088,36 +1051,25 @@ function backToTeacherLogin() {
   if (btn) { btn.textContent = 'Login →'; btn.disabled = false; btn.style.background = ''; }
 }
 
-/* ============================================
-   RESEND VERIFICATION
-   ============================================ */
 async function resendTeacherVerification(email) {
   var btn   = document.getElementById('teacherResendBtn');
   var errEl = document.getElementById('teacherOtpError');
   var sucEl = document.getElementById('teacherOtpSuccess');
-
   if (btn)   { btn.textContent = 'Sending...'; btn.disabled = true; }
   if (errEl)   errEl.style.display = 'none';
   if (sucEl)   sucEl.style.display = 'none';
-
   var result = await apiRequest('/auth/resend-verification', 'POST', { email: email });
-
   if (btn) { btn.textContent = '📨 Resend Verification Email'; btn.disabled = false; }
-
   if (result.ok) {
-    if (sucEl) {
-      sucEl.innerHTML = '✅ ' + result.data.message +
-        (result.data.devNote ? '<div style="margin-top:6px;font-size:11px;color:#ffa500;">🛠️ Dev: Check terminal.</div>' : '');
-      sucEl.style.display = 'block';
-    }
+    if (sucEl) { sucEl.innerHTML = '✅ ' + result.data.message + (result.data.devNote ? '<div style="margin-top:6px;font-size:11px;color:#ffa500;">🛠️ Dev: Check terminal.</div>' : ''); sucEl.style.display = 'block'; }
   } else {
     if (errEl) { errEl.textContent = result.data.message || 'Could not resend. Try again.'; errEl.style.display = 'block'; }
   }
 }
 
 /* ============================================
-   GOOGLE AUTH — TEACHER
-   ============================================ */
+   GOOGLE AUTH
+============================================ */
 function triggerTeacherGoogleAuth() {
   if (typeof google === 'undefined' || !google.accounts) {
     alert('Google Sign In is loading. Please try again.');
@@ -1135,14 +1087,10 @@ async function handleTeacherGoogleResponse(response) {
   var credential = response.credential;
   var btn        = document.getElementById('teacherLoginBtn');
   var errEl      = document.getElementById('teacherLoginError');
-
   if (btn)   { btn.textContent = 'Signing in...'; btn.disabled = true; }
   if (errEl)   errEl.style.display = 'none';
-
   var result = await apiRequest('/auth/google', 'POST', { credential: credential, role: 'teacher' });
-
   if (btn) { btn.textContent = 'Login →'; btn.disabled = false; }
-
   if (result.ok) {
     var user = result.data.user;
     if (user.role !== 'teacher' && user.role !== 'admin') {
