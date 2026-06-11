@@ -8,16 +8,16 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     :root {
-      --primary:   #6c63ff; --pd: #574fd6;
-      --green:     #43e97b; --red: #ff6584;
-      --orange:    #ffa500;
-      --dark:      #0f0f1a; --dark-2: #1a1a2e; --dark-3: #151526;
-      --border:    rgba(255,255,255,0.08);
-      --text:      #fff; --muted: #6b6b8a; --secondary: #a0a0c0;
+      --primary:#6c63ff; --pd:#574fd6;
+      --green:#43e97b;   --red:#ff6584;
+      --orange:#ffa500;
+      --dark:#0f0f1a;    --dark-2:#1a1a2e; --dark-3:#151526;
+      --border:rgba(255,255,255,0.08);
+      --text:#fff;       --muted:#6b6b8a; --secondary:#a0a0c0;
     }
     html, body { margin:0; padding:0; background:var(--dark); color:var(--text); font-family:'Inter',sans-serif; }
-    @keyframes spin    { to { transform:rotate(360deg); } }
-    @keyframes fadeUp  { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes spin   { to { transform:rotate(360deg); } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
 
     .sidebar {
       width:260px; flex-shrink:0; background:var(--dark-2);
@@ -49,10 +49,9 @@
     .sb-nav { flex:1; padding:8px 10px; }
     .sb-sep { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.6px; padding:14px 10px 6px; }
     .nav-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; font-size:14px; font-weight:500; color:var(--secondary); cursor:pointer; transition:all 0.15s; margin-bottom:2px; width:100%; border:none; background:none; font-family:inherit; text-align:left; text-decoration:none; line-height:1.4; }
-    .nav-item:hover { background:rgba(255,255,255,0.06); color:#fff; }
+    .nav-item:hover  { background:rgba(255,255,255,0.06); color:#fff; }
     .nav-item.active { background:rgba(108,99,255,0.15); color:var(--primary); font-weight:700; }
     .nav-icon { font-size:16px; width:22px; text-align:center; flex-shrink:0; }
-
     .sb-footer { padding:12px 10px; border-top:1px solid var(--border); flex-shrink:0; }
 
     .mobile-bar { display:none; align-items:center; justify-content:space-between; padding:0 16px; height:60px; background:var(--dark-2); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:300; flex-shrink:0; }
@@ -93,21 +92,21 @@
     tr:hover td { background:rgba(255,255,255,0.02); }
 
     .btn { display:inline-flex; align-items:center; gap:7px; padding:9px 18px; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; border:none; transition:all 0.2s; text-decoration:none; white-space:nowrap; }
-    .btn-primary  { background:linear-gradient(135deg,var(--primary),var(--pd)); color:#fff; }
-    .btn-primary:hover { transform:translateY(-1px); box-shadow:0 4px 16px rgba(108,99,255,0.4); }
-    .btn-green    { background:linear-gradient(135deg,var(--green),#38f9d7); color:#0f0f1a; }
-    .btn-green:hover { transform:translateY(-1px); box-shadow:0 4px 16px rgba(67,233,123,0.35); }
+    .btn-primary   { background:linear-gradient(135deg,var(--primary),var(--pd)); color:#fff; }
+    .btn-primary:hover  { transform:translateY(-1px); box-shadow:0 4px 16px rgba(108,99,255,0.4); }
+    .btn-green     { background:linear-gradient(135deg,var(--green),#38f9d7); color:#0f0f1a; }
+    .btn-green:hover    { transform:translateY(-1px); box-shadow:0 4px 16px rgba(67,233,123,0.35); }
     .btn-secondary { background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--secondary); }
-    .btn-danger   { background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); }
-    .btn-orange   { background:rgba(255,165,0,0.1); border:1px solid rgba(255,165,0,0.3); color:var(--orange); }
+    .btn-danger    { background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); }
+    .btn-orange    { background:rgba(255,165,0,0.1); border:1px solid rgba(255,165,0,0.3); color:var(--orange); }
     .btn-sm { padding:5px 10px; font-size:12px; border-radius:6px; }
 
     .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
-    .badge-green   { background:rgba(67,233,123,0.12);  color:var(--green); }
-    .badge-red     { background:rgba(255,101,132,0.12); color:var(--red); }
-    .badge-orange  { background:rgba(255,165,0,0.12);   color:var(--orange); }
-    .badge-purple  { background:rgba(108,99,255,0.12);  color:#a78bfa; }
-    .badge-muted   { background:rgba(255,255,255,0.06); color:var(--secondary); }
+    .badge-green  { background:rgba(67,233,123,0.12);  color:var(--green); }
+    .badge-red    { background:rgba(255,101,132,0.12); color:var(--red); }
+    .badge-orange { background:rgba(255,165,0,0.12);   color:var(--orange); }
+    .badge-purple { background:rgba(108,99,255,0.12);  color:#a78bfa; }
+    .badge-muted  { background:rgba(255,255,255,0.06); color:var(--secondary); }
 
     .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:600; display:flex; align-items:center; justify-content:center; padding:20px; overflow-y:auto; }
     .modal-box { background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:28px; width:100%; max-width:520px; max-height:90vh; overflow-y:auto; }
@@ -126,6 +125,30 @@
     .field textarea { resize:vertical; min-height:70px; }
     .field-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
     @media (max-width:480px) { .field-row { grid-template-columns:1fr; } }
+    .field-hint { font-size:11px; color:var(--muted); margin-top:2px; line-height:1.5; }
+
+    /* ✅ PHASE B: Expiry duration selector styling */
+    .expiry-grid {
+      display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:4px;
+    }
+    @media (max-width:400px) { .expiry-grid { grid-template-columns:repeat(2,1fr); } }
+    .expiry-btn {
+      padding:10px 6px; border-radius:8px; font-size:12px; font-weight:700;
+      cursor:pointer; font-family:inherit; border:1px solid var(--border);
+      background:rgba(255,255,255,0.04); color:var(--secondary);
+      text-align:center; transition:all 0.15s; line-height:1.3;
+    }
+    .expiry-btn:hover  { border-color:rgba(108,99,255,0.4); color:#fff; }
+    .expiry-btn.active {
+      background:rgba(108,99,255,0.15); border-color:rgba(108,99,255,0.5);
+      color:#a78bfa;
+    }
+    .expiry-btn .expiry-icon { font-size:16px; display:block; margin-bottom:3px; }
+    .expiry-hint-box {
+      background:rgba(108,99,255,0.06); border:1px solid rgba(108,99,255,0.2);
+      border-radius:8px; padding:10px 14px; font-size:12px; color:var(--secondary);
+      margin-top:8px; line-height:1.6;
+    }
 
     .empty { text-align:center; padding:48px 20px; color:var(--muted); }
     .empty-icon { font-size:48px; margin-bottom:12px; }
@@ -147,12 +170,9 @@
     .plan-card-days  { font-size:12px; color:var(--secondary); margin:4px 0 14px; }
     .plan-popular { position:absolute; top:-10px; left:50%; transform:translateX(-50%); background:var(--primary); color:#fff; font-size:10px; font-weight:700; padding:2px 12px; border-radius:20px; white-space:nowrap; }
 
-    #instToast { position:fixed; bottom:24px; right:24px; z-index:9999; }
-    .spinner { width:18px; height:18px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block; }
-    .invite-link-box { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; padding:10px 14px; font-size:13px; color:var(--secondary); word-break:break-all; font-family:monospace; }
-
-    /* Teacher action buttons container */
+    .invite-link-box { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; padding:10px 14px; font-size:12px; color:var(--secondary); word-break:break-all; font-family:monospace; margin-top:6px; }
     .teacher-actions { display:flex; gap:4px; flex-wrap:wrap; }
+    .spinner { width:18px; height:18px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block; }
   </style>
 </head>
 <body>
@@ -178,25 +198,21 @@
 
   <nav class="sb-nav">
     <div class="sb-sep">Main</div>
-    <button class="nav-item active" data-sec="overview"     onclick="showSection('overview')">     <span class="nav-icon">📊</span> Overview        </button>
-    <button class="nav-item"        data-sec="teachers"     onclick="showSection('teachers')">     <span class="nav-icon">👩‍🏫</span> Teachers       </button>
-    <button class="nav-item"        data-sec="exams"        onclick="showSection('exams')">        <span class="nav-icon">📝</span> Exams           </button>
-    <button class="nav-item"        data-sec="results"      onclick="showSection('results')">      <span class="nav-icon">📊</span> Results         </button>
-    <button class="nav-item"        data-sec="analytics"    onclick="window.location='/institution/school/analytics.html'">
-      <span class="nav-icon">📈</span> Analytics
-    </button>
+    <button class="nav-item active" data-sec="overview"     onclick="showSection('overview')">     <span class="nav-icon">📊</span> Overview</button>
+    <button class="nav-item"        data-sec="teachers"     onclick="showSection('teachers')">     <span class="nav-icon">👩‍🏫</span> Teachers</button>
+    <button class="nav-item"        data-sec="exams"        onclick="showSection('exams')">        <span class="nav-icon">📝</span> Exams</button>
+    <button class="nav-item"        data-sec="results"      onclick="showSection('results')">      <span class="nav-icon">📊</span> Results</button>
+    <button class="nav-item" onclick="window.location='/institution/school/analytics.html'">       <span class="nav-icon">📈</span> Analytics</button>
     <div class="sb-sep">Settings</div>
-    <button class="nav-item"        data-sec="subscription" onclick="showSection('subscription')"> <span class="nav-icon">💳</span> Subscription    </button>
-    <button class="nav-item"        data-sec="settings"     onclick="showSection('settings')">     <span class="nav-icon">⚙️</span> School Settings </button>
+    <button class="nav-item"        data-sec="subscription" onclick="showSection('subscription')"> <span class="nav-icon">💳</span> Subscription</button>
+    <button class="nav-item"        data-sec="settings"     onclick="showSection('settings')">     <span class="nav-icon">⚙️</span> School Settings</button>
     <div class="sb-sep">Links</div>
     <a href="/institution/student/exam.html" class="nav-item" target="_blank"><span class="nav-icon">🎓</span> Student Portal</a>
     <a href="/institution/index.html"        class="nav-item"><span class="nav-icon">🏠</span> Institution Home</a>
   </nav>
 
   <div class="sb-footer">
-    <button class="nav-item" style="color:var(--red);" onclick="instLogout()">
-      <span class="nav-icon">🚪</span> Logout
-    </button>
+    <button class="nav-item" style="color:var(--red);" onclick="instLogout()"><span class="nav-icon">🚪</span> Logout</button>
   </div>
 </aside>
 
@@ -225,7 +241,7 @@
         <div class="card-head"><h3>Recent Exams</h3><button class="btn btn-secondary btn-sm" onclick="showSection('exams')">View All</button></div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Title</th><th>Subject</th><th>Status</th><th>Access Code</th><th>Submissions</th><th>Created</th></tr></thead>
+            <thead><tr><th>Title</th><th>Subject</th><th>Access Code</th><th>Status</th><th>Submissions</th><th>Created</th></tr></thead>
             <tbody id="recentExamsBody"><tr><td colspan="6" style="text-align:center; padding:28px; color:var(--muted);">Loading...</td></tr></tbody>
           </table>
         </div>
@@ -241,13 +257,12 @@
       </div>
     </div>
 
-    <!-- ===== TEACHERS ===== -->
+    <!-- TEACHERS -->
     <div class="section" id="sec-teachers">
       <div class="page-header">
         <div><h1>Teachers</h1><p id="teachersSubtitle">Manage your school staff</p></div>
         <button class="btn btn-primary" onclick="openInviteModal()">+ Invite Teacher</button>
       </div>
-
       <div class="card">
         <div class="card-head">
           <h3>Active Staff</h3>
@@ -255,21 +270,13 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead>
-              <!-- ✅ FIX: Added Actions column -->
-              <tr>
-                <th>Name</th><th>Email</th><th>Role</th><th>Subjects</th>
-                <th>Status</th><th>Joined</th><th>Actions</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Subjects</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead>
             <tbody id="teachersTableBody">
-              <!-- ✅ FIX: Updated colspan to 7 -->
               <tr><td colspan="7" style="text-align:center; padding:28px; color:var(--muted);">Loading...</td></tr>
             </tbody>
           </table>
         </div>
       </div>
-
       <div class="card">
         <div class="card-head">
           <h3>Pending Invitations</h3>
@@ -327,11 +334,7 @@
       </div>
       <div class="card">
         <div class="card-head"><h3>Available Plans</h3></div>
-        <div class="card-body">
-          <div class="plans-grid" id="subPlansGrid">
-            <div style="color:var(--muted); font-size:14px; text-align:center; padding:20px; grid-column:1/-1;">Loading plans...</div>
-          </div>
-        </div>
+        <div class="card-body"><div class="plans-grid" id="subPlansGrid"><div style="color:var(--muted); font-size:14px; text-align:center; padding:20px; grid-column:1/-1;">Loading plans...</div></div></div>
       </div>
     </div>
 
@@ -388,20 +391,79 @@
   </div>
 </div>
 
-<!-- INVITE TEACHER MODAL -->
+<!-- ============================================
+     INVITE TEACHER MODAL
+     ✅ PHASE B: Expiry duration selector added
+============================================ -->
 <div class="modal-overlay" id="inviteModal" style="display:none;">
   <div class="modal-box">
-    <div class="modal-header"><h2>Invite Teacher</h2><button class="modal-close" onclick="closeModal('inviteModal')">✕</button></div>
-    <div id="inviteErr" style="display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); padding:12px; border-radius:8px; font-size:13px; margin-bottom:16px;"></div>
-    <div id="inviteSuccess" style="display:none; background:rgba(67,233,123,0.1); border:1px solid rgba(67,233,123,0.3); color:var(--green); padding:16px; border-radius:8px; font-size:13px; margin-bottom:16px; line-height:1.7;"></div>
-    <div class="field"><label>Teacher Email *</label><input type="email" id="inviteEmail" placeholder="teacher@email.com" /></div>
-    <div class="field"><label>Full Name (optional)</label><input type="text" id="inviteName" placeholder="e.g. Mrs. Adaeze Okafor" /></div>
-    <div class="field-row">
-      <div class="field"><label>Role</label><select id="inviteRole"><option value="teacher">Teacher</option><option value="vice_principal">Vice Principal</option></select></div>
-      <div class="field"><label>Subjects</label><input type="text" id="inviteSubjects" placeholder="e.g. Maths, English" /></div>
+    <div class="modal-header">
+      <h2>Invite Teacher</h2>
+      <button class="modal-close" onclick="closeModal('inviteModal')">✕</button>
     </div>
-    <div class="field"><label>Classes</label><input type="text" id="inviteClasses" placeholder="e.g. JSS1, SS2A" /></div>
-    <div class="field"><label>Personal Message (optional)</label><textarea id="inviteMessage" placeholder="Welcome to our school!" rows="2"></textarea></div>
+    <div id="inviteErr"     style="display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); padding:12px; border-radius:8px; font-size:13px; margin-bottom:16px;"></div>
+    <div id="inviteSuccess" style="display:none; background:rgba(67,233,123,0.1); border:1px solid rgba(67,233,123,0.3); color:var(--green); padding:16px; border-radius:8px; font-size:13px; margin-bottom:16px; line-height:1.7;"></div>
+
+    <div class="field">
+      <label>Teacher Email <span style="color:var(--red);">*</span></label>
+      <input type="email" id="inviteEmail" placeholder="teacher@email.com" />
+    </div>
+    <div class="field">
+      <label>Full Name (optional)</label>
+      <input type="text" id="inviteName" placeholder="e.g. Mrs. Adaeze Okafor" />
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Role</label>
+        <select id="inviteRole">
+          <option value="teacher">Teacher</option>
+          <option value="vice_principal">Vice Principal</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Subjects</label>
+        <input type="text" id="inviteSubjects" placeholder="e.g. Maths, English" />
+      </div>
+    </div>
+    <div class="field">
+      <label>Classes</label>
+      <input type="text" id="inviteClasses" placeholder="e.g. JSS1, SS2A" />
+    </div>
+
+    <!-- ✅ PHASE B: Expiry duration selector -->
+    <div class="field" style="margin-bottom:8px;">
+      <label>Invitation Expires In</label>
+      <div class="expiry-grid">
+        <button type="button" class="expiry-btn" data-duration="5min"  onclick="selectExpiry('5min')">
+          <span class="expiry-icon">⚡</span>5 minutes
+        </button>
+        <button type="button" class="expiry-btn" data-duration="10min" onclick="selectExpiry('10min')">
+          <span class="expiry-icon">🕐</span>10 minutes
+        </button>
+        <button type="button" class="expiry-btn" data-duration="30min" onclick="selectExpiry('30min')">
+          <span class="expiry-icon">🕐</span>30 minutes
+        </button>
+        <button type="button" class="expiry-btn" data-duration="1hr"   onclick="selectExpiry('1hr')">
+          <span class="expiry-icon">⏰</span>1 hour
+        </button>
+        <button type="button" class="expiry-btn" data-duration="24hr"  onclick="selectExpiry('24hr')">
+          <span class="expiry-icon">📅</span>24 hours
+        </button>
+        <button type="button" class="expiry-btn active" data-duration="7days" onclick="selectExpiry('7days')">
+          <span class="expiry-icon">📆</span>7 days
+        </button>
+      </div>
+      <div class="expiry-hint-box" id="expiryHintBox">
+        📆 The invite link will expire in <strong>7 days</strong>. Good for invites sent in advance.
+      </div>
+    </div>
+    <!-- Hidden input stores selected duration -->
+    <input type="hidden" id="inviteExpiryDuration" value="7days" />
+
+    <div class="field">
+      <label>Personal Message (optional)</label>
+      <textarea id="inviteMessage" placeholder="Welcome to our school!" rows="2"></textarea>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('inviteModal')">Cancel</button>
       <button class="btn btn-primary" id="inviteBtn" onclick="sendInvite()">Send Invitation →</button>
@@ -435,11 +497,37 @@ if (typeof instLogout !== 'function') {
   };
 }
 
-var _school     = null;
-var _dashStats  = null;
-var _allExams   = [];
-var _allResults = [];
-var _teachers   = [];
+var _school    = null;
+var _dashStats = null;
+var _allExams  = [];
+var _allResults= [];
+var _teachers  = [];
+
+/* ✅ PHASE B: Expiry duration config */
+var _expiryHints = {
+  '5min':  '⚡ The invite link will expire in <strong>5 minutes</strong>. Use this for in-room onboarding sessions.',
+  '10min': '🕐 The invite link will expire in <strong>10 minutes</strong>. Good for a quick same-room setup.',
+  '30min': '🕐 The invite link will expire in <strong>30 minutes</strong>. Standard for a single session.',
+  '1hr':   '⏰ The invite link will expire in <strong>1 hour</strong>. Good for same-day onboarding.',
+  '24hr':  '📅 The invite link will expire in <strong>24 hours</strong>. Good for next-day deadlines.',
+  '7days': '📆 The invite link will expire in <strong>7 days</strong>. Good for invites sent in advance.'
+};
+
+function selectExpiry(duration) {
+  /* Update hidden input */
+  var hiddenEl = document.getElementById('inviteExpiryDuration');
+  if (hiddenEl) hiddenEl.value = duration;
+
+  /* Update button states */
+  document.querySelectorAll('.expiry-btn').forEach(function(btn) {
+    btn.classList.remove('active');
+    if (btn.dataset.duration === duration) btn.classList.add('active');
+  });
+
+  /* Update hint text */
+  var hintEl = document.getElementById('expiryHintBox');
+  if (hintEl) hintEl.innerHTML = _expiryHints[duration] || _expiryHints['7days'];
+}
 
 document.addEventListener('DOMContentLoaded', async function() {
   if (!instRequireAuth('school_admin')) return;
@@ -447,7 +535,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 });
 
 /* ---- Sidebar ---- */
-function openSidebar() {
+function openSidebar()  {
   document.getElementById('sidebar').classList.add('open');
   document.getElementById('sidebarOverlay').classList.add('visible');
   document.body.style.overflow = 'hidden';
@@ -467,9 +555,9 @@ function showSection(name) {
   if (section) section.classList.add('active');
   var navItem = document.querySelector('[data-sec="' + name + '"]');
   if (navItem) navItem.classList.add('active');
-  var mobileLabel = document.getElementById('mobileSectionLabel');
-  var labels = { overview:'Overview', teachers:'Teachers', exams:'Exams', results:'Results', subscription:'Subscription', settings:'Settings' };
-  if (mobileLabel) mobileLabel.textContent = labels[name] || name;
+  var labels  = { overview:'Overview', teachers:'Teachers', exams:'Exams', results:'Results', subscription:'Subscription', settings:'Settings' };
+  var mobEl   = document.getElementById('mobileSectionLabel');
+  if (mobEl) mobEl.textContent = labels[name] || name;
   if (window.innerWidth <= 960) closeSidebar();
 
   if (name === 'teachers')     loadTeachers();
@@ -537,7 +625,13 @@ function fillOverview(stats, recentExams) {
     tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><div class="empty-icon">📝</div><div class="empty-text">No exams yet</div><div class="empty-sub">Go to the Teacher Panel to create your first exam.</div></div></td></tr>';
     return;
   }
-  var badges = { draft:'<span class="badge badge-muted">Draft</span>', published:'<span class="badge badge-green">Published</span>', active:'<span class="badge badge-purple">Active</span>', ended:'<span class="badge badge-orange">Ended</span>', archived:'<span class="badge badge-muted">Archived</span>' };
+  var badges = {
+    draft:    '<span class="badge badge-muted">Draft</span>',
+    published:'<span class="badge badge-green">Published</span>',
+    active:   '<span class="badge badge-purple">Active</span>',
+    ended:    '<span class="badge badge-orange">Ended</span>',
+    archived: '<span class="badge badge-muted">Archived</span>'
+  };
   tbody.innerHTML = recentExams.map(function(e) {
     return '<tr>' +
       '<td style="font-weight:700; color:#fff;">' + (e.title || '—') + '</td>' +
@@ -550,11 +644,7 @@ function fillOverview(stats, recentExams) {
   }).join('');
 }
 
-/* ============================================
-   LOAD TEACHERS
-   ✅ FIX: Added Actions column with
-   Deactivate / Reactivate / Remove buttons
-============================================ */
+/* ---- Load teachers ---- */
 async function loadTeachers() {
   var res = await instApi('/school/teachers');
   if (!res.ok) { instToast('Failed to load teachers.', 'error'); return; }
@@ -572,12 +662,10 @@ async function loadTeachers() {
     } else {
       tbody.innerHTML = _teachers.map(function(t) {
         var safeName = (t.name || '').replace(/'/g, '&#39;');
-        /* ✅ FIX: Action buttons — Deactivate/Reactivate + Remove */
         var actionBtns = t.isActive
           ? '<button class="btn btn-orange btn-sm" onclick="deactivateTeacher(\'' + t._id + '\',\'' + safeName + '\')">⛔ Deactivate</button>'
           : '<button class="btn btn-green btn-sm"  onclick="reactivateTeacher(\'' + t._id + '\',\'' + safeName + '\')">✅ Reactivate</button>';
-        actionBtns += '<button class="btn btn-danger btn-sm" onclick="deleteTeacher(\'' + t._id + '\',\'' + safeName + '\')">🗑 Remove</button>';
-
+        actionBtns += ' <button class="btn btn-danger btn-sm" onclick="deleteTeacher(\'' + t._id + '\',\'' + safeName + '\')">🗑 Remove</button>';
         return '<tr>' +
           '<td style="font-weight:700; color:#fff;">' +
             '<div style="display:flex; align-items:center; gap:10px;">' +
@@ -598,6 +686,7 @@ async function loadTeachers() {
     }
   }
 
+  /* ✅ PHASE B: Pending invites now show expiry duration label + expired warning */
   var invContainer = document.getElementById('invitesContainer');
   var invCountEl   = document.getElementById('inviteCountBadge');
   if (invCountEl) invCountEl.textContent = invites.length + ' pending';
@@ -607,11 +696,24 @@ async function loadTeachers() {
     } else {
       invContainer.innerHTML = '<div style="padding:8px 0;">' +
         invites.map(function(inv) {
+          var isExpiredNow = inv.isExpiredNow || (new Date(inv.expiresAt) < new Date());
+          var expiryText   = inv.expiryLabel
+            ? 'Invited as ' + (inv.role || 'teacher') + ' · Window: ' + inv.expiryLabel
+            : 'Invited as ' + (inv.role || 'teacher');
+          var expiredAt = instFmtDate(inv.expiresAt);
+          var statusBadge = isExpiredNow
+            ? '<span class="badge badge-red">Expired</span>'
+            : '<span class="badge badge-orange">Pending</span>';
+
           return '<div style="display:flex; align-items:center; gap:14px; padding:12px 20px; border-bottom:1px solid var(--border);">' +
-            '<div style="width:36px; height:36px; border-radius:8px; background:rgba(255,165,0,0.12); display:flex; align-items:center; justify-content:center; font-size:18px;">📨</div>' +
-            '<div style="flex:1;"><div style="font-size:14px; font-weight:700; color:#fff;">' + (inv.email || '') + '</div>' +
-            '<div style="font-size:12px; color:var(--muted);">Invited as ' + (inv.role || 'teacher') + ' · Expires ' + instFmtDate(inv.expiresAt) + '</div></div>' +
-            '<span class="badge badge-orange">Pending</span>' +
+            '<div style="width:36px; height:36px; border-radius:8px; background:rgba(255,165,0,0.12); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0;">📨</div>' +
+            '<div style="flex:1; min-width:0;">' +
+              '<div style="font-size:14px; font-weight:700; color:#fff;">' + (inv.email || '') + '</div>' +
+              '<div style="font-size:12px; color:var(--muted);">' + expiryText + ' · ' +
+                (isExpiredNow ? '⛔ Expired ' : '⏰ Expires ') + expiredAt +
+              '</div>' +
+            '</div>' +
+            statusBadge +
           '</div>';
         }).join('') +
       '</div>';
@@ -619,52 +721,33 @@ async function loadTeachers() {
   }
 }
 
-/* ============================================
-   TEACHER ACTIONS — Deactivate / Reactivate / Delete
-   ✅ NEW: These functions were completely missing
-   Backend routes: DELETE/PUT /api/institution/school/teachers/:id
-============================================ */
+/* ---- Teacher actions ---- */
 async function deactivateTeacher(id, name) {
-  if (!confirm('Deactivate ' + name + '?\n\nThey will immediately lose access to their dashboard and cannot log in.')) return;
+  if (!confirm('Deactivate ' + name + '?\n\nThey will immediately lose login access.')) return;
   var res = await instApi('/school/teachers/' + id + '/deactivate', 'PUT');
-  if (res.ok) {
-    instToast((res.data && res.data.message) || name + ' deactivated.', 'success');
-    loadTeachers();
-  } else {
-    instToast((res.data && res.data.message) || 'Failed to deactivate.', 'error');
-  }
+  if (res.ok) { instToast((res.data && res.data.message) || name + ' deactivated.', 'success'); loadTeachers(); }
+  else instToast((res.data && res.data.message) || 'Failed.', 'error');
 }
 
 async function reactivateTeacher(id, name) {
-  if (!confirm('Reactivate ' + name + '?\n\nThey will regain full access to their dashboard.')) return;
+  if (!confirm('Reactivate ' + name + '?\n\nThey will regain full access.')) return;
   var res = await instApi('/school/teachers/' + id + '/reactivate', 'PUT');
-  if (res.ok) {
-    instToast((res.data && res.data.message) || name + ' reactivated.', 'success');
-    loadTeachers();
-  } else {
-    instToast((res.data && res.data.message) || 'Failed to reactivate.', 'error');
-  }
+  if (res.ok) { instToast((res.data && res.data.message) || name + ' reactivated.', 'success'); loadTeachers(); }
+  else instToast((res.data && res.data.message) || 'Failed.', 'error');
 }
 
 async function deleteTeacher(id, name) {
   if (!confirm('Permanently remove ' + name + ' from your school?\n\nThis cannot be undone.')) return;
   var res = await instApi('/school/teachers/' + id, 'DELETE');
-  if (res.ok) {
-    instToast((res.data && res.data.message) || name + ' removed.', 'success');
-    loadTeachers();
-  } else {
-    instToast((res.data && res.data.message) || 'Failed to remove teacher.', 'error');
-  }
+  if (res.ok) { instToast((res.data && res.data.message) || name + ' removed.', 'success'); loadTeachers(); }
+  else instToast((res.data && res.data.message) || 'Failed.', 'error');
 }
 
-/* ---- Load exams ---- */
+/* ---- Exams ---- */
 async function loadAllExams() {
-  var exRes = await instApi('/teacher/exams');
-  if (!exRes.ok) {
-    document.getElementById('allExamsBody').innerHTML = '<tr><td colspan="7" style="text-align:center; padding:28px; color:var(--muted);">Could not load exams.</td></tr>';
-    return;
-  }
-  _allExams = exRes.data.exams || [];
+  var res = await instApi('/teacher/exams');
+  if (!res.ok) { document.getElementById('allExamsBody').innerHTML = '<tr><td colspan="7" style="text-align:center; padding:28px; color:var(--muted);">Could not load exams.</td></tr>'; return; }
+  _allExams = res.data.exams || [];
   var countEl = document.getElementById('examsTotalBadge');
   if (countEl) countEl.textContent = _allExams.length + ' total';
 
@@ -703,7 +786,7 @@ async function endExamAdmin(examId) {
   else instToast((res.data && res.data.message) || 'Failed.', 'error');
 }
 
-/* ---- Load results ---- */
+/* ---- Results ---- */
 async function loadAllResults() {
   var res = await instApi('/school/results?limit=50');
   if (!res.ok) { instToast('Failed to load results.', 'error'); return; }
@@ -785,11 +868,16 @@ async function initPayment(planCode) {
 function loadSettingsSection() {
   if (!_school) return;
   var fieldMap = {
-    'setSchoolName': _school.name||'', 'setPrincipalName': _school.principalName||'',
-    'setPhone': _school.phone||'', 'setState': _school.state||'',
-    'setAddress': _school.address||'', 'setMotto': _school.motto||'',
-    'setWebsite': _school.website||'', 'setLogo': _school.logo||'',
-    'setPrimaryColor': _school.primaryColor||'#6c63ff', 'setSecondaryColor': _school.secondaryColor||'#43e97b'
+    'setSchoolName':    _school.name           || '',
+    'setPrincipalName': _school.principalName  || '',
+    'setPhone':         _school.phone          || '',
+    'setState':         _school.state          || '',
+    'setAddress':       _school.address        || '',
+    'setMotto':         _school.motto          || '',
+    'setWebsite':       _school.website        || '',
+    'setLogo':          _school.logo           || '',
+    'setPrimaryColor':  _school.primaryColor   || '#6c63ff',
+    'setSecondaryColor':_school.secondaryColor || '#43e97b'
   };
   Object.keys(fieldMap).forEach(function(id) { var el = document.getElementById(id); if (el) el.value = fieldMap[id]; });
   setToggle('setAutoRelease', _school.settings && _school.settings.examResultsAutoRelease);
@@ -835,40 +923,54 @@ function openInviteModal() {
   ['inviteEmail','inviteName','inviteSubjects','inviteClasses','inviteMessage'].forEach(function(id) {
     var el = document.getElementById(id); if (el) el.value = '';
   });
+  /* ✅ PHASE B: Reset expiry to default (7days) on modal open */
+  selectExpiry('7days');
   document.getElementById('inviteModal').style.display = 'flex';
+  setTimeout(function() { var el = document.getElementById('inviteEmail'); if (el) el.focus(); }, 120);
 }
 
 async function sendInvite() {
-  var btn    = document.getElementById('inviteBtn');
-  var errEl  = document.getElementById('inviteErr');
-  var sucEl  = document.getElementById('inviteSuccess');
+  var btn   = document.getElementById('inviteBtn');
+  var errEl = document.getElementById('inviteErr');
+  var sucEl = document.getElementById('inviteSuccess');
   if (errEl) errEl.style.display = 'none';
   if (sucEl) sucEl.style.display = 'none';
 
-  var email    = (document.getElementById('inviteEmail')    ||{}).value.trim();
-  var name     = (document.getElementById('inviteName')     ||{}).value.trim();
-  var role     = (document.getElementById('inviteRole')     ||{}).value;
-  var subjects = (document.getElementById('inviteSubjects') ||{}).value.trim();
-  var classes  = (document.getElementById('inviteClasses')  ||{}).value.trim();
-  var message  = (document.getElementById('inviteMessage')  ||{}).value.trim();
+  var email          = (document.getElementById('inviteEmail')          ||{}).value.trim();
+  var name           = (document.getElementById('inviteName')           ||{}).value.trim();
+  var role           = (document.getElementById('inviteRole')           ||{}).value;
+  var subjects       = (document.getElementById('inviteSubjects')       ||{}).value.trim();
+  var classes        = (document.getElementById('inviteClasses')        ||{}).value.trim();
+  var message        = (document.getElementById('inviteMessage')        ||{}).value.trim();
+  /* ✅ PHASE B: Read selected expiry duration */
+  var expiryDuration = (document.getElementById('inviteExpiryDuration') ||{}).value || '7days';
 
-  if (!email) { if (errEl) { errEl.textContent = '⚠️ Email is required.'; errEl.style.display = 'block'; } return; }
+  if (!email) {
+    if (errEl) { errEl.textContent = '⚠️ Email is required.'; errEl.style.display = 'block'; }
+    return;
+  }
+
   if (btn) { btn.innerHTML = '<span class="spinner"></span> Sending...'; btn.disabled = true; }
 
   var res = await instApi('/school/invite-teacher', 'POST', {
-    email, name, role,
+    email, name, role, message, expiryDuration,
     subjects: subjects ? subjects.split(',').map(function(s){return s.trim();}) : [],
-    classes:  classes  ? classes.split(',').map(function(s){return s.trim();}) : [],
-    message
+    classes:  classes  ? classes.split(',').map(function(s){return s.trim();}) : []
   });
 
   if (btn) { btn.innerHTML = 'Send Invitation →'; btn.disabled = false; }
 
   if (res.ok) {
-    var inviteUrl = res.data.invite && res.data.invite.inviteUrl;
+    var inv        = res.data.invite;
+    var inviteUrl  = inv && inv.inviteUrl;
+    var expiryLbl  = inv && inv.expiryLabel;
     if (sucEl) {
-      sucEl.innerHTML = '✅ Invitation sent to <strong>' + email + '</strong>!' +
-        (inviteUrl ? '<br/><br/><div style="font-size:12px; color:var(--muted); margin-top:4px;">Invite link (share if email fails):</div><div class="invite-link-box" style="margin-top:6px;">' + inviteUrl + '</div>' : '');
+      sucEl.innerHTML =
+        '✅ Invitation sent to <strong>' + email + '</strong>!' +
+        (expiryLbl ? '<br/>⏰ This invite expires in <strong>' + expiryLbl + '</strong>.' : '') +
+        (inviteUrl
+          ? '<br/><br/><div style="font-size:12px; color:var(--muted);">Share this link if email is unreachable:</div><div class="invite-link-box">' + inviteUrl + '</div>'
+          : '');
       sucEl.style.display = 'block';
     }
     instToast('Invitation sent!', 'success');
@@ -897,8 +999,8 @@ async function confirmRelease() {
 }
 
 /* ---- Modal helpers ---- */
-function closeModal(id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; }
-function closeAllModals() { document.querySelectorAll('.modal-overlay').forEach(function(m) { m.style.display = 'none'; }); }
+function closeModal(id)  { var el = document.getElementById(id); if (el) el.style.display = 'none'; }
+function closeAllModals(){ document.querySelectorAll('.modal-overlay').forEach(function(m) { m.style.display = 'none'; }); }
 document.addEventListener('click', function(e) { if (e.target.classList.contains('modal-overlay')) closeAllModals(); });
 </script>
 </body>

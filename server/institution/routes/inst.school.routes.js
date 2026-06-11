@@ -1,5 +1,9 @@
 /* ============================================
    LATLOMP INSTITUTION — SCHOOL ADMIN ROUTES
+
+   ✅ PHASE B: expiryDuration accepted in
+   POST /invite-teacher and forwarded to the
+   Invitation model. Expiry label shown in email.
 ============================================ */
 const express      = require('express');
 const router       = express.Router();
@@ -87,7 +91,7 @@ router.get('/dashboard', instProtect, requireActiveSubscription, async (req, res
       success: true,
       stats: { teachers: teacherCount, exams: examCount, results: resultCount,
                pendingInvites: inviteCount, daysLeft,
-               subscriptionPlan: school.subscriptionPlan,
+               subscriptionPlan:   school.subscriptionPlan,
                subscriptionExpiry: school.subscriptionExpiry },
       recentExams, school
     });
@@ -96,7 +100,6 @@ router.get('/dashboard', instProtect, requireActiveSubscription, async (req, res
 
 /* ============================================
    GET /api/institution/school/analytics
-   ✅ NEW — was missing, causing analytics page to fail
 ============================================ */
 router.get('/analytics', instProtect, schoolAdminOnly, requireActiveSubscription, async (req, res) => {
   try {
@@ -121,7 +124,6 @@ router.get('/analytics', instProtect, schoolAdminOnly, requireActiveSubscription
     var lowestScore      = scores.length > 0 ? Math.min.apply(null, scores) : 0;
     var needsGrading     = allResults.filter(function(r) { return !r.theoryMarked; }).length;
 
-    /* Per-exam stats */
     var examMap = {};
     exams.forEach(function(e) { examMap[e._id.toString()] = e; });
 
@@ -141,7 +143,6 @@ router.get('/analytics', instProtect, schoolAdminOnly, requireActiveSubscription
       };
     });
 
-    /* Per-subject stats */
     var subjectMap = {};
     allResults.forEach(function(r) {
       var exam = examMap[r.examId ? r.examId.toString() : ''];
@@ -161,7 +162,6 @@ router.get('/analytics', instProtect, schoolAdminOnly, requireActiveSubscription
       };
     });
 
-    /* Timeline — last 30 days */
     var thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
     var timelineMap   = {};
     allResults.filter(function(r) { return new Date(r.createdAt) >= thirtyDaysAgo; })
@@ -181,7 +181,6 @@ router.get('/analytics', instProtect, schoolAdminOnly, requireActiveSubscription
       },
       examStats, subjectStats, timeline
     });
-
   } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
 });
 
@@ -242,48 +241,83 @@ router.post('/subscribe', instProtect, async (req, res) => {
 
 /* ============================================
    POST /api/institution/school/invite-teacher
+
+   ✅ PHASE B: Accepts expiryDuration from request.
+   Valid values: '5min' | '10min' | '30min' |
+                 '1hr'  | '24hr'  | '7days'
+   Defaults to '7days' if not provided.
+   The expiry window is computed inside the
+   Invitation model pre('validate') hook using
+   the expiryDuration value.
 ============================================ */
 router.post('/invite-teacher', instProtect, schoolAdminOnly, requireActiveSubscription, async (req, res) => {
   try {
-    var { email, name, role, subjects, classes, message } = req.body;
+    var { email, name, role, subjects, classes, message, expiryDuration } = req.body;
     if (!email) return res.status(400).json({ success: false, message: 'Email is required.' });
+
+    /* Validate expiryDuration — fall back to default if invalid */
+    var validDurations = ['5min', '10min', '30min', '1hr', '24hr', '7days'];
+    var chosenDuration = validDurations.indexOf(expiryDuration) !== -1 ? expiryDuration : '7days';
 
     var existing = await SchoolUser.findOne({ schoolId: req.schoolId, email: email.toLowerCase() });
     if (existing) {
       return res.status(400).json({ success: false, message: 'This person is already a member of your school.' });
     }
+
+    /* Cancel any existing pending invites for this email */
     await Invitation.updateMany(
       { schoolId: req.schoolId, email: email.toLowerCase(), status: 'pending' },
       { $set: { status: 'cancelled' } }
     );
+
     var invite = await Invitation.create({
-      schoolId:  req.schoolId,
-      invitedBy: req.schoolUser._id,
-      email:     email.toLowerCase(),
-      name:      name    || '',
-      role:      role    || 'teacher',
-      subjects:  Array.isArray(subjects) ? subjects : (subjects ? subjects.split(',').map(function(s){return s.trim();}) : []),
-      classes:   Array.isArray(classes)  ? classes  : (classes  ? classes.split(',').map(function(s){return s.trim();}) : []),
-      message:   message || ''
+      schoolId:       req.schoolId,
+      invitedBy:      req.schoolUser._id,
+      email:          email.toLowerCase(),
+      name:           name    || '',
+      role:           role    || 'teacher',
+      subjects:       Array.isArray(subjects) ? subjects : (subjects ? subjects.split(',').map(function(s){return s.trim();}) : []),
+      classes:        Array.isArray(classes)  ? classes  : (classes  ? classes.split(',').map(function(s){return s.trim();}) : []),
+      message:        message || '',
+      /* ✅ PHASE B: Store the chosen expiry duration */
+      expiryDuration: chosenDuration
     });
 
     var school    = req.school;
     var inviteUrl = (process.env.APP_URL || 'https://latlompsystem.up.railway.app') +
       '/institution/index.html?invite=' + invite.token;
 
+    /* Human-readable label for use in emails */
+    var expiryLabel = Invitation.getExpiryLabel(chosenDuration);
+
     try {
       await emailService.sendTeacherInvite({
-        toEmail: email.toLowerCase(), toName: name || '',
-        schoolName: school.name, inviterName: req.schoolUser.name,
-        role: role || 'teacher', inviteUrl, expiresAt: invite.expiresAt
+        toEmail:    email.toLowerCase(),
+        toName:     name || '',
+        schoolName: school.name,
+        inviterName:req.schoolUser.name,
+        role:       role || 'teacher',
+        inviteUrl,
+        expiresAt:  invite.expiresAt,
+        /* ✅ Pass human-readable label so email says
+           "This invite expires in 30 minutes" not just a timestamp */
+        expiryLabel
       });
     } catch (emailErr) { console.warn('[InviteTeacher] Email failed:', emailErr.message); }
 
     return res.status(201).json({
-      success: true, message: 'Invitation sent to ' + email,
+      success: true,
+      message: 'Invitation sent to ' + email + '. It expires in ' + expiryLabel + '.',
       invite: {
-        _id: invite._id, email: invite.email, name: invite.name,
-        role: invite.role, token: invite.token, inviteUrl, expiresAt: invite.expiresAt
+        _id:           invite._id,
+        email:         invite.email,
+        name:          invite.name,
+        role:          invite.role,
+        token:         invite.token,
+        inviteUrl,
+        expiresAt:     invite.expiresAt,
+        expiryDuration:invite.expiryDuration,
+        expiryLabel
       }
     });
   } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
@@ -298,14 +332,27 @@ router.get('/teachers', instProtect, schoolAdminOnly, requireActiveSubscription,
       schoolId: req.schoolId, role: { $in: ['teacher', 'vice_principal'] }
     }).select('-googleId').sort({ name: 1 });
 
+    /* ✅ PHASE B: Include expiryDuration and expiryLabel on pending invites
+       so the dashboard can show "Expires in 30 minutes" rather than just a date */
     var pendingInvites = await Invitation.find({ schoolId: req.schoolId, status: 'pending' }).sort({ createdAt: -1 });
-    return res.status(200).json({ success: true, teachers, pendingInvites });
+
+    var invitesWithLabels = pendingInvites.map(function(inv) {
+      var obj       = inv.toObject();
+      obj.expiryLabel = Invitation.getExpiryLabel(inv.expiryDuration);
+
+      /* Mark as effectively expired if expiresAt has passed */
+      if (new Date(inv.expiresAt) < new Date()) {
+        obj.isExpiredNow = true;
+      }
+      return obj;
+    });
+
+    return res.status(200).json({ success: true, teachers, pendingInvites: invitesWithLabels });
   } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
 });
 
 /* ============================================
    DELETE /api/institution/school/teachers/:id
-   Permanently removes teacher. Login blocked immediately.
 ============================================ */
 router.delete('/teachers/:id', instProtect, schoolAdminOnly, requireActiveSubscription, async (req, res) => {
   try {
@@ -325,7 +372,6 @@ router.delete('/teachers/:id', instProtect, schoolAdminOnly, requireActiveSubscr
 
 /* ============================================
    PUT /api/institution/school/teachers/:id/deactivate
-   Blocks teacher login immediately via instProtect isActive check.
 ============================================ */
 router.put('/teachers/:id/deactivate', instProtect, schoolAdminOnly, requireActiveSubscription, async (req, res) => {
   try {
@@ -341,7 +387,6 @@ router.put('/teachers/:id/deactivate', instProtect, schoolAdminOnly, requireActi
 
 /* ============================================
    PUT /api/institution/school/teachers/:id/reactivate
-   Restores teacher login access immediately.
 ============================================ */
 router.put('/teachers/:id/reactivate', instProtect, schoolAdminOnly, requireActiveSubscription, async (req, res) => {
   try {
