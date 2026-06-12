@@ -8,17 +8,99 @@
   <link rel="stylesheet" href="css/student-exam.css" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
 
-  <!-- ✅ KaTeX for math/science equations -->
+  <!-- KaTeX for math/science equations -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" crossorigin="anonymous" />
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js" crossorigin="anonymous"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"
     crossorigin="anonymous" onload="window._katexReady = true;"></script>
 
   <style>
-    /* ✅ KaTeX display math centering for question text */
-    #sQuestionText .katex-display { margin: 12px 0; }
-    .s-option-text .katex { font-size: 1em; }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    /* KaTeX display math centering */
+    #sQuestionText .katex-display { margin:12px 0; }
+    .s-option-text .katex { font-size:1em; }
+
+    @keyframes spin   { to { transform:rotate(360deg); } }
+    @keyframes shake  { 0%,100% { transform:translateX(0); } 25% { transform:translateX(-8px); } 75% { transform:translateX(8px); } }
+
+    /* ============================================
+       ✅ PHASE F: SECURITY OVERLAY STYLES
+    ============================================ */
+    .sec-overlay {
+      position:fixed; inset:0;
+      background:rgba(0,0,0,0.93);
+      z-index:99999;
+      display:none;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+    }
+    .sec-overlay.active { display:flex; }
+
+    .sec-overlay-card {
+      background:#1a1a2e;
+      border:2px solid rgba(255,101,132,0.45);
+      border-radius:20px;
+      padding:36px 28px;
+      max-width:400px;
+      width:100%;
+      text-align:center;
+      animation:shake 0.4s ease;
+    }
+    .sec-overlay-card.warn-type { border-color:rgba(255,165,0,0.5); }
+
+    .sec-overlay-icon  { font-size:52px; margin-bottom:12px; }
+    .sec-overlay-title { font-size:20px; font-weight:900; color:#fff; margin:0 0 8px; }
+    .sec-overlay-msg   { font-size:14px; color:#a0a0c0; margin:0 0 20px; line-height:1.6; }
+
+    .sec-vcount {
+      display:inline-flex; align-items:center; gap:6px;
+      background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3);
+      color:#ff6584; padding:6px 16px; border-radius:20px;
+      font-size:13px; font-weight:800; margin-bottom:20px;
+    }
+    .sec-vcount.warn-type { background:rgba(255,165,0,0.1); border-color:rgba(255,165,0,0.3); color:#ffa500; }
+
+    .sec-countdown-wrap { position:relative; width:60px; height:60px; margin:0 auto 16px; }
+    .sec-cd-track { fill:none; stroke:rgba(255,255,255,0.08); stroke-width:4; }
+    .sec-cd-ring  { fill:none; stroke:#ff6584; stroke-width:4; stroke-dasharray:126; stroke-dashoffset:0; stroke-linecap:round; transition:stroke-dashoffset 1s linear; }
+    .sec-cd-ring.warn-type { stroke:#ffa500; }
+    .sec-cd-num { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:900; color:#fff; }
+
+    .sec-dismiss-btn {
+      width:100%; padding:13px; border-radius:12px; border:none;
+      background:rgba(255,255,255,0.08); color:#a0a0c0;
+      font-size:14px; font-weight:700; cursor:not-allowed;
+      font-family:inherit; transition:all 0.2s;
+    }
+    .sec-dismiss-btn.ready {
+      background:linear-gradient(135deg,#6c63ff,#574fd6);
+      color:#fff; cursor:pointer;
+    }
+    .sec-auto-msg {
+      background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3);
+      border-radius:10px; padding:12px 14px; font-size:13px; color:#ff6584;
+      margin-top:14px; line-height:1.6;
+    }
+
+    /* Security rules box in instructions */
+    .sec-rules-box {
+      background:rgba(255,165,0,0.07); border:1px solid rgba(255,165,0,0.25);
+      border-radius:10px; padding:14px 16px;
+      font-size:13px; color:#ffa500; line-height:1.9; margin-top:16px;
+    }
+    .sec-rules-box strong { color:#fff; }
+
+    /* Security indicator in topbar */
+    .sec-topbar-badge {
+      font-size:11px; font-weight:700; color:#a0a0c0;
+      padding:4px 8px; border-radius:6px;
+      background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+      white-space:nowrap; flex-shrink:0;
+    }
+    .sec-topbar-badge.violated {
+      color:#ffa500; background:rgba(255,165,0,0.08); border-color:rgba(255,165,0,0.25);
+    }
   </style>
 </head>
 <body class="s-exam-body">
@@ -67,7 +149,17 @@
         <p id="sInstText" style="font-size:14px; color:var(--text-secondary); background:rgba(108,99,255,0.07); border:1px solid rgba(108,99,255,0.15); padding:14px 16px; border-radius:8px; line-height:1.7;"></p>
       </div>
 
-      <div style="margin-bottom:28px; background:rgba(255,165,0,0.07); border:1px solid rgba(255,165,0,0.2); border-radius:10px; padding:14px 16px;">
+      <!-- ✅ PHASE F: Security rules shown before exam starts -->
+      <div class="sec-rules-box">
+        <strong>🔒 Exam Security Rules</strong><br/>
+        • This exam runs in <strong>fullscreen mode</strong> — do not exit<br/>
+        • Tab-switching and window changes are <strong>detected and logged</strong><br/>
+        • Right-clicking and keyboard shortcuts are <strong>disabled</strong><br/>
+        • Copying exam content is <strong>blocked</strong><br/>
+        • Repeated violations will <strong>auto-submit your exam</strong>
+      </div>
+
+      <div style="margin-top:20px; margin-bottom:28px; background:rgba(255,165,0,0.07); border:1px solid rgba(255,165,0,0.2); border-radius:10px; padding:14px 16px;">
         <p style="font-size:13px; color:#ffa500; font-weight:600;">⚠️ Important Rules</p>
         <ul style="list-style:none; margin-top:8px; display:flex; flex-direction:column; gap:6px;">
           <li style="font-size:13px; color:var(--text-secondary);">• The timer starts immediately when you click Begin</li>
@@ -100,7 +192,9 @@
         <span id="sTimerDisplay" style="font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; min-width:72px; text-align:center;">00:00:00</span>
       </div>
 
-      <div style="display:flex; align-items:center; gap:10px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <!-- ✅ PHASE F: Security indicator -->
+        <span class="sec-topbar-badge" id="sSecBadge">🔒 Secure</span>
         <div style="font-size:13px; color:var(--text-secondary); background:var(--card-bg); border:1px solid var(--border); padding:5px 12px; border-radius:20px; white-space:nowrap;">
           <span id="sAnsweredCount">0</span>/<span id="sTotalCount">0</span>
         </div>
@@ -119,12 +213,10 @@
           <div id="sQTypeBadge" style="font-size:12px; font-weight:700; padding:4px 12px; border-radius:20px; background:rgba(108,99,255,0.12); color:var(--primary-light);">Objective</div>
         </div>
 
-        <!-- ✅ Question text — KaTeX rendered via student-exam.js -->
-        <div id="sQuestionText" style="font-size:18px; font-weight:600; line-height:1.7; color:var(--text-primary); background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); padding:24px; margin-bottom:24px; min-height:80px;">
+        <div id="sQuestionText" style="font-size:18px; font-weight:600; line-height:1.7; color:var(--text-primary); background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); padding:24px; margin-bottom:24px; min-height:80px; user-select:none; -webkit-user-select:none;">
           Loading...
         </div>
 
-        <!-- ✅ Options — rendered with KaTeX by student-exam.js -->
         <div id="sOptionsArea" style="display:flex; flex-direction:column; gap:12px; margin-bottom:24px;"></div>
 
         <div id="sTheoryArea" style="display:none; margin-bottom:24px;">
@@ -188,39 +280,77 @@
     ⏰ Time is up! Submitting your exam...
   </div>
 
+  <!-- ============================================
+       ✅ PHASE F: SECURITY VIOLATION OVERLAY
+       Injected here (before body close) so it
+       renders above all existing UI elements.
+  ============================================ -->
+  <div class="sec-overlay" id="sSecOverlay">
+    <div class="sec-overlay-card" id="sSecCard">
+      <div class="sec-overlay-icon"  id="sSecIcon">⚠️</div>
+      <div class="sec-overlay-title" id="sSecTitle">Security Violation</div>
+      <div class="sec-overlay-msg"   id="sSecMsg">This incident has been recorded.</div>
+      <div class="sec-vcount"        id="sSecVCount">Violation 1 of 5</div>
+      <div class="sec-countdown-wrap">
+        <svg style="transform:rotate(-90deg);" width="60" height="60" viewBox="0 0 44 44">
+          <circle class="sec-cd-track" cx="22" cy="22" r="20" />
+          <circle class="sec-cd-ring" id="sSecRing" cx="22" cy="22" r="20" />
+        </svg>
+        <div class="sec-cd-num" id="sSecCdNum">5</div>
+      </div>
+      <button class="sec-dismiss-btn" id="sSecDismissBtn" onclick="sSecDismiss()" disabled>
+        Wait 5 seconds...
+      </button>
+      <div class="sec-auto-msg" id="sSecAutoMsg" style="display:none;"></div>
+    </div>
+  </div>
+
   <!-- RESULT SCREEN -->
   <div id="sResultScreen" style="display:none; min-height:100vh; padding:40px 24px; overflow-y:auto;">
     <div style="max-width:600px; margin:0 auto;">
       <div style="text-align:center; background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:40px; margin-bottom:24px;">
         <div id="sResultTrophy" style="font-size:64px; margin-bottom:12px;">🏆</div>
-        <h1 id="sResultTitle" style="font-size:28px; font-weight:800; margin-bottom:8px;">Result</h1>
+        <h1 id="sResultTitle"  style="font-size:28px; font-weight:800; margin-bottom:8px;">Result</h1>
         <div id="sResultScore" style="font-size:56px; font-weight:900; margin:16px 0;"></div>
-        <div id="sResultTag" style="display:inline-block; padding:6px 20px; border-radius:20px; font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:24px;"></div>
+        <div id="sResultTag"   style="display:inline-block; padding:6px 20px; border-radius:20px; font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:24px;"></div>
         <p id="sResultMsg" style="font-size:15px; color:var(--text-secondary); line-height:1.7; max-width:400px; margin:0 auto 28px;"></p>
         <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
           <a href="student-login.html" class="btn btn-secondary">Take Another Exam</a>
-          <a href="index.html" class="btn btn-primary">Go to Home</a>
+          <a href="index.html"         class="btn btn-primary">Go to Home</a>
         </div>
       </div>
     </div>
   </div>
 
   <script src="js/main.js"></script>
-
-  <!-- ✅ student-exam.js patched inline for KaTeX support -->
   <script src="js/student-exam.js"></script>
 
-  <!-- ✅ KaTeX patch: override renderQuestion to use setTextWithMath -->
+  <!-- ============================================
+       ✅ PHASE F: CBT SECURITY MODULE
+       Self-contained. Does not modify student-exam.js.
+       Wraps beginStudentExam + sSubmitExam to inject
+       security activation/deactivation.
+       All features are deterrent-based — they activate
+       as soon as the exam screen becomes visible.
+  ============================================ -->
   <script>
-  /* ============================================
-     KaTeX integration patch for student-exam.js
-     
-     This runs AFTER student-exam.js loads and
-     overrides just the question/option rendering
-     to add KaTeX math support. All other
-     student-exam.js functionality is preserved.
-  ============================================ */
   (function() {
+    /* ---- Security state ---- */
+    var _sec = {
+      isActive:        false,
+      fullscreenExits: 0,
+      tabSwitches:     0,
+      focusLosses:     0,
+      copyAttempts:    0,
+      devtoolAttempts: 0,
+      totalViolations: 0,
+      maxViolations:   5,
+      fsMaxViolations: 3,
+      cdTimer:         null,
+      log:             []
+    };
+
+    /* ---- KaTeX config (same as KaTeX patch below) ---- */
     var _katexOpts = {
       delimiters: [
         { left: '$$', right: '$$', display: true },
@@ -230,34 +360,339 @@
       output: 'html'
     };
 
-    /* ✅ Safe text + math setter */
-    window.sSetTextWithMath = function(element, text) {
-      if (!element) return;
-      element.textContent = text || '';
-      if (window._katexReady && typeof renderMathInElement !== 'undefined') {
-        try { renderMathInElement(element, _katexOpts); } catch(e) {}
+    /* ============================================
+       SECURITY INIT — called when exam begins
+    ============================================ */
+    function initSec() {
+      if (_sec.isActive) return;
+      _sec.isActive = true;
+
+      requestFs();
+
+      document.addEventListener('fullscreenchange',       onFsChange);
+      document.addEventListener('webkitfullscreenchange', onFsChange);
+      document.addEventListener('mozfullscreenchange',    onFsChange);
+      document.addEventListener('visibilitychange',       onVisChange);
+      window.addEventListener('blur',  onWinBlur);
+      window.addEventListener('focus', onWinFocus);
+      document.addEventListener('keydown',     blockKeys,    true);
+      document.addEventListener('contextmenu', blockMenu,    true);
+
+      /* Copy protection on question text only */
+      var qEl = document.getElementById('sQuestionText');
+      if (qEl) {
+        qEl.addEventListener('copy', blockCopy, true);
+        qEl.addEventListener('cut',  blockCopy, true);
+      }
+      var optEl = document.getElementById('sOptionsArea');
+      if (optEl) {
+        optEl.addEventListener('copy', blockCopy, true);
+      }
+
+      logSec('init', 'Security initialized');
+      updateSecBadge();
+    }
+
+    function deactivateSec() {
+      if (!_sec.isActive) return;
+      _sec.isActive = false;
+      document.removeEventListener('fullscreenchange',       onFsChange);
+      document.removeEventListener('webkitfullscreenchange', onFsChange);
+      document.removeEventListener('mozfullscreenchange',    onFsChange);
+      document.removeEventListener('visibilitychange',       onVisChange);
+      document.removeEventListener('keydown',     blockKeys,    true);
+      document.removeEventListener('contextmenu', blockMenu,    true);
+      window.removeEventListener('blur',  onWinBlur);
+      window.removeEventListener('focus', onWinFocus);
+      /* Exit fullscreen */
+      try {
+        if      (document.exitFullscreen)       document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        else if (document.mozCancelFullScreen)  document.mozCancelFullScreen();
+      } catch(e) {}
+      /* Store log for potential future use */
+      try { sessionStorage.setItem('_secLog', JSON.stringify(_sec.log)); } catch(e) {}
+    }
+
+    /* ---- Fullscreen ---- */
+    function requestFs() {
+      var el = document.documentElement;
+      try {
+        if      (el.requestFullscreen)       el.requestFullscreen();
+        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+        else if (el.mozRequestFullScreen)    el.mozRequestFullScreen();
+      } catch(e) {}
+    }
+
+    function isFs() {
+      return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement);
+    }
+
+    function onFsChange() {
+      if (!_sec.isActive) return;
+      if (!isFs()) {
+        _sec.fullscreenExits++;
+        _sec.totalViolations++;
+        logSec('fs_exit', 'Fullscreen exited #' + _sec.fullscreenExits);
+        updateSecBadge();
+        if (_sec.fullscreenExits >= _sec.fsMaxViolations) {
+          showSecWarning('danger',
+            '🚫 Fullscreen Exited — Limit Reached',
+            'You have exited fullscreen ' + _sec.fullscreenExits + ' times. Your exam is being submitted automatically.',
+            true);
+        } else {
+          var rem = _sec.fsMaxViolations - _sec.fullscreenExits;
+          showSecWarning('danger',
+            '🖥 Fullscreen Exited',
+            'Please stay in fullscreen during the exam. ' + rem + ' exit' + (rem!==1?'s':'') + ' remaining before auto-submit.');
+        }
+      }
+    }
+
+    /* ---- Tab / Visibility ---- */
+    function onVisChange() {
+      if (!_sec.isActive) return;
+      if (document.hidden) {
+        _sec.tabSwitches++;
+        _sec.totalViolations++;
+        logSec('tab_switch', 'Tab switch #' + _sec.tabSwitches);
+        updateSecBadge();
+        if (_sec.totalViolations >= _sec.maxViolations) {
+          showSecWarning('danger',
+            '⚠️ Maximum Violations Reached',
+            'Your exam is being submitted automatically due to repeated violations.',
+            true);
+        } else {
+          var rem = _sec.maxViolations - _sec.totalViolations;
+          showSecWarning('warning',
+            '👁 Tab Switch Detected',
+            'Switching tabs is not allowed during the exam. ' + rem + ' violation' + (rem!==1?'s':'') + ' remaining before auto-submit.');
+        }
+      }
+    }
+
+    /* ---- Window focus/blur ---- */
+    var _blurT = null;
+    function onWinBlur() {
+      if (!_sec.isActive) return;
+      _blurT = setTimeout(function() {
+        if (!document.hidden) {
+          _sec.focusLosses++;
+          _sec.totalViolations++;
+          logSec('focus_loss', 'Window focus lost #' + _sec.focusLosses);
+          updateSecBadge();
+        }
+      }, 300);
+    }
+    function onWinFocus() {
+      if (_blurT) { clearTimeout(_blurT); _blurT = null; }
+    }
+
+    /* ---- Keyboard blocker ---- */
+    function blockKeys(e) {
+      if (!_sec.isActive) return;
+      if (e.key === 'F12') {
+        e.preventDefault(); e.stopPropagation();
+        _sec.devtoolAttempts++;
+        logSec('devtools', 'F12 pressed');
+        return false;
+      }
+      if (e.ctrlKey || e.metaKey) {
+        var k = (e.key || '').toLowerCase();
+        var blocked = { 'i':1, 'u':1, 'p':1, 's':1, 'j':1 };
+        if (blocked[k]) {
+          e.preventDefault(); e.stopPropagation();
+          if (k==='i'||k==='j') { _sec.devtoolAttempts++; logSec('devtools','Ctrl+'+k.toUpperCase()); }
+          return false;
+        }
+        if (e.shiftKey && (k==='i'||k==='j'||k==='c')) {
+          e.preventDefault(); e.stopPropagation();
+          _sec.devtoolAttempts++;
+          logSec('devtools','Ctrl+Shift+'+k.toUpperCase());
+          return false;
+        }
+      }
+    }
+
+    /* ---- Right-click ---- */
+    function blockMenu(e) {
+      if (!_sec.isActive) return;
+      e.preventDefault();
+      logSec('rightclick', 'Right-click attempted');
+      return false;
+    }
+
+    /* ---- Copy ---- */
+    function blockCopy(e) {
+      if (!_sec.isActive) return;
+      e.preventDefault();
+      _sec.copyAttempts++;
+      logSec('copy', 'Copy/cut attempted');
+      return false;
+    }
+
+    /* ---- Logging ---- */
+    function logSec(type, msg) {
+      _sec.log.push({ type:type, time:new Date().toISOString(), msg:msg });
+    }
+
+    /* ---- Badge update ---- */
+    function updateSecBadge() {
+      var el = document.getElementById('sSecBadge');
+      if (!el) return;
+      var t = _sec.totalViolations;
+      if (t === 0) { el.textContent='🔒 Secure'; el.className='sec-topbar-badge'; }
+      else { el.textContent='⚠️ '+t+' Violation'+(t!==1?'s':''); el.className='sec-topbar-badge violated'; }
+    }
+
+    /* ============================================
+       SECURITY WARNING OVERLAY
+    ============================================ */
+    function showSecWarning(type, title, msg, autoSubmit) {
+      autoSubmit = autoSubmit || false;
+
+      var overlay  = document.getElementById('sSecOverlay');
+      var card     = document.getElementById('sSecCard');
+      var iconEl   = document.getElementById('sSecIcon');
+      var titleEl  = document.getElementById('sSecTitle');
+      var msgEl    = document.getElementById('sSecMsg');
+      var vcountEl = document.getElementById('sSecVCount');
+      var ring     = document.getElementById('sSecRing');
+      var numEl    = document.getElementById('sSecCdNum');
+      var btn      = document.getElementById('sSecDismissBtn');
+      var autoEl   = document.getElementById('sSecAutoMsg');
+      if (!overlay) return;
+
+      var isDanger = type === 'danger';
+      iconEl.textContent  = isDanger ? '🚫' : '⚠️';
+      titleEl.textContent = title   || 'Security Violation';
+      msgEl.textContent   = msg     || 'This incident has been recorded.';
+      vcountEl.textContent = 'Violation ' + _sec.totalViolations + ' of ' + _sec.maxViolations;
+      vcountEl.className   = 'sec-vcount' + (isDanger ? '' : ' warn-type');
+      card.className       = 'sec-overlay-card' + (isDanger ? '' : ' warn-type');
+      ring.className       = 'sec-cd-ring' + (isDanger ? '' : ' warn-type');
+
+      if (autoSubmit) {
+        autoEl.textContent   = '⏰ Your exam will be submitted when the countdown reaches zero.';
+        autoEl.style.display = 'block';
+        btn.textContent      = 'Submitting...';
+        btn.disabled         = true;
+        btn.className        = 'sec-dismiss-btn';
+      } else {
+        autoEl.style.display = 'none';
+        btn.textContent      = 'Wait 5 seconds...';
+        btn.disabled         = true;
+        btn.className        = 'sec-dismiss-btn';
+      }
+
+      overlay.classList.add('active');
+
+      /* Countdown */
+      var secs = 5; var elapsed = 0;
+      numEl.textContent = secs;
+      ring.style.strokeDashoffset = '0';
+
+      if (_sec.cdTimer) { clearInterval(_sec.cdTimer); _sec.cdTimer = null; }
+
+      _sec.cdTimer = setInterval(function() {
+        elapsed++;
+        numEl.textContent = secs - elapsed;
+        ring.style.strokeDashoffset = ((elapsed / secs) * 126) + '';
+
+        if (elapsed >= secs) {
+          clearInterval(_sec.cdTimer); _sec.cdTimer = null;
+          if (autoSubmit) {
+            overlay.classList.remove('active');
+            /* Trigger submit via the existing sSubmitExam or auto-notice */
+            if (typeof window.sSubmitExam === 'function') {
+              window.sSubmitExam();
+            } else {
+              /* fallback: show auto-submit notice and try button click */
+              var n = document.getElementById('sAutoNotice');
+              if (n) n.style.display = 'block';
+              var fb = document.getElementById('sFinalSubmitBtn');
+              if (fb) {
+                document.getElementById('sSubmitModal').style.display = 'none';
+                fb.click();
+              }
+            }
+          } else {
+            btn.textContent = '✓ I Understand — Continue Exam';
+            btn.disabled    = false;
+            btn.className   = 'sec-dismiss-btn ready';
+            if (title && title.indexOf('Fullscreen') !== -1) {
+              btn.textContent = '🖥 Return to Fullscreen →';
+            }
+          }
+        }
+      }, 1000);
+    }
+
+    /* Dismiss function called by button */
+    window.sSecDismiss = function() {
+      var overlay = document.getElementById('sSecOverlay');
+      if (overlay) overlay.classList.remove('active');
+      if (_sec.isActive) {
+        setTimeout(requestFs, 300);
       }
     };
 
-    /* ✅ Patch the existing renderCurrentQuestion (or equivalent)
-       by watching DOM mutations on the question text element.
-       This is the safest way to add KaTeX without modifying
-       the existing student-exam.js logic. */
+    /* ============================================
+       HOOK INTO EXISTING student-exam.js FUNCTIONS
+       Wrap beginStudentExam → init security
+       Wrap sSubmitExam     → deactivate security
+    ============================================ */
+    document.addEventListener('DOMContentLoaded', function() {
+
+      /* Wrap beginStudentExam */
+      var origBegin = window.beginStudentExam;
+      window.beginStudentExam = function() {
+        if (typeof origBegin === 'function') origBegin.apply(this, arguments);
+        /* Small delay to let exam screen render first */
+        setTimeout(initSec, 200);
+      };
+
+      /* Wrap sSubmitExam */
+      var origSubmit = window.sSubmitExam;
+      window.sSubmitExam = function() {
+        deactivateSec();
+        if (typeof origSubmit === 'function') origSubmit.apply(this, arguments);
+      };
+
+      /* Also deactivate if result screen appears (MutationObserver safety net) */
+      var resultEl = document.getElementById('sResultScreen');
+      if (resultEl) {
+        var obs = new MutationObserver(function(mutations) {
+          mutations.forEach(function(m) {
+            if (m.type === 'attributes' && m.attributeName === 'style') {
+              if (resultEl.style.display !== 'none') {
+                deactivateSec();
+              }
+            }
+          });
+        });
+        obs.observe(resultEl, { attributes: true });
+      }
+    });
+
+    /* ============================================
+       KATEX INTEGRATION PATCH
+       (kept from original, now combined with
+        security module in single script block)
+    ============================================ */
     document.addEventListener('DOMContentLoaded', function() {
       var qTextEl = document.getElementById('sQuestionText');
       var optArea = document.getElementById('sOptionsArea');
       if (!qTextEl || !optArea) return;
 
-      /* Watch for question text changes */
-      var qObserver = new MutationObserver(function() {
+      var qObs = new MutationObserver(function() {
         if (window._katexReady && typeof renderMathInElement !== 'undefined') {
           try { renderMathInElement(qTextEl, _katexOpts); } catch(e) {}
         }
       });
-      qObserver.observe(qTextEl, { childList: true, subtree: true, characterData: true });
+      qObs.observe(qTextEl, { childList:true, subtree:true, characterData:true });
 
-      /* Watch for options changes */
-      var optObserver = new MutationObserver(function() {
+      var optObs = new MutationObserver(function() {
         if (!window._katexReady || typeof renderMathInElement === 'undefined') return;
         optArea.querySelectorAll('.s-option-text, [data-opt-text]').forEach(function(el) {
           if (!el.dataset.katexDone) {
@@ -266,8 +701,9 @@
           }
         });
       });
-      optObserver.observe(optArea, { childList: true, subtree: true });
+      optObs.observe(optArea, { childList:true, subtree:true });
     });
+
   })();
   </script>
 
