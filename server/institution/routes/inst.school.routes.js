@@ -1,9 +1,10 @@
 /* ============================================
    LATLOMP INSTITUTION — SCHOOL ADMIN ROUTES
 
-   ✅ PHASE B: expiryDuration accepted in
-   POST /invite-teacher and forwarded to the
-   Invitation model. Expiry label shown in email.
+   ✅ PHASE B: expiryDuration on invitations
+   ✅ PHASE E: Slug management
+     GET  /school/by-slug/:slug  — public
+     PUT  /school/slug           — admin only
 ============================================ */
 const express      = require('express');
 const router       = express.Router();
@@ -16,6 +17,133 @@ const { SubscriptionPlan, Subscription } = require('../models/Subscription.model
 const { instProtect, schoolAdminOnly }   = require('../middleware/inst.auth');
 const { requireActiveSubscription }      = require('../middleware/inst.tenant');
 const emailService = require('../services/inst.email.service');
+
+/* ============================================
+   ✅ PHASE E — PUBLIC SLUG RESOLVER
+   GET /api/institution/school/by-slug/:slug
+
+   No auth required. Returns only public branding
+   info needed to render the branded landing page.
+   Never exposes private school data.
+============================================ */
+router.get('/by-slug/:slug', async (req, res) => {
+  try {
+    var slug   = (req.params.slug || '').toLowerCase().trim();
+    if (!slug) return res.status(400).json({ success: false, message: 'Slug is required.' });
+
+    var school = await School.findOne({ slug })
+      .select('name slug logo motto type primaryColor secondaryColor status isSuspended');
+
+    if (!school) {
+      return res.status(404).json({
+        success: false,
+        message: 'No school found with this link. The link may have changed or expired.'
+      });
+    }
+
+    if (school.isSuspended) {
+      return res.status(403).json({
+        success: false,
+        message: 'This school account is currently suspended. Please contact the school administrator.'
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      school: {
+        name:           school.name,
+        slug:           school.slug,
+        logo:           school.logo           || '',
+        motto:          school.motto          || '',
+        type:           school.type           || 'secondary',
+        primaryColor:   school.primaryColor   || '#6c63ff',
+        secondaryColor: school.secondaryColor || '#43e97b',
+        status:         school.status
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ PHASE E — UPDATE SLUG
+   PUT /api/institution/school/slug
+
+   Admin only. Rules:
+   - Slug: lowercase letters, numbers, hyphens only
+   - Length: 3–50 characters
+   - Globally unique
+   - 30-day cooldown between manual changes
+     (bypassed if slugUpdatedAt is null — first time)
+============================================ */
+router.put('/slug', instProtect, schoolAdminOnly, async (req, res) => {
+  try {
+    var newSlug = (req.body.slug || '').toLowerCase().trim();
+
+    /* ---- Validate format ---- */
+    if (!newSlug) {
+      return res.status(400).json({ success: false, message: 'Slug is required.' });
+    }
+    if (!/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/.test(newSlug)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Slug must be 3–50 characters, using only lowercase letters, numbers, and hyphens. Cannot start or end with a hyphen.'
+      });
+    }
+
+    var school = await School.findById(req.schoolId);
+    if (!school) return res.status(404).json({ success: false, message: 'School not found.' });
+
+    /* ---- No change needed ---- */
+    if (school.slug === newSlug) {
+      return res.status(200).json({
+        success: true,
+        message: 'This is already your current link.',
+        slug: school.slug
+      });
+    }
+
+    /* ---- Cooldown check (30 days between manual changes) ---- */
+    if (school.slugUpdatedAt) {
+      var daysSinceChange = Math.floor((Date.now() - new Date(school.slugUpdatedAt).getTime()) / 86400000);
+      if (daysSinceChange < 30) {
+        var daysLeft = 30 - daysSinceChange;
+        return res.status(429).json({
+          success: false,
+          message: 'You can only change your school link once every 30 days. You can change it again in ' + daysLeft + ' day' + (daysLeft !== 1 ? 's' : '') + '.'
+        });
+      }
+    }
+
+    /* ---- Uniqueness check ---- */
+    var existing = await School.findOne({ slug: newSlug, _id: { $ne: req.schoolId } });
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: '"' + newSlug + '" is already taken. Please choose a different link.'
+      });
+    }
+
+    /* ---- Save ---- */
+    var oldSlug = school.slug;
+    school.slug          = newSlug;
+    school.slugUpdatedAt = new Date();
+    await school.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Your school link has been updated successfully.',
+      slug:    school.slug,
+      oldSlug: oldSlug
+    });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ success: false, message: 'This link is already taken. Please choose a different one.' });
+    }
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 /* ============================================
    POST /api/institution/school/onboarding
@@ -104,16 +232,10 @@ router.get('/dashboard', instProtect, requireActiveSubscription, async (req, res
 router.get('/analytics', instProtect, schoolAdminOnly, requireActiveSubscription, async (req, res) => {
   try {
     var schoolId = req.schoolId;
-
     var [exams, allResults] = await Promise.all([
-      SchoolExam.find({ schoolId })
-        .select('_id title subject class status totalAttempts createdAt')
-        .lean(),
-      SchoolResult.find({ schoolId })
-        .select('examId scorePercent isPassed theoryMarked studentName createdAt')
-        .lean()
+      SchoolExam.find({ schoolId }).select('_id title subject class status totalAttempts createdAt').lean(),
+      SchoolResult.find({ schoolId }).select('examId scorePercent isPassed theoryMarked studentName createdAt').lean()
     ]);
-
     var totalExams       = exams.length;
     var totalSubmissions = allResults.length;
     var passed           = allResults.filter(function(r) { return r.isPassed; }).length;
@@ -123,26 +245,17 @@ router.get('/analytics', instProtect, schoolAdminOnly, requireActiveSubscription
     var highestScore     = scores.length > 0 ? Math.max.apply(null, scores) : 0;
     var lowestScore      = scores.length > 0 ? Math.min.apply(null, scores) : 0;
     var needsGrading     = allResults.filter(function(r) { return !r.theoryMarked; }).length;
-
     var examMap = {};
     exams.forEach(function(e) { examMap[e._id.toString()] = e; });
-
     var examStats = exams.map(function(exam) {
-      var eResults = allResults.filter(function(r) {
-        return r.examId && r.examId.toString() === exam._id.toString();
-      });
-      var ePassed = eResults.filter(function(r) { return r.isPassed; }).length;
-      var eScores = eResults.map(function(r) { return r.scorePercent || 0; });
-      var eAvg    = eScores.length > 0 ? Math.round(eScores.reduce(function(a,b){return a+b;},0)/eScores.length) : 0;
-      return {
-        _id:      exam._id,  title:   exam.title,
-        subject:  exam.subject, class: exam.class, status: exam.status,
-        attempts: eResults.length, passed: ePassed,
-        passRate: eResults.length > 0 ? Math.round((ePassed/eResults.length)*100) : 0,
-        avgScore: eAvg
-      };
+      var eResults = allResults.filter(function(r) { return r.examId && r.examId.toString() === exam._id.toString(); });
+      var ePassed  = eResults.filter(function(r) { return r.isPassed; }).length;
+      var eScores  = eResults.map(function(r) { return r.scorePercent || 0; });
+      var eAvg     = eScores.length > 0 ? Math.round(eScores.reduce(function(a,b){return a+b;},0)/eScores.length) : 0;
+      return { _id: exam._id, title: exam.title, subject: exam.subject, class: exam.class, status: exam.status,
+               attempts: eResults.length, passed: ePassed,
+               passRate: eResults.length > 0 ? Math.round((ePassed/eResults.length)*100) : 0, avgScore: eAvg };
     });
-
     var subjectMap = {};
     allResults.forEach(function(r) {
       var exam = examMap[r.examId ? r.examId.toString() : ''];
@@ -155,13 +268,10 @@ router.get('/analytics', instProtect, schoolAdminOnly, requireActiveSubscription
     });
     var subjectStats = Object.keys(subjectMap).map(function(k) {
       var s = subjectMap[k];
-      return {
-        subject:  s.subject, attempts: s.attempts, passed: s.passed,
-        passRate: s.attempts > 0 ? Math.round((s.passed/s.attempts)*100) : 0,
-        avgScore: s.attempts > 0 ? Math.round(s.totalScore/s.attempts) : 0
-      };
+      return { subject: s.subject, attempts: s.attempts, passed: s.passed,
+               passRate: s.attempts > 0 ? Math.round((s.passed/s.attempts)*100) : 0,
+               avgScore: s.attempts > 0 ? Math.round(s.totalScore/s.attempts) : 0 };
     });
-
     var thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
     var timelineMap   = {};
     allResults.filter(function(r) { return new Date(r.createdAt) >= thirtyDaysAgo; })
@@ -172,21 +282,17 @@ router.get('/analytics', instProtect, schoolAdminOnly, requireActiveSubscription
         if (r.isPassed) timelineMap[day].passed++;
       });
     var timeline = Object.values(timelineMap).sort(function(a,b){ return a.date.localeCompare(b.date); });
-
     return res.status(200).json({
-      success:  true,
-      overview: {
-        totalExams, totalSubmissions, avgScore, highestScore, lowestScore,
-        passed, failed: totalSubmissions - passed, passRate, needsGrading
-      },
+      success: true,
+      overview: { totalExams, totalSubmissions, avgScore, highestScore, lowestScore,
+                  passed, failed: totalSubmissions - passed, passRate, needsGrading },
       examStats, subjectStats, timeline
     });
   } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
 });
 
 /* ============================================
-   GET /api/institution/school/plans
-   Public — no auth required
+   GET /api/institution/school/plans — public
 ============================================ */
 router.get('/plans', async (req, res) => {
   try {
@@ -205,66 +311,42 @@ router.post('/subscribe', instProtect, async (req, res) => {
     var plan   = await SubscriptionPlan.findOne({ code: planCode, isActive: true });
     if (!school) return res.status(404).json({ success: false, message: 'School not found.' });
     if (!plan)   return res.status(400).json({ success: false, message: 'Plan not found.' });
-
     var reference   = 'INST-' + school._id + '-' + Date.now();
     var callbackUrl = (process.env.APP_URL || 'https://latlompsystem.up.railway.app') +
       '/institution/school/dashboard.html?payment=success&ref=' + reference;
-
     var paystackRes = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + process.env.PAYSTACK_SECRET_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: school.email, amount: plan.price * 100,
-        reference, callback_url: callbackUrl,
-        metadata: {
-          schoolId: school._id.toString(), planCode, planName: plan.name,
-          schoolName: school.name, type: 'institution_subscription'
-        }
+      body: JSON.stringify({ email: school.email, amount: plan.price * 100, reference, callback_url: callbackUrl,
+        metadata: { schoolId: school._id.toString(), planCode, planName: plan.name, schoolName: school.name, type: 'institution_subscription' }
       })
     });
     var paystackData = await paystackRes.json();
-    if (!paystackData.status) {
-      return res.status(400).json({ success: false, message: 'Payment initialization failed.' });
-    }
+    if (!paystackData.status) return res.status(400).json({ success: false, message: 'Payment initialization failed.' });
     await Subscription.create({
       schoolId: school._id, plan: planCode, planName: plan.name, amount: plan.price,
-      startDate: new Date(),
-      endDate:   new Date(Date.now() + plan.durationDays * 86400000),
+      startDate: new Date(), endDate: new Date(Date.now() + plan.durationDays * 86400000),
       status: 'pending', paymentRef: reference
     });
-    return res.status(200).json({
-      success: true, paymentUrl: paystackData.data.authorization_url,
-      reference, amount: plan.price, plan
-    });
+    return res.status(200).json({ success: true, paymentUrl: paystackData.data.authorization_url, reference, amount: plan.price, plan });
   } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
 });
 
 /* ============================================
    POST /api/institution/school/invite-teacher
-
-   ✅ PHASE B: Accepts expiryDuration from request.
-   Valid values: '5min' | '10min' | '30min' |
-                 '1hr'  | '24hr'  | '7days'
-   Defaults to '7days' if not provided.
-   The expiry window is computed inside the
-   Invitation model pre('validate') hook using
-   the expiryDuration value.
+   ✅ PHASE B: expiryDuration support
 ============================================ */
 router.post('/invite-teacher', instProtect, schoolAdminOnly, requireActiveSubscription, async (req, res) => {
   try {
     var { email, name, role, subjects, classes, message, expiryDuration } = req.body;
     if (!email) return res.status(400).json({ success: false, message: 'Email is required.' });
 
-    /* Validate expiryDuration — fall back to default if invalid */
     var validDurations = ['5min', '10min', '30min', '1hr', '24hr', '7days'];
     var chosenDuration = validDurations.indexOf(expiryDuration) !== -1 ? expiryDuration : '7days';
 
     var existing = await SchoolUser.findOne({ schoolId: req.schoolId, email: email.toLowerCase() });
-    if (existing) {
-      return res.status(400).json({ success: false, message: 'This person is already a member of your school.' });
-    }
+    if (existing) return res.status(400).json({ success: false, message: 'This person is already a member of your school.' });
 
-    /* Cancel any existing pending invites for this email */
     await Invitation.updateMany(
       { schoolId: req.schoolId, email: email.toLowerCase(), status: 'pending' },
       { $set: { status: 'cancelled' } }
@@ -279,29 +361,19 @@ router.post('/invite-teacher', instProtect, schoolAdminOnly, requireActiveSubscr
       subjects:       Array.isArray(subjects) ? subjects : (subjects ? subjects.split(',').map(function(s){return s.trim();}) : []),
       classes:        Array.isArray(classes)  ? classes  : (classes  ? classes.split(',').map(function(s){return s.trim();}) : []),
       message:        message || '',
-      /* ✅ PHASE B: Store the chosen expiry duration */
       expiryDuration: chosenDuration
     });
 
     var school    = req.school;
     var inviteUrl = (process.env.APP_URL || 'https://latlompsystem.up.railway.app') +
       '/institution/index.html?invite=' + invite.token;
-
-    /* Human-readable label for use in emails */
     var expiryLabel = Invitation.getExpiryLabel(chosenDuration);
 
     try {
       await emailService.sendTeacherInvite({
-        toEmail:    email.toLowerCase(),
-        toName:     name || '',
-        schoolName: school.name,
-        inviterName:req.schoolUser.name,
-        role:       role || 'teacher',
-        inviteUrl,
-        expiresAt:  invite.expiresAt,
-        /* ✅ Pass human-readable label so email says
-           "This invite expires in 30 minutes" not just a timestamp */
-        expiryLabel
+        toEmail: email.toLowerCase(), toName: name || '',
+        schoolName: school.name, inviterName: req.schoolUser.name,
+        role: role || 'teacher', inviteUrl, expiresAt: invite.expiresAt, expiryLabel
       });
     } catch (emailErr) { console.warn('[InviteTeacher] Email failed:', emailErr.message); }
 
@@ -309,15 +381,9 @@ router.post('/invite-teacher', instProtect, schoolAdminOnly, requireActiveSubscr
       success: true,
       message: 'Invitation sent to ' + email + '. It expires in ' + expiryLabel + '.',
       invite: {
-        _id:           invite._id,
-        email:         invite.email,
-        name:          invite.name,
-        role:          invite.role,
-        token:         invite.token,
-        inviteUrl,
-        expiresAt:     invite.expiresAt,
-        expiryDuration:invite.expiryDuration,
-        expiryLabel
+        _id: invite._id, email: invite.email, name: invite.name, role: invite.role,
+        token: invite.token, inviteUrl, expiresAt: invite.expiresAt,
+        expiryDuration: invite.expiryDuration, expiryLabel
       }
     });
   } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
@@ -328,25 +394,15 @@ router.post('/invite-teacher', instProtect, schoolAdminOnly, requireActiveSubscr
 ============================================ */
 router.get('/teachers', instProtect, schoolAdminOnly, requireActiveSubscription, async (req, res) => {
   try {
-    var teachers = await SchoolUser.find({
-      schoolId: req.schoolId, role: { $in: ['teacher', 'vice_principal'] }
-    }).select('-googleId').sort({ name: 1 });
-
-    /* ✅ PHASE B: Include expiryDuration and expiryLabel on pending invites
-       so the dashboard can show "Expires in 30 minutes" rather than just a date */
+    var teachers       = await SchoolUser.find({ schoolId: req.schoolId, role: { $in: ['teacher', 'vice_principal'] } })
+      .select('-googleId').sort({ name: 1 });
     var pendingInvites = await Invitation.find({ schoolId: req.schoolId, status: 'pending' }).sort({ createdAt: -1 });
-
     var invitesWithLabels = pendingInvites.map(function(inv) {
-      var obj       = inv.toObject();
-      obj.expiryLabel = Invitation.getExpiryLabel(inv.expiryDuration);
-
-      /* Mark as effectively expired if expiresAt has passed */
-      if (new Date(inv.expiresAt) < new Date()) {
-        obj.isExpiredNow = true;
-      }
+      var obj = inv.toObject();
+      obj.expiryLabel  = Invitation.getExpiryLabel(inv.expiryDuration);
+      obj.isExpiredNow = new Date(inv.expiresAt) < new Date();
       return obj;
     });
-
     return res.status(200).json({ success: true, teachers, pendingInvites: invitesWithLabels });
   } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
 });
@@ -356,15 +412,9 @@ router.get('/teachers', instProtect, schoolAdminOnly, requireActiveSubscription,
 ============================================ */
 router.delete('/teachers/:id', instProtect, schoolAdminOnly, requireActiveSubscription, async (req, res) => {
   try {
-    var teacher = await SchoolUser.findOne({
-      _id: req.params.id, schoolId: req.schoolId, role: { $in: ['teacher','vice_principal'] }
-    });
+    var teacher = await SchoolUser.findOne({ _id: req.params.id, schoolId: req.schoolId, role: { $in: ['teacher','vice_principal'] } });
     if (!teacher) return res.status(404).json({ success: false, message: 'Teacher not found in your school.' });
-
-    await Invitation.updateMany(
-      { schoolId: req.schoolId, email: teacher.email, status: 'pending' },
-      { $set: { status: 'cancelled' } }
-    );
+    await Invitation.updateMany({ schoolId: req.schoolId, email: teacher.email, status: 'pending' }, { $set: { status: 'cancelled' } });
     await SchoolUser.findByIdAndDelete(req.params.id);
     return res.status(200).json({ success: true, message: teacher.name + ' has been permanently removed from your school.' });
   } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
@@ -377,11 +427,10 @@ router.put('/teachers/:id/deactivate', instProtect, schoolAdminOnly, requireActi
   try {
     var teacher = await SchoolUser.findOneAndUpdate(
       { _id: req.params.id, schoolId: req.schoolId, role: { $in: ['teacher','vice_principal'] } },
-      { $set: { isActive: false } },
-      { new: true }
+      { $set: { isActive: false } }, { new: true }
     ).select('-googleId');
     if (!teacher) return res.status(404).json({ success: false, message: 'Teacher not found in your school.' });
-    return res.status(200).json({ success: true, message: teacher.name + '\'s account has been deactivated. They can no longer log in.', teacher });
+    return res.status(200).json({ success: true, message: teacher.name + "'s account has been deactivated.", teacher });
   } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
 });
 
@@ -392,11 +441,10 @@ router.put('/teachers/:id/reactivate', instProtect, schoolAdminOnly, requireActi
   try {
     var teacher = await SchoolUser.findOneAndUpdate(
       { _id: req.params.id, schoolId: req.schoolId, role: { $in: ['teacher','vice_principal'] } },
-      { $set: { isActive: true } },
-      { new: true }
+      { $set: { isActive: true } }, { new: true }
     ).select('-googleId');
     if (!teacher) return res.status(404).json({ success: false, message: 'Teacher not found in your school.' });
-    return res.status(200).json({ success: true, message: teacher.name + '\'s account has been reactivated. They can now log in.', teacher });
+    return res.status(200).json({ success: true, message: teacher.name + "'s account has been reactivated.", teacher });
   } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
 });
 
@@ -416,10 +464,8 @@ router.get('/results', instProtect, schoolAdminOnly, requireActiveSubscription, 
         .sort({ createdAt: -1 }).skip(skip).limit(limitNum),
       SchoolResult.countDocuments(filter)
     ]);
-    return res.status(200).json({
-      success: true, results,
-      pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total/limitNum) }
-    });
+    return res.status(200).json({ success: true, results,
+      pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total/limitNum) } });
   } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
 });
 
@@ -434,11 +480,9 @@ router.post('/results/release', instProtect, schoolAdminOnly, requireActiveSubsc
       { schoolId: req.schoolId, examId },
       { $set: { isReleased: true, releasedAt: new Date(), releasedBy: req.schoolUser._id } }
     );
-    return res.status(200).json({
-      success: true,
+    return res.status(200).json({ success: true,
       message: updated.modifiedCount + ' result' + (updated.modifiedCount !== 1 ? 's' : '') + ' released.',
-      count: updated.modifiedCount
-    });
+      count: updated.modifiedCount });
   } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
 });
 
@@ -447,7 +491,7 @@ router.post('/results/release', instProtect, schoolAdminOnly, requireActiveSubsc
 ============================================ */
 router.put('/profile', instProtect, schoolAdminOnly, async (req, res) => {
   try {
-    var school = await School.findById(req.schoolId);
+    var school  = await School.findById(req.schoolId);
     if (!school) return res.status(404).json({ success: false, message: 'School not found.' });
     var allowed = ['name','phone','address','state','country','type','principalName','motto','website','logo','primaryColor','secondaryColor'];
     allowed.forEach(function(field) { if (req.body[field] !== undefined) school[field] = req.body[field]; });

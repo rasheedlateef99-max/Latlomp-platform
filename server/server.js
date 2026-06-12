@@ -29,16 +29,14 @@ connectDB();
 app.use(cors());
 
 /* ============================================
-   RAW BODY PARSER
-   Must come BEFORE express.json().
-   Required for Paystack webhook HMAC verification.
-   Applied to BOTH main and institution webhooks.
+   RAW BODY PARSER (Paystack webhooks)
+   Must come BEFORE express.json()
 ============================================ */
 app.use("/api/payment/webhook",             express.raw({ type: "application/json" }));
 app.use("/api/institution/payment/webhook", express.raw({ type: "application/json" }));
 
 /* ============================================
-   JSON BODY PARSER — all other routes
+   JSON BODY PARSER
 ============================================ */
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
@@ -57,16 +55,6 @@ app.use("/api/payment", require("./routes/payment.routes"));
 app.use("/api/store",   require("./routes/store.routes"));
 app.use("/api/cbt",     require("./routes/cbt.routes"));
 app.use("/api/exams",   require("./routes/exam.routes"));
-
-/* ============================================
-   ADMIN ROUTES
-   ✅ FIX: This line was completely missing from
-   server.js. Every call to /api/admin/... was
-   falling through to the catch-all and returning
-   "API route not found." — the exact error visible
-   in the admin institution panel (Image 4).
-   This one line fixes the entire admin panel.
-============================================ */
 app.use("/api/admin",   require("./routes/admin.routes"));
 
 /* ============================================
@@ -93,8 +81,18 @@ app.get("/api/health", function (req, res) {
 });
 
 /* ============================================
-   CATCH-ALL — SPA routing
-   Must be LAST
+   ✅ PHASE E — SLUG RESOLVER ROUTE
+   /i/:slug serves the branded landing page.
+   Must come BEFORE the SPA catch-all below.
+   The page itself reads the slug from the path
+   and fetches the school via the public API.
+============================================ */
+app.get("/i/:slug", function (req, res) {
+  res.sendFile(path.join(__dirname, "../public/i/index.html"));
+});
+
+/* ============================================
+   CATCH-ALL — SPA routing (MUST be last)
 ============================================ */
 app.get("*", function (req, res) {
   if (req.path.startsWith("/api/")) {
@@ -109,10 +107,7 @@ app.get("*", function (req, res) {
 app.use(function (err, req, res, next) {
   console.error("Unhandled error:", err.message);
   console.error(err.stack);
-  return res.status(500).json({
-    success: false,
-    message: "Internal server error."
-  });
+  return res.status(500).json({ success: false, message: "Internal server error." });
 });
 
 /* ============================================

@@ -10,8 +10,8 @@
     :root {
       --primary:#6c63ff; --pd:#574fd6;
       --green:#43e97b;   --red:#ff6584;
-      --orange:#ffa500;
-      --dark:#0f0f1a;    --dark-2:#1a1a2e; --dark-3:#151526;
+      --orange:#ffa500;  --yellow:#ffd600;
+      --dark:#0f0f1a;    --dark-2:#1a1a2e;
       --border:rgba(255,255,255,0.08);
       --text:#fff;       --muted:#6b6b8a; --secondary:#a0a0c0;
     }
@@ -19,22 +19,14 @@
     @keyframes spin   { to { transform:rotate(360deg); } }
     @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
 
-    .sidebar {
-      width:260px; flex-shrink:0; background:var(--dark-2);
-      border-right:1px solid var(--border); display:flex; flex-direction:column;
-      position:fixed; top:0; left:0; bottom:0; z-index:400;
-      overflow-y:auto; overflow-x:hidden;
-      transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
-    }
-    @media (max-width:960px) {
-      .sidebar { transform:translateX(-100%); }
-      .sidebar.open { transform:translateX(0); box-shadow:8px 0 48px rgba(0,0,0,0.6); }
-    }
+    .sidebar { width:260px; flex-shrink:0; background:var(--dark-2); border-right:1px solid var(--border); display:flex; flex-direction:column; position:fixed; top:0; left:0; bottom:0; z-index:400; overflow-y:auto; overflow-x:hidden; transition:transform 0.3s cubic-bezier(0.4,0,0.2,1); }
+    @media (max-width:960px) { .sidebar { transform:translateX(-100%); } .sidebar.open { transform:translateX(0); box-shadow:8px 0 48px rgba(0,0,0,0.6); } }
     .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:399; }
     .sidebar-overlay.visible { display:block; }
 
     .sb-school { padding:20px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; flex-shrink:0; }
-    .sb-school-logo { width:44px; height:44px; border-radius:10px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:800; background:linear-gradient(135deg,var(--primary),var(--pd)); }
+    .sb-school-logo { width:44px; height:44px; border-radius:10px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:800; background:linear-gradient(135deg,var(--primary),var(--pd)); overflow:hidden; }
+    .sb-school-logo img { width:100%; height:100%; object-fit:cover; }
     .sb-school-name { font-size:14px; font-weight:800; color:#fff; line-height:1.3; }
     .sb-school-role { font-size:11px; color:var(--green); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
 
@@ -85,7 +77,7 @@
     .stat-lbl  { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-top:3px; }
 
     .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
-    table { width:100%; border-collapse:collapse; min-width:520px; }
+    table { width:100%; border-collapse:collapse; min-width:480px; }
     th { padding:11px 14px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); background:rgba(255,255,255,0.02); border-bottom:1px solid var(--border); white-space:nowrap; }
     td { padding:12px 14px; font-size:14px; color:var(--secondary); border-bottom:1px solid var(--border); vertical-align:middle; }
     tr:last-child td { border-bottom:none; }
@@ -97,27 +89,33 @@
     .btn-green     { background:linear-gradient(135deg,var(--green),#38f9d7); color:#0f0f1a; }
     .btn-green:hover    { transform:translateY(-1px); box-shadow:0 4px 16px rgba(67,233,123,0.35); }
     .btn-secondary { background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--secondary); }
+    .btn-secondary:hover { background:rgba(255,255,255,0.1); color:#fff; }
     .btn-danger    { background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); }
     .btn-orange    { background:rgba(255,165,0,0.1); border:1px solid rgba(255,165,0,0.3); color:var(--orange); }
+    .btn-yellow    { background:rgba(255,214,0,0.1); border:1px solid rgba(255,214,0,0.3); color:var(--yellow); }
     .btn-sm { padding:5px 10px; font-size:12px; border-radius:6px; }
+    .btn:disabled { opacity:0.5; cursor:not-allowed; transform:none !important; }
 
     .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
     .badge-green  { background:rgba(67,233,123,0.12);  color:var(--green); }
     .badge-red    { background:rgba(255,101,132,0.12); color:var(--red); }
     .badge-orange { background:rgba(255,165,0,0.12);   color:var(--orange); }
+    .badge-yellow { background:rgba(255,214,0,0.12);   color:var(--yellow); }
     .badge-purple { background:rgba(108,99,255,0.12);  color:#a78bfa; }
     .badge-muted  { background:rgba(255,255,255,0.06); color:var(--secondary); }
 
     .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:600; display:flex; align-items:center; justify-content:center; padding:20px; overflow-y:auto; }
-    .modal-box { background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:28px; width:100%; max-width:520px; max-height:90vh; overflow-y:auto; }
+    .modal-box { background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:28px; width:100%; max-width:480px; max-height:90vh; overflow-y:auto; }
     .modal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:22px; }
     .modal-header h2 { font-size:18px; font-weight:800; color:#fff; margin:0; }
     .modal-close { width:32px; height:32px; border-radius:8px; background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--muted); cursor:pointer; font-size:15px; display:flex; align-items:center; justify-content:center; font-family:inherit; }
+    .modal-close:hover { background:rgba(255,101,132,0.15); color:var(--red); }
     .modal-footer { display:flex; justify-content:flex-end; gap:10px; margin-top:20px; padding-top:16px; border-top:1px solid var(--border); }
     @media (max-width:600px) { .modal-overlay { align-items:flex-end; padding:0; } .modal-box { border-radius:20px 20px 0 0; max-width:100%; max-height:88vh; } }
 
     .field { display:flex; flex-direction:column; gap:6px; margin-bottom:16px; }
     .field label { font-size:12px; font-weight:700; color:var(--secondary); text-transform:uppercase; letter-spacing:0.4px; }
+    .field label span { color:var(--red); }
     .field input, .field select, .field textarea { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:9px; padding:11px 13px; color:#fff; font-size:14px; font-family:inherit; outline:none; width:100%; transition:border-color 0.2s; }
     .field input:focus, .field select:focus, .field textarea:focus { border-color:var(--primary); }
     .field input::placeholder, .field textarea::placeholder { color:var(--muted); }
@@ -127,34 +125,21 @@
     @media (max-width:480px) { .field-row { grid-template-columns:1fr; } }
     .field-hint { font-size:11px; color:var(--muted); margin-top:2px; line-height:1.5; }
 
-    /* ✅ PHASE B: Expiry duration selector styling */
-    .expiry-grid {
-      display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:4px;
-    }
-    @media (max-width:400px) { .expiry-grid { grid-template-columns:repeat(2,1fr); } }
-    .expiry-btn {
-      padding:10px 6px; border-radius:8px; font-size:12px; font-weight:700;
-      cursor:pointer; font-family:inherit; border:1px solid var(--border);
-      background:rgba(255,255,255,0.04); color:var(--secondary);
-      text-align:center; transition:all 0.15s; line-height:1.3;
-    }
-    .expiry-btn:hover  { border-color:rgba(108,99,255,0.4); color:#fff; }
-    .expiry-btn.active {
-      background:rgba(108,99,255,0.15); border-color:rgba(108,99,255,0.5);
-      color:#a78bfa;
-    }
-    .expiry-btn .expiry-icon { font-size:16px; display:block; margin-bottom:3px; }
-    .expiry-hint-box {
-      background:rgba(108,99,255,0.06); border:1px solid rgba(108,99,255,0.2);
-      border-radius:8px; padding:10px 14px; font-size:12px; color:var(--secondary);
-      margin-top:8px; line-height:1.6;
-    }
+    /* ---- STRUCTURE TABS ---- */
+    .str-tabs { display:flex; gap:4px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:12px; padding:4px; margin-bottom:20px; flex-wrap:wrap; }
+    .str-tab { flex:1; min-width:80px; padding:9px 12px; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; border:none; background:none; color:var(--secondary); transition:all 0.15s; text-align:center; white-space:nowrap; }
+    .str-tab:hover  { color:#fff; background:rgba(255,255,255,0.06); }
+    .str-tab.active { background:rgba(108,99,255,0.2); color:#a78bfa; font-weight:700; }
+    .str-tab-pane   { display:none; }
+    .str-tab-pane.active { display:block; }
 
-    .empty { text-align:center; padding:48px 20px; color:var(--muted); }
-    .empty-icon { font-size:48px; margin-bottom:12px; }
-    .empty-text { font-size:15px; font-weight:700; color:var(--secondary); margin-bottom:6px; }
-    .empty-sub  { font-size:13px; line-height:1.6; }
+    /* ---- CURRENT TERM BANNER ---- */
+    .term-banner { background:linear-gradient(135deg,rgba(108,99,255,0.15),rgba(67,233,123,0.08)); border:1px solid rgba(108,99,255,0.3); border-radius:14px; padding:20px 24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
+    .term-banner-label   { font-size:12px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px; }
+    .term-banner-name    { font-size:20px; font-weight:900; color:#fff; }
+    .term-banner-session { font-size:13px; color:#a78bfa; margin-top:2px; }
 
+    /* ---- SUBSCRIPTION ---- */
     .sub-banner { border-radius:14px; padding:20px 24px; margin-bottom:24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; }
     .sub-banner.trial   { background:rgba(67,233,123,0.08);  border:1px solid rgba(67,233,123,0.25); }
     .sub-banner.active  { background:rgba(108,99,255,0.08);  border:1px solid rgba(108,99,255,0.25); }
@@ -162,7 +147,7 @@
     .sub-banner.expired { background:rgba(255,101,132,0.08); border:1px solid rgba(255,101,132,0.3); }
 
     .plans-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; }
-    .plan-card { background:rgba(255,255,255,0.03); border:2px solid var(--border); border-radius:14px; padding:20px; text-align:center; cursor:pointer; transition:all 0.2s; position:relative; }
+    .plan-card  { background:rgba(255,255,255,0.03); border:2px solid var(--border); border-radius:14px; padding:20px; text-align:center; cursor:pointer; transition:all 0.2s; position:relative; }
     .plan-card:hover { border-color:rgba(108,99,255,0.4); }
     .plan-card-name  { font-size:13px; color:var(--muted); margin-bottom:6px; font-weight:700; text-transform:uppercase; }
     .plan-card-price { font-size:28px; font-weight:900; color:#fff; }
@@ -170,8 +155,35 @@
     .plan-card-days  { font-size:12px; color:var(--secondary); margin:4px 0 14px; }
     .plan-popular { position:absolute; top:-10px; left:50%; transform:translateX(-50%); background:var(--primary); color:#fff; font-size:10px; font-weight:700; padding:2px 12px; border-radius:20px; white-space:nowrap; }
 
+    /* ---- ACCESS LINK BOX ---- */
+    .access-link-box {
+      background:linear-gradient(135deg,rgba(108,99,255,0.1),rgba(67,233,123,0.06));
+      border:1px solid rgba(108,99,255,0.3);
+      border-radius:12px; padding:20px;
+    }
+    .access-link-url {
+      background:rgba(0,0,0,0.3); border:1px solid var(--border);
+      border-radius:8px; padding:12px 14px;
+      font-family:monospace; font-size:13px; color:#a78bfa;
+      word-break:break-all; margin-bottom:12px;
+    }
+
     .invite-link-box { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; padding:10px 14px; font-size:12px; color:var(--secondary); word-break:break-all; font-family:monospace; margin-top:6px; }
     .teacher-actions { display:flex; gap:4px; flex-wrap:wrap; }
+
+    .expiry-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:4px; }
+    @media (max-width:400px) { .expiry-grid { grid-template-columns:repeat(2,1fr); } }
+    .expiry-btn { padding:10px 6px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; border:1px solid var(--border); background:rgba(255,255,255,0.04); color:var(--secondary); text-align:center; transition:all 0.15s; line-height:1.3; }
+    .expiry-btn:hover  { border-color:rgba(108,99,255,0.4); color:#fff; }
+    .expiry-btn.active { background:rgba(108,99,255,0.15); border-color:rgba(108,99,255,0.5); color:#a78bfa; }
+    .expiry-btn .expiry-icon { font-size:16px; display:block; margin-bottom:3px; }
+    .expiry-hint-box { background:rgba(108,99,255,0.06); border:1px solid rgba(108,99,255,0.2); border-radius:8px; padding:10px 14px; font-size:12px; color:var(--secondary); margin-top:8px; line-height:1.6; }
+
+    .empty { text-align:center; padding:48px 20px; color:var(--muted); }
+    .empty-icon { font-size:48px; margin-bottom:12px; }
+    .empty-text { font-size:15px; font-weight:700; color:var(--secondary); margin-bottom:6px; }
+    .empty-sub  { font-size:13px; line-height:1.6; }
+
     .spinner { width:18px; height:18px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block; }
   </style>
 </head>
@@ -187,7 +199,6 @@
       <div class="sb-school-role">School Admin</div>
     </div>
   </div>
-
   <div class="sb-sub-badge" id="sbSubBadge">
     <div>
       <div class="sb-sub-days" id="sbSubDays">—</div>
@@ -195,11 +206,11 @@
     </div>
     <button class="btn btn-sm btn-green" onclick="showSection('subscription')" style="margin-left:auto;">Manage</button>
   </div>
-
   <nav class="sb-nav">
     <div class="sb-sep">Main</div>
     <button class="nav-item active" data-sec="overview"     onclick="showSection('overview')">     <span class="nav-icon">📊</span> Overview</button>
     <button class="nav-item"        data-sec="teachers"     onclick="showSection('teachers')">     <span class="nav-icon">👩‍🏫</span> Teachers</button>
+    <button class="nav-item"        data-sec="structure"    onclick="showSection('structure')">    <span class="nav-icon">🏗️</span>  Structure</button>
     <button class="nav-item"        data-sec="exams"        onclick="showSection('exams')">        <span class="nav-icon">📝</span> Exams</button>
     <button class="nav-item"        data-sec="results"      onclick="showSection('results')">      <span class="nav-icon">📊</span> Results</button>
     <button class="nav-item" onclick="window.location='/institution/school/analytics.html'">       <span class="nav-icon">📈</span> Analytics</button>
@@ -210,7 +221,6 @@
     <a href="/institution/student/exam.html" class="nav-item" target="_blank"><span class="nav-icon">🎓</span> Student Portal</a>
     <a href="/institution/index.html"        class="nav-item"><span class="nav-icon">🏠</span> Institution Home</a>
   </nav>
-
   <div class="sb-footer">
     <button class="nav-item" style="color:var(--red);" onclick="instLogout()"><span class="nav-icon">🚪</span> Logout</button>
   </div>
@@ -228,7 +238,7 @@
     <!-- OVERVIEW -->
     <div class="section active" id="sec-overview">
       <div class="page-header">
-        <div><h1 id="overviewTitle">Dashboard</h1><p id="overviewSub">Welcome back!</p></div>
+        <div><h1 id="overviewTitle">Dashboard</h1><p>Welcome back!</p></div>
         <button class="btn btn-green" onclick="showSection('exams')">+ Create Exam</button>
       </div>
       <div class="stats-grid">
@@ -251,8 +261,8 @@
         <div class="card-body" style="display:flex; flex-wrap:wrap; gap:12px;">
           <button class="btn btn-primary"   onclick="openInviteModal()">+ Invite Teacher</button>
           <button class="btn btn-green"     onclick="showSection('exams')">+ Create Exam</button>
-          <button class="btn btn-secondary" onclick="showSection('results')">📊 View Results</button>
-          <button class="btn btn-secondary" onclick="showSection('subscription')">💳 Subscription</button>
+          <button class="btn btn-secondary" onclick="showSection('structure')">🏗️ Structure</button>
+          <button class="btn btn-secondary" onclick="showSection('results')">📊 Results</button>
         </div>
       </div>
     </div>
@@ -264,26 +274,58 @@
         <button class="btn btn-primary" onclick="openInviteModal()">+ Invite Teacher</button>
       </div>
       <div class="card">
-        <div class="card-head">
-          <h3>Active Staff</h3>
-          <span id="teacherCountBadge" style="font-size:12px; color:var(--muted);"></span>
-        </div>
+        <div class="card-head"><h3>Active Staff</h3><span id="teacherCountBadge" style="font-size:12px; color:var(--muted);"></span></div>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Subjects</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead>
-            <tbody id="teachersTableBody">
-              <tr><td colspan="7" style="text-align:center; padding:28px; color:var(--muted);">Loading...</td></tr>
-            </tbody>
+            <tbody id="teachersTableBody"><tr><td colspan="7" style="text-align:center; padding:28px; color:var(--muted);">Loading...</td></tr></tbody>
           </table>
         </div>
       </div>
       <div class="card">
-        <div class="card-head">
-          <h3>Pending Invitations</h3>
-          <span id="inviteCountBadge" style="font-size:12px; color:var(--muted);"></span>
+        <div class="card-head"><h3>Pending Invitations</h3><span id="inviteCountBadge" style="font-size:12px; color:var(--muted);"></span></div>
+        <div id="invitesContainer"><div style="text-align:center; padding:28px; color:var(--muted); font-size:14px;">Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- STRUCTURE -->
+    <div class="section" id="sec-structure">
+      <div class="page-header">
+        <div><h1>Academic Structure</h1><p id="structureSubtitle">Manage classes, subjects, departments and terms</p></div>
+        <button class="btn btn-secondary" id="regenStructureBtn" onclick="regenStructure()">🔄 Re-generate</button>
+      </div>
+      <div class="str-tabs">
+        <button class="str-tab active" id="stab-classes"     onclick="showStructureTab('classes')">📗 Classes</button>
+        <button class="str-tab"        id="stab-subjects"    onclick="showStructureTab('subjects')">📘 Subjects</button>
+        <button class="str-tab"        id="stab-departments" onclick="showStructureTab('departments')" style="display:none;">🏢 Departments</button>
+        <button class="str-tab"        id="stab-terms"       onclick="showStructureTab('terms')">📅 Terms</button>
+      </div>
+      <div class="str-tab-pane active" id="spane-classes">
+        <div class="card">
+          <div class="card-head"><h3>Classes</h3><div style="display:flex; gap:8px; align-items:center;"><span id="classCountBadge" style="font-size:12px; color:var(--muted);"></span><button class="btn btn-primary btn-sm" onclick="openClassModal()">+ Add Class</button></div></div>
+          <div class="table-wrap"><table><thead><tr><th>Class Name</th><th>Category</th><th>Form Teacher</th><th>Status</th><th>Actions</th></tr></thead><tbody id="classesTableBody"><tr><td colspan="5" style="text-align:center; padding:28px; color:var(--muted);">Loading...</td></tr></tbody></table></div>
         </div>
-        <div id="invitesContainer">
-          <div style="text-align:center; padding:28px; color:var(--muted); font-size:14px;">Loading...</div>
+      </div>
+      <div class="str-tab-pane" id="spane-subjects">
+        <div class="card">
+          <div class="card-head"><h3>Subjects</h3><div style="display:flex; gap:8px; align-items:center;"><span id="subjectCountBadge" style="font-size:12px; color:var(--muted);"></span><button class="btn btn-primary btn-sm" onclick="openSubjectModal()">+ Add Subject</button></div></div>
+          <div class="table-wrap"><table><thead><tr><th>Subject Name</th><th>Code</th><th>Type</th><th>Classes</th><th>Status</th><th>Actions</th></tr></thead><tbody id="subjectsTableBody"><tr><td colspan="6" style="text-align:center; padding:28px; color:var(--muted);">Loading...</td></tr></tbody></table></div>
+        </div>
+      </div>
+      <div class="str-tab-pane" id="spane-departments">
+        <div class="card">
+          <div class="card-head"><h3>Departments</h3><div style="display:flex; gap:8px; align-items:center;"><span id="deptCountBadge" style="font-size:12px; color:var(--muted);"></span><button class="btn btn-primary btn-sm" onclick="openDeptModal()">+ Add Department</button></div></div>
+          <div class="table-wrap"><table><thead><tr><th>Department Name</th><th>Code</th><th>Faculty</th><th>HOD</th><th>Status</th><th>Actions</th></tr></thead><tbody id="deptsTableBody"><tr><td colspan="6" style="text-align:center; padding:28px; color:var(--muted);">Loading...</td></tr></tbody></table></div>
+        </div>
+      </div>
+      <div class="str-tab-pane" id="spane-terms">
+        <div class="term-banner" id="currentTermBanner" style="display:none;">
+          <div><div class="term-banner-label">Current Term</div><div class="term-banner-name" id="currentTermName">—</div><div class="term-banner-session" id="currentTermSession">—</div></div>
+          <span class="badge badge-green">Active</span>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Academic Terms</h3><div style="display:flex; gap:8px; align-items:center;"><span id="termCountBadge" style="font-size:12px; color:var(--muted);"></span><button class="btn btn-primary btn-sm" onclick="openTermModal()">+ Add Term</button></div></div>
+          <div class="table-wrap"><table><thead><tr><th>Term Name</th><th>Session</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th></tr></thead><tbody id="termsTableBody"><tr><td colspan="6" style="text-align:center; padding:28px; color:var(--muted);">Loading...</td></tr></tbody></table></div>
         </div>
       </div>
     </div>
@@ -299,12 +341,7 @@
       </div>
       <div class="card">
         <div class="card-head"><h3>All Exams</h3><span id="examsTotalBadge" style="font-size:12px; color:var(--muted);"></span></div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Title</th><th>Subject</th><th>Class</th><th>Access Code</th><th>Status</th><th>Submissions</th><th>Actions</th></tr></thead>
-            <tbody id="allExamsBody"><tr><td colspan="7" style="text-align:center; padding:28px; color:var(--muted);">Loading...</td></tr></tbody>
-          </table>
-        </div>
+        <div class="table-wrap"><table><thead><tr><th>Title</th><th>Subject</th><th>Class</th><th>Access Code</th><th>Status</th><th>Submissions</th><th>Actions</th></tr></thead><tbody id="allExamsBody"><tr><td colspan="7" style="text-align:center; padding:28px; color:var(--muted);">Loading...</td></tr></tbody></table></div>
       </div>
     </div>
 
@@ -316,26 +353,15 @@
       </div>
       <div class="card">
         <div class="card-head"><h3>All Submissions</h3><span id="resultsTotalBadge" style="font-size:12px; color:var(--muted);"></span></div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Student</th><th>Exam</th><th>Score</th><th>Status</th><th>Released</th><th>Date</th></tr></thead>
-            <tbody id="resultsTableBody"><tr><td colspan="6" style="text-align:center; padding:28px; color:var(--muted);">Loading...</td></tr></tbody>
-          </table>
-        </div>
+        <div class="table-wrap"><table><thead><tr><th>Student</th><th>Exam</th><th>Score</th><th>Status</th><th>Released</th><th>Date</th></tr></thead><tbody id="resultsTableBody"><tr><td colspan="6" style="text-align:center; padding:28px; color:var(--muted);">Loading...</td></tr></tbody></table></div>
       </div>
     </div>
 
     <!-- SUBSCRIPTION -->
     <div class="section" id="sec-subscription">
       <div class="page-header"><div><h1>Subscription</h1><p>Manage your school's access plan</p></div></div>
-      <div class="card" style="margin-bottom:20px;">
-        <div class="card-head"><h3>Current Plan</h3></div>
-        <div class="card-body" id="currentPlanBody"><div style="color:var(--muted); font-size:14px; text-align:center; padding:20px;">Loading...</div></div>
-      </div>
-      <div class="card">
-        <div class="card-head"><h3>Available Plans</h3></div>
-        <div class="card-body"><div class="plans-grid" id="subPlansGrid"><div style="color:var(--muted); font-size:14px; text-align:center; padding:20px; grid-column:1/-1;">Loading plans...</div></div></div>
-      </div>
+      <div class="card" style="margin-bottom:20px;"><div class="card-head"><h3>Current Plan</h3></div><div class="card-body" id="currentPlanBody"><div style="color:var(--muted); font-size:14px; text-align:center; padding:20px;">Loading...</div></div></div>
+      <div class="card"><div class="card-head"><h3>Available Plans</h3></div><div class="card-body"><div class="plans-grid" id="subPlansGrid"><div style="color:var(--muted); font-size:14px; text-align:center; padding:20px; grid-column:1/-1;">Loading plans...</div></div></div></div>
     </div>
 
     <!-- SETTINGS -->
@@ -344,6 +370,51 @@
         <div><h1>School Settings</h1><p>Update your school profile and preferences</p></div>
         <button class="btn btn-primary" onclick="saveSettings()">Save Changes</button>
       </div>
+
+      <!-- ✅ PHASE E: Your Access Link card -->
+      <div class="card">
+        <div class="card-head">
+          <h3>🔗 Your School Access Link</h3>
+          <span id="slugStatusBadge" style="font-size:12px; color:var(--muted);"></span>
+        </div>
+        <div class="card-body">
+          <p style="font-size:13px; color:var(--secondary); margin:0 0 16px; line-height:1.6;">
+            Share this link with your teachers and students. It opens a branded page for your school.
+          </p>
+          <!-- Current link display -->
+          <div class="access-link-box" id="currentLinkBox">
+            <div style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:8px;">Your Link</div>
+            <div class="access-link-url" id="currentLinkUrl">Loading...</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn btn-secondary btn-sm" onclick="copySchoolLink()">📋 Copy Link</button>
+              <a id="previewLinkBtn" href="#" target="_blank" class="btn btn-secondary btn-sm">👁 Preview</a>
+            </div>
+          </div>
+
+          <!-- Change slug -->
+          <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border);">
+            <div style="font-size:13px; font-weight:700; color:#fff; margin-bottom:12px;">Change Your Link</div>
+            <div class="field" style="margin-bottom:8px;">
+              <label>New Slug</label>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <span style="font-size:13px; color:var(--muted); white-space:nowrap; flex-shrink:0;" id="slugPrefix">/i/</span>
+                <input type="text" id="newSlugInput"
+                  placeholder="e.g. bright-future-school"
+                  style="background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:9px; padding:11px 13px; color:#fff; font-size:14px; font-family:inherit; outline:none; flex:1; transition:border-color 0.2s;"
+                  oninput="onSlugInput(this.value)"
+                  onfocus="this.style.borderColor='var(--primary)'"
+                  onblur="this.style.borderColor='var(--border)'" />
+              </div>
+              <div class="field-hint">Lowercase letters, numbers and hyphens only. 3–50 characters. You can change this once every 30 days.</div>
+            </div>
+            <div id="slugValidationMsg" style="font-size:12px; margin-bottom:12px; display:none;"></div>
+            <div id="slugErrBox" style="display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:12px;"></div>
+            <button class="btn btn-primary btn-sm" id="saveSlugBtn" onclick="saveSlug()" disabled>Save New Link</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- School Profile -->
       <div class="card">
         <div class="card-head"><h3>School Profile</h3></div>
         <div class="card-body">
@@ -367,6 +438,8 @@
           </div>
         </div>
       </div>
+
+      <!-- Exam Settings -->
       <div class="card">
         <div class="card-head"><h3>Exam Settings</h3></div>
         <div class="card-body">
@@ -388,85 +461,123 @@
       </div>
     </div>
 
-  </div>
-</div>
+  </div><!-- end page-content -->
+</div><!-- end main -->
 
-<!-- ============================================
-     INVITE TEACHER MODAL
-     ✅ PHASE B: Expiry duration selector added
-============================================ -->
+
+<!-- INVITE TEACHER MODAL -->
 <div class="modal-overlay" id="inviteModal" style="display:none;">
   <div class="modal-box">
-    <div class="modal-header">
-      <h2>Invite Teacher</h2>
-      <button class="modal-close" onclick="closeModal('inviteModal')">✕</button>
-    </div>
+    <div class="modal-header"><h2>Invite Teacher</h2><button class="modal-close" onclick="closeModal('inviteModal')">✕</button></div>
     <div id="inviteErr"     style="display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); padding:12px; border-radius:8px; font-size:13px; margin-bottom:16px;"></div>
     <div id="inviteSuccess" style="display:none; background:rgba(67,233,123,0.1); border:1px solid rgba(67,233,123,0.3); color:var(--green); padding:16px; border-radius:8px; font-size:13px; margin-bottom:16px; line-height:1.7;"></div>
-
-    <div class="field">
-      <label>Teacher Email <span style="color:var(--red);">*</span></label>
-      <input type="email" id="inviteEmail" placeholder="teacher@email.com" />
-    </div>
-    <div class="field">
-      <label>Full Name (optional)</label>
-      <input type="text" id="inviteName" placeholder="e.g. Mrs. Adaeze Okafor" />
-    </div>
+    <div class="field"><label>Teacher Email <span>*</span></label><input type="email" id="inviteEmail" placeholder="teacher@email.com" /></div>
+    <div class="field"><label>Full Name (optional)</label><input type="text" id="inviteName" placeholder="e.g. Mrs. Adaeze Okafor" /></div>
     <div class="field-row">
-      <div class="field">
-        <label>Role</label>
-        <select id="inviteRole">
-          <option value="teacher">Teacher</option>
-          <option value="vice_principal">Vice Principal</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Subjects</label>
-        <input type="text" id="inviteSubjects" placeholder="e.g. Maths, English" />
-      </div>
+      <div class="field"><label>Role</label><select id="inviteRole"><option value="teacher">Teacher</option><option value="vice_principal">Vice Principal</option></select></div>
+      <div class="field"><label>Subjects</label><input type="text" id="inviteSubjects" placeholder="e.g. Maths, English" /></div>
     </div>
-    <div class="field">
-      <label>Classes</label>
-      <input type="text" id="inviteClasses" placeholder="e.g. JSS1, SS2A" />
-    </div>
-
-    <!-- ✅ PHASE B: Expiry duration selector -->
+    <div class="field"><label>Classes</label><input type="text" id="inviteClasses" placeholder="e.g. JSS1, SS2A" /></div>
     <div class="field" style="margin-bottom:8px;">
       <label>Invitation Expires In</label>
       <div class="expiry-grid">
-        <button type="button" class="expiry-btn" data-duration="5min"  onclick="selectExpiry('5min')">
-          <span class="expiry-icon">⚡</span>5 minutes
-        </button>
-        <button type="button" class="expiry-btn" data-duration="10min" onclick="selectExpiry('10min')">
-          <span class="expiry-icon">🕐</span>10 minutes
-        </button>
-        <button type="button" class="expiry-btn" data-duration="30min" onclick="selectExpiry('30min')">
-          <span class="expiry-icon">🕐</span>30 minutes
-        </button>
-        <button type="button" class="expiry-btn" data-duration="1hr"   onclick="selectExpiry('1hr')">
-          <span class="expiry-icon">⏰</span>1 hour
-        </button>
-        <button type="button" class="expiry-btn" data-duration="24hr"  onclick="selectExpiry('24hr')">
-          <span class="expiry-icon">📅</span>24 hours
-        </button>
-        <button type="button" class="expiry-btn active" data-duration="7days" onclick="selectExpiry('7days')">
-          <span class="expiry-icon">📆</span>7 days
-        </button>
+        <button type="button" class="expiry-btn" data-duration="5min"  onclick="selectExpiry('5min')"> <span class="expiry-icon">⚡</span>5 min</button>
+        <button type="button" class="expiry-btn" data-duration="10min" onclick="selectExpiry('10min')"><span class="expiry-icon">🕐</span>10 min</button>
+        <button type="button" class="expiry-btn" data-duration="30min" onclick="selectExpiry('30min')"><span class="expiry-icon">🕐</span>30 min</button>
+        <button type="button" class="expiry-btn" data-duration="1hr"   onclick="selectExpiry('1hr')">  <span class="expiry-icon">⏰</span>1 hour</button>
+        <button type="button" class="expiry-btn" data-duration="24hr"  onclick="selectExpiry('24hr')"> <span class="expiry-icon">📅</span>24 hrs</button>
+        <button type="button" class="expiry-btn active" data-duration="7days" onclick="selectExpiry('7days')"><span class="expiry-icon">📆</span>7 days</button>
       </div>
-      <div class="expiry-hint-box" id="expiryHintBox">
-        📆 The invite link will expire in <strong>7 days</strong>. Good for invites sent in advance.
-      </div>
+      <div class="expiry-hint-box" id="expiryHintBox">📆 Expires in <strong>7 days</strong>. Good for invites sent in advance.</div>
     </div>
-    <!-- Hidden input stores selected duration -->
     <input type="hidden" id="inviteExpiryDuration" value="7days" />
-
-    <div class="field">
-      <label>Personal Message (optional)</label>
-      <textarea id="inviteMessage" placeholder="Welcome to our school!" rows="2"></textarea>
-    </div>
+    <div class="field"><label>Personal Message (optional)</label><textarea id="inviteMessage" placeholder="Welcome to our school!" rows="2"></textarea></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('inviteModal')">Cancel</button>
       <button class="btn btn-primary" id="inviteBtn" onclick="sendInvite()">Send Invitation →</button>
+    </div>
+  </div>
+</div>
+
+<!-- CLASS MODAL -->
+<div class="modal-overlay" id="classModal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-header"><h2 id="classModalTitle">Add Class</h2><button class="modal-close" onclick="closeModal('classModal')">✕</button></div>
+    <input type="hidden" id="editClassId" />
+    <div class="field"><label>Class Name <span>*</span></label><input type="text" id="className" placeholder="e.g. JSS1, Primary 3" /></div>
+    <div class="field-row">
+      <div class="field"><label>Category</label><select id="classCategory"><option value="primary">Primary</option><option value="jss">JSS</option><option value="sss">SSS</option><option value="nd">ND</option><option value="hnd">HND</option><option value="level">Level</option><option value="year">Year</option><option value="other" selected>Other</option></select></div>
+      <div class="field"><label>Sort Order</label><input type="number" id="classSortOrder" placeholder="1" min="0" /></div>
+    </div>
+    <div class="field"><label>Capacity (optional)</label><input type="number" id="classCapacity" placeholder="e.g. 40" min="0" /><div class="field-hint">Maximum students in this class</div></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('classModal')">Cancel</button>
+      <button class="btn btn-primary" id="saveClassBtn" onclick="saveClass()">Add Class</button>
+    </div>
+  </div>
+</div>
+
+<!-- SUBJECT MODAL -->
+<div class="modal-overlay" id="subjectModal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-header"><h2 id="subjectModalTitle">Add Subject</h2><button class="modal-close" onclick="closeModal('subjectModal')">✕</button></div>
+    <input type="hidden" id="editSubjectId" />
+    <div class="field"><label>Subject Name <span>*</span></label><input type="text" id="subjectName" placeholder="e.g. Mathematics" /></div>
+    <div class="field-row">
+      <div class="field"><label>Code</label><input type="text" id="subjectCode" placeholder="e.g. MTH" /></div>
+      <div class="field"><label>Type</label><select id="subjectIsCore"><option value="true">Core / Compulsory</option><option value="false">Elective / Optional</option></select></div>
+    </div>
+    <div class="field">
+      <label>Assign to Classes (optional)</label>
+      <div id="subjectClassCheckboxes" style="display:flex; flex-wrap:wrap; gap:8px; padding:4px 0; max-height:140px; overflow-y:auto;"><span style="font-size:12px; color:var(--muted);">Loading classes...</span></div>
+      <div class="field-hint">Leave unchecked to assign to all classes</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('subjectModal')">Cancel</button>
+      <button class="btn btn-primary" id="saveSubjectBtn" onclick="saveSubject()">Add Subject</button>
+    </div>
+  </div>
+</div>
+
+<!-- DEPT MODAL -->
+<div class="modal-overlay" id="deptModal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-header"><h2 id="deptModalTitle">Add Department</h2><button class="modal-close" onclick="closeModal('deptModal')">✕</button></div>
+    <input type="hidden" id="editDeptId" />
+    <div class="field"><label>Department Name <span>*</span></label><input type="text" id="deptName" placeholder="e.g. Computer Science" /></div>
+    <div class="field-row">
+      <div class="field"><label>Code</label><input type="text" id="deptCode" placeholder="e.g. CSC" /></div>
+      <div class="field"><label>Faculty (optional)</label><input type="text" id="deptFaculty" placeholder="e.g. Engineering" /></div>
+    </div>
+    <div class="field"><label>Description</label><textarea id="deptDescription" rows="2" placeholder="Brief description..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('deptModal')">Cancel</button>
+      <button class="btn btn-primary" id="saveDeptBtn" onclick="saveDept()">Add Department</button>
+    </div>
+  </div>
+</div>
+
+<!-- TERM MODAL -->
+<div class="modal-overlay" id="termModal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-header"><h2 id="termModalTitle">Add Academic Term</h2><button class="modal-close" onclick="closeModal('termModal')">✕</button></div>
+    <input type="hidden" id="editTermId" />
+    <div class="field"><label>Term Name <span>*</span></label><input type="text" id="termName" placeholder="e.g. First Term" /></div>
+    <div class="field-row">
+      <div class="field"><label>Session <span>*</span></label><input type="text" id="termSession" placeholder="e.g. 2024/2025" /></div>
+      <div class="field"><label>Term Code</label><select id="termCode"><option value="first">First Term / Semester</option><option value="second">Second Term / Semester</option><option value="third">Third Term</option><option value="semester_1">Semester 1</option><option value="semester_2">Semester 2</option></select></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Start Date</label><input type="date" id="termStartDate" /></div>
+      <div class="field"><label>End Date</label><input type="date" id="termEndDate" /></div>
+    </div>
+    <div class="field" style="flex-direction:row; align-items:center; gap:12px;">
+      <input type="checkbox" id="termIsCurrent" style="width:18px; height:18px; cursor:pointer;" />
+      <label for="termIsCurrent" style="font-size:13px; font-weight:600; color:var(--secondary); text-transform:none; letter-spacing:0; cursor:pointer;">Set as current active term</label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('termModal')">Cancel</button>
+      <button class="btn btn-primary" id="saveTermBtn" onclick="saveTerm()">Add Term</button>
     </div>
   </div>
 </div>
@@ -484,10 +595,15 @@
   </div>
 </div>
 
+
 <script src="/institution/js/inst.api.js"></script>
 <script>
+/* ============================================
+   SCHOOL DASHBOARD
+   ✅ PHASE D: Academic Structure management
+   ✅ PHASE E: Slug-based access link management
+============================================ */
 
-/* Logout fallback */
 if (typeof instLogout !== 'function') {
   window.instLogout = function() {
     if (!confirm('Log out of School Dashboard?')) return;
@@ -497,87 +613,77 @@ if (typeof instLogout !== 'function') {
   };
 }
 
-var _school    = null;
-var _dashStats = null;
-var _allExams  = [];
-var _allResults= [];
-var _teachers  = [];
+var _school     = null;
+var _dashStats  = null;
+var _allExams   = [];
+var _allResults = [];
+var _teachers   = [];
+var _classes    = [];
+var _subjects   = [];
+var _departments= [];
+var _terms      = [];
+var _activeStructureTab = 'classes';
 
-/* ✅ PHASE B: Expiry duration config */
+/* ✅ PHASE B expiry hints */
 var _expiryHints = {
-  '5min':  '⚡ The invite link will expire in <strong>5 minutes</strong>. Use this for in-room onboarding sessions.',
-  '10min': '🕐 The invite link will expire in <strong>10 minutes</strong>. Good for a quick same-room setup.',
-  '30min': '🕐 The invite link will expire in <strong>30 minutes</strong>. Standard for a single session.',
-  '1hr':   '⏰ The invite link will expire in <strong>1 hour</strong>. Good for same-day onboarding.',
-  '24hr':  '📅 The invite link will expire in <strong>24 hours</strong>. Good for next-day deadlines.',
-  '7days': '📆 The invite link will expire in <strong>7 days</strong>. Good for invites sent in advance.'
+  '5min':  '⚡ Expires in <strong>5 minutes</strong>. For in-room onboarding.',
+  '10min': '🕐 Expires in <strong>10 minutes</strong>. Quick setup.',
+  '30min': '🕐 Expires in <strong>30 minutes</strong>. Single session.',
+  '1hr':   '⏰ Expires in <strong>1 hour</strong>. Same-day onboarding.',
+  '24hr':  '📅 Expires in <strong>24 hours</strong>. Next-day deadline.',
+  '7days': '📆 Expires in <strong>7 days</strong>. Invites sent in advance.'
 };
 
 function selectExpiry(duration) {
-  /* Update hidden input */
   var hiddenEl = document.getElementById('inviteExpiryDuration');
   if (hiddenEl) hiddenEl.value = duration;
-
-  /* Update button states */
   document.querySelectorAll('.expiry-btn').forEach(function(btn) {
     btn.classList.remove('active');
     if (btn.dataset.duration === duration) btn.classList.add('active');
   });
-
-  /* Update hint text */
   var hintEl = document.getElementById('expiryHintBox');
   if (hintEl) hintEl.innerHTML = _expiryHints[duration] || _expiryHints['7days'];
 }
 
+/* ============================================ INIT */
 document.addEventListener('DOMContentLoaded', async function() {
   if (!instRequireAuth('school_admin')) return;
   await loadDashboard();
 });
 
-/* ---- Sidebar ---- */
-function openSidebar()  {
-  document.getElementById('sidebar').classList.add('open');
-  document.getElementById('sidebarOverlay').classList.add('visible');
-  document.body.style.overflow = 'hidden';
-}
-function closeSidebar() {
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('sidebarOverlay').classList.remove('visible');
-  document.body.style.overflow = '';
-}
+/* ============================================ SIDEBAR */
+function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('visible'); document.body.style.overflow='hidden'; }
+function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('visible'); document.body.style.overflow=''; }
 window.addEventListener('resize', function() { if (window.innerWidth > 960) closeSidebar(); });
 
-/* ---- Section navigation ---- */
+/* ============================================ SECTION NAV */
 function showSection(name) {
   document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
-  document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+  document.querySelectorAll('.nav-item[data-sec]').forEach(function(n) { n.classList.remove('active'); });
   var section = document.getElementById('sec-' + name);
   if (section) section.classList.add('active');
   var navItem = document.querySelector('[data-sec="' + name + '"]');
   if (navItem) navItem.classList.add('active');
-  var labels  = { overview:'Overview', teachers:'Teachers', exams:'Exams', results:'Results', subscription:'Subscription', settings:'Settings' };
+  var labels  = { overview:'Overview', teachers:'Teachers', structure:'Structure', exams:'Exams', results:'Results', subscription:'Subscription', settings:'Settings' };
   var mobEl   = document.getElementById('mobileSectionLabel');
   if (mobEl) mobEl.textContent = labels[name] || name;
   if (window.innerWidth <= 960) closeSidebar();
-
   if (name === 'teachers')     loadTeachers();
+  if (name === 'structure')    loadStructureSection();
   if (name === 'exams')        loadAllExams();
   if (name === 'results')      loadAllResults();
   if (name === 'subscription') loadSubscriptionSection();
   if (name === 'settings')     loadSettingsSection();
 }
 
-/* ---- Load dashboard ---- */
+/* ============================================ DASHBOARD */
 async function loadDashboard() {
   var res = await instApi('/school/dashboard');
   if (!res.ok) {
     if (res.status === 403 && res.data && res.data.code === 'SUBSCRIPTION_EXPIRED') {
-      showSection('subscription');
-      instToast('Your subscription has expired. Please renew.', 'error');
-      return;
+      showSection('subscription'); instToast('Your subscription has expired. Please renew.', 'error'); return;
     }
-    instToast((res.data && res.data.message) || 'Failed to load dashboard.', 'error');
-    return;
+    instToast((res.data && res.data.message) || 'Failed to load dashboard.', 'error'); return;
   }
   _school    = res.data.school;
   _dashStats = res.data.stats;
@@ -589,16 +695,11 @@ function fillSidebar(school, stats) {
   if (!school) return;
   var logoEl = document.getElementById('sbLogo');
   if (logoEl) {
-    if (school.logo) {
-      logoEl.innerHTML = '<img src="' + school.logo + '" alt="Logo" style="width:40px; height:40px; border-radius:8px; object-fit:cover;" />';
-    } else {
-      logoEl.textContent = (school.name || 'S').charAt(0).toUpperCase();
-      if (school.primaryColor) logoEl.style.background = 'linear-gradient(135deg,' + school.primaryColor + ',' + (school.secondaryColor || school.primaryColor) + ')';
-    }
+    if (school.logo) { logoEl.innerHTML = '<img src="' + school.logo + '" alt="Logo" style="width:44px;height:44px;object-fit:cover;" />'; }
+    else { logoEl.textContent = (school.name||'S').charAt(0).toUpperCase(); if (school.primaryColor) logoEl.style.background = 'linear-gradient(135deg,' + school.primaryColor + ',' + (school.secondaryColor||school.primaryColor) + ')'; }
   }
   var nameEl = document.getElementById('sbSchoolName');
   if (nameEl) nameEl.textContent = school.name || 'My School';
-
   var daysLeft = stats ? stats.daysLeft : 0;
   var badgeEl  = document.getElementById('sbSubBadge');
   var daysEl   = document.getElementById('sbSubDays');
@@ -612,12 +713,9 @@ function fillOverview(stats, recentExams) {
   if (!stats) return;
   var titleEl = document.getElementById('overviewTitle');
   if (titleEl && _school) titleEl.textContent = _school.name || 'Dashboard';
-
   function setEl(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
-  setEl('statTeachers',       stats.teachers       || 0);
-  setEl('statExams',          stats.exams          || 0);
-  setEl('statResults',        stats.results        || 0);
-  setEl('statPendingInvites', stats.pendingInvites || 0);
+  setEl('statTeachers', stats.teachers||0); setEl('statExams', stats.exams||0);
+  setEl('statResults', stats.results||0); setEl('statPendingInvites', stats.pendingInvites||0);
 
   var tbody = document.getElementById('recentExamsBody');
   if (!tbody) return;
@@ -625,30 +723,16 @@ function fillOverview(stats, recentExams) {
     tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><div class="empty-icon">📝</div><div class="empty-text">No exams yet</div><div class="empty-sub">Go to the Teacher Panel to create your first exam.</div></div></td></tr>';
     return;
   }
-  var badges = {
-    draft:    '<span class="badge badge-muted">Draft</span>',
-    published:'<span class="badge badge-green">Published</span>',
-    active:   '<span class="badge badge-purple">Active</span>',
-    ended:    '<span class="badge badge-orange">Ended</span>',
-    archived: '<span class="badge badge-muted">Archived</span>'
-  };
+  var badges = { draft:'<span class="badge badge-muted">Draft</span>', published:'<span class="badge badge-green">Published</span>', active:'<span class="badge badge-purple">Active</span>', ended:'<span class="badge badge-orange">Ended</span>', archived:'<span class="badge badge-muted">Archived</span>' };
   tbody.innerHTML = recentExams.map(function(e) {
-    return '<tr>' +
-      '<td style="font-weight:700; color:#fff;">' + (e.title || '—') + '</td>' +
-      '<td>' + (e.subject || '—') + '</td>' +
-      '<td><span style="font-family:monospace; background:rgba(108,99,255,0.12); color:#a78bfa; padding:3px 10px; border-radius:6px; font-size:13px; font-weight:700;">' + (e.accessCode || '—') + '</span></td>' +
-      '<td>' + (badges[e.status] || '<span class="badge badge-muted">' + e.status + '</span>') + '</td>' +
-      '<td>' + (e.totalAttempts || 0) + '</td>' +
-      '<td>' + instFmtDate(e.createdAt) + '</td>' +
-    '</tr>';
+    return '<tr><td style="font-weight:700; color:#fff;">' + (e.title||'—') + '</td><td>' + (e.subject||'—') + '</td><td><span style="font-family:monospace; background:rgba(108,99,255,0.12); color:#a78bfa; padding:3px 10px; border-radius:6px; font-size:13px; font-weight:700;">' + (e.accessCode||'—') + '</span></td><td>' + (badges[e.status]||'<span class="badge badge-muted">' + e.status + '</span>') + '</td><td>' + (e.totalAttempts||0) + '</td><td>' + instFmtDate(e.createdAt) + '</td></tr>';
   }).join('');
 }
 
-/* ---- Load teachers ---- */
+/* ============================================ TEACHERS */
 async function loadTeachers() {
   var res = await instApi('/school/teachers');
   if (!res.ok) { instToast('Failed to load teachers.', 'error'); return; }
-
   _teachers   = res.data.teachers      || [];
   var invites = res.data.pendingInvites || [];
 
@@ -661,23 +745,19 @@ async function loadTeachers() {
       tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><div class="empty-icon">👩‍🏫</div><div class="empty-text">No teachers yet</div><div class="empty-sub">Invite your first teacher using the button above.</div></div></td></tr>';
     } else {
       tbody.innerHTML = _teachers.map(function(t) {
-        var safeName = (t.name || '').replace(/'/g, '&#39;');
+        var safeName   = (t.name||'').replace(/'/g,'&#39;');
         var actionBtns = t.isActive
           ? '<button class="btn btn-orange btn-sm" onclick="deactivateTeacher(\'' + t._id + '\',\'' + safeName + '\')">⛔ Deactivate</button>'
           : '<button class="btn btn-green btn-sm"  onclick="reactivateTeacher(\'' + t._id + '\',\'' + safeName + '\')">✅ Reactivate</button>';
         actionBtns += ' <button class="btn btn-danger btn-sm" onclick="deleteTeacher(\'' + t._id + '\',\'' + safeName + '\')">🗑 Remove</button>';
         return '<tr>' +
-          '<td style="font-weight:700; color:#fff;">' +
-            '<div style="display:flex; align-items:center; gap:10px;">' +
-              (t.avatar
-                ? '<img src="' + t.avatar + '" style="width:30px; height:30px; border-radius:6px; object-fit:cover;" />'
-                : '<div style="width:30px; height:30px; border-radius:6px; background:rgba(108,99,255,0.2); display:flex; align-items:center; justify-content:center; font-weight:800;">' + (t.name || 'T').charAt(0) + '</div>') +
-              (t.name || '—') +
-            '</div>' +
-          '</td>' +
-          '<td>' + (t.email || '—') + '</td>' +
-          '<td><span class="badge badge-purple">' + (t.role || 'teacher') + '</span></td>' +
-          '<td style="font-size:12px;">' + ((t.subjects || []).join(', ') || '—') + '</td>' +
+          '<td style="font-weight:700; color:#fff;"><div style="display:flex; align-items:center; gap:10px;">' +
+            (t.avatar ? '<img src="' + t.avatar + '" style="width:30px;height:30px;border-radius:6px;object-fit:cover;" />' :
+              '<div style="width:30px;height:30px;border-radius:6px;background:rgba(108,99,255,0.2);display:flex;align-items:center;justify-content:center;font-weight:800;">' + (t.name||'T').charAt(0) + '</div>') +
+            (t.name||'—') + '</div></td>' +
+          '<td>' + (t.email||'—') + '</td>' +
+          '<td><span class="badge badge-purple">' + (t.role||'teacher') + '</span></td>' +
+          '<td style="font-size:12px;">' + ((t.subjects||[]).join(', ')||'—') + '</td>' +
           '<td><span class="badge ' + (t.isActive ? 'badge-green' : 'badge-red') + '">' + (t.isActive ? 'Active' : 'Inactive') + '</span></td>' +
           '<td>' + instFmtDate(t.joinedAt) + '</td>' +
           '<td><div class="teacher-actions">' + actionBtns + '</div></td>' +
@@ -686,7 +766,6 @@ async function loadTeachers() {
     }
   }
 
-  /* ✅ PHASE B: Pending invites now show expiry duration label + expired warning */
   var invContainer = document.getElementById('invitesContainer');
   var invCountEl   = document.getElementById('inviteCountBadge');
   if (invCountEl) invCountEl.textContent = invites.length + ' pending';
@@ -697,311 +776,547 @@ async function loadTeachers() {
       invContainer.innerHTML = '<div style="padding:8px 0;">' +
         invites.map(function(inv) {
           var isExpiredNow = inv.isExpiredNow || (new Date(inv.expiresAt) < new Date());
-          var expiryText   = inv.expiryLabel
-            ? 'Invited as ' + (inv.role || 'teacher') + ' · Window: ' + inv.expiryLabel
-            : 'Invited as ' + (inv.role || 'teacher');
-          var expiredAt = instFmtDate(inv.expiresAt);
-          var statusBadge = isExpiredNow
-            ? '<span class="badge badge-red">Expired</span>'
-            : '<span class="badge badge-orange">Pending</span>';
-
           return '<div style="display:flex; align-items:center; gap:14px; padding:12px 20px; border-bottom:1px solid var(--border);">' +
-            '<div style="width:36px; height:36px; border-radius:8px; background:rgba(255,165,0,0.12); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0;">📨</div>' +
-            '<div style="flex:1; min-width:0;">' +
-              '<div style="font-size:14px; font-weight:700; color:#fff;">' + (inv.email || '') + '</div>' +
-              '<div style="font-size:12px; color:var(--muted);">' + expiryText + ' · ' +
-                (isExpiredNow ? '⛔ Expired ' : '⏰ Expires ') + expiredAt +
-              '</div>' +
-            '</div>' +
-            statusBadge +
+            '<div style="width:36px;height:36px;border-radius:8px;background:rgba(255,165,0,0.12);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">📨</div>' +
+            '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:700;color:#fff;">' + (inv.email||'') + '</div>' +
+            '<div style="font-size:12px;color:var(--muted);">As ' + (inv.role||'teacher') + (inv.expiryLabel ? ' · ' + inv.expiryLabel : '') + ' · ' + (isExpiredNow ? '⛔ Expired ' : '⏰ Expires ') + instFmtDate(inv.expiresAt) + '</div></div>' +
+            (isExpiredNow ? '<span class="badge badge-red">Expired</span>' : '<span class="badge badge-orange">Pending</span>') +
           '</div>';
-        }).join('') +
-      '</div>';
+        }).join('') + '</div>';
     }
   }
 }
 
-/* ---- Teacher actions ---- */
 async function deactivateTeacher(id, name) {
   if (!confirm('Deactivate ' + name + '?\n\nThey will immediately lose login access.')) return;
   var res = await instApi('/school/teachers/' + id + '/deactivate', 'PUT');
-  if (res.ok) { instToast((res.data && res.data.message) || name + ' deactivated.', 'success'); loadTeachers(); }
-  else instToast((res.data && res.data.message) || 'Failed.', 'error');
+  if (res.ok) { instToast((res.data&&res.data.message)||name+' deactivated.', 'success'); loadTeachers(); }
+  else instToast((res.data&&res.data.message)||'Failed.', 'error');
 }
-
 async function reactivateTeacher(id, name) {
   if (!confirm('Reactivate ' + name + '?\n\nThey will regain full access.')) return;
   var res = await instApi('/school/teachers/' + id + '/reactivate', 'PUT');
-  if (res.ok) { instToast((res.data && res.data.message) || name + ' reactivated.', 'success'); loadTeachers(); }
-  else instToast((res.data && res.data.message) || 'Failed.', 'error');
+  if (res.ok) { instToast((res.data&&res.data.message)||name+' reactivated.', 'success'); loadTeachers(); }
+  else instToast((res.data&&res.data.message)||'Failed.', 'error');
 }
-
 async function deleteTeacher(id, name) {
-  if (!confirm('Permanently remove ' + name + ' from your school?\n\nThis cannot be undone.')) return;
+  if (!confirm('Permanently remove ' + name + '?\n\nThis cannot be undone.')) return;
   var res = await instApi('/school/teachers/' + id, 'DELETE');
-  if (res.ok) { instToast((res.data && res.data.message) || name + ' removed.', 'success'); loadTeachers(); }
-  else instToast((res.data && res.data.message) || 'Failed.', 'error');
+  if (res.ok) { instToast((res.data&&res.data.message)||name+' removed.', 'success'); loadTeachers(); }
+  else instToast((res.data&&res.data.message)||'Failed.', 'error');
 }
 
-/* ---- Exams ---- */
-async function loadAllExams() {
-  var res = await instApi('/teacher/exams');
-  if (!res.ok) { document.getElementById('allExamsBody').innerHTML = '<tr><td colspan="7" style="text-align:center; padding:28px; color:var(--muted);">Could not load exams.</td></tr>'; return; }
-  _allExams = res.data.exams || [];
-  var countEl = document.getElementById('examsTotalBadge');
-  if (countEl) countEl.textContent = _allExams.length + ' total';
+/* ============================================ STRUCTURE */
+function showStructureTab(tab) {
+  _activeStructureTab = tab;
+  document.querySelectorAll('.str-tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.str-tab-pane').forEach(function(p) { p.classList.remove('active'); });
+  var tabEl  = document.getElementById('stab-' + tab);
+  var paneEl = document.getElementById('spane-' + tab);
+  if (tabEl)  tabEl.classList.add('active');
+  if (paneEl) paneEl.classList.add('active');
+  if (tab === 'classes')     loadClasses();
+  if (tab === 'subjects')    loadSubjects();
+  if (tab === 'departments') loadDepartments();
+  if (tab === 'terms')       loadTerms();
+}
 
-  var selEl = document.getElementById('releaseExamSelect');
-  if (selEl) {
-    selEl.innerHTML = '<option value="">-- Select Exam --</option>' +
-      _allExams.filter(function(e) { return e.status === 'ended' || e.status === 'published'; }).map(function(e) {
-        return '<option value="' + e._id + '">' + e.title + ' (' + (e.subject||'') + ')</option>';
-      }).join('');
+async function loadStructureSection() {
+  if (_school) {
+    var typesThatHaveDepts = ['polytechnic','university','college_of_education'];
+    var hasDepts = typesThatHaveDepts.indexOf(_school.type) !== -1;
+    var deptTab  = document.getElementById('stab-departments');
+    if (deptTab) deptTab.style.display = hasDepts ? '' : 'none';
   }
+  var subtitleEl = document.getElementById('structureSubtitle');
+  if (subtitleEl && _school) subtitleEl.textContent = 'Managing structure for ' + (_school.name||'your school') + ' (' + (_school.type||'school') + ')';
+  showStructureTab(_activeStructureTab);
+}
 
-  var tbody = document.getElementById('allExamsBody');
+async function regenStructure() {
+  if (!confirm('Regenerate default structure?\n\nThis will only add missing classes and subjects — it will NOT delete existing ones.')) return;
+  var btn = document.getElementById('regenStructureBtn');
+  if (btn) { btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true; }
+  var type = _school ? _school.type : 'secondary';
+  var res  = await instApi('/structure/generate', 'POST', { type });
+  if (btn) { btn.innerHTML = '🔄 Re-generate'; btn.disabled = false; }
+  if (res.ok) { var g = res.data.generated||{}; instToast('Structure updated! Added ' + (g.classes||0) + ' classes, ' + (g.subjects||0) + ' subjects.', 'success'); showStructureTab(_activeStructureTab); }
+  else instToast((res.data&&res.data.message)||'Regeneration failed.', 'error');
+}
+
+/* ---- CLASSES ---- */
+async function loadClasses() {
+  var res = await instApi('/structure/classes');
+  if (!res.ok) { document.getElementById('classesTableBody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:28px;color:var(--red);">Failed to load.</td></tr>'; return; }
+  _classes = res.data.classes || [];
+  var countEl = document.getElementById('classCountBadge');
+  if (countEl) countEl.textContent = _classes.length + ' class' + (_classes.length !== 1 ? 'es' : '');
+  var tbody = document.getElementById('classesTableBody');
   if (!tbody) return;
-  if (_allExams.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><div class="empty-icon">📝</div><div class="empty-text">No exams yet</div><div class="empty-sub">Teachers create exams from the Teacher Dashboard.</div></div></td></tr>';
-    return;
-  }
-  var badgeMap = { draft:'badge-muted', published:'badge-green', active:'badge-purple', ended:'badge-orange', archived:'badge-muted' };
-  tbody.innerHTML = _allExams.map(function(e) {
-    return '<tr>' +
-      '<td style="font-weight:700; color:#fff;">' + (e.title||'—') + '</td>' +
-      '<td>' + (e.subject||'—') + '</td>' +
-      '<td>' + (e.class||'—') + '</td>' +
-      '<td><span style="font-family:monospace; background:rgba(108,99,255,0.12); color:#a78bfa; padding:3px 10px; border-radius:6px; font-size:12px; font-weight:700;">' + (e.accessCode||'—') + '</span></td>' +
-      '<td><span class="badge ' + (badgeMap[e.status]||'badge-muted') + '">' + (e.status||'—') + '</span></td>' +
-      '<td style="font-weight:700;">' + (e.totalAttempts||0) + '</td>' +
-      '<td>' + (e.status === 'published' ? '<button class="btn btn-danger btn-sm" onclick="endExamAdmin(\'' + e._id + '\')">End Exam</button>' : '—') + '</td>' +
-    '</tr>';
+  if (_classes.length === 0) { tbody.innerHTML = '<tr><td colspan="5"><div class="empty"><div class="empty-icon">📗</div><div class="empty-text">No classes yet</div><div class="empty-sub">Click "+ Add Class" or use "Re-generate".</div></div></td></tr>'; return; }
+  var catLabels = { primary:'Primary', jss:'JSS', sss:'SSS', nd:'ND', hnd:'HND', level:'Level', year:'Year', other:'Other' };
+  tbody.innerHTML = _classes.map(function(c) {
+    var safeName = (c.name||'').replace(/'/g,'&#39;');
+    return '<tr><td style="font-weight:700; color:#fff;">' + (c.name||'—') + '</td><td><span class="badge badge-purple">' + (catLabels[c.category]||c.category||'—') + '</span></td><td style="font-size:13px;">' + (c.formTeacherId ? c.formTeacherId.name : '<span style="color:var(--muted);">None</span>') + '</td><td><span class="badge ' + (c.isActive!==false ? 'badge-green' : 'badge-muted') + '">' + (c.isActive!==false ? 'Active' : 'Inactive') + '</span></td><td><div style="display:flex; gap:6px;"><button class="btn btn-secondary btn-sm" onclick="openClassModal(\'' + c._id + '\')">✏️ Edit</button><button class="btn btn-danger btn-sm" onclick="deleteClass(\'' + c._id + '\',\'' + safeName + '\')">🗑</button></div></td></tr>';
   }).join('');
+}
+
+function openClassModal(classId) {
+  closeAllModals();
+  document.getElementById('editClassId').value=''; document.getElementById('className').value=''; document.getElementById('classCategory').value='other'; document.getElementById('classSortOrder').value=''; document.getElementById('classCapacity').value='';
+  document.getElementById('classModalTitle').textContent='Add Class'; document.getElementById('saveClassBtn').textContent='Add Class';
+  if (classId) {
+    var cls = _classes.find(function(c){return c._id===classId;});
+    if (!cls) return;
+    document.getElementById('editClassId').value=cls._id; document.getElementById('className').value=cls.name||''; document.getElementById('classCategory').value=cls.category||'other'; document.getElementById('classSortOrder').value=cls.sortOrder||''; document.getElementById('classCapacity').value=cls.capacity||'';
+    document.getElementById('classModalTitle').textContent='Edit Class'; document.getElementById('saveClassBtn').textContent='Save Changes';
+  }
+  document.getElementById('classModal').style.display='flex';
+  setTimeout(function(){var el=document.getElementById('className'); if(el)el.focus();},100);
+}
+
+async function saveClass() {
+  var btn=document.getElementById('saveClassBtn'); var editId=document.getElementById('editClassId').value.trim();
+  var name=(document.getElementById('className')||{}).value.trim();
+  if (!name) { instToast('Class name is required.','error'); return; }
+  var payload={name,category:(document.getElementById('classCategory')||{}).value,sortOrder:parseInt((document.getElementById('classSortOrder')||{}).value)||0,capacity:parseInt((document.getElementById('classCapacity')||{}).value)||0};
+  if (btn) {btn.innerHTML='<span class="spinner"></span>'; btn.disabled=true;}
+  var res=await instApi(editId?'/structure/classes/'+editId:'/structure/classes', editId?'PUT':'POST', payload);
+  if (btn) {btn.innerHTML=editId?'Save Changes':'Add Class'; btn.disabled=false;}
+  if (res.ok) {instToast((res.data&&res.data.message)||(editId?'Class updated!':'Class added!'),'success'); closeModal('classModal'); loadClasses();}
+  else instToast((res.data&&res.data.message)||'Failed.','error');
+}
+
+async function deleteClass(id, name) {
+  if (!confirm('Delete class "'+name+'"?')) return;
+  var res=await instApi('/structure/classes/'+id,'DELETE');
+  if (res.ok) {instToast((res.data&&res.data.message)||'Deleted.','success'); loadClasses();}
+  else instToast((res.data&&res.data.message)||'Failed.','error');
+}
+
+/* ---- SUBJECTS ---- */
+async function loadSubjects() {
+  var res=await instApi('/structure/subjects');
+  if (!res.ok) {document.getElementById('subjectsTableBody').innerHTML='<tr><td colspan="6" style="text-align:center;padding:28px;color:var(--red);">Failed to load.</td></tr>'; return;}
+  _subjects=res.data.subjects||[];
+  var countEl=document.getElementById('subjectCountBadge');
+  if (countEl) countEl.textContent=_subjects.length+' subject'+(_subjects.length!==1?'s':'');
+  var tbody=document.getElementById('subjectsTableBody');
+  if (!tbody) return;
+  if (_subjects.length===0) {tbody.innerHTML='<tr><td colspan="6"><div class="empty"><div class="empty-icon">📘</div><div class="empty-text">No subjects yet</div><div class="empty-sub">Click "+ Add Subject" or use "Re-generate".</div></div></td></tr>'; return;}
+  tbody.innerHTML=_subjects.map(function(s){
+    var safeName=(s.name||'').replace(/'/g,'&#39;');
+    var classNames=(s.classIds||[]).map(function(c){return c.name||c;}).join(', ')||'All classes';
+    return '<tr><td style="font-weight:700; color:#fff;">'+(s.name||'—')+'</td><td style="font-family:monospace; font-size:12px; color:#a78bfa;">'+(s.code||'—')+'</td><td><span class="badge '+(s.isCore!==false?'badge-purple':'badge-muted')+'">'+(s.isCore!==false?'Core':'Elective')+'</span></td><td style="font-size:12px; color:var(--secondary); max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">'+classNames+'</td><td><span class="badge '+(s.isActive!==false?'badge-green':'badge-muted')+'">'+(s.isActive!==false?'Active':'Inactive')+'</span></td><td><div style="display:flex; gap:6px;"><button class="btn btn-secondary btn-sm" onclick="openSubjectModal(\''+s._id+'\')">✏️ Edit</button><button class="btn btn-danger btn-sm" onclick="deleteSubject(\''+s._id+'\',\''+safeName+'\')">🗑</button></div></td></tr>';
+  }).join('');
+}
+
+function openSubjectModal(subjectId) {
+  closeAllModals();
+  document.getElementById('editSubjectId').value=''; document.getElementById('subjectName').value=''; document.getElementById('subjectCode').value=''; document.getElementById('subjectIsCore').value='true';
+  document.getElementById('subjectModalTitle').textContent='Add Subject'; document.getElementById('saveSubjectBtn').textContent='Add Subject';
+  var cbWrap=document.getElementById('subjectClassCheckboxes');
+  if (cbWrap) {
+    if (_classes.length===0) {cbWrap.innerHTML='<span style="font-size:12px; color:var(--muted);">No classes found. Add classes first.</span>';}
+    else {cbWrap.innerHTML=_classes.map(function(c){return '<label style="display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--secondary); cursor:pointer; padding:4px 8px; border-radius:6px; border:1px solid var(--border); background:rgba(255,255,255,0.03);"><input type="checkbox" class="subj-class-cb" value="'+c._id+'" style="cursor:pointer;" />'+c.name+'</label>';}).join('');}
+  }
+  if (subjectId) {
+    var subj=_subjects.find(function(s){return s._id===subjectId;});
+    if (!subj) return;
+    document.getElementById('editSubjectId').value=subj._id; document.getElementById('subjectName').value=subj.name||''; document.getElementById('subjectCode').value=subj.code||''; document.getElementById('subjectIsCore').value=String(subj.isCore!==false);
+    document.getElementById('subjectModalTitle').textContent='Edit Subject'; document.getElementById('saveSubjectBtn').textContent='Save Changes';
+    var assignedIds=(subj.classIds||[]).map(function(c){return c._id||c;});
+    document.querySelectorAll('.subj-class-cb').forEach(function(cb){cb.checked=assignedIds.indexOf(cb.value)!==-1;});
+  }
+  document.getElementById('subjectModal').style.display='flex';
+  setTimeout(function(){var el=document.getElementById('subjectName'); if(el)el.focus();},100);
+}
+
+async function saveSubject() {
+  var btn=document.getElementById('saveSubjectBtn'); var editId=document.getElementById('editSubjectId').value.trim();
+  var name=(document.getElementById('subjectName')||{}).value.trim();
+  if (!name) {instToast('Subject name is required.','error'); return;}
+  var checkedClassIds=[]; document.querySelectorAll('.subj-class-cb:checked').forEach(function(cb){checkedClassIds.push(cb.value);});
+  var payload={name,code:(document.getElementById('subjectCode')||{}).value.trim(),isCore:(document.getElementById('subjectIsCore')||{}).value==='true',classIds:checkedClassIds};
+  if (btn) {btn.innerHTML='<span class="spinner"></span>'; btn.disabled=true;}
+  var res=await instApi(editId?'/structure/subjects/'+editId:'/structure/subjects', editId?'PUT':'POST', payload);
+  if (btn) {btn.innerHTML=editId?'Save Changes':'Add Subject'; btn.disabled=false;}
+  if (res.ok) {instToast((res.data&&res.data.message)||(editId?'Updated!':'Added!'),'success'); closeModal('subjectModal'); loadSubjects();}
+  else instToast((res.data&&res.data.message)||'Failed.','error');
+}
+
+async function deleteSubject(id, name) {
+  if (!confirm('Delete subject "'+name+'"?')) return;
+  var res=await instApi('/structure/subjects/'+id,'DELETE');
+  if (res.ok) {instToast((res.data&&res.data.message)||'Deleted.','success'); loadSubjects();}
+  else instToast((res.data&&res.data.message)||'Failed.','error');
+}
+
+/* ---- DEPARTMENTS ---- */
+async function loadDepartments() {
+  var res=await instApi('/structure/departments');
+  if (!res.ok) {document.getElementById('deptsTableBody').innerHTML='<tr><td colspan="6" style="text-align:center;padding:28px;color:var(--red);">Failed to load.</td></tr>'; return;}
+  _departments=res.data.departments||[];
+  var countEl=document.getElementById('deptCountBadge');
+  if (countEl) countEl.textContent=_departments.length+' department'+(_departments.length!==1?'s':'');
+  var tbody=document.getElementById('deptsTableBody');
+  if (!tbody) return;
+  if (_departments.length===0) {tbody.innerHTML='<tr><td colspan="6"><div class="empty"><div class="empty-icon">🏢</div><div class="empty-text">No departments yet</div><div class="empty-sub">Click "+ Add Department".</div></div></td></tr>'; return;}
+  tbody.innerHTML=_departments.map(function(d){
+    var safeName=(d.name||'').replace(/'/g,'&#39;');
+    return '<tr><td style="font-weight:700; color:#fff;">'+(d.name||'—')+'</td><td style="font-family:monospace; font-size:12px; color:#a78bfa;">'+(d.code||'—')+'</td><td style="font-size:13px;">'+(d.faculty||'—')+'</td><td style="font-size:13px;">'+(d.hodId?d.hodId.name:'<span style="color:var(--muted);">None</span>')+'</td><td><span class="badge '+(d.isActive!==false?'badge-green':'badge-muted')+'">'+(d.isActive!==false?'Active':'Inactive')+'</span></td><td><div style="display:flex; gap:6px;"><button class="btn btn-secondary btn-sm" onclick="openDeptModal(\''+d._id+'\')">✏️ Edit</button><button class="btn btn-danger btn-sm" onclick="deleteDept(\''+d._id+'\',\''+safeName+'\')">🗑</button></div></td></tr>';
+  }).join('');
+}
+
+function openDeptModal(deptId) {
+  closeAllModals();
+  document.getElementById('editDeptId').value=''; document.getElementById('deptName').value=''; document.getElementById('deptCode').value=''; document.getElementById('deptFaculty').value=''; document.getElementById('deptDescription').value='';
+  document.getElementById('deptModalTitle').textContent='Add Department'; document.getElementById('saveDeptBtn').textContent='Add Department';
+  if (deptId) {
+    var dept=_departments.find(function(d){return d._id===deptId;});
+    if (!dept) return;
+    document.getElementById('editDeptId').value=dept._id; document.getElementById('deptName').value=dept.name||''; document.getElementById('deptCode').value=dept.code||''; document.getElementById('deptFaculty').value=dept.faculty||''; document.getElementById('deptDescription').value=dept.description||'';
+    document.getElementById('deptModalTitle').textContent='Edit Department'; document.getElementById('saveDeptBtn').textContent='Save Changes';
+  }
+  document.getElementById('deptModal').style.display='flex';
+  setTimeout(function(){var el=document.getElementById('deptName'); if(el)el.focus();},100);
+}
+
+async function saveDept() {
+  var btn=document.getElementById('saveDeptBtn'); var editId=document.getElementById('editDeptId').value.trim();
+  var name=(document.getElementById('deptName')||{}).value.trim();
+  if (!name) {instToast('Department name is required.','error'); return;}
+  var payload={name,code:(document.getElementById('deptCode')||{}).value.trim(),faculty:(document.getElementById('deptFaculty')||{}).value.trim(),description:(document.getElementById('deptDescription')||{}).value.trim()};
+  if (btn) {btn.innerHTML='<span class="spinner"></span>'; btn.disabled=true;}
+  var res=await instApi(editId?'/structure/departments/'+editId:'/structure/departments', editId?'PUT':'POST', payload);
+  if (btn) {btn.innerHTML=editId?'Save Changes':'Add Department'; btn.disabled=false;}
+  if (res.ok) {instToast((res.data&&res.data.message)||(editId?'Updated!':'Added!'),'success'); closeModal('deptModal'); loadDepartments();}
+  else instToast((res.data&&res.data.message)||'Failed.','error');
+}
+
+async function deleteDept(id, name) {
+  if (!confirm('Delete department "'+name+'"?')) return;
+  var res=await instApi('/structure/departments/'+id,'DELETE');
+  if (res.ok) {instToast((res.data&&res.data.message)||'Deleted.','success'); loadDepartments();}
+  else instToast((res.data&&res.data.message)||'Failed.','error');
+}
+
+/* ---- TERMS ---- */
+async function loadTerms() {
+  var res=await instApi('/structure/terms');
+  if (!res.ok) {document.getElementById('termsTableBody').innerHTML='<tr><td colspan="6" style="text-align:center;padding:28px;color:var(--red);">Failed to load.</td></tr>'; return;}
+  _terms=res.data.terms||[];
+  var countEl=document.getElementById('termCountBadge');
+  if (countEl) countEl.textContent=_terms.length+' term'+(_terms.length!==1?'s':'');
+  var currentTerm=_terms.find(function(t){return t.isCurrent;});
+  var bannerEl=document.getElementById('currentTermBanner');
+  if (bannerEl) {
+    if (currentTerm) {bannerEl.style.display='flex'; document.getElementById('currentTermName').textContent=currentTerm.name||'—'; document.getElementById('currentTermSession').textContent=currentTerm.session||'—';}
+    else bannerEl.style.display='none';
+  }
+  var tbody=document.getElementById('termsTableBody');
+  if (!tbody) return;
+  if (_terms.length===0) {tbody.innerHTML='<tr><td colspan="6"><div class="empty"><div class="empty-icon">📅</div><div class="empty-text">No terms yet</div><div class="empty-sub">Click "+ Add Term" or use "Re-generate".</div></div></td></tr>'; return;}
+  tbody.innerHTML=_terms.map(function(t){
+    var safeName=(t.name||'').replace(/'/g,'&#39;');
+    return '<tr><td style="font-weight:700; color:#fff;">'+(t.name||'—')+(t.isCurrent?' <span class="badge badge-green" style="margin-left:6px;">Current</span>':'')+'</td><td><span style="background:rgba(108,99,255,0.12); color:#a78bfa; padding:3px 10px; border-radius:6px; font-size:12px; font-weight:700;">'+(t.session||'—')+'</span></td><td style="font-size:13px;">'+(t.startDate?instFmtDate(t.startDate):'<span style="color:var(--muted);">—</span>')+'</td><td style="font-size:13px;">'+(t.endDate?instFmtDate(t.endDate):'<span style="color:var(--muted);">—</span>')+'</td><td><span class="badge '+(t.isActive!==false?'badge-green':'badge-muted')+'">'+(t.isActive!==false?'Active':'Inactive')+'</span></td><td><div style="display:flex; gap:6px; flex-wrap:wrap;">'+(!t.isCurrent?'<button class="btn btn-yellow btn-sm" onclick="setCurrentTerm(\''+t._id+'\',\''+safeName+'\')">⭐ Set Current</button>':'')+'<button class="btn btn-secondary btn-sm" onclick="openTermModal(\''+t._id+'\')">✏️ Edit</button><button class="btn btn-danger btn-sm" onclick="deleteTerm(\''+t._id+'\',\''+safeName+'\')">🗑</button></div></td></tr>';
+  }).join('');
+}
+
+function openTermModal(termId) {
+  closeAllModals();
+  document.getElementById('editTermId').value=''; document.getElementById('termName').value=''; document.getElementById('termSession').value=new Date().getFullYear()+'/'+(new Date().getFullYear()+1); document.getElementById('termCode').value='first'; document.getElementById('termStartDate').value=''; document.getElementById('termEndDate').value=''; document.getElementById('termIsCurrent').checked=false;
+  document.getElementById('termModalTitle').textContent='Add Academic Term'; document.getElementById('saveTermBtn').textContent='Add Term';
+  if (termId) {
+    var term=_terms.find(function(t){return t._id===termId;});
+    if (!term) return;
+    document.getElementById('editTermId').value=term._id; document.getElementById('termName').value=term.name||''; document.getElementById('termSession').value=term.session||''; document.getElementById('termCode').value=term.term||'first'; document.getElementById('termStartDate').value=term.startDate?term.startDate.split('T')[0]:''; document.getElementById('termEndDate').value=term.endDate?term.endDate.split('T')[0]:''; document.getElementById('termIsCurrent').checked=!!term.isCurrent;
+    document.getElementById('termModalTitle').textContent='Edit Term'; document.getElementById('saveTermBtn').textContent='Save Changes';
+  }
+  document.getElementById('termModal').style.display='flex';
+  setTimeout(function(){var el=document.getElementById('termName'); if(el)el.focus();},100);
+}
+
+async function saveTerm() {
+  var btn=document.getElementById('saveTermBtn'); var editId=document.getElementById('editTermId').value.trim();
+  var name=(document.getElementById('termName')||{}).value.trim(); var session=(document.getElementById('termSession')||{}).value.trim();
+  if (!name) {instToast('Term name is required.','error'); return;}
+  if (!session) {instToast('Session is required.','error'); return;}
+  var payload={name,session,term:(document.getElementById('termCode')||{}).value,startDate:(document.getElementById('termStartDate')||{}).value||null,endDate:(document.getElementById('termEndDate')||{}).value||null,isCurrent:(document.getElementById('termIsCurrent')||{}).checked||false};
+  if (btn) {btn.innerHTML='<span class="spinner"></span>'; btn.disabled=true;}
+  var endpoint=editId?'/structure/terms/'+editId:'/structure/terms';
+  var res=await instApi(endpoint, editId?'PUT':'POST', payload);
+  if (btn) {btn.innerHTML=editId?'Save Changes':'Add Term'; btn.disabled=false;}
+  if (res.ok) {
+    if (payload.isCurrent && res.data && res.data.term) await instApi('/structure/terms/'+res.data.term._id+'/set-current','PUT');
+    instToast((res.data&&res.data.message)||(editId?'Term updated!':'Term added!'),'success'); closeModal('termModal'); loadTerms();
+  } else instToast((res.data&&res.data.message)||'Failed.','error');
+}
+
+async function setCurrentTerm(id, name) {
+  if (!confirm('Set "'+name+'" as the current term?\n\nAll other terms will be marked inactive.')) return;
+  var res=await instApi('/structure/terms/'+id+'/set-current','PUT');
+  if (res.ok) {instToast((res.data&&res.data.message)||name+' is now current.','success'); loadTerms();}
+  else instToast((res.data&&res.data.message)||'Failed.','error');
+}
+
+async function deleteTerm(id, name) {
+  if (!confirm('Delete term "'+name+'"?')) return;
+  var res=await instApi('/structure/terms/'+id,'DELETE');
+  if (res.ok) {instToast((res.data&&res.data.message)||'Deleted.','success'); loadTerms();}
+  else instToast((res.data&&res.data.message)||'Failed.','error');
+}
+
+/* ============================================ EXAMS */
+async function loadAllExams() {
+  var res=await instApi('/teacher/exams');
+  if (!res.ok) {document.getElementById('allExamsBody').innerHTML='<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--muted);">Could not load exams.</td></tr>'; return;}
+  _allExams=res.data.exams||[];
+  var countEl=document.getElementById('examsTotalBadge');
+  if (countEl) countEl.textContent=_allExams.length+' total';
+  var selEl=document.getElementById('releaseExamSelect');
+  if (selEl) {selEl.innerHTML='<option value="">-- Select Exam --</option>'+_allExams.filter(function(e){return e.status==='ended'||e.status==='published';}).map(function(e){return '<option value="'+e._id+'">'+e.title+' ('+(e.subject||'')+')</option>';}).join('');}
+  var tbody=document.getElementById('allExamsBody');
+  if (!tbody) return;
+  if (_allExams.length===0) {tbody.innerHTML='<tr><td colspan="7"><div class="empty"><div class="empty-icon">📝</div><div class="empty-text">No exams yet</div><div class="empty-sub">Teachers create exams from the Teacher Dashboard.</div></div></td></tr>'; return;}
+  var badgeMap={draft:'badge-muted',published:'badge-green',active:'badge-purple',ended:'badge-orange',archived:'badge-muted'};
+  tbody.innerHTML=_allExams.map(function(e){return '<tr><td style="font-weight:700; color:#fff;">'+(e.title||'—')+'</td><td>'+(e.subject||'—')+'</td><td>'+(e.class||'—')+'</td><td><span style="font-family:monospace; background:rgba(108,99,255,0.12); color:#a78bfa; padding:3px 10px; border-radius:6px; font-size:12px; font-weight:700;">'+(e.accessCode||'—')+'</span></td><td><span class="badge '+(badgeMap[e.status]||'badge-muted')+'">'+(e.status||'—')+'</span></td><td style="font-weight:700;">'+(e.totalAttempts||0)+'</td><td>'+(e.status==='published'?'<button class="btn btn-danger btn-sm" onclick="endExamAdmin(\''+e._id+'\')">End Exam</button>':'—')+'</td></tr>';}).join('');
 }
 
 async function endExamAdmin(examId) {
-  if (!confirm('End this exam? Students will no longer be able to join.')) return;
-  var res = await instApi('/teacher/exams/' + examId + '/end', 'POST');
-  if (res.ok) { instToast('Exam ended.', 'success'); loadAllExams(); }
-  else instToast((res.data && res.data.message) || 'Failed.', 'error');
+  if (!confirm('End this exam?')) return;
+  var res=await instApi('/teacher/exams/'+examId+'/end','POST');
+  if (res.ok) {instToast('Exam ended.','success'); loadAllExams();}
+  else instToast((res.data&&res.data.message)||'Failed.','error');
 }
 
-/* ---- Results ---- */
+/* ============================================ RESULTS */
 async function loadAllResults() {
-  var res = await instApi('/school/results?limit=50');
-  if (!res.ok) { instToast('Failed to load results.', 'error'); return; }
-  _allResults = res.data.results || [];
-  var countEl = document.getElementById('resultsTotalBadge');
-  if (countEl) countEl.textContent = _allResults.length + ' submissions';
-  var tbody = document.getElementById('resultsTableBody');
+  var res=await instApi('/school/results?limit=50');
+  if (!res.ok) {instToast('Failed to load results.','error'); return;}
+  _allResults=res.data.results||[];
+  var countEl=document.getElementById('resultsTotalBadge');
+  if (countEl) countEl.textContent=_allResults.length+' submissions';
+  var tbody=document.getElementById('resultsTableBody');
   if (!tbody) return;
-  if (_allResults.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><div class="empty-icon">📊</div><div class="empty-text">No results yet</div></div></td></tr>';
-    return;
-  }
-  tbody.innerHTML = _allResults.map(function(r) {
-    var pct  = r.scorePercent || 0;
-    var exam = r.examId || {};
-    return '<tr>' +
-      '<td style="font-weight:700; color:#fff;">' + (r.studentName||'—') + '</td>' +
-      '<td>' + (exam.title||'Exam') + '</td>' +
-      '<td style="font-weight:800; color:' + (r.isPassed ? 'var(--green)' : 'var(--red)') + ';">' + pct + '%</td>' +
-      '<td><span class="badge ' + (r.isPassed ? 'badge-green' : 'badge-red') + '">' + (r.isPassed ? '✅ Passed' : '❌ Failed') + '</span></td>' +
-      '<td><span class="badge ' + (r.isReleased ? 'badge-green' : 'badge-muted') + '">' + (r.isReleased ? 'Released' : 'Pending') + '</span></td>' +
-      '<td>' + instFmtDate(r.createdAt) + '</td>' +
-    '</tr>';
-  }).join('');
+  if (_allResults.length===0) {tbody.innerHTML='<tr><td colspan="6"><div class="empty"><div class="empty-icon">📊</div><div class="empty-text">No results yet</div></div></td></tr>'; return;}
+  tbody.innerHTML=_allResults.map(function(r){var exam=r.examId||{}; return '<tr><td style="font-weight:700; color:#fff;">'+(r.studentName||'—')+'</td><td>'+(exam.title||'Exam')+'</td><td style="font-weight:800; color:'+(r.isPassed?'var(--green)':'var(--red)')+';"></td><td><span class="badge '+(r.isPassed?'badge-green':'badge-red')+'">'+(r.isPassed?'✅ Passed':'❌ Failed')+'</span></td><td><span class="badge '+(r.isReleased?'badge-green':'badge-muted')+'">'+(r.isReleased?'Released':'Pending')+'</span></td><td>'+instFmtDate(r.createdAt)+'</td></tr>';}).join('');
+  /* fix score display */
+  var rows = tbody.querySelectorAll('tr');
+  _allResults.forEach(function(r, i) { var cells = rows[i] && rows[i].querySelectorAll('td'); if (cells && cells[2]) cells[2].textContent = (r.scorePercent||0)+'%'; });
 }
 
-/* ---- Subscription ---- */
+/* ============================================ SUBSCRIPTION */
 async function loadSubscriptionSection() {
-  var res = await instApi('/school/dashboard');
+  var res=await instApi('/school/dashboard');
   if (!res.ok) return;
-  var school = res.data.school;
-  var stats  = res.data.stats;
-  var planBody = document.getElementById('currentPlanBody');
+  var school=res.data.school; var stats=res.data.stats;
+  var planBody=document.getElementById('currentPlanBody');
   if (planBody && school) {
-    var daysLeft  = stats ? stats.daysLeft : 0;
-    var statusCls = daysLeft <= 0 ? 'expired' : daysLeft <= 3 ? 'warning' : school.status === 'trial' ? 'trial' : 'active';
-    var planLabel = { trial:'🎁 Free Trial', monthly:'Monthly', quarterly:'Quarterly', biannual:'6-Month', annual:'Annual', none:'None' }[school.subscriptionPlan] || 'Unknown';
-    planBody.innerHTML =
-      '<div class="sub-banner ' + statusCls + '">' +
-        '<div><div style="font-size:13px; color:var(--muted); margin-bottom:4px;">Current Plan</div>' +
-        '<div style="font-size:20px; font-weight:900; color:#fff;">' + planLabel + '</div>' +
-        '<div style="font-size:13px; color:var(--secondary); margin-top:4px;">' +
-          (daysLeft > 0
-            ? '✅ ' + daysLeft + ' days remaining · Expires ' + instFmtDate(school.subscriptionExpiry)
-            : '⚠️ Subscription expired — renew to restore access') +
-        '</div></div>' +
-        '<div style="text-align:right;">' +
-          '<div style="font-size:36px; font-weight:900; color:' + (daysLeft <= 3 ? 'var(--red)' : 'var(--green)') + ';">' + Math.max(0, daysLeft) + '</div>' +
-          '<div style="font-size:12px; color:var(--muted);">days left</div>' +
-        '</div>' +
-      '</div>';
+    var daysLeft=stats?stats.daysLeft:0; var statusCls=daysLeft<=0?'expired':daysLeft<=3?'warning':school.status==='trial'?'trial':'active';
+    var planLabel={trial:'🎁 Free Trial',monthly:'Monthly',quarterly:'Quarterly',biannual:'6-Month',annual:'Annual',none:'None'}[school.subscriptionPlan]||'Unknown';
+    planBody.innerHTML='<div class="sub-banner '+statusCls+'"><div><div style="font-size:13px;color:var(--muted);margin-bottom:4px;">Current Plan</div><div style="font-size:20px;font-weight:900;color:#fff;">'+planLabel+'</div><div style="font-size:13px;color:var(--secondary);margin-top:4px;">'+(daysLeft>0?'✅ '+daysLeft+' days remaining · Expires '+instFmtDate(school.subscriptionExpiry):'⚠️ Subscription expired — renew to restore access')+'</div></div><div style="text-align:right;"><div style="font-size:36px;font-weight:900;color:'+(daysLeft<=3?'var(--red)':'var(--green)')+';">'+Math.max(0,daysLeft)+'</div><div style="font-size:12px;color:var(--muted);">days left</div></div></div>';
   }
-  var planRes = await instApi('/school/plans');
-  var grid    = document.getElementById('subPlansGrid');
+  var planRes=await instApi('/school/plans'); var grid=document.getElementById('subPlansGrid');
   if (!grid) return;
-  if (!planRes.ok || !planRes.data.plans) {
-    grid.innerHTML = '<div style="color:var(--muted); text-align:center; padding:24px; grid-column:1/-1;">Could not load plans.</div>';
-    return;
-  }
-  grid.innerHTML = planRes.data.plans.filter(function(p) { return p.code !== 'trial'; }).map(function(p) {
-    return '<div class="plan-card" onclick="initPayment(\'' + p.code + '\')">' +
-      (p.isPopular ? '<div class="plan-popular">⭐ Popular</div>' : '') +
-      '<div class="plan-card-name">' + p.name + '</div>' +
-      '<div class="plan-card-price">₦' + (p.price||0).toLocaleString() + '<small>/plan</small></div>' +
-      '<div class="plan-card-days">' + p.durationDays + ' days access</div>' +
-      '<button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="event.stopPropagation(); initPayment(\'' + p.code + '\')">Subscribe →</button>' +
-    '</div>';
-  }).join('');
+  if (!planRes.ok||!planRes.data.plans) {grid.innerHTML='<div style="color:var(--muted);text-align:center;padding:24px;grid-column:1/-1;">Could not load plans.</div>'; return;}
+  grid.innerHTML=planRes.data.plans.filter(function(p){return p.code!=='trial';}).map(function(p){return '<div class="plan-card" onclick="initPayment(\''+p.code+'\')">'+(p.isPopular?'<div class="plan-popular">⭐ Popular</div>':'')+'<div class="plan-card-name">'+p.name+'</div><div class="plan-card-price">₦'+(p.price||0).toLocaleString()+'<small>/plan</small></div><div class="plan-card-days">'+p.durationDays+' days access</div><button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="event.stopPropagation();initPayment(\''+p.code+'\')">Subscribe →</button></div>';}).join('');
 }
 
 async function initPayment(planCode) {
-  instToast('Preparing payment...', 'info');
-  var res = await instApi('/school/subscribe', 'POST', { planCode });
-  if (res.ok && res.data.paymentUrl) { window.location.href = res.data.paymentUrl; }
-  else instToast((res.data && res.data.message) || 'Could not start payment.', 'error');
+  instToast('Preparing payment...','info');
+  var res=await instApi('/school/subscribe','POST',{planCode});
+  if (res.ok&&res.data.paymentUrl) {window.location.href=res.data.paymentUrl;}
+  else instToast((res.data&&res.data.message)||'Could not start payment.','error');
 }
 
-/* ---- Settings ---- */
+/* ============================================
+   SETTINGS
+   ✅ PHASE E: loadSlugPanel, onSlugInput, saveSlug, copySchoolLink
+============================================ */
 function loadSettingsSection() {
   if (!_school) return;
-  var fieldMap = {
-    'setSchoolName':    _school.name           || '',
-    'setPrincipalName': _school.principalName  || '',
-    'setPhone':         _school.phone          || '',
-    'setState':         _school.state          || '',
-    'setAddress':       _school.address        || '',
-    'setMotto':         _school.motto          || '',
-    'setWebsite':       _school.website        || '',
-    'setLogo':          _school.logo           || '',
-    'setPrimaryColor':  _school.primaryColor   || '#6c63ff',
-    'setSecondaryColor':_school.secondaryColor || '#43e97b'
+  var fieldMap={
+    'setSchoolName':    _school.name           ||'',
+    'setPrincipalName': _school.principalName  ||'',
+    'setPhone':         _school.phone          ||'',
+    'setState':         _school.state          ||'',
+    'setAddress':       _school.address        ||'',
+    'setMotto':         _school.motto          ||'',
+    'setWebsite':       _school.website        ||'',
+    'setLogo':          _school.logo           ||'',
+    'setPrimaryColor':  _school.primaryColor   ||'#6c63ff',
+    'setSecondaryColor':_school.secondaryColor ||'#43e97b'
   };
-  Object.keys(fieldMap).forEach(function(id) { var el = document.getElementById(id); if (el) el.value = fieldMap[id]; });
-  setToggle('setAutoRelease', _school.settings && _school.settings.examResultsAutoRelease);
-  setToggle('setLateEntry',   _school.settings && _school.settings.allowLateSubmission);
+  Object.keys(fieldMap).forEach(function(id){var el=document.getElementById(id); if(el)el.value=fieldMap[id];});
+  setToggle('setAutoRelease', _school.settings&&_school.settings.examResultsAutoRelease);
+  setToggle('setLateEntry',   _school.settings&&_school.settings.allowLateSubmission);
+  loadSlugPanel();
 }
 
-function setToggle(id, val) {
-  var cb = document.getElementById(id);
-  var sl = document.getElementById(id + 'Slider');
-  if (cb) cb.checked = !!val;
-  if (sl) sl.style.background = val ? 'var(--green)' : 'rgba(255,255,255,0.1)';
-}
+function loadSlugPanel() {
+  if (!_school) return;
+  var slug    = _school.slug || '';
+  var baseUrl = window.location.protocol + '//' + window.location.host;
+  var fullUrl = slug ? baseUrl + '/i/' + slug : baseUrl + '/institution/index.html';
 
-function toggleCheck(cb) {
-  var sl = document.getElementById(cb.id + 'Slider');
-  if (sl) sl.style.background = cb.checked ? 'var(--green)' : 'rgba(255,255,255,0.1)';
-}
+  var urlEl    = document.getElementById('currentLinkUrl');
+  var previewEl= document.getElementById('previewLinkBtn');
+  var badgeEl  = document.getElementById('slugStatusBadge');
+  var inputEl  = document.getElementById('newSlugInput');
 
-async function saveSettings() {
-  var get = function(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; };
-  var payload = {
-    name: get('setSchoolName'), principalName: get('setPrincipalName'),
-    phone: get('setPhone'), state: get('setState'),
-    address: get('setAddress'), motto: get('setMotto'),
-    website: get('setWebsite'), logo: get('setLogo'),
-    primaryColor: get('setPrimaryColor'), secondaryColor: get('setSecondaryColor'),
-    settings: {
-      examResultsAutoRelease: (document.getElementById('setAutoRelease')||{}).checked || false,
-      allowLateSubmission:    (document.getElementById('setLateEntry')  ||{}).checked || false
+  if (urlEl)     urlEl.textContent    = fullUrl;
+  if (previewEl) previewEl.href       = fullUrl;
+  if (inputEl)   inputEl.value        = slug;
+  if (badgeEl) {
+    if (slug) {
+      badgeEl.innerHTML = '<span class="badge badge-green">Active</span>';
+    } else {
+      badgeEl.innerHTML = '<span class="badge badge-orange">No custom link yet</span>';
     }
-  };
-  if (!payload.name) { instToast('School name is required.', 'error'); return; }
-  var res = await instApi('/school/profile', 'PUT', payload);
-  if (res.ok) { _school = res.data.school; fillSidebar(_school, _dashStats); instToast('Settings saved!', 'success'); }
-  else instToast((res.data && res.data.message) || 'Failed to save.', 'error');
+  }
+
+  /* Show cooldown info */
+  if (_school.slugUpdatedAt) {
+    var daysSince = Math.floor((Date.now() - new Date(_school.slugUpdatedAt).getTime()) / 86400000);
+    var daysLeft  = Math.max(0, 30 - daysSince);
+    var hintEl    = document.getElementById('newSlugInput');
+    if (hintEl && daysLeft > 0) {
+      var hint = hintEl.parentElement && hintEl.parentElement.nextElementSibling;
+      /* add cooldown note via field-hint below */
+    }
+  }
 }
 
-/* ---- Invite teacher ---- */
-function openInviteModal() {
-  closeAllModals();
-  document.getElementById('inviteErr').style.display     = 'none';
-  document.getElementById('inviteSuccess').style.display = 'none';
-  ['inviteEmail','inviteName','inviteSubjects','inviteClasses','inviteMessage'].forEach(function(id) {
-    var el = document.getElementById(id); if (el) el.value = '';
-  });
-  /* ✅ PHASE B: Reset expiry to default (7days) on modal open */
-  selectExpiry('7days');
-  document.getElementById('inviteModal').style.display = 'flex';
-  setTimeout(function() { var el = document.getElementById('inviteEmail'); if (el) el.focus(); }, 120);
-}
+/* Live slug validation as user types */
+function onSlugInput(value) {
+  var clean = value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+  var msgEl = document.getElementById('slugValidationMsg');
+  var btn   = document.getElementById('saveSlugBtn');
+  if (!msgEl || !btn) return;
 
-async function sendInvite() {
-  var btn   = document.getElementById('inviteBtn');
-  var errEl = document.getElementById('inviteErr');
-  var sucEl = document.getElementById('inviteSuccess');
-  if (errEl) errEl.style.display = 'none';
-  if (sucEl) sucEl.style.display = 'none';
-
-  var email          = (document.getElementById('inviteEmail')          ||{}).value.trim();
-  var name           = (document.getElementById('inviteName')           ||{}).value.trim();
-  var role           = (document.getElementById('inviteRole')           ||{}).value;
-  var subjects       = (document.getElementById('inviteSubjects')       ||{}).value.trim();
-  var classes        = (document.getElementById('inviteClasses')        ||{}).value.trim();
-  var message        = (document.getElementById('inviteMessage')        ||{}).value.trim();
-  /* ✅ PHASE B: Read selected expiry duration */
-  var expiryDuration = (document.getElementById('inviteExpiryDuration') ||{}).value || '7days';
-
-  if (!email) {
-    if (errEl) { errEl.textContent = '⚠️ Email is required.'; errEl.style.display = 'block'; }
+  if (!clean) {
+    msgEl.style.display = 'none';
+    btn.disabled = true;
     return;
   }
 
-  if (btn) { btn.innerHTML = '<span class="spinner"></span> Sending...'; btn.disabled = true; }
+  var valid = /^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/.test(clean);
+  msgEl.style.display = 'block';
 
-  var res = await instApi('/school/invite-teacher', 'POST', {
-    email, name, role, message, expiryDuration,
-    subjects: subjects ? subjects.split(',').map(function(s){return s.trim();}) : [],
-    classes:  classes  ? classes.split(',').map(function(s){return s.trim();}) : []
-  });
-
-  if (btn) { btn.innerHTML = 'Send Invitation →'; btn.disabled = false; }
-
-  if (res.ok) {
-    var inv        = res.data.invite;
-    var inviteUrl  = inv && inv.inviteUrl;
-    var expiryLbl  = inv && inv.expiryLabel;
-    if (sucEl) {
-      sucEl.innerHTML =
-        '✅ Invitation sent to <strong>' + email + '</strong>!' +
-        (expiryLbl ? '<br/>⏰ This invite expires in <strong>' + expiryLbl + '</strong>.' : '') +
-        (inviteUrl
-          ? '<br/><br/><div style="font-size:12px; color:var(--muted);">Share this link if email is unreachable:</div><div class="invite-link-box">' + inviteUrl + '</div>'
-          : '');
-      sucEl.style.display = 'block';
-    }
-    instToast('Invitation sent!', 'success');
-    loadTeachers();
+  if (!valid) {
+    msgEl.textContent   = '⚠️ Must be 3–50 chars. Lowercase letters, numbers, hyphens only. Cannot start or end with a hyphen.';
+    msgEl.style.color   = 'var(--red)';
+    btn.disabled = true;
+  } else if (clean === (_school && _school.slug)) {
+    msgEl.textContent = 'ℹ️ This is your current link.';
+    msgEl.style.color = 'var(--secondary)';
+    btn.disabled = true;
   } else {
-    if (errEl) { errEl.textContent = (res.data && res.data.message) || 'Failed to send invitation.'; errEl.style.display = 'block'; }
+    msgEl.innerHTML = '✅ Looks good! Your link will be: <strong style="color:#a78bfa;">/i/' + clean + '</strong>';
+    msgEl.style.color = 'var(--green)';
+    btn.disabled = false;
   }
 }
 
-/* ---- Release results ---- */
-function openReleaseModal() {
+async function saveSlug() {
+  var btn    = document.getElementById('saveSlugBtn');
+  var errEl  = document.getElementById('slugErrBox');
+  var inputEl= document.getElementById('newSlugInput');
+  var newSlug= (inputEl||{}).value.trim().toLowerCase();
+
+  if (errEl) errEl.style.display = 'none';
+  if (!newSlug) { instToast('Please enter a slug.', 'error'); return; }
+  if (btn) { btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true; }
+
+  var res = await instApi('/school/slug', 'PUT', { slug: newSlug });
+
+  if (btn) { btn.innerHTML = 'Save New Link'; btn.disabled = false; }
+
+  if (res.ok) {
+    /* Update local school data */
+    if (_school) { _school.slug = res.data.slug; _school.slugUpdatedAt = new Date().toISOString(); }
+    instToast('✅ Your school link has been updated!', 'success');
+    var msgEl = document.getElementById('slugValidationMsg');
+    if (msgEl) msgEl.style.display = 'none';
+    loadSlugPanel();
+  } else {
+    if (errEl) { errEl.textContent = (res.data && res.data.message) || 'Failed to update link.'; errEl.style.display = 'block'; }
+    instToast((res.data && res.data.message) || 'Failed to update link.', 'error');
+  }
+}
+
+function copySchoolLink() {
+  var urlEl = document.getElementById('currentLinkUrl');
+  if (!urlEl) return;
+  var url = urlEl.textContent;
+  navigator.clipboard.writeText(url).then(function() {
+    instToast('📋 Link copied to clipboard!', 'success');
+  }).catch(function() {
+    instToast('Link: ' + url, 'info');
+  });
+}
+
+function setToggle(id, val) {
+  var cb=document.getElementById(id); var sl=document.getElementById(id+'Slider');
+  if (cb) cb.checked=!!val;
+  if (sl) sl.style.background=val?'var(--green)':'rgba(255,255,255,0.1)';
+}
+
+function toggleCheck(cb) {
+  var sl=document.getElementById(cb.id+'Slider');
+  if (sl) sl.style.background=cb.checked?'var(--green)':'rgba(255,255,255,0.1)';
+}
+
+async function saveSettings() {
+  var get=function(id){var el=document.getElementById(id); return el?el.value.trim():'';};
+  var payload={name:get('setSchoolName'),principalName:get('setPrincipalName'),phone:get('setPhone'),state:get('setState'),address:get('setAddress'),motto:get('setMotto'),website:get('setWebsite'),logo:get('setLogo'),primaryColor:get('setPrimaryColor'),secondaryColor:get('setSecondaryColor'),settings:{examResultsAutoRelease:(document.getElementById('setAutoRelease')||{}).checked||false,allowLateSubmission:(document.getElementById('setLateEntry')||{}).checked||false}};
+  if (!payload.name) {instToast('School name is required.','error'); return;}
+  var res=await instApi('/school/profile','PUT',payload);
+  if (res.ok) {_school=res.data.school; fillSidebar(_school,_dashStats); instToast('Settings saved!','success');}
+  else instToast((res.data&&res.data.message)||'Failed.','error');
+}
+
+/* ============================================ INVITE */
+function openInviteModal() {
   closeAllModals();
-  loadAllExams();
-  document.getElementById('releaseModal').style.display = 'flex';
+  document.getElementById('inviteErr').style.display='none'; document.getElementById('inviteSuccess').style.display='none';
+  ['inviteEmail','inviteName','inviteSubjects','inviteClasses','inviteMessage'].forEach(function(id){var el=document.getElementById(id); if(el)el.value='';});
+  selectExpiry('7days');
+  document.getElementById('inviteModal').style.display='flex';
+  setTimeout(function(){var el=document.getElementById('inviteEmail'); if(el)el.focus();},100);
 }
 
+async function sendInvite() {
+  var btn=document.getElementById('inviteBtn'); var errEl=document.getElementById('inviteErr'); var sucEl=document.getElementById('inviteSuccess');
+  if (errEl) errEl.style.display='none'; if (sucEl) sucEl.style.display='none';
+  var email=(document.getElementById('inviteEmail')||{}).value.trim(); var name=(document.getElementById('inviteName')||{}).value.trim(); var role=(document.getElementById('inviteRole')||{}).value; var subjects=(document.getElementById('inviteSubjects')||{}).value.trim(); var classes=(document.getElementById('inviteClasses')||{}).value.trim(); var message=(document.getElementById('inviteMessage')||{}).value.trim(); var expiryDuration=(document.getElementById('inviteExpiryDuration')||{}).value||'7days';
+  if (!email) {if (errEl) {errEl.textContent='⚠️ Email is required.'; errEl.style.display='block';} return;}
+  if (btn) {btn.innerHTML='<span class="spinner"></span> Sending...'; btn.disabled=true;}
+  var res=await instApi('/school/invite-teacher','POST',{email,name,role,message,expiryDuration,subjects:subjects?subjects.split(',').map(function(s){return s.trim();}):[], classes:classes?classes.split(',').map(function(s){return s.trim();}):[]});
+  if (btn) {btn.innerHTML='Send Invitation →'; btn.disabled=false;}
+  if (res.ok) {var inv=res.data.invite; var inviteUrl=inv&&inv.inviteUrl; var expiryLbl=inv&&inv.expiryLabel; if (sucEl) {sucEl.innerHTML='✅ Invitation sent to <strong>'+email+'</strong>!'+(expiryLbl?'<br/>⏰ Expires in <strong>'+expiryLbl+'</strong>.':'')+(inviteUrl?'<br/><br/><div style="font-size:12px;color:var(--muted);">Share this link if email fails:</div><div class="invite-link-box">'+inviteUrl+'</div>':''); sucEl.style.display='block';} instToast('Invitation sent!','success'); loadTeachers();}
+  else {if (errEl) {errEl.textContent=(res.data&&res.data.message)||'Failed to send invitation.'; errEl.style.display='block';}}
+}
+
+/* ============================================ RELEASE */
+function openReleaseModal() {closeAllModals(); loadAllExams(); document.getElementById('releaseModal').style.display='flex';}
 async function confirmRelease() {
-  var examId = (document.getElementById('releaseExamSelect')||{}).value;
-  if (!examId) { instToast('Please select an exam.', 'error'); return; }
-  var btn = document.getElementById('releaseBtn');
-  if (btn) { btn.innerHTML = '<span class="spinner"></span> Releasing...'; btn.disabled = true; }
-  var res = await instApi('/school/results/release', 'POST', { examId });
-  if (btn) { btn.innerHTML = '📤 Release Results'; btn.disabled = false; }
-  if (res.ok) { instToast((res.data && res.data.message) || 'Results released!', 'success'); closeModal('releaseModal'); loadAllResults(); }
-  else instToast((res.data && res.data.message) || 'Failed.', 'error');
+  var examId=(document.getElementById('releaseExamSelect')||{}).value;
+  if (!examId) {instToast('Please select an exam.','error'); return;}
+  var btn=document.getElementById('releaseBtn');
+  if (btn) {btn.innerHTML='<span class="spinner"></span> Releasing...'; btn.disabled=true;}
+  var res=await instApi('/school/results/release','POST',{examId});
+  if (btn) {btn.innerHTML='📤 Release Results'; btn.disabled=false;}
+  if (res.ok) {instToast((res.data&&res.data.message)||'Results released!','success'); closeModal('releaseModal'); loadAllResults();}
+  else instToast((res.data&&res.data.message)||'Failed.','error');
 }
 
-/* ---- Modal helpers ---- */
-function closeModal(id)  { var el = document.getElementById(id); if (el) el.style.display = 'none'; }
-function closeAllModals(){ document.querySelectorAll('.modal-overlay').forEach(function(m) { m.style.display = 'none'; }); }
-document.addEventListener('click', function(e) { if (e.target.classList.contains('modal-overlay')) closeAllModals(); });
+/* ============================================ MODAL HELPERS */
+function closeModal(id)   {var el=document.getElementById(id); if(el)el.style.display='none';}
+function closeAllModals() {document.querySelectorAll('.modal-overlay').forEach(function(m){m.style.display='none';});}
+document.addEventListener('click', function(e) {if(e.target.classList.contains('modal-overlay'))closeAllModals();});
+
 </script>
 </body>
 </html>

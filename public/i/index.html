@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>LatLomp Schools</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary:   #6c63ff;
+      --pd:        #574fd6;
+      --green:     #43e97b;
+      --dark:      #0f0f1a;
+      --dark-2:    #1a1a2e;
+      --border:    rgba(255,255,255,0.08);
+      --muted:     #6b6b8a;
+      --secondary: #a0a0c0;
+      /* School colors — overridden by JS */
+      --school-primary:   #6c63ff;
+      --school-secondary: #43e97b;
+    }
+    html, body { min-height: 100vh; background: var(--dark); color: #fff; font-family: 'Inter', sans-serif; }
+    @keyframes spin    { to { transform: rotate(360deg); } }
+    @keyframes fadeUp  { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse   { 0%,100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+
+    /* ---- LOADING ---- */
+    .loading-screen {
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 16px;
+    }
+    .loader { width: 44px; height: 44px; border: 3px solid rgba(108,99,255,0.2); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .loading-text { font-size: 14px; color: var(--secondary); }
+
+    /* ---- NOT FOUND ---- */
+    .not-found-screen {
+      display: none; min-height: 100vh;
+      flex-direction: column; align-items: center; justify-content: center;
+      padding: 32px; text-align: center; gap: 16px;
+    }
+    .not-found-icon  { font-size: 72px; }
+    .not-found-title { font-size: 22px; font-weight: 800; }
+    .not-found-sub   { font-size: 15px; color: var(--secondary); line-height: 1.6; max-width: 400px; }
+
+    /* ---- BRANDED PAGE ---- */
+    .branded-page { display: none; min-height: 100vh; flex-direction: column; animation: fadeUp 0.4s ease; }
+
+    /* School header bar */
+    .school-header {
+      padding: 0 24px; height: 68px;
+      display: flex; align-items: center; gap: 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--dark-2);
+      flex-shrink: 0;
+    }
+    .school-header-logo {
+      width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; font-weight: 900; overflow: hidden;
+      background: linear-gradient(135deg, var(--school-primary), var(--school-secondary));
+    }
+    .school-header-logo img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
+    .school-header-name { font-size: 18px; font-weight: 800; color: #fff; }
+    .school-header-type { font-size: 11px; color: var(--secondary); font-weight: 600; margin-top: 2px; text-transform: capitalize; }
+    .school-header-right { margin-left: auto; }
+
+    /* Hero */
+    .branded-hero {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      padding: 60px 24px; text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .branded-hero::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse 80% 50% at 50% 0%, var(--school-primary-alpha, rgba(108,99,255,0.15)), transparent);
+    }
+    .hero-inner { position: relative; max-width: 560px; width: 100%; }
+
+    .school-logo-large {
+      width: 96px; height: 96px; border-radius: 20px; margin: 0 auto 24px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 48px; font-weight: 900; overflow: hidden;
+      background: linear-gradient(135deg, var(--school-primary), var(--school-secondary));
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      animation: pulse 2s ease infinite;
+    }
+    .school-logo-large img { width: 100%; height: 100%; object-fit: cover; border-radius: 20px; }
+
+    .school-name-large { font-size: clamp(24px, 5vw, 40px); font-weight: 900; color: #fff; margin-bottom: 8px; line-height: 1.2; }
+    .school-motto { font-size: 15px; color: var(--secondary); font-style: italic; margin-bottom: 32px; line-height: 1.6; }
+    .school-type-badge {
+      display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-bottom: 32px;
+      background: rgba(255,255,255,0.08); border: 1px solid var(--border);
+      color: var(--secondary); text-transform: capitalize;
+    }
+
+    /* Action cards */
+    .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: 480px; margin: 0 auto 32px; }
+    @media (max-width: 400px) { .action-grid { grid-template-columns: 1fr; } }
+
+    .action-card {
+      background: var(--dark-2); border: 1px solid var(--border);
+      border-radius: 16px; padding: 24px 20px; cursor: pointer;
+      text-align: center; text-decoration: none; color: #fff;
+      transition: all 0.2s; display: block;
+    }
+    .action-card:hover { transform: translateY(-3px); border-color: rgba(255,255,255,0.2); }
+    .action-card.primary { border-color: rgba(108,99,255,0.4); background: rgba(108,99,255,0.1); }
+    .action-card.primary:hover { box-shadow: 0 8px 28px rgba(108,99,255,0.3); }
+    .action-card.green  { border-color: rgba(67,233,123,0.4); background: rgba(67,233,123,0.08); }
+    .action-card.green:hover  { box-shadow: 0 8px 28px rgba(67,233,123,0.25); }
+    .action-icon  { font-size: 36px; margin-bottom: 10px; }
+    .action-title { font-size: 15px; font-weight: 800; margin-bottom: 4px; }
+    .action-desc  { font-size: 12px; color: var(--secondary); line-height: 1.5; }
+
+    /* Sign-in area */
+    .signin-area {
+      background: var(--dark-2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 36px 28px;
+      max-width: 420px; margin: 0 auto;
+      position: relative; overflow: hidden;
+    }
+    .signin-area::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--school-primary), var(--school-secondary));
+    }
+    .signin-area-title { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+    .signin-area-desc  { font-size: 13px; color: var(--secondary); margin-bottom: 24px; line-height: 1.6; }
+
+    .btn-google {
+      width: 100%; padding: 14px 20px;
+      background: #fff; border: 1px solid #dadce0; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      cursor: pointer; font-size: 15px; font-weight: 600; color: #3c4043;
+      font-family: inherit; transition: all 0.2s; margin-bottom: 12px;
+    }
+    .btn-google:hover:not(:disabled) { background: #f8f9fa; box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+    .btn-google:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .btn-exam {
+      width: 100%; padding: 13px 20px; border-radius: 12px; border: none;
+      background: linear-gradient(135deg, var(--green), #38f9d7);
+      color: #0f0f1a; font-size: 14px; font-weight: 700;
+      cursor: pointer; font-family: inherit; transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      text-decoration: none;
+    }
+    .btn-exam:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(67,233,123,0.4); }
+
+    .err-box {
+      display: none;
+      background: rgba(255,101,132,0.1); border: 1px solid rgba(255,101,132,0.3);
+      color: #ff6584; padding: 12px 14px; border-radius: 8px;
+      font-size: 13px; margin-bottom: 16px; line-height: 1.5;
+    }
+
+    .powered-by {
+      text-align: center; font-size: 12px; color: var(--muted);
+      margin-top: 20px;
+    }
+    .powered-by a { color: var(--primary); text-decoration: none; }
+
+    /* ---- FOOTER ---- */
+    .branded-footer {
+      text-align: center; padding: 20px 24px;
+      font-size: 12px; color: var(--muted);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 600px) {
+      .branded-hero { padding: 40px 16px; }
+      .signin-area  { padding: 28px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-screen" id="loadingScreen">
+  <div class="loader"></div>
+  <div class="loading-text">Loading school...</div>
+</div>
+
+<!-- NOT FOUND -->
+<div class="not-found-screen" id="notFoundScreen">
+  <div class="not-found-icon">🔍</div>
+  <div class="not-found-title">School not found</div>
+  <div class="not-found-sub" id="notFoundMsg">
+    This school link is not valid or may have changed.
+    Please ask your school admin for the correct link.
+  </div>
+  <a href="/institution/index.html"
+    style="margin-top:20px; padding:12px 28px; border-radius:10px; background:linear-gradient(135deg,#6c63ff,#574fd6); color:#fff; text-decoration:none; font-weight:700; font-size:14px;">
+    Go to LatLomp Schools →
+  </a>
+</div>
+
+<!-- BRANDED PAGE (shown after school loads) -->
+<div class="branded-page" id="brandedPage">
+
+  <!-- School header -->
+  <div class="school-header">
+    <div class="school-header-logo" id="headerLogo">🏫</div>
+    <div>
+      <div class="school-header-name" id="headerName">School Name</div>
+      <div class="school-header-type" id="headerType">Secondary School</div>
+    </div>
+    <div class="school-header-right">
+      <a href="/institution/index.html" style="font-size:12px; color:var(--secondary); text-decoration:none;">
+        LatLomp Schools ↗
+      </a>
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <div class="branded-hero">
+    <div class="hero-inner">
+
+      <!-- Large school logo -->
+      <div class="school-logo-large" id="heroLogo">🏫</div>
+      <div class="school-name-large" id="heroName">School Name</div>
+      <div class="school-type-badge" id="heroBadge">Secondary School</div>
+      <div class="school-motto" id="heroMotto"></div>
+
+      <!-- Action cards -->
+      <div class="action-grid" id="actionGrid">
+        <div class="action-card primary" onclick="scrollToSignin()">
+          <div class="action-icon">👩‍🏫</div>
+          <div class="action-title">Staff Login</div>
+          <div class="action-desc">Teachers and admin sign in with Google</div>
+        </div>
+        <a class="action-card green" id="examLink" href="/institution/student/exam.html">
+          <div class="action-icon">🎓</div>
+          <div class="action-title">Take Exam</div>
+          <div class="action-desc">Students — enter your exam code here</div>
+        </a>
+      </div>
+
+      <!-- Sign in panel -->
+      <div class="signin-area" id="signinArea">
+        <div class="signin-area-title" id="signinTitle">Staff Sign In</div>
+        <div class="signin-area-desc"  id="signinDesc">
+          Teachers and admin — sign in with your Google account.
+        </div>
+        <div class="err-box" id="signinErr"></div>
+
+        <button class="btn-google" id="btnGoogle">
+          <svg width="20" height="20" viewBox="0 0 48 48">
+            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.36-8.16 2.36-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+          </svg>
+          Continue with Google
+        </button>
+
+        <a class="btn-exam" href="/institution/student/exam.html">
+          🎓 Student Exam Portal
+        </a>
+
+        <div class="powered-by">
+          Powered by <a href="/institution/index.html">LatLomp Schools</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="branded-footer">
+    © <span id="footerYear"></span> <span id="footerName">Your School</span> · Powered by LatLomp Schools
+  </div>
+</div>
+
+<script>
+/* ============================================
+   SLUG RESOLVER — /i/:slug
+   ✅ PHASE E
+
+   1. Reads slug from URL path
+   2. Fetches school branding via public API
+   3. Renders school-branded landing page
+   4. Handles Google sign-in the same way
+      as /institution/index.html
+============================================ */
+
+var INST_TOKEN_KEY = 'latlomp_inst_token';
+var INST_USER_KEY  = 'latlomp_inst_user';
+var _schoolData    = null;
+var _inviteToken   = null;
+
+/* ---- Extract slug from path: /i/brightfuture → "brightfuture" ---- */
+function getSlugFromPath() {
+  var parts = window.location.pathname.replace(/\/+$/, '').split('/');
+  return parts[parts.length - 1] || '';
+}
+
+/* ---- Apply school branding to CSS variables ---- */
+function applyBranding(school) {
+  var root = document.documentElement;
+  root.style.setProperty('--school-primary',       school.primaryColor   || '#6c63ff');
+  root.style.setProperty('--school-secondary',     school.secondaryColor || '#43e97b');
+  root.style.setProperty('--school-primary-alpha',
+    hexToRgba(school.primaryColor || '#6c63ff', 0.15));
+}
+
+function hexToRgba(hex, alpha) {
+  var r = parseInt(hex.slice(1,3),16);
+  var g = parseInt(hex.slice(3,5),16);
+  var b = parseInt(hex.slice(5,7),16);
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+}
+
+/* ---- Fill branded page with school info ---- */
+function fillBrandedPage(school) {
+  _schoolData = school;
+  applyBranding(school);
+
+  var typeLabels = {
+    primary:'Primary School', secondary:'Secondary School', combined:'Combined School',
+    polytechnic:'Polytechnic', university:'University',
+    college_of_education:'College of Education', madrasah:'Madrasah',
+    training_centre:'Training Centre', vocational:'Vocational School', other:'School',
+    tertiary:'Tertiary Institution'
+  };
+  var typeLabel = typeLabels[school.type] || 'School';
+  var typeIcons = {
+    primary:'📚', secondary:'🏫', combined:'🏫', polytechnic:'⚙️', university:'🎓',
+    college_of_education:'🏛️', madrasah:'🕌', training_centre:'🔧', vocational:'🛠️', other:'📖'
+  };
+  var typeIcon  = typeIcons[school.type] || '🏫';
+
+  /* Update page title */
+  document.title = school.name + ' — LatLomp Schools';
+
+  /* Header */
+  var hLogo = document.getElementById('headerLogo');
+  var hName = document.getElementById('headerName');
+  var hType = document.getElementById('headerType');
+  if (hLogo) {
+    if (school.logo) { hLogo.innerHTML = '<img src="' + school.logo + '" alt="Logo" />'; }
+    else             { hLogo.textContent = school.name.charAt(0).toUpperCase(); hLogo.style.background = 'linear-gradient(135deg,' + school.primaryColor + ',' + school.secondaryColor + ')'; }
+  }
+  if (hName) hName.textContent = school.name;
+  if (hType) hType.textContent = typeLabel;
+
+  /* Hero */
+  var heroLogo  = document.getElementById('heroLogo');
+  var heroName  = document.getElementById('heroName');
+  var heroBadge = document.getElementById('heroBadge');
+  var heroMotto = document.getElementById('heroMotto');
+  if (heroLogo) {
+    if (school.logo) { heroLogo.innerHTML = '<img src="' + school.logo + '" alt="Logo" />'; }
+    else             { heroLogo.textContent = typeIcon; heroLogo.style.background = 'linear-gradient(135deg,' + school.primaryColor + ',' + school.secondaryColor + ')'; }
+  }
+  if (heroName)  heroName.textContent  = school.name;
+  if (heroBadge) heroBadge.textContent = typeLabel;
+  if (heroMotto) {
+    heroMotto.textContent   = school.motto || '';
+    heroMotto.style.display = school.motto ? 'block' : 'none';
+  }
+
+  /* Footer */
+  var footerYear = document.getElementById('footerYear');
+  var footerName = document.getElementById('footerName');
+  if (footerYear) footerYear.textContent = new Date().getFullYear();
+  if (footerName) footerName.textContent = school.name;
+
+  /* Sign-in area */
+  var signinTitle = document.getElementById('signinTitle');
+  var signinDesc  = document.getElementById('signinDesc');
+  if (signinTitle) signinTitle.textContent = 'Sign In to ' + school.name;
+  if (signinDesc)  signinDesc.innerHTML    = 'Teachers and administrators — use your Google account to access the school dashboard.';
+}
+
+/* ---- Scroll to sign-in area ---- */
+function scrollToSignin() {
+  var el = document.getElementById('signinArea');
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+/* ---- Show error ---- */
+function showErr(msg) {
+  var el = document.getElementById('signinErr');
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+}
+
+/* ---- Show screens ---- */
+function showLoading()  { document.getElementById('loadingScreen').style.display = 'flex'; }
+function hideLoading()  { document.getElementById('loadingScreen').style.display = 'none'; }
+function showNotFound(msg) {
+  hideLoading();
+  var nf  = document.getElementById('notFoundScreen');
+  var msg2= document.getElementById('notFoundMsg');
+  if (nf)   nf.style.display    = 'flex';
+  if (msg2) msg2.textContent     = msg || 'This school link is not valid or may have changed.';
+}
+function showBrandedPage() {
+  hideLoading();
+  var bp = document.getElementById('brandedPage');
+  if (bp) bp.style.display = 'flex';
+}
+
+/* ---- Google init ---- */
+function initGoogle(callbackFn) {
+  if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
+    setTimeout(function() { initGoogle(callbackFn); }, 500);
+    return;
+  }
+  google.accounts.id.initialize({
+    client_id:             '804260807914-tl2i27hblh8f3s1g4a5ip12hejosk0ab.apps.googleusercontent.com',
+    callback:              callbackFn,
+    auto_select:           false,
+    cancel_on_tap_outside: true
+  });
+  google.accounts.id.disableAutoSelect();
+}
+
+/* ---- Google sign-in callback ---- */
+async function handleGoogleResponse(response) {
+  var errEl = document.getElementById('signinErr');
+  if (errEl) errEl.style.display = 'none';
+  var btn = document.getElementById('btnGoogle');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.7'; btn.textContent = 'Signing in...'; }
+
+  try {
+    var body = { credential: response.credential };
+    if (_inviteToken) body.inviteToken = _inviteToken;
+
+    var res  = await fetch('/api/institution/auth/google', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(body)
+    });
+    var contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) throw new Error('API_NOT_FOUND');
+    var data = await res.json();
+
+    if (data.success) {
+      localStorage.setItem(INST_TOKEN_KEY, data.token);
+      localStorage.setItem(INST_USER_KEY,  JSON.stringify(data.user));
+      /* Redirect based on role */
+      var redirectTo = data.redirectTo;
+      if (!redirectTo) {
+        var user   = data.user;
+        var school = data.school;
+        if (user.role === 'school_admin') {
+          redirectTo = (school && school.onboardingDone)
+            ? '/institution/school/dashboard.html'
+            : '/institution/onboarding.html';
+        } else {
+          redirectTo = '/institution/teacher/dashboard.html';
+        }
+      }
+      window.location.replace(redirectTo);
+    } else {
+      resetBtn(btn);
+      showErr(data.message || 'Sign in failed. Please try again.');
+    }
+  } catch (err) {
+    resetBtn(btn);
+    showErr('❌ Sign in failed. Please check your connection and try again.');
+  }
+}
+
+function resetBtn(btn) {
+  if (!btn) return;
+  btn.disabled     = false;
+  btn.style.opacity = '1';
+  btn.innerHTML =
+    '<svg width="20" height="20" viewBox="0 0 48 48">' +
+    '<path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>' +
+    '<path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>' +
+    '<path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>' +
+    '<path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.36-8.16 2.36-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>' +
+    '</svg> Continue with Google';
+}
+
+/* ---- MAIN ---- */
+document.addEventListener('DOMContentLoaded', async function() {
+
+  /* Check for invite token in query params */
+  var params   = new URLSearchParams(window.location.search);
+  _inviteToken = params.get('invite') || null;
+
+  /* Already logged in? */
+  var existingToken = localStorage.getItem(INST_TOKEN_KEY);
+  if (existingToken) {
+    try {
+      var meRes  = await fetch('/api/institution/auth/me', {
+        headers: { 'Authorization': 'Bearer ' + existingToken, 'Content-Type': 'application/json' }
+      });
+      var meData = await meRes.json();
+      if (meData.success) {
+        /* Redirect existing session immediately */
+        var user   = meData.user;
+        var school = meData.school;
+        var dest   = '/institution/school/dashboard.html';
+        if (user.role === 'teacher' || user.role === 'vice_principal') dest = '/institution/teacher/dashboard.html';
+        else if (school && !school.onboardingDone) dest = '/institution/onboarding.html';
+        window.location.replace(dest);
+        return;
+      }
+    } catch (e) {
+      /* Token invalid — clear and continue */
+      localStorage.removeItem(INST_TOKEN_KEY);
+      localStorage.removeItem(INST_USER_KEY);
+    }
+  }
+
+  /* Get slug */
+  var slug = getSlugFromPath();
+  if (!slug || slug === 'i') {
+    showNotFound('No school was specified in this link.');
+    return;
+  }
+
+  /* Fetch school by slug */
+  try {
+    var res = await fetch('/api/institution/school/by-slug/' + encodeURIComponent(slug));
+    var ct  = res.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) { showNotFound('Unable to connect to server.'); return; }
+    var data = await res.json();
+
+    if (!data.success || !data.school) {
+      showNotFound(data.message || 'School not found.');
+      return;
+    }
+
+    fillBrandedPage(data.school);
+    showBrandedPage();
+
+    /* Init Google sign-in */
+    initGoogle(handleGoogleResponse);
+
+    var btn = document.getElementById('btnGoogle');
+    if (btn) {
+      btn.addEventListener('click', function() {
+        if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
+          showErr('Google Sign In is loading. Please wait a moment and try again.');
+          return;
+        }
+        google.accounts.id.disableAutoSelect();
+        google.accounts.id.prompt(function(notification) {
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            showErr('Google Sign In popup was blocked. Please allow popups for this site.');
+          }
+        });
+      });
+    }
+
+  } catch (err) {
+    showNotFound('Unable to connect to server. Please try again.');
+  }
+});
+</script>
+</body>
+</html>

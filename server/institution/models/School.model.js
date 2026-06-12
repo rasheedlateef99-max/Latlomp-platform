@@ -1,14 +1,10 @@
 /* ============================================
    LATLOMP INSTITUTION — SCHOOL MODEL
-   
-   ✅ PHASE A CHANGES:
-   - type enum extended to include all new
-     institution categories (backward-compatible:
-     existing 'primary','secondary','tertiary',
-     'vocational','other' values still valid)
-   - institutionCategory field added (mirrors type)
-   - slug, ownerGoogleId, ownerEmail from
-     previous fix retained
+
+   ✅ PHASE A: type enum extended
+   ✅ PHASE E: slugUpdatedAt field added
+              Allows tracking when admin last
+              changed their slug (for cooldown)
 ============================================ */
 const mongoose = require('mongoose');
 
@@ -28,25 +24,13 @@ const schoolSchema = new mongoose.Schema(
     country:    { type: String, default: 'Nigeria' },
     website:    { type: String, default: '' },
 
-    /* ---- Institution Type ----
-       ✅ PHASE A: Extended enum — includes all supported types.
-       Old values (primary, secondary, tertiary, vocational, other)
-       remain valid so existing data is NOT broken.
-       New values added: combined, polytechnic, university,
-       college_of_education, madrasah, training_centre
-    ---- */
+    /* ---- Institution Type ---- */
     type: {
       type:    String,
       enum:    [
-        /* Existing values — backward compatible */
         'primary', 'secondary', 'tertiary', 'vocational', 'other',
-        /* New values — Phase A */
-        'combined',
-        'polytechnic',
-        'university',
-        'college_of_education',
-        'madrasah',
-        'training_centre'
+        'combined', 'polytechnic', 'university',
+        'college_of_education', 'madrasah', 'training_centre'
       ],
       default: 'secondary'
     },
@@ -66,16 +50,14 @@ const schoolSchema = new mongoose.Schema(
       enum:    ['pending_setup', 'trial', 'active', 'expired', 'suspended'],
       default: 'pending_setup'
     },
-
     subscriptionPlan: {
       type:    String,
       enum:    ['trial', 'monthly', 'quarterly', 'biannual', 'annual', 'none', 'unlimited'],
       default: 'none'
     },
-
-    subscriptionExpiry:  { type: Date,    default: null },
-    trialUsed:           { type: Boolean, default: false },
-    trialStartDate:      { type: Date,    default: null },
+    subscriptionExpiry: { type: Date,    default: null },
+    trialUsed:          { type: Boolean, default: false },
+    trialStartDate:     { type: Date,    default: null },
 
     /* ---- Settings ---- */
     settings: {
@@ -86,17 +68,12 @@ const schoolSchema = new mongoose.Schema(
       timezone:                 { type: String,  default: 'Africa/Lagos' }
     },
 
-    /* ---- Ownership ----
-       ownerId is optional — institution admins register via Google,
-       they become a SchoolUser, not a main platform User.
-       ownerGoogleId and ownerEmail identify the owner permanently.
-    ---- */
+    /* ---- Ownership ---- */
     ownerId: {
       type:    mongoose.Schema.Types.ObjectId,
       ref:     'User',
       default: null
     },
-
     ownerGoogleId: { type: String, default: '' },
     ownerEmail:    { type: String, default: '', lowercase: true, trim: true },
 
@@ -106,32 +83,34 @@ const schoolSchema = new mongoose.Schema(
     suspendReason:   { type: String,  default: '' },
     onboardingDone:  { type: Boolean, default: false },
     licenseKey:      { type: String,  default: '', unique: true, sparse: true },
+    structureGenerated: { type: Boolean, default: false },
 
-    /* ✅ PHASE A: Track whether default structure has been generated */
-    structureGenerated: { type: Boolean, default: false }
+    /* ✅ PHASE E: Track last manual slug change for cooldown enforcement */
+    slugUpdatedAt: { type: Date, default: null }
   },
   { timestamps: true }
 );
 
 /* Indexes */
-schoolSchema.index({ email: 1 });
-schoolSchema.index({ slug: 1 });
-schoolSchema.index({ status: 1 });
+schoolSchema.index({ email:         1 });
+schoolSchema.index({ slug:          1 });
+schoolSchema.index({ status:        1 });
 schoolSchema.index({ subscriptionExpiry: 1 });
 schoolSchema.index({ ownerGoogleId: 1 });
 
-/* Generate slug from name */
+/* Auto-generate slug from school name on first save */
 schoolSchema.pre('save', function(next) {
   if (this.isModified('name') && !this.slug) {
     this.slug = this.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
+      .replace(/^-|-$/g, '')
+      .substring(0, 50);
   }
   next();
 });
 
-/* Generate license key */
+/* Auto-generate license key */
 schoolSchema.pre('save', function(next) {
   if (!this.licenseKey) {
     var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -145,7 +124,7 @@ schoolSchema.pre('save', function(next) {
   next();
 });
 
-/* Virtual: is subscription currently valid */
+/* Virtual: is subscription currently active */
 schoolSchema.virtual('isSubscriptionActive').get(function() {
   if (this.isSuspended) return false;
   if (this.status === 'active' || this.status === 'trial') {

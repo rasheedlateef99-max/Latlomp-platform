@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>School Setup — LatLomp Institution</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <style>
@@ -20,255 +20,152 @@
     }
 
     body {
-      margin: 0; padding: 0;
-      min-height: 100vh;
-      background: var(--dark);
-      font-family: 'Inter', sans-serif;
-      color: var(--text);
-      display: flex;
-      flex-direction: column;
+      margin: 0; padding: 0; min-height: 100vh;
+      background: var(--dark); font-family: 'Inter', sans-serif;
+      color: var(--text); display: flex; flex-direction: column;
     }
 
-    @keyframes fadeUp  { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:translateY(0); } }
-    @keyframes spin    { to { transform:rotate(360deg); } }
-    @keyframes slideUp { from { transform:translateY(20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes spin   { to { transform:rotate(360deg); } }
+    @keyframes pulse  { 0%,100% { transform:scale(1); } 50% { transform:scale(1.04); } }
 
     /* ---- TOP BAR ---- */
     .top-bar {
-      height: 60px; padding: 0 24px;
-      background: var(--dark-2);
-      border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: space-between;
-      flex-shrink: 0;
+      height:60px; padding:0 24px;
+      background:var(--dark-2); border-bottom:1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between; flex-shrink:0;
     }
-    .top-bar-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
-    .top-bar-logo span:first-child { font-size: 22px; }
-    .top-bar-logo-text { font-size: 17px; font-weight: 800; color: #fff; }
-    .top-bar-badge { background: linear-gradient(135deg,var(--primary),var(--green)); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; }
-
-    .top-bar-user {
-      display: flex; align-items: center; gap: 10px;
-      font-size: 14px; color: var(--secondary);
-    }
-    .top-bar-avatar {
-      width: 34px; height: 34px; border-radius: 8px;
-      background: linear-gradient(135deg, var(--primary), var(--pd));
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 800; font-size: 15px; color: #fff; flex-shrink: 0;
-    }
+    .top-bar-logo { display:flex; align-items:center; gap:10px; text-decoration:none; }
+    .top-bar-logo-text { font-size:17px; font-weight:800; color:#fff; }
+    .top-bar-badge { background:linear-gradient(135deg,var(--primary),var(--green)); color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; text-transform:uppercase; }
+    .top-bar-user { display:flex; align-items:center; gap:10px; font-size:14px; color:var(--secondary); }
+    .top-bar-avatar { width:34px; height:34px; border-radius:8px; background:linear-gradient(135deg,var(--primary),var(--pd)); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:15px; color:#fff; flex-shrink:0; }
 
     /* ---- PROGRESS BAR ---- */
-    .progress-wrap {
-      background: var(--dark-2);
-      border-bottom: 1px solid var(--border);
-      padding: 20px 24px;
-    }
-    .progress-steps {
-      display: flex; align-items: center;
-      max-width: 680px; margin: 0 auto;
-    }
-    .step-node {
-      display: flex; flex-direction: column; align-items: center; gap: 6px;
-      flex-shrink: 0;
-    }
-    .step-circle {
-      width: 36px; height: 36px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 13px; font-weight: 800; transition: all 0.3s;
-      border: 2px solid var(--border);
-      background: rgba(255,255,255,0.04);
-      color: var(--muted);
-    }
-    .step-circle.active { background: var(--primary); border-color: var(--primary); color: #fff; }
-    .step-circle.done   { background: var(--green);   border-color: var(--green);   color: #0f0f1a; }
-    .step-label {
-      font-size: 11px; font-weight: 600; color: var(--muted);
-      white-space: nowrap; text-align: center;
-    }
-    .step-label.active { color: var(--primary); }
-    .step-label.done   { color: var(--green); }
-    .step-line {
-      flex: 1; height: 2px;
-      background: var(--border); margin: 0 8px; margin-bottom: 20px;
-      transition: background 0.3s;
-    }
-    .step-line.done { background: var(--green); }
+    .progress-wrap { background:var(--dark-2); border-bottom:1px solid var(--border); padding:20px 24px; }
+    .progress-steps { display:flex; align-items:center; max-width:720px; margin:0 auto; }
+    .step-node { display:flex; flex-direction:column; align-items:center; gap:6px; flex-shrink:0; }
+    .step-circle { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; transition:all 0.3s; border:2px solid var(--border); background:rgba(255,255,255,0.04); color:var(--muted); }
+    .step-circle.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+    .step-circle.done   { background:var(--green);   border-color:var(--green);   color:#0f0f1a; }
+    .step-label { font-size:11px; font-weight:600; color:var(--muted); white-space:nowrap; text-align:center; }
+    .step-label.active { color:var(--primary); }
+    .step-label.done   { color:var(--green); }
+    .step-line { flex:1; height:2px; background:var(--border); margin:0 8px; margin-bottom:20px; transition:background 0.3s; }
+    .step-line.done { background:var(--green); }
 
     /* ---- MAIN ---- */
-    .main {
-      flex: 1;
-      display: flex; align-items: flex-start; justify-content: center;
-      padding: 40px 20px 60px;
-    }
+    .main { flex:1; display:flex; align-items:flex-start; justify-content:center; padding:40px 20px 80px; }
 
-    .card {
-      background: var(--dark-2);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 36px 32px;
-      width: 100%; max-width: 600px;
-      animation: fadeUp 0.4s ease;
-    }
+    .card { background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:36px 32px; width:100%; max-width:640px; animation:fadeUp 0.35s ease; }
+    @media (max-width:560px) { .card { padding:24px 16px; } }
 
-    .card-header { margin-bottom: 28px; }
-    .card-tag {
-      display: inline-block; background: rgba(108,99,255,0.12);
-      color: #a78bfa; font-size: 11px; font-weight: 700;
-      padding: 3px 12px; border-radius: 20px; text-transform: uppercase;
-      letter-spacing: 0.5px; margin-bottom: 10px;
+    .card-header { margin-bottom:28px; }
+    .card-tag { display:inline-block; background:rgba(108,99,255,0.12); color:#a78bfa; font-size:11px; font-weight:700; padding:3px 12px; border-radius:20px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px; }
+    .card-title { font-size:22px; font-weight:800; margin:0 0 6px; color:#fff; }
+    .card-sub   { font-size:14px; color:var(--secondary); margin:0; line-height:1.6; }
+
+    /* ---- SCHOOL TYPE GRID ---- */
+    .type-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:4px; }
+    @media (max-width:560px) { .type-grid { grid-template-columns:repeat(2,1fr); } }
+    @media (max-width:380px) { .type-grid { grid-template-columns:1fr 1fr; } }
+
+    .type-card {
+      padding:16px 8px 12px; border-radius:12px; cursor:pointer;
+      border:2px solid var(--border); background:rgba(255,255,255,0.03);
+      display:flex; flex-direction:column; align-items:center; gap:7px;
+      font-family:inherit; transition:all 0.2s; text-align:center;
+      position:relative;
     }
-    .card-title { font-size: 22px; font-weight: 800; margin: 0 0 6px; }
-    .card-sub   { font-size: 14px; color: var(--secondary); margin: 0; line-height: 1.6; }
+    .type-card:hover { border-color:rgba(108,99,255,0.4); background:rgba(108,99,255,0.06); transform:translateY(-2px); }
+    .type-card.active { border-color:var(--primary); background:rgba(108,99,255,0.15); transform:translateY(-2px); box-shadow:0 4px 20px rgba(108,99,255,0.2); }
+    .type-card.active::after { content:'✓'; position:absolute; top:6px; right:8px; font-size:11px; font-weight:900; color:var(--primary); }
+    .type-icon { font-size:28px; line-height:1; }
+    .type-name { font-size:11px; font-weight:700; color:var(--text); line-height:1.3; }
+    .type-hint { font-size:10px; color:var(--muted); line-height:1.4; }
+
+    /* ---- SCAFFOLD PREVIEW BOX ---- */
+    .scaffold-preview {
+      background:rgba(108,99,255,0.06);
+      border:1px solid rgba(108,99,255,0.2);
+      border-radius:12px; padding:16px 20px;
+      margin-top:16px; animation:fadeUp 0.2s ease;
+      display:none;
+    }
+    .scaffold-preview.visible { display:block; }
+    .scaffold-preview-title { font-size:12px; font-weight:700; color:#a78bfa; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:10px; }
+    .scaffold-tags { display:flex; flex-wrap:wrap; gap:6px; }
+    .scaffold-tag { font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px; background:rgba(255,255,255,0.06); color:var(--secondary); border:1px solid var(--border); }
+    .scaffold-tag.classes  { background:rgba(67,233,123,0.1);  color:var(--green);   border-color:rgba(67,233,123,0.25); }
+    .scaffold-tag.subjects { background:rgba(108,99,255,0.12); color:#a78bfa;        border-color:rgba(108,99,255,0.3); }
+    .scaffold-tag.terms    { background:rgba(255,165,0,0.1);   color:#ffa500;        border-color:rgba(255,165,0,0.25); }
 
     /* ---- FORM FIELDS ---- */
-    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-    .form-full { grid-column: span 2; }
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .form-full { grid-column:span 2; }
+    @media (max-width:520px) { .form-grid { grid-template-columns:1fr; } .form-full { grid-column:span 1; } }
 
-    @media (max-width: 560px) {
-      .form-grid { grid-template-columns: 1fr; }
-      .form-full { grid-column: span 1; }
-      .card { padding: 24px 16px; }
-    }
+    .field { display:flex; flex-direction:column; gap:7px; }
+    .field label { font-size:12px; font-weight:700; color:var(--secondary); text-transform:uppercase; letter-spacing:0.4px; }
+    .field label span { color:#ff6584; margin-left:2px; }
 
-    .field { display: flex; flex-direction: column; gap: 7px; }
-    .field label {
-      font-size: 12px; font-weight: 700;
-      color: var(--secondary); text-transform: uppercase; letter-spacing: 0.4px;
-    }
-    .field label span { color: #ff6584; margin-left: 2px; }
+    .inp, .sel, .tex { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:10px; padding:12px 14px; color:#fff; font-size:14px; font-family:inherit; outline:none; width:100%; transition:border-color 0.2s, background 0.2s; }
+    .inp:focus, .sel:focus, .tex:focus { border-color:var(--primary); background:rgba(108,99,255,0.06); }
+    .inp::placeholder, .tex::placeholder { color:var(--muted); }
+    .sel { cursor:pointer; }
+    .sel option { background:var(--dark-2); color:#fff; }
+    .tex { resize:vertical; min-height:80px; }
+    .field-hint { font-size:11px; color:var(--muted); margin-top:2px; line-height:1.5; }
 
-    .inp, .sel, .tex {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 12px 14px;
-      color: #fff;
-      font-size: 14px;
-      font-family: inherit;
-      outline: none;
-      width: 100%;
-      transition: border-color 0.2s, background 0.2s;
-    }
-    .inp:focus, .sel:focus, .tex:focus {
-      border-color: var(--primary);
-      background: rgba(108,99,255,0.06);
-    }
-    .inp::placeholder, .tex::placeholder { color: var(--muted); }
-    .sel { cursor: pointer; }
-    .sel option { background: var(--dark-2); color: #fff; }
-    .tex { resize: vertical; min-height: 80px; }
-
-    .field-hint { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.5; }
+    /* ---- BRANDING PREVIEW ---- */
+    .school-preview { border-radius:14px; padding:20px; display:flex; align-items:center; gap:16px; margin-bottom:24px; transition:all 0.3s; }
+    .preview-logo { width:56px; height:56px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:28px; flex-shrink:0; background:rgba(255,255,255,0.15); overflow:hidden; }
+    .preview-logo img { width:100%; height:100%; object-fit:cover; }
+    .preview-name { font-size:18px; font-weight:800; color:#fff; }
+    .preview-sub  { font-size:13px; margin-top:2px; opacity:0.75; }
 
     /* Color pickers */
-    .color-row { display: flex; align-items: center; gap: 12px; }
-    .color-input { width: 44px; height: 44px; border-radius: 8px; border: 2px solid var(--border); cursor: pointer; padding: 2px; background: transparent; flex-shrink: 0; }
-    .color-hex { flex: 1; }
+    .color-row { display:flex; align-items:center; gap:12px; }
+    .color-input { width:44px; height:44px; border-radius:8px; border:2px solid var(--border); cursor:pointer; padding:2px; background:transparent; flex-shrink:0; }
+    .color-hex { flex:1; }
 
     /* Logo upload */
-    .logo-upload-area {
-      border: 2px dashed var(--border);
-      border-radius: 12px; padding: 24px;
-      text-align: center; cursor: pointer;
-      transition: border-color 0.2s, background 0.2s;
-    }
-    .logo-upload-area:hover { border-color: rgba(108,99,255,0.4); background: rgba(108,99,255,0.04); }
-    .logo-preview {
-      display: none; margin-top: 12px;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .logo-preview img { max-width: 120px; max-height: 80px; border-radius: 8px; object-fit: contain; }
-
-    /* School card preview */
-    .school-preview {
-      border-radius: 14px; padding: 20px;
-      display: flex; align-items: center; gap: 16px;
-      margin-bottom: 24px; transition: all 0.3s;
-    }
-    .preview-logo {
-      width: 56px; height: 56px; border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 28px; flex-shrink: 0; background: rgba(255,255,255,0.15);
-    }
-    .preview-name  { font-size: 18px; font-weight: 800; }
-    .preview-sub   { font-size: 13px; opacity: 0.75; margin-top: 2px; }
-
-    /* School type selector */
-    .type-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
-    @media (max-width: 400px) { .type-grid { grid-template-columns: 1fr 1fr; } }
-
-    .type-btn {
-      padding: 14px 10px; border-radius: 10px; cursor: pointer;
-      border: 2px solid var(--border); background: rgba(255,255,255,0.03);
-      display: flex; flex-direction: column; align-items: center; gap: 6px;
-      font-family: inherit; transition: all 0.2s; text-align: center;
-    }
-    .type-btn:hover { border-color: rgba(108,99,255,0.4); background: rgba(108,99,255,0.06); }
-    .type-btn.active { border-color: var(--primary); background: rgba(108,99,255,0.15); }
-    .type-btn .t-icon { font-size: 26px; }
-    .type-btn .t-name { font-size: 12px; font-weight: 700; color: var(--text); }
+    .logo-upload-area { border:2px dashed var(--border); border-radius:12px; padding:24px; text-align:center; cursor:pointer; transition:border-color 0.2s, background 0.2s; }
+    .logo-upload-area:hover { border-color:rgba(108,99,255,0.4); background:rgba(108,99,255,0.04); }
 
     /* ---- BUTTONS ---- */
-    .btn-row { display: flex; gap: 12px; margin-top: 28px; flex-wrap: wrap; }
-    .btn {
-      padding: 13px 24px; border-radius: 10px; font-size: 14px; font-weight: 700;
-      cursor: pointer; font-family: inherit; border: none; transition: all 0.2s;
-      display: inline-flex; align-items: center; gap: 8px;
-    }
-    .btn-primary { background: linear-gradient(135deg,var(--primary),var(--pd)); color: #fff; flex: 1; justify-content: center; }
-    .btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(108,99,255,0.4); }
-    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-secondary { background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--secondary); }
-    .btn-secondary:hover { background: rgba(255,255,255,0.1); color: #fff; }
-
-    /* ---- SUBSCRIPTION PLANS ---- */
-    .plans-grid { display: flex; flex-direction: column; gap: 14px; }
-    .plan-row {
-      display: flex; align-items: center; gap: 16px;
-      background: rgba(255,255,255,0.03); border: 2px solid var(--border);
-      border-radius: 14px; padding: 18px 20px; cursor: pointer;
-      transition: all 0.2s;
-    }
-    .plan-row:hover { border-color: rgba(108,99,255,0.4); background: rgba(108,99,255,0.06); }
-    .plan-row.selected { border-color: var(--primary); background: rgba(108,99,255,0.12); }
-    .plan-radio {
-      width: 22px; height: 22px; border-radius: 50%;
-      border: 2px solid var(--border); flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center;
-      transition: all 0.2s;
-    }
-    .plan-row.selected .plan-radio { background: var(--primary); border-color: var(--primary); }
-    .plan-radio::after { content:''; width: 8px; height: 8px; border-radius: 50%; background: #fff; display: none; }
-    .plan-row.selected .plan-radio::after { display: block; }
-    .plan-info { flex: 1; }
-    .plan-name { font-size: 15px; font-weight: 700; color: #fff; }
-    .plan-features-list { font-size: 12px; color: var(--secondary); margin-top: 3px; }
-    .plan-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: var(--primary); color: #fff; }
-    .plan-price-box { text-align: right; flex-shrink: 0; }
-    .plan-price-val { font-size: 20px; font-weight: 900; color: var(--green); }
-    .plan-price-period { font-size: 11px; color: var(--muted); }
-
-    .trial-notice {
-      background: rgba(67,233,123,0.08);
-      border: 1px solid rgba(67,233,123,0.25);
-      border-radius: 12px; padding: 16px;
-      font-size: 14px; color: #43e97b; line-height: 1.6;
-      margin-bottom: 20px; display: flex; gap: 12px; align-items: flex-start;
-    }
-    .trial-notice-icon { font-size: 22px; flex-shrink: 0; }
+    .btn-row { display:flex; gap:12px; margin-top:28px; flex-wrap:wrap; }
+    .btn { padding:13px 24px; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; border:none; transition:all 0.2s; display:inline-flex; align-items:center; gap:8px; }
+    .btn-primary   { background:linear-gradient(135deg,var(--primary),var(--pd)); color:#fff; flex:1; justify-content:center; }
+    .btn-primary:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 6px 20px rgba(108,99,255,0.4); }
+    .btn-primary:disabled { opacity:0.5; cursor:not-allowed; }
+    .btn-secondary { background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--secondary); }
+    .btn-secondary:hover { background:rgba(255,255,255,0.1); color:#fff; }
 
     /* ---- COMPLETION ---- */
-    .completion-wrap { text-align: center; padding: 24px 0; }
-    .completion-icon { font-size: 72px; margin-bottom: 16px; animation: fadeUp 0.4s ease; }
-    .completion-title { font-size: 26px; font-weight: 900; margin: 0 0 10px; }
-    .completion-sub { font-size: 15px; color: var(--secondary); line-height: 1.7; max-width: 420px; margin: 0 auto 28px; }
+    .completion-wrap { text-align:center; padding:24px 0; }
+    .completion-icon  { font-size:72px; margin-bottom:16px; animation:pulse 1s ease; }
+    .completion-title { font-size:26px; font-weight:900; margin:0 0 10px; }
+    .completion-sub   { font-size:15px; color:var(--secondary); line-height:1.7; max-width:420px; margin:0 auto 28px; }
 
-    .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; text-align: left; margin-bottom: 24px; }
-    .summary-item { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
-    .summary-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
-    .summary-value { font-size: 14px; font-weight: 700; color: #fff; }
+    .summary-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; text-align:left; margin-bottom:28px; }
+    @media (max-width:400px) { .summary-grid { grid-template-columns:1fr; } }
+    .summary-item { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:10px; padding:14px; }
+    .summary-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px; }
+    .summary-value { font-size:14px; font-weight:700; color:#fff; }
 
-    .spinner { width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
+    /* ---- STRUCTURE SCAFFOLDING PROGRESS ---- */
+    .scaffold-progress { background:rgba(67,233,123,0.06); border:1px solid rgba(67,233,123,0.2); border-radius:12px; padding:16px 20px; margin-bottom:20px; }
+    .scaffold-progress-title { font-size:13px; font-weight:700; color:var(--green); margin-bottom:10px; }
+    .scaffold-steps-list { display:flex; flex-direction:column; gap:6px; }
+    .scaffold-step-row { display:flex; align-items:center; gap:10px; font-size:13px; color:var(--secondary); }
+    .scaffold-step-row .s-icon { font-size:15px; flex-shrink:0; }
+    .scaffold-step-row.done   .s-icon::before { content:'✅'; }
+    .scaffold-step-row.active .s-icon::before { content:'⏳'; }
+    .scaffold-step-row.pending .s-icon::before { content:'⚪'; }
+
+    .spinner { width:20px; height:20px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block; }
+    .spinner-green { border-color:rgba(67,233,123,0.3); border-top-color:var(--green); }
   </style>
 </head>
 <body>
@@ -276,7 +173,7 @@
 <!-- TOP BAR -->
 <div class="top-bar">
   <a href="/institution/index.html" class="top-bar-logo">
-    <span>⚡</span>
+    <span style="font-size:22px;">⚡</span>
     <span class="top-bar-logo-text">LatLomp</span>
     <span class="top-bar-badge">Schools</span>
   </a>
@@ -291,318 +188,424 @@
   <div class="progress-steps" id="progressSteps">
     <div class="step-node">
       <div class="step-circle active" id="sc1">1</div>
-      <div class="step-label active" id="sl1">School Profile</div>
+      <div class="step-label active"  id="sl1">School Type</div>
     </div>
     <div class="step-line" id="line12"></div>
     <div class="step-node">
       <div class="step-circle" id="sc2">2</div>
-      <div class="step-label" id="sl2">Branding</div>
+      <div class="step-label"  id="sl2">Profile</div>
     </div>
     <div class="step-line" id="line23"></div>
     <div class="step-node">
       <div class="step-circle" id="sc3">3</div>
-      <div class="step-label" id="sl3">Subscription</div>
+      <div class="step-label"  id="sl3">Branding</div>
     </div>
     <div class="step-line" id="line34"></div>
     <div class="step-node">
       <div class="step-circle" id="sc4">4</div>
-      <div class="step-label" id="sl4">Done!</div>
+      <div class="step-label"  id="sl4">Done!</div>
     </div>
   </div>
 </div>
 
 <!-- MAIN CONTENT -->
 <div class="main">
-  <div style="width:100%; max-width:600px;">
+<div style="width:100%; max-width:640px;">
 
-    <!-- ===== STEP 1: SCHOOL PROFILE ===== -->
-    <div class="card" id="step1Card">
-      <div class="card-header">
-        <div class="card-tag">Step 1 of 3</div>
-        <div class="card-title">Tell us about your school</div>
-        <div class="card-sub">Fill in your school's basic information. You can update this anytime from your dashboard.</div>
-      </div>
+<!-- ===================================================
+     STEP 1 — SCHOOL TYPE
+===================================================  -->
+<div class="card" id="step1Card">
+  <div class="card-header">
+    <div class="card-tag">Step 1 of 3</div>
+    <div class="card-title">What kind of school are you?</div>
+    <div class="card-sub">This shapes your dashboard — classes, departments and subjects will be set up automatically for your school type.</div>
+  </div>
 
-      <!-- School type -->
-      <div class="field" style="margin-bottom:20px;">
-        <label>School Type <span>*</span></label>
-        <div class="type-grid">
-          <button class="type-btn active" data-type="secondary" onclick="setSchoolType('secondary',this)">
-            <span class="t-icon">🏫</span>
-            <span class="t-name">Secondary</span>
-          </button>
-          <button class="type-btn" data-type="primary" onclick="setSchoolType('primary',this)">
-            <span class="t-icon">📚</span>
-            <span class="t-name">Primary</span>
-          </button>
-          <button class="type-btn" data-type="tertiary" onclick="setSchoolType('tertiary',this)">
-            <span class="t-icon">🎓</span>
-            <span class="t-name">Tertiary</span>
-          </button>
-          <button class="type-btn" data-type="vocational" onclick="setSchoolType('vocational',this)">
-            <span class="t-icon">🔧</span>
-            <span class="t-name">Vocational</span>
-          </button>
-          <button class="type-btn" data-type="other" onclick="setSchoolType('other',this)">
-            <span class="t-icon">🏛️</span>
-            <span class="t-name">Other</span>
-          </button>
-        </div>
-      </div>
+  <div class="type-grid" id="typeGrid">
 
-      <div class="form-grid">
-        <div class="field form-full">
-          <label>School Name <span>*</span></label>
-          <input type="text" id="schoolName" class="inp" placeholder="e.g. Bright Future Secondary School"
-            oninput="updatePreview()" />
-        </div>
+    <button class="type-card" data-type="primary" onclick="selectType('primary', this)">
+      <span class="type-icon">📚</span>
+      <span class="type-name">Primary School</span>
+    </button>
 
-        <div class="field form-full">
-          <label>Principal / Admin Name <span>*</span></label>
-          <input type="text" id="principalName" class="inp" placeholder="e.g. Mr. Adewale Johnson" />
-        </div>
+    <button class="type-card" data-type="secondary" onclick="selectType('secondary', this)">
+      <span class="type-icon">🏫</span>
+      <span class="type-name">Secondary School</span>
+    </button>
 
-        <div class="field">
-          <label>Phone Number <span>*</span></label>
-          <input type="tel" id="schoolPhone" class="inp" placeholder="08012345678" inputmode="tel" />
-        </div>
+    <button class="type-card" data-type="combined" onclick="selectType('combined', this)">
+      <span class="type-icon">🏫</span>
+      <span class="type-name">Combined School</span>
+    </button>
 
-        <div class="field">
-          <label>School Email</label>
-          <input type="email" id="schoolEmail" class="inp" placeholder="info@school.edu.ng" />
-          <div class="field-hint">Leave blank to use your Google email</div>
-        </div>
+    <button class="type-card" data-type="polytechnic" onclick="selectType('polytechnic', this)">
+      <span class="type-icon">🎓</span>
+      <span class="type-name">Polytechnic</span>
+    </button>
 
-        <div class="field form-full">
-          <label>School Address <span>*</span></label>
-          <input type="text" id="schoolAddress" class="inp" placeholder="123 School Road, Victoria Island" />
-        </div>
+    <button class="type-card" data-type="university" onclick="selectType('university', this)">
+      <span class="type-icon">🎓</span>
+      <span class="type-name">University</span>
+    </button>
 
-        <div class="field">
-          <label>State <span>*</span></label>
-          <select id="schoolState" class="sel">
-            <option value="">-- Select State --</option>
-            <option>Abia</option><option>Adamawa</option><option>Akwa Ibom</option>
-            <option>Anambra</option><option>Bauchi</option><option>Bayelsa</option>
-            <option>Benue</option><option>Borno</option><option>Cross River</option>
-            <option>Delta</option><option>Ebonyi</option><option>Edo</option>
-            <option>Ekiti</option><option>Enugu</option><option>FCT - Abuja</option>
-            <option>Gombe</option><option>Imo</option><option>Jigawa</option>
-            <option>Kaduna</option><option>Kano</option><option>Katsina</option>
-            <option>Kebbi</option><option>Kogi</option><option>Kwara</option>
-            <option>Lagos</option><option>Nasarawa</option><option>Niger</option>
-            <option>Ogun</option><option>Ondo</option><option>Osun</option>
-            <option>Oyo</option><option>Plateau</option><option>Rivers</option>
-            <option>Sokoto</option><option>Taraba</option><option>Yobe</option>
-            <option>Zamfara</option>
-          </select>
-        </div>
+    <button class="type-card" data-type="college_of_education" onclick="selectType('college_of_education', this)">
+      <span class="type-icon">🏛️</span>
+      <span class="type-name">College of Education</span>
+    </button>
 
-        <div class="field">
-          <label>Total Students</label>
-          <input type="number" id="totalStudents" class="inp" placeholder="e.g. 500" min="1" />
-        </div>
+    <button class="type-card" data-type="madrasah" onclick="selectType('madrasah', this)">
+      <span class="type-icon">🕌</span>
+      <span class="type-name">Madrasah</span>
+    </button>
 
-        <div class="field form-full">
-          <label>School Motto</label>
-          <input type="text" id="schoolMotto" class="inp" placeholder="e.g. Knowledge is Power" />
-        </div>
+    <button class="type-card" data-type="training_centre" onclick="selectType('training_centre', this)">
+      <span class="type-icon">🏢</span>
+      <span class="type-name">Training Centre</span>
+    </button>
 
-        <div class="field form-full">
-          <label>Website (optional)</label>
-          <input type="url" id="schoolWebsite" class="inp" placeholder="https://www.yourschool.edu.ng" />
-        </div>
-      </div>
+    <button class="type-card" data-type="vocational" onclick="selectType('vocational', this)">
+      <span class="type-icon">🔧</span>
+      <span class="type-name">Vocational School</span>
+    </button>
 
-      <div class="btn-row">
-        <button class="btn btn-primary" id="step1Btn" onclick="goStep2()">
-          Continue → Branding
-        </button>
-      </div>
+    <button class="type-card" data-type="other" onclick="selectType('other', this)">
+      <span class="type-icon">📖</span>
+      <span class="type-name">Other</span>
+    </button>
+
+  </div>
+
+  <!-- ✅ Scaffold preview — updates when type is selected -->
+  <div class="scaffold-preview" id="scaffoldPreview">
+    <div class="scaffold-preview-title">✨ What will be set up automatically for you</div>
+    <div class="scaffold-tags" id="scaffoldTags"></div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" id="step1Btn" onclick="goStep2()" disabled>
+      Continue → School Profile
+    </button>
+  </div>
+</div>
+
+
+<!-- ===================================================
+     STEP 2 — SCHOOL PROFILE
+=================================================== -->
+<div class="card" id="step2Card" style="display:none;">
+  <div class="card-header">
+    <div class="card-tag">Step 2 of 3</div>
+    <div class="card-title">Tell us about your school</div>
+    <div class="card-sub">Fill in your school's basic information. You can update this anytime from your dashboard.</div>
+  </div>
+
+  <div class="form-grid">
+
+    <div class="field form-full">
+      <label>School Name <span>*</span></label>
+      <input type="text" id="schoolName" class="inp" placeholder="e.g. Bright Future Secondary School" />
     </div>
 
-    <!-- ===== STEP 2: BRANDING ===== -->
-    <div class="card" id="step2Card" style="display:none;">
-      <div class="card-header">
-        <div class="card-tag">Step 2 of 3</div>
-        <div class="card-title">Brand your school</div>
-        <div class="card-sub">Add your logo and choose your school colors. This appears on all exam pages.</div>
-      </div>
-
-      <!-- Live Preview -->
-      <div class="school-preview" id="schoolPreview" style="background: linear-gradient(135deg,#6c63ff22,#43e97b11); border:1px solid rgba(108,99,255,0.2);">
-        <div class="preview-logo" id="previewLogoWrap">🏫</div>
-        <div>
-          <div class="preview-name"  id="previewName">Your School Name</div>
-          <div class="preview-sub"   id="previewSub">Secondary School · Nigeria</div>
-        </div>
-      </div>
-
-      <div class="form-grid">
-
-        <!-- Logo Upload -->
-        <div class="field form-full">
-          <label>School Logo</label>
-          <div class="logo-upload-area" onclick="document.getElementById('logoFileInput').click()">
-            <div style="font-size:32px; margin-bottom:8px;">📁</div>
-            <div style="font-size:13px; font-weight:700; color:var(--secondary);">Upload School Logo</div>
-            <div style="font-size:11px; color:var(--muted); margin-top:4px;">PNG, JPG, SVG · Max 2MB · Recommended 400×400px</div>
-            <input type="file" id="logoFileInput" accept="image/png,image/jpeg,image/svg+xml,image/webp"
-              style="display:none;" onchange="handleLogoUpload(this)" />
-          </div>
-          <div style="text-align:center; color:var(--muted); font-size:12px; margin:8px 0;">— or paste logo URL —</div>
-          <input type="url" id="logoUrl" class="inp" placeholder="https://yourschool.edu.ng/logo.png"
-            oninput="onLogoUrlChange()" />
-          <div id="logoPreviewWrap" class="logo-preview" style="display:none;">
-            <img id="logoPreviewImg" src="" alt="Logo Preview" />
-          </div>
-        </div>
-
-        <!-- Primary color -->
-        <div class="field">
-          <label>Primary Color</label>
-          <div class="color-row">
-            <input type="color" id="primaryColorPicker" class="color-input" value="#6c63ff"
-              oninput="syncColor('primary', this.value)" />
-            <input type="text" id="primaryColorHex" class="inp color-hex" value="#6c63ff"
-              placeholder="#6c63ff" oninput="syncColorFromHex('primary', this.value)" maxlength="7" />
-          </div>
-          <div class="field-hint">Main color for headers and buttons</div>
-        </div>
-
-        <!-- Secondary color -->
-        <div class="field">
-          <label>Secondary Color</label>
-          <div class="color-row">
-            <input type="color" id="secondaryColorPicker" class="color-input" value="#43e97b"
-              oninput="syncColor('secondary', this.value)" />
-            <input type="text" id="secondaryColorHex" class="inp color-hex" value="#43e97b"
-              placeholder="#43e97b" oninput="syncColorFromHex('secondary', this.value)" maxlength="7" />
-          </div>
-          <div class="field-hint">Accent color for highlights</div>
-        </div>
-
-      </div>
-
-      <div class="btn-row">
-        <button class="btn btn-secondary" onclick="goStep1()">← Back</button>
-        <button class="btn btn-primary" onclick="goStep3()">
-          Continue → Subscription
-        </button>
-      </div>
+    <div class="field form-full">
+      <label>Principal / Admin Name <span>*</span></label>
+      <input type="text" id="principalName" class="inp" placeholder="e.g. Mr. Adewale Johnson" />
     </div>
 
-    <!-- ===== STEP 3: SUBSCRIPTION ===== -->
-    <div class="card" id="step3Card" style="display:none;">
-      <div class="card-header">
-        <div class="card-tag">Step 3 of 3</div>
-        <div class="card-title">Choose your plan</div>
-        <div class="card-sub">Start with a free 7-day trial — no payment required. Upgrade anytime from your dashboard.</div>
-      </div>
-
-      <div class="trial-notice">
-        <span class="trial-notice-icon">🎁</span>
-        <div>
-          <strong>Free Trial Included!</strong><br/>
-          Your school gets a full-featured 7-day free trial automatically when you complete setup.
-          No credit card required to start.
-        </div>
-      </div>
-
-      <div class="plans-grid" id="plansGrid">
-        <div style="color:var(--muted); text-align:center; padding:24px; font-size:14px;">Loading plans...</div>
-      </div>
-
-      <div style="margin-top:20px; padding:16px; background:rgba(255,255,255,0.03); border-radius:10px; font-size:13px; color:var(--secondary); line-height:1.7;">
-        <strong style="color:#fff;">After your trial:</strong> You can subscribe directly from your dashboard. Powered by Paystack — secure, instant activation.
-      </div>
-
-      <div class="btn-row">
-        <button class="btn btn-secondary" onclick="goStep2()">← Back</button>
-        <button class="btn btn-primary" id="completeBtn" onclick="completeSetup()">
-          🚀 Complete Setup &amp; Start Trial
-        </button>
-      </div>
+    <div class="field">
+      <label>Phone Number <span>*</span></label>
+      <input type="tel" id="schoolPhone" class="inp" placeholder="08012345678" inputmode="tel" />
     </div>
 
-    <!-- ===== STEP 4: DONE ===== -->
-    <div class="card" id="step4Card" style="display:none;">
-      <div class="completion-wrap">
-        <div class="completion-icon">🎉</div>
-        <div class="completion-title">Your school is ready!</div>
-        <div class="completion-sub" id="completionSub">
-          Welcome! Your 7-day free trial has started. Explore your dashboard, invite teachers, and create your first exam.
-        </div>
+    <div class="field">
+      <label>School Email</label>
+      <input type="email" id="schoolEmail" class="inp" placeholder="info@school.edu.ng" />
+      <div class="field-hint">Leave blank to use your registration email</div>
+    </div>
 
-        <div class="summary-grid" id="summaryGrid">
-          <!-- Filled by JS -->
-        </div>
+    <div class="field form-full">
+      <label>School Address <span>*</span></label>
+      <input type="text" id="schoolAddress" class="inp" placeholder="123 School Road, Victoria Island" />
+    </div>
 
-        <button class="btn btn-primary" style="width:100%; justify-content:center; font-size:16px; padding:16px;"
-          onclick="window.location.href='/institution/school/dashboard.html'">
-          Go to Dashboard →
-        </button>
-      </div>
+    <div class="field">
+      <label>State <span>*</span></label>
+      <select id="schoolState" class="sel">
+        <option value="">-- Select State --</option>
+        <option>Abia</option><option>Adamawa</option><option>Akwa Ibom</option>
+        <option>Anambra</option><option>Bauchi</option><option>Bayelsa</option>
+        <option>Benue</option><option>Borno</option><option>Cross River</option>
+        <option>Delta</option><option>Ebonyi</option><option>Edo</option>
+        <option>Ekiti</option><option>Enugu</option><option>FCT - Abuja</option>
+        <option>Gombe</option><option>Imo</option><option>Jigawa</option>
+        <option>Kaduna</option><option>Kano</option><option>Katsina</option>
+        <option>Kebbi</option><option>Kogi</option><option>Kwara</option>
+        <option>Lagos</option><option>Nasarawa</option><option>Niger</option>
+        <option>Ogun</option><option>Ondo</option><option>Osun</option>
+        <option>Oyo</option><option>Plateau</option><option>Rivers</option>
+        <option>Sokoto</option><option>Taraba</option><option>Yobe</option>
+        <option>Zamfara</option>
+        <option>Outside Nigeria</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Total Students</label>
+      <input type="number" id="totalStudents" class="inp" placeholder="e.g. 500" min="1" />
+    </div>
+
+    <div class="field form-full">
+      <label>School Motto</label>
+      <input type="text" id="schoolMotto" class="inp" placeholder="e.g. Knowledge is Power" />
+    </div>
+
+    <div class="field form-full">
+      <label>Website (optional)</label>
+      <input type="url" id="schoolWebsite" class="inp" placeholder="https://www.yourschool.edu.ng" />
     </div>
 
   </div>
+
+  <div class="btn-row">
+    <button class="btn btn-secondary" onclick="goStep1()">← Back</button>
+    <button class="btn btn-primary"   onclick="goStep3()">Continue → Branding</button>
+  </div>
 </div>
+
+
+<!-- ===================================================
+     STEP 3 — BRANDING
+=================================================== -->
+<div class="card" id="step3Card" style="display:none;">
+  <div class="card-header">
+    <div class="card-tag">Step 3 of 3</div>
+    <div class="card-title">Brand your school</div>
+    <div class="card-sub">Add your logo and choose your colors. This appears on all exam pages and student portals.</div>
+  </div>
+
+  <!-- Live Preview -->
+  <div class="school-preview" id="schoolPreview" style="background:linear-gradient(135deg,rgba(108,99,255,0.13),rgba(67,233,123,0.07)); border:1px solid rgba(108,99,255,0.2);">
+    <div class="preview-logo" id="previewLogoWrap">🏫</div>
+    <div>
+      <div class="preview-name" id="previewName">Your School Name</div>
+      <div class="preview-sub"  id="previewSub" style="color:var(--secondary);">Secondary School</div>
+    </div>
+  </div>
+
+  <div class="form-grid">
+
+    <!-- Logo Upload -->
+    <div class="field form-full">
+      <label>School Logo</label>
+      <div class="logo-upload-area" onclick="document.getElementById('logoFileInput').click()">
+        <div style="font-size:32px; margin-bottom:8px;">📁</div>
+        <div style="font-size:13px; font-weight:700; color:var(--secondary);">Upload School Logo</div>
+        <div style="font-size:11px; color:var(--muted); margin-top:4px;">PNG, JPG, SVG · Max 2MB · Recommended 400×400px</div>
+        <input type="file" id="logoFileInput" accept="image/png,image/jpeg,image/svg+xml,image/webp"
+          style="display:none;" onchange="handleLogoUpload(this)" />
+      </div>
+      <div style="text-align:center; color:var(--muted); font-size:12px; margin:8px 0;">— or paste logo URL —</div>
+      <input type="url" id="logoUrl" class="inp" placeholder="https://yourschool.edu.ng/logo.png"
+        oninput="onLogoUrlChange()" />
+      <div id="logoPreviewWrap" style="display:none; margin-top:10px; text-align:center;">
+        <img id="logoPreviewImg" src="" alt="Logo Preview" style="max-width:120px; max-height:80px; border-radius:8px; object-fit:contain;" />
+      </div>
+    </div>
+
+    <!-- Primary color -->
+    <div class="field">
+      <label>Primary Color</label>
+      <div class="color-row">
+        <input type="color" id="primaryColorPicker" class="color-input" value="#6c63ff"
+          oninput="syncColor('primary', this.value)" />
+        <input type="text"  id="primaryColorHex" class="inp color-hex" value="#6c63ff"
+          placeholder="#6c63ff" oninput="syncColorFromHex('primary', this.value)" maxlength="7" />
+      </div>
+      <div class="field-hint">Used for headers, buttons, and highlights</div>
+    </div>
+
+    <!-- Secondary color -->
+    <div class="field">
+      <label>Secondary Color</label>
+      <div class="color-row">
+        <input type="color" id="secondaryColorPicker" class="color-input" value="#43e97b"
+          oninput="syncColor('secondary', this.value)" />
+        <input type="text"  id="secondaryColorHex" class="inp color-hex" value="#43e97b"
+          placeholder="#43e97b" oninput="syncColorFromHex('secondary', this.value)" maxlength="7" />
+      </div>
+      <div class="field-hint">Accent color for badges and success states</div>
+    </div>
+
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-secondary" onclick="goStep2BackFromBranding()">← Back</button>
+    <button class="btn btn-primary" id="completeBtn" onclick="completeSetup()">
+      🚀 Complete Setup &amp; Start Trial
+    </button>
+  </div>
+</div>
+
+
+<!-- ===================================================
+     STEP 4 — DONE
+=================================================== -->
+<div class="card" id="step4Card" style="display:none;">
+  <div class="completion-wrap">
+    <div class="completion-icon" id="completionIcon">⏳</div>
+    <div class="completion-title" id="completionTitle">Setting up your school...</div>
+    <div class="completion-sub"   id="completionSub">We're creating your classes, subjects and structure. This takes just a moment.</div>
+
+    <!-- ✅ Structure scaffolding progress indicator -->
+    <div class="scaffold-progress" id="scaffoldProgressBox" style="text-align:left;">
+      <div class="scaffold-progress-title">🏗️ Auto-Setup Progress</div>
+      <div class="scaffold-steps-list">
+        <div class="scaffold-step-row active" id="sstep1">
+          <span class="s-icon"></span>
+          <span>Creating school profile &amp; starting trial</span>
+        </div>
+        <div class="scaffold-step-row pending" id="sstep2">
+          <span class="s-icon"></span>
+          <span id="sstep2Label">Generating classes &amp; structure</span>
+        </div>
+        <div class="scaffold-step-row pending" id="sstep3">
+          <span class="s-icon"></span>
+          <span>Finalising setup</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary (shown after completion) -->
+    <div id="summaryWrap" style="display:none;">
+      <div class="summary-grid" id="summaryGrid"></div>
+      <button class="btn btn-primary" style="width:100%; justify-content:center; font-size:16px; padding:16px;"
+        onclick="window.location.replace('/institution/school/dashboard.html')">
+        Go to Dashboard →
+      </button>
+    </div>
+  </div>
+</div>
+
+</div>
+</div><!-- end main -->
 
 <script src="/institution/js/inst.api.js"></script>
 <script>
 /* ============================================
-   ONBOARDING LOGIC
+   LATLOMP INSTITUTION — ONBOARDING
+   ✅ PHASE C: Type selection as Step 1,
+   auto-scaffolding via /structure/generate
 ============================================ */
 
-var _currentStep  = 1;
-var _schoolType   = 'secondary';
-var _selectedPlan = 'trial';
-var _logoUrl      = '';
-var _primaryColor = '#6c63ff';
+var _currentStep    = 1;
+var _schoolType     = null;        /* null until user picks */
+var _logoUrl        = '';
+var _primaryColor   = '#6c63ff';
 var _secondaryColor = '#43e97b';
-var _plans = [];
 
+/* ✅ Scaffold preview data per type — shown on Step 1 */
+var _scaffoldPreviews = {
+  primary: {
+    classes:  ['Nursery 1','Nursery 2','Primary 1','Primary 2','Primary 3','Primary 4','Primary 5','Primary 6'],
+    subjects: ['English Language','Mathematics','Basic Science','Social Studies','Civic Education'],
+    terms:    ['First Term','Second Term','Third Term']
+  },
+  secondary: {
+    classes:  ['JSS 1','JSS 2','JSS 3','SS 1','SS 2','SS 3'],
+    subjects: ['English Language','Mathematics','Physics','Chemistry','Biology','Economics','Government','Literature'],
+    terms:    ['First Term','Second Term','Third Term']
+  },
+  combined: {
+    classes:  ['Primary 1–6','JSS 1–3','SS 1–3'],
+    subjects: ['English Language','Mathematics','Basic Science','Physics','Chemistry','Biology'],
+    terms:    ['First Term','Second Term','Third Term']
+  },
+  polytechnic: {
+    classes:  ['ND Year 1','ND Year 2','HND Year 1','HND Year 2'],
+    subjects: ['General Studies','Technical Drawing','Computer Science','Engineering Maths'],
+    terms:    ['First Semester','Second Semester']
+  },
+  university: {
+    classes:  ['100 Level','200 Level','300 Level','400 Level','500 Level'],
+    subjects: ['General Studies','Core Courses','Electives'],
+    terms:    ['First Semester','Second Semester']
+  },
+  college_of_education: {
+    classes:  ['Year 1','Year 2','Year 3'],
+    subjects: ['Education Theory','Subject Methods','Teaching Practice'],
+    terms:    ['First Semester','Second Semester']
+  },
+  madrasah: {
+    classes:  ['Level 1','Level 2','Level 3','Level 4','Level 5','Level 6'],
+    subjects: ['Quran','Arabic Language','Islamic Studies','Fiqh','Hadith','Tafseer'],
+    terms:    ['First Term','Second Term','Third Term']
+  },
+  training_centre: {
+    classes:  ['Beginner','Intermediate','Advanced','Professional'],
+    subjects: ['Core Skills','Technical Training','Assessment'],
+    terms:    ['Quarter 1','Quarter 2','Quarter 3','Quarter 4']
+  },
+  vocational: {
+    classes:  ['Year 1','Year 2','Year 3'],
+    subjects: ['Technical Skills','Workshop Practice','Safety Studies','Theory'],
+    terms:    ['First Term','Second Term','Third Term']
+  },
+  other: {
+    classes:  ['Level 1','Level 2','Level 3'],
+    subjects: ['Core Subjects','Electives'],
+    terms:    ['Term 1','Term 2','Term 3']
+  }
+};
+
+/* ✅ Type → human label */
+var _typeLabels = {
+  primary:            'Primary School',
+  secondary:          'Secondary School',
+  combined:           'Combined School',
+  polytechnic:        'Polytechnic',
+  university:         'University',
+  college_of_education:'College of Education',
+  madrasah:           'Madrasah / Islamic School',
+  training_centre:    'Training Centre',
+  vocational:         'Vocational School',
+  other:              'Other'
+};
+
+/* ============================================ INIT */
 document.addEventListener('DOMContentLoaded', function() {
   if (!instRequireAuth()) return;
 
   var user = instGetUser();
   if (!user) return;
 
-  /* Fill user info */
   var avatarEl = document.getElementById('userAvatar');
   var nameEl   = document.getElementById('userName');
   if (avatarEl) avatarEl.textContent = (user.name || 'A').charAt(0).toUpperCase();
   if (nameEl)   nameEl.textContent   = user.name || '';
-
-  /* Pre-fill name from Google */
-  var nameInput = document.getElementById('principalName');
-  if (nameInput && user.name) nameInput.value = user.name;
-
-  updatePreview();
-  loadPlans();
 });
 
-/* ---- Step progress indicator ---- */
+/* ============================================ PROGRESS */
 function updateProgress(step) {
   _currentStep = step;
   for (var i = 1; i <= 4; i++) {
     var circle = document.getElementById('sc' + i);
     var label  = document.getElementById('sl' + i);
+    if (!circle) continue;
     if (i < step) {
-      circle.className = 'step-circle done';
-      circle.textContent = '✓';
-      if (label) { label.className = 'step-label done'; }
+      circle.className    = 'step-circle done';
+      circle.textContent  = '✓';
+      if (label) label.className = 'step-label done';
     } else if (i === step) {
-      circle.className = 'step-circle active';
-      circle.textContent = i;
-      if (label) { label.className = 'step-label active'; }
+      circle.className    = 'step-circle active';
+      circle.textContent  = i;
+      if (label) label.className = 'step-label active';
     } else {
-      circle.className = 'step-circle';
-      circle.textContent = i;
-      if (label) { label.className = 'step-label'; }
+      circle.className    = 'step-circle';
+      circle.textContent  = i;
+      if (label) label.className = 'step-label';
     }
     if (i < 4) {
-      var line = document.getElementById('line' + i + (i+1));
+      var line = document.getElementById('line' + i + (i + 1));
       if (line) line.className = 'step-line' + (i < step ? ' done' : '');
     }
   }
@@ -610,75 +613,143 @@ function updateProgress(step) {
 }
 
 function showCard(n) {
-  [1,2,3,4].forEach(function(i) {
-    var c = document.getElementById('step' + i + 'Card');
-    if (c) c.style.display = i === n ? 'block' : 'none';
+  [1, 2, 3, 4].forEach(function(i) {
+    var el = document.getElementById('step' + i + 'Card');
+    if (el) el.style.display = i === n ? 'block' : 'none';
   });
 }
 
-/* ---- School type selection ---- */
-function setSchoolType(type, el) {
+/* ============================================ STEP 1 — TYPE SELECTION */
+function selectType(type, el) {
   _schoolType = type;
-  document.querySelectorAll('.type-btn').forEach(function(b) { b.classList.remove('active'); });
+
+  /* Update card active states */
+  document.querySelectorAll('.type-card').forEach(function(b) { b.classList.remove('active'); });
   if (el) el.classList.add('active');
-  updatePreview();
+
+  /* Show scaffold preview */
+  var preview = _scaffoldPreviews[type];
+  var box     = document.getElementById('scaffoldPreview');
+  var tagsEl  = document.getElementById('scaffoldTags');
+
+  if (box && tagsEl && preview) {
+    tagsEl.innerHTML =
+      preview.classes.slice(0, 6).map(function(c) {
+        return '<span class="scaffold-tag classes">📗 ' + c + '</span>';
+      }).join('') +
+      preview.subjects.slice(0, 5).map(function(s) {
+        return '<span class="scaffold-tag subjects">📘 ' + s + '</span>';
+      }).join('') +
+      (preview.subjects.length > 5 ? '<span class="scaffold-tag subjects">+' + (preview.subjects.length - 5) + ' more</span>' : '') +
+      preview.terms.map(function(t) {
+        return '<span class="scaffold-tag terms">📅 ' + t + '</span>';
+      }).join('');
+    box.classList.add('visible');
+  }
+
+  /* Enable continue button */
+  var btn = document.getElementById('step1Btn');
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = 'Continue → School Profile';
+  }
 }
 
-/* ---- Live preview update ---- */
-function updatePreview() {
-  var name  = (document.getElementById('schoolName') || {}).value || 'Your School Name';
-  var state = (document.getElementById('schoolState') || {}).value || 'Nigeria';
-  var type  = _schoolType.charAt(0).toUpperCase() + _schoolType.slice(1);
+/* ============================================ STEP NAVIGATION */
+function goStep2() {
+  if (!_schoolType) { instToast('Please select your school type first.', 'error'); return; }
+  showCard(2);
+  updateProgress(2);
+  /* Pre-fill principal name from user account */
+  var user = instGetUser();
+  var pEl  = document.getElementById('principalName');
+  if (pEl && !pEl.value && user && user.name) pEl.value = user.name;
+}
 
-  var nameEl = document.getElementById('previewName');
-  var subEl  = document.getElementById('previewSub');
-  var wrap   = document.getElementById('schoolPreview');
+function goStep1() {
+  showCard(1);
+  updateProgress(1);
+}
+
+function goStep3() {
+  if (!validateStep2()) return;
+  showCard(3);
+  updateProgress(3);
+  updateBrandingPreview();
+}
+
+function goStep2BackFromBranding() {
+  showCard(2);
+  updateProgress(2);
+}
+
+/* ============================================ STEP 2 VALIDATION */
+function validateStep2() {
+  var name      = (document.getElementById('schoolName')    || {}).value.trim();
+  var principal = (document.getElementById('principalName') || {}).value.trim();
+  var phone     = (document.getElementById('schoolPhone')   || {}).value.trim();
+  var address   = (document.getElementById('schoolAddress') || {}).value.trim();
+  var state     = (document.getElementById('schoolState')   || {}).value.trim();
+
+  if (!name)      { instToast('Please enter your school name.',       'error'); return false; }
+  if (!principal) { instToast("Please enter the principal's name.",   'error'); return false; }
+  if (!phone)     { instToast('Please enter a contact phone number.', 'error'); return false; }
+  if (!address)   { instToast('Please enter the school address.',     'error'); return false; }
+  if (!state)     { instToast('Please select your state.',            'error'); return false; }
+  return true;
+}
+
+/* ============================================ BRANDING */
+function updateBrandingPreview() {
+  var name    = (document.getElementById('schoolName')  || {}).value.trim() || 'Your School Name';
+  var typeLabel = _typeLabels[_schoolType] || 'School';
+
+  var nameEl   = document.getElementById('previewName');
+  var subEl    = document.getElementById('previewSub');
+  var wrap     = document.getElementById('schoolPreview');
   var logoWrap = document.getElementById('previewLogoWrap');
 
   if (nameEl) nameEl.textContent = name;
-  if (subEl)  subEl.textContent  = type + ' School · ' + (state || 'Nigeria');
+  if (subEl)  subEl.textContent  = typeLabel;
 
   if (wrap) {
     wrap.style.background = 'linear-gradient(135deg,' + _primaryColor + '22,' + _secondaryColor + '11)';
-    wrap.style.border      = '1px solid ' + _primaryColor + '33';
+    wrap.style.border     = '1px solid ' + _primaryColor + '44';
   }
 
   if (logoWrap) {
     if (_logoUrl) {
-      logoWrap.innerHTML = '<img src="' + _logoUrl + '" alt="Logo" style="width:56px; height:56px; border-radius:10px; object-fit:cover;" />';
+      logoWrap.innerHTML = '<img src="' + _logoUrl + '" alt="Logo" style="width:56px;height:56px;border-radius:10px;object-fit:cover;" />';
     } else {
-      var icons = { secondary:'🏫', primary:'📚', tertiary:'🎓', vocational:'🔧', other:'🏛️' };
-      logoWrap.textContent = icons[_schoolType] || '🏫';
+      var icons = { primary:'📚', secondary:'🏫', combined:'🏫', polytechnic:'🎓', university:'🎓', college_of_education:'🏛️', madrasah:'🕌', training_centre:'🏢', vocational:'🔧', other:'📖' };
+      logoWrap.textContent   = icons[_schoolType] || '🏫';
       logoWrap.style.background = _primaryColor + '33';
     }
   }
 }
 
-/* ---- Color sync ---- */
 function syncColor(which, val) {
-  if (which === 'primary')   { _primaryColor   = val; document.getElementById('primaryColorHex').value   = val; }
-  if (which === 'secondary') { _secondaryColor  = val; document.getElementById('secondaryColorHex').value  = val; }
-  updatePreview();
+  if (which === 'primary')   { _primaryColor   = val; var el = document.getElementById('primaryColorHex');   if (el) el.value = val; }
+  if (which === 'secondary') { _secondaryColor = val; var el = document.getElementById('secondaryColorHex'); if (el) el.value = val; }
+  updateBrandingPreview();
 }
 
 function syncColorFromHex(which, val) {
   if (!/^#[0-9a-fA-F]{6}$/.test(val)) return;
-  if (which === 'primary')   { _primaryColor   = val; document.getElementById('primaryColorPicker').value   = val; }
-  if (which === 'secondary') { _secondaryColor  = val; document.getElementById('secondaryColorPicker').value = val; }
-  updatePreview();
+  if (which === 'primary')   { _primaryColor   = val; var el = document.getElementById('primaryColorPicker');   if (el) el.value = val; }
+  if (which === 'secondary') { _secondaryColor = val; var el = document.getElementById('secondaryColorPicker'); if (el) el.value = val; }
+  updateBrandingPreview();
 }
 
-/* ---- Logo ---- */
 function handleLogoUpload(input) {
   var file = input.files && input.files[0];
   if (!file) return;
   if (file.size > 2 * 1024 * 1024) { instToast('Logo must be under 2MB.', 'error'); return; }
-
   var reader = new FileReader();
   reader.onload = function(e) {
     _logoUrl = e.target.result;
     showLogoPreview(_logoUrl);
-    updatePreview();
+    updateBrandingPreview();
   };
   reader.readAsDataURL(file);
 }
@@ -688,107 +759,33 @@ function onLogoUrlChange() {
   if (val.startsWith('http')) {
     _logoUrl = val;
     showLogoPreview(val);
-    updatePreview();
+    updateBrandingPreview();
   }
 }
 
 function showLogoPreview(src) {
   var wrap = document.getElementById('logoPreviewWrap');
   var img  = document.getElementById('logoPreviewImg');
-  if (wrap) wrap.style.display = 'flex';
+  if (wrap) wrap.style.display = 'block';
   if (img)  img.src = src;
 }
 
-/* ---- Load subscription plans ---- */
-async function loadPlans() {
-  var res = await instApi('/school/plans');
-  var grid = document.getElementById('plansGrid');
-
-  if (!res.ok || !res.data.plans) {
-    if (grid) grid.innerHTML = '<div style="color:var(--muted); text-align:center; padding:24px;">Could not load plans.</div>';
-    return;
-  }
-
-  _plans = res.data.plans;
-
-  if (!grid) return;
-
-  grid.innerHTML = _plans.map(function(plan, idx) {
-    var isFirst    = idx === 0;
-    var isTrial    = plan.code === 'trial';
-    var isSelected = isTrial;
-
-    return '<div class="plan-row' + (isSelected ? ' selected' : '') + '" id="planRow_' + plan.code + '" ' +
-      'onclick="selectPlan(\'' + plan.code + '\')">' +
-      '<div class="plan-radio" id="planRadio_' + plan.code + '"></div>' +
-      '<div class="plan-info">' +
-        '<div style="display:flex; align-items:center; gap:8px;">' +
-          '<span class="plan-name">' + plan.name + '</span>' +
-          (isTrial ? '<span class="plan-badge">Start here</span>' : '') +
-          (plan.isPopular ? '<span class="plan-badge" style="background:#43e97b; color:#0f0f1a;">Popular</span>' : '') +
-        '</div>' +
-        '<div class="plan-features-list">' + (plan.features || []).join(' · ') + '</div>' +
-      '</div>' +
-      '<div class="plan-price-box">' +
-        '<div class="plan-price-val">' + (plan.price === 0 ? 'FREE' : '₦' + plan.price.toLocaleString()) + '</div>' +
-        '<div class="plan-price-period">' + plan.durationDays + ' days</div>' +
-      '</div>' +
-    '</div>';
-  }).join('');
+/* ============================================ STEP 4 SCAFFOLD PROGRESS HELPERS */
+function setScaffoldStep(step, status) {
+  /* status: 'active' | 'done' | 'pending' */
+  var row = document.getElementById('sstep' + step);
+  if (row) row.className = 'scaffold-step-row ' + status;
 }
 
-function selectPlan(code) {
-  _selectedPlan = code;
-  document.querySelectorAll('.plan-row').forEach(function(r) { r.classList.remove('selected'); });
-  var row = document.getElementById('planRow_' + code);
-  if (row) row.classList.add('selected');
-}
-
-/* ---- Validation helpers ---- */
-function validateStep1() {
-  var name      = (document.getElementById('schoolName')     || {}).value.trim();
-  var principal = (document.getElementById('principalName')  || {}).value.trim();
-  var phone     = (document.getElementById('schoolPhone')    || {}).value.trim();
-  var address   = (document.getElementById('schoolAddress')  || {}).value.trim();
-  var state     = (document.getElementById('schoolState')    || {}).value.trim();
-
-  if (!name)      { instToast('Please enter your school name.',         'error'); return false; }
-  if (!principal) { instToast('Please enter the principal\'s name.',    'error'); return false; }
-  if (!phone)     { instToast('Please enter a contact phone number.',   'error'); return false; }
-  if (!address)   { instToast('Please enter the school address.',       'error'); return false; }
-  if (!state)     { instToast('Please select your state.',              'error'); return false; }
-  return true;
-}
-
-/* ---- Step navigation ---- */
-function goStep2() {
-  if (!validateStep1()) return;
-  showCard(2);
-  updateProgress(2);
-  updatePreview();
-}
-
-function goStep1() {
-  showCard(1);
-  updateProgress(1);
-}
-
-function goStep3() {
-  showCard(3);
-  updateProgress(3);
-}
-
-function goStep2FromStep3() {
-  showCard(2);
-  updateProgress(2);
-}
-
-/* ---- Complete setup ---- */
+/* ============================================ COMPLETE SETUP */
 async function completeSetup() {
   var btn = document.getElementById('completeBtn');
   if (btn) { btn.innerHTML = '<span class="spinner"></span> Setting up...'; btn.disabled = true; }
 
-  /* Collect all data */
+  /* Show step 4 immediately with loading state */
+  showCard(4);
+  updateProgress(4);
+
   var payload = {
     name:           (document.getElementById('schoolName')      || {}).value.trim(),
     principalName:  (document.getElementById('principalName')   || {}).value.trim(),
@@ -804,41 +801,93 @@ async function completeSetup() {
     secondaryColor: _secondaryColor
   };
 
-  var res = await instApi('/school/onboarding', 'POST', payload);
+  /* ---- PHASE 1: Create school + start trial ---- */
+  setScaffoldStep(1, 'active');
 
-  if (btn) { btn.innerHTML = '🚀 Complete Setup &amp; Start Trial'; btn.disabled = false; }
+  var onboardRes = await instApi('/school/onboarding', 'POST', payload);
 
-  if (res.ok) {
-    /* Save updated school to local context */
-    var user = instGetUser();
-    instSaveAuth(null, user);
-
-    showCard(4);
-    updateProgress(4);
-    buildSummary(payload, res.data.school);
-    instToast('Welcome to LatLomp Schools! 🎉', 'success');
-  } else {
-    instToast(res.data.message || 'Setup failed. Please try again.', 'error');
+  if (!onboardRes.ok) {
+    /* Go back to step 3 and show error */
+    showCard(3);
+    updateProgress(3);
+    if (btn) { btn.innerHTML = '🚀 Complete Setup &amp; Start Trial'; btn.disabled = false; }
+    instToast((onboardRes.data && onboardRes.data.message) || 'Setup failed. Please try again.', 'error');
+    return;
   }
+
+  setScaffoldStep(1, 'done');
+  var school = onboardRes.data.school || {};
+
+  /* ---- PHASE 2: Generate structure (classes, subjects, terms) ---- */
+  setScaffoldStep(2, 'active');
+
+  var sstep2Lbl = document.getElementById('sstep2Label');
+  var typeLabel = _typeLabels[_schoolType] || _schoolType;
+  if (sstep2Lbl) sstep2Lbl.textContent = 'Generating ' + typeLabel + ' structure...';
+
+  var structureRes = await instApi('/structure/generate', 'POST', { type: _schoolType });
+
+  if (structureRes.ok) {
+    setScaffoldStep(2, 'done');
+  } else {
+    /* Non-fatal — log warning but continue */
+    console.warn('[Onboarding] Structure generation failed:', structureRes.data && structureRes.data.message);
+    setScaffoldStep(2, 'done'); /* Show done anyway — can regenerate from dashboard */
+  }
+
+  /* ---- PHASE 3: Finalise ---- */
+  setScaffoldStep(3, 'active');
+
+  /* Small visual delay so user sees the progress */
+  await new Promise(function(resolve) { setTimeout(resolve, 600); });
+
+  setScaffoldStep(3, 'done');
+
+  /* ---- SHOW COMPLETION ---- */
+  var iconEl  = document.getElementById('completionIcon');
+  var titleEl = document.getElementById('completionTitle');
+  var subEl   = document.getElementById('completionSub');
+  var progBox = document.getElementById('scaffoldProgressBox');
+  var sumWrap = document.getElementById('summaryWrap');
+
+  if (iconEl)  iconEl.textContent  = '🎉';
+  if (titleEl) titleEl.textContent = 'Your school is ready!';
+  if (subEl)   subEl.textContent   = 'Welcome, ' + payload.principalName + '! Your 7-day free trial has started. Everything is set up and ready.';
+  if (progBox) progBox.style.display = 'none';
+  if (sumWrap) sumWrap.style.display = 'block';
+
+  buildSummary(payload, school, structureRes);
+  instToast('Welcome to LatLomp Schools! 🎉', 'success');
 }
 
-function buildSummary(payload, school) {
-  var sub = document.getElementById('completionSub');
-  if (sub) sub.textContent = 'Welcome, ' + payload.principalName + '! Your 7-day free trial has started. Everything is set up and ready.';
-
+function buildSummary(payload, school, structureRes) {
   var grid = document.getElementById('summaryGrid');
   if (!grid) return;
 
   var daysLeft = school && school.subscriptionExpiry
-    ? instDaysLeft(school.subscriptionExpiry)
+    ? Math.max(0, Math.ceil((new Date(school.subscriptionExpiry) - new Date()) / 86400000))
     : 7;
+
+  var preview     = _scaffoldPreviews[_schoolType] || {};
+  var classCount  = preview.classes  ? preview.classes.length  : '—';
+  var subjectCount= preview.subjects ? preview.subjects.length : '—';
+  var typeLabel   = _typeLabels[_schoolType] || _schoolType;
+
+  /* If structure API returned actual counts, prefer those */
+  if (structureRes && structureRes.ok && structureRes.data) {
+    var sd = structureRes.data;
+    if (sd.classesCreated !== undefined)   classCount   = sd.classesCreated;
+    if (sd.subjectsCreated !== undefined)  subjectCount = sd.subjectsCreated;
+  }
 
   var items = [
     { label: 'School Name',    value: payload.name },
+    { label: 'School Type',    value: typeLabel },
     { label: 'Principal',      value: payload.principalName },
     { label: 'State',          value: payload.state },
-    { label: 'Plan',           value: '7-Day Free Trial' },
-    { label: 'Trial Expires',  value: school && school.subscriptionExpiry ? instFmtDate(school.subscriptionExpiry) : '7 days from now' },
+    { label: 'Classes Created',value: classCount + ' classes' },
+    { label: 'Subjects Ready', value: subjectCount + ' subjects' },
+    { label: 'Plan',           value: '🎁 7-Day Free Trial' },
     { label: 'Days Remaining', value: daysLeft + ' days' }
   ];
 
