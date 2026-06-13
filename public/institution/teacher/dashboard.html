@@ -5,8 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Teacher Dashboard — LatLomp Institution</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
-
-  <!-- ✅ KaTeX for math equation preview -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" crossorigin="anonymous" />
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js" crossorigin="anonymous"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"
@@ -15,90 +13,69 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     :root {
-      --primary:   #6c63ff;
-      --pd:        #574fd6;
-      --green:     #43e97b;
-      --red:       #ff6584;
-      --orange:    #ffa500;
-      --yellow:    #ffd600;
-      --dark:      #0f0f1a;
-      --dark-2:    #1a1a2e;
-      --border:    rgba(255,255,255,0.08);
-      --text:      #fff;
-      --muted:     #6b6b8a;
-      --secondary: #a0a0c0;
+      --primary:#6c63ff; --pd:#574fd6; --green:#43e97b; --red:#ff6584;
+      --orange:#ffa500;  --yellow:#ffd600;
+      --dark:#0f0f1a;    --dark-2:#1a1a2e;
+      --border:rgba(255,255,255,0.08);
+      --text:#fff;       --muted:#6b6b8a; --secondary:#a0a0c0;
     }
-
     html, body { margin:0; padding:0; background:var(--dark); color:var(--text); font-family:'Inter',sans-serif; }
-
     @keyframes spin   { to { transform:rotate(360deg); } }
     @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
 
-    .sidebar {
-      width:250px; flex-shrink:0;
-      background:var(--dark-2); border-right:1px solid var(--border);
-      display:flex; flex-direction:column;
-      position:fixed; top:0; left:0; bottom:0; z-index:400;
-      overflow-y:auto; overflow-x:hidden;
-      transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
-    }
-    @media (max-width:960px) {
-      .sidebar { transform:translateX(-100%); }
-      .sidebar.open { transform:translateX(0); box-shadow:8px 0 48px rgba(0,0,0,0.6); }
-    }
-
+    /* ---- SIDEBAR ---- */
+    .sidebar { width:250px; flex-shrink:0; background:var(--dark-2); border-right:1px solid var(--border); display:flex; flex-direction:column; position:fixed; top:0; left:0; bottom:0; z-index:400; overflow-y:auto; overflow-x:hidden; transition:transform 0.3s cubic-bezier(0.4,0,0.2,1); }
+    @media (max-width:960px) { .sidebar { transform:translateX(-100%); } .sidebar.open { transform:translateX(0); box-shadow:8px 0 48px rgba(0,0,0,0.6); } }
     .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:399; }
     .sidebar-overlay.visible { display:block; }
-
     .sb-profile { padding:18px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; flex-shrink:0; }
     .sb-avatar { width:44px; height:44px; border-radius:10px; flex-shrink:0; background:linear-gradient(135deg,var(--primary),var(--pd)); display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:900; color:#fff; overflow:hidden; }
-    .sb-avatar img { width:100%; height:100%; object-fit:cover; }
     .sb-name  { font-size:14px; font-weight:700; color:#fff; }
     .sb-role  { font-size:11px; color:var(--green); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
     .sb-school-tag { font-size:11px; color:var(--muted); margin-top:2px; }
-
     .sb-nav { flex:1; padding:10px; }
     .sb-sep { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.6px; padding:14px 10px 6px; }
-
     .nav-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; font-size:14px; font-weight:500; color:var(--secondary); cursor:pointer; transition:all 0.15s; margin-bottom:2px; width:100%; border:none; background:none; font-family:inherit; text-align:left; text-decoration:none; line-height:1.4; }
     .nav-item:hover { background:rgba(255,255,255,0.06); color:#fff; }
     .nav-item.active { background:rgba(108,99,255,0.15); color:var(--primary); font-weight:700; }
     .nav-icon { font-size:16px; width:22px; text-align:center; flex-shrink:0; }
-
     .sb-footer { padding:10px; border-top:1px solid var(--border); flex-shrink:0; }
 
+    /* ---- MOBILE BAR ---- */
     .mobile-bar { display:none; align-items:center; justify-content:space-between; padding:0 16px; height:60px; background:var(--dark-2); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:300; flex-shrink:0; }
     @media (max-width:960px) { .mobile-bar { display:flex !important; } }
     .ham-btn { background:none; border:none; color:#fff; font-size:22px; cursor:pointer; padding:8px; border-radius:8px; }
 
+    /* ---- MAIN ---- */
     .main { margin-left:250px; flex:1; display:flex; flex-direction:column; min-height:100vh; }
     @media (max-width:960px) { .main { margin-left:0 !important; } }
-
     .page-content { padding:24px 28px; flex:1; }
     @media (max-width:960px) { .page-content { padding:20px 16px; } }
     @media (max-width:600px) { .page-content { padding:14px 12px; } }
-
     .section { display:none; animation:fadeUp 0.3s ease; }
     .section.active { display:block; }
 
+    /* ---- PAGE HEADER ---- */
     .page-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:24px; gap:12px; flex-wrap:wrap; }
     .page-header h1 { font-size:22px; font-weight:800; color:#fff; margin:0 0 4px; }
     .page-header p  { font-size:13px; color:var(--muted); margin:0; }
 
+    /* ---- STATS ---- */
     .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
     @media (max-width:900px) { .stats-grid { grid-template-columns:1fr 1fr; } }
     @media (max-width:480px) { .stats-grid { grid-template-columns:1fr; gap:10px; } }
-
     .stat-card { background:var(--dark-2); border:1px solid var(--border); border-radius:14px; padding:18px; display:flex; align-items:center; gap:14px; }
     .stat-icon { width:42px; height:42px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
     .stat-val  { font-size:26px; font-weight:900; color:#fff; line-height:1; }
     .stat-lbl  { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-top:3px; }
 
+    /* ---- CARD ---- */
     .card { background:var(--dark-2); border:1px solid var(--border); border-radius:16px; overflow:hidden; margin-bottom:20px; }
     .card-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:10px; }
     .card-head h3 { font-size:15px; font-weight:700; color:#fff; margin:0; }
     .card-body { padding:20px; }
 
+    /* ---- TABLE ---- */
     .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
     table { width:100%; border-collapse:collapse; min-width:480px; }
     th { padding:11px 14px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); background:rgba(255,255,255,0.02); border-bottom:1px solid var(--border); white-space:nowrap; }
@@ -106,18 +83,27 @@
     tr:last-child td { border-bottom:none; }
     tr:hover td { background:rgba(255,255,255,0.02); }
 
+    /* ✅ PHASE G: Question table display */
+    .q-table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+    .q-table th { background:rgba(108,99,255,0.15); color:#a78bfa; font-weight:700; padding:9px 12px; border:1px solid rgba(108,99,255,0.3); text-align:left; }
+    .q-table td { padding:8px 12px; border:1px solid rgba(255,255,255,0.1); color:#fff; vertical-align:top; }
+    .q-table tr:nth-child(even) td { background:rgba(255,255,255,0.03); }
+
+    /* ---- BUTTONS ---- */
     .btn { display:inline-flex; align-items:center; gap:7px; padding:9px 16px; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; border:none; transition:all 0.2s; text-decoration:none; white-space:nowrap; }
-    .btn-primary  { background:linear-gradient(135deg,var(--primary),var(--pd)); color:#fff; }
+    .btn-primary   { background:linear-gradient(135deg,var(--primary),var(--pd)); color:#fff; }
     .btn-primary:hover  { transform:translateY(-1px); box-shadow:0 4px 16px rgba(108,99,255,0.4); }
-    .btn-green    { background:linear-gradient(135deg,var(--green),#38f9d7); color:#0f0f1a; }
+    .btn-green     { background:linear-gradient(135deg,var(--green),#38f9d7); color:#0f0f1a; }
     .btn-green:hover    { transform:translateY(-1px); box-shadow:0 4px 16px rgba(67,233,123,0.35); }
     .btn-secondary { background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--secondary); }
     .btn-secondary:hover { color:#fff; background:rgba(255,255,255,0.1); }
-    .btn-danger   { background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); }
+    .btn-danger    { background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); }
     .btn-danger:hover { background:rgba(255,101,132,0.2); }
+    .btn-orange    { background:rgba(255,165,0,0.1); border:1px solid rgba(255,165,0,0.3); color:var(--orange); }
     .btn-sm { padding:6px 12px; font-size:12px; border-radius:7px; }
     .btn:disabled { opacity:0.5; cursor:not-allowed; transform:none !important; }
 
+    /* ---- BADGES ---- */
     .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
     .badge-green  { background:rgba(67,233,123,0.12);  color:var(--green); }
     .badge-red    { background:rgba(255,101,132,0.12); color:var(--red); }
@@ -126,16 +112,18 @@
     .badge-muted  { background:rgba(255,255,255,0.06); color:var(--secondary); }
     .badge-yellow { background:rgba(255,214,0,0.12);   color:var(--yellow); }
 
+    /* ---- MODALS ---- */
     .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.78); z-index:600; display:flex; align-items:center; justify-content:center; padding:20px; overflow-y:auto; }
-    .modal-box { background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:28px; width:100%; max-width:540px; max-height:90vh; overflow-y:auto; }
+    .modal-box { background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:28px; width:100%; max-width:540px; max-height:92vh; overflow-y:auto; }
     .modal-box-wide { max-width:740px; }
     .modal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:22px; }
     .modal-header h2 { font-size:18px; font-weight:800; color:#fff; margin:0; }
-    .modal-close { width:32px; height:32px; border-radius:8px; background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--muted); cursor:pointer; font-size:15px; display:flex; align-items:center; justify-content:center; font-family:inherit; transition:all 0.2s; }
+    .modal-close { width:32px; height:32px; border-radius:8px; background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--muted); cursor:pointer; font-size:15px; display:flex; align-items:center; justify-content:center; font-family:inherit; }
     .modal-close:hover { background:rgba(255,101,132,0.15); color:var(--red); }
     .modal-footer { display:flex; justify-content:flex-end; gap:10px; margin-top:22px; padding-top:16px; border-top:1px solid var(--border); flex-wrap:wrap; }
-    @media (max-width:600px) { .modal-overlay { align-items:flex-end; padding:0; } .modal-box { border-radius:20px 20px 0 0; max-width:100%; max-height:88vh; } }
+    @media (max-width:600px) { .modal-overlay { align-items:flex-end; padding:0; } .modal-box { border-radius:20px 20px 0 0; max-width:100%; max-height:90vh; } }
 
+    /* ---- FORM FIELDS ---- */
     .field { display:flex; flex-direction:column; gap:6px; margin-bottom:16px; }
     .field label { font-size:12px; font-weight:700; color:var(--secondary); text-transform:uppercase; letter-spacing:0.4px; }
     .field label span { color:var(--red); }
@@ -148,27 +136,59 @@
     @media (max-width:480px) { .field-row { grid-template-columns:1fr; } }
     .field-hint { font-size:11px; color:var(--muted); margin-top:2px; line-height:1.5; }
 
+    /* ---- MATH ---- */
     .math-help-box { background:rgba(108,99,255,0.06); border:1px solid rgba(108,99,255,0.2); border-radius:8px; padding:12px 14px; font-size:12px; color:var(--secondary); line-height:2; }
     .math-help-box code { background:rgba(255,255,255,0.08); padding:1px 5px; border-radius:3px; font-family:monospace; color:#a78bfa; }
     .math-preview { background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:8px; padding:12px 14px; min-height:40px; font-size:15px; color:#fff; line-height:1.7; }
-    /* KaTeX in question list */
-    .q-text-render .katex-display { margin: 8px 0; }
+    .q-text-render .katex-display { margin:8px 0; }
 
+    /* ============================================
+       ✅ PHASE G: RICH CONTENT STYLES
+    ============================================ */
+
+    /* Image preview */
+    .img-preview-wrap { margin-top:8px; }
+    .img-preview-wrap img { max-width:100%; max-height:180px; border-radius:8px; border:1px solid var(--border); display:block; }
+    .img-preview-wrap .remove-btn { margin-top:5px; font-size:12px; color:var(--red); background:none; border:none; cursor:pointer; font-family:inherit; padding:0; }
+
+    /* Audio preview */
+    .audio-preview-wrap { margin-top:8px; }
+    .audio-preview-wrap audio { width:100%; border-radius:8px; }
+
+    /* Table builder */
+    .tbl-controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+    .tbl-controls label { font-size:13px; color:var(--secondary); white-space:nowrap; }
+    .tbl-num-inp { width:68px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; padding:8px 10px; color:#fff; font-size:13px; font-family:inherit; outline:none; }
+    .tbl-num-inp:focus { border-color:var(--primary); }
+
+    .tbl-grid-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:8px; margin-bottom:8px; }
+    .tbl-builder-table { border-collapse:collapse; min-width:max-content; }
+    .tbl-builder-table td { border:1px solid rgba(255,255,255,0.15); padding:7px 10px; min-width:90px; max-width:180px; outline:none; font-size:13px; color:#fff; white-space:nowrap; overflow:hidden; }
+    .tbl-builder-table td:focus { background:rgba(108,99,255,0.1); outline:2px solid var(--primary); outline-offset:-2px; }
+    .tbl-builder-table td[data-header="true"] { background:rgba(108,99,255,0.2); color:#a78bfa; font-weight:700; }
+
+    /* Question preview panel */
+    .q-preview-panel { background:rgba(255,255,255,0.02); border:1px solid rgba(108,99,255,0.25); border-radius:12px; padding:18px; margin-top:12px; }
+    .q-preview-label { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:14px; }
+    .q-preview-qtext { font-size:16px; font-weight:600; color:#fff; line-height:1.7; margin-bottom:12px; }
+    .q-preview-option { display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:10px; border:2px solid var(--border); background:rgba(255,255,255,0.02); margin-bottom:8px; }
+    .q-preview-option.correct { border-color:rgba(67,233,123,0.4); background:rgba(67,233,123,0.08); }
+    .q-preview-opt-letter { width:26px; height:26px; border-radius:50%; background:rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:#6b6b8a; flex-shrink:0; }
+    .q-preview-option.correct .q-preview-opt-letter { background:var(--green); color:#0f0f1a; }
+    .q-preview-audio-wrap { background:rgba(108,99,255,0.06); border:1px solid rgba(108,99,255,0.2); border-radius:8px; padding:12px 14px; margin-bottom:12px; }
+    .q-preview-audio-label { font-size:12px; font-weight:700; color:#a78bfa; margin-bottom:8px; }
+
+    /* ---- MISC ---- */
     .access-code-box { background:linear-gradient(135deg,rgba(108,99,255,0.15),rgba(67,233,123,0.08)); border:1px solid rgba(108,99,255,0.3); border-radius:14px; padding:20px; text-align:center; margin:16px 0; }
-
     .empty { text-align:center; padding:40px 20px; }
-    .empty-icon { font-size:44px; margin-bottom:12px; }
+    .empty-icon  { font-size:44px; margin-bottom:12px; }
     .empty-title { font-size:15px; font-weight:700; color:var(--secondary); margin-bottom:6px; }
     .empty-sub   { font-size:13px; color:var(--muted); line-height:1.6; }
-
     .result-bar-wrap { height:6px; background:rgba(255,255,255,0.06); border-radius:3px; margin-top:4px; min-width:60px; }
     .result-bar-fill { height:100%; border-radius:3px; }
-
     .theory-q { background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:12px; }
     .theory-answer-box { background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:8px; padding:12px; font-size:13px; color:var(--secondary); line-height:1.6; margin:8px 0; min-height:60px; }
-
     .spinner { width:18px; height:18px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block; }
-    .spinner-dark { border-color:rgba(0,0,0,0.2); border-top-color:#0f0f1a; }
   </style>
 </head>
 <body>
@@ -211,7 +231,7 @@
 
   <div class="page-content">
 
-    <!-- ===== OVERVIEW ===== -->
+    <!-- OVERVIEW -->
     <div class="section active" id="sec-overview">
       <div class="page-header">
         <div><h1 id="welcomeTitle">Welcome back!</h1><p>Here's your teaching dashboard at a glance.</p></div>
@@ -242,7 +262,7 @@
       </div>
     </div>
 
-    <!-- ===== MY EXAMS ===== -->
+    <!-- MY EXAMS -->
     <div class="section" id="sec-exams">
       <div class="page-header">
         <div><h1>My Exams</h1><p id="examCountSub">Manage your examinations</p></div>
@@ -258,7 +278,7 @@
       </div>
     </div>
 
-    <!-- ===== RESULTS ===== -->
+    <!-- RESULTS -->
     <div class="section" id="sec-results">
       <div class="page-header">
         <div><h1>Exam Results</h1><p>Student submissions and scores</p></div>
@@ -280,7 +300,7 @@
       </div>
     </div>
 
-    <!-- ===== GRADING ===== -->
+    <!-- GRADING -->
     <div class="section" id="sec-grading">
       <div class="page-header">
         <div><h1>Theory Grading</h1><p>Mark student theory answers and set scores</p></div>
@@ -296,18 +316,14 @@
         </div>
       </div>
       <div id="gradingContent">
-        <div class="empty">
-          <div class="empty-icon">✏️</div>
-          <div class="empty-title">Select an exam above</div>
-          <div class="empty-sub">Only exams with theory questions and ungraded submissions will appear.</div>
-        </div>
+        <div class="empty"><div class="empty-icon">✏️</div><div class="empty-title">Select an exam above</div><div class="empty-sub">Only exams with theory questions and ungraded submissions will appear.</div></div>
       </div>
     </div>
 
-  </div><!-- end page-content -->
-</div><!-- end main -->
+  </div>
+</div>
 
-<!-- ===== CREATE / EDIT EXAM MODAL ===== -->
+<!-- ===== CREATE/EDIT EXAM MODAL ===== -->
 <div class="modal-overlay" id="examModal" style="display:none;">
   <div class="modal-box modal-box-wide">
     <div class="modal-header">
@@ -316,21 +332,13 @@
     </div>
     <div id="examModalErr" style="display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); padding:12px; border-radius:8px; font-size:13px; margin-bottom:16px;"></div>
     <input type="hidden" id="editExamId" />
-
     <div class="field-row">
-      <div class="field"><label>Exam Title <span>*</span></label><input type="text" id="exTitle" class="inp" placeholder="e.g. SS3 Mathematics Mid-Term Exam" /></div>
+      <div class="field"><label>Exam Title <span>*</span></label><input type="text" id="exTitle" class="inp" placeholder="e.g. SS3 Mathematics Mid-Term" /></div>
       <div class="field"><label>Subject <span>*</span></label><input type="text" id="exSubject" class="inp" placeholder="e.g. Mathematics" /></div>
     </div>
     <div class="field-row">
       <div class="field"><label>Class / Level</label><input type="text" id="exClass" class="inp" placeholder="e.g. SS3, JSS2A" /></div>
-      <div class="field">
-        <label>Exam Type <span>*</span></label>
-        <select id="exType" class="sel">
-          <option value="objective">Objective (Auto-Graded)</option>
-          <option value="theory">Theory (Manual Grading)</option>
-          <option value="mixed">Mixed (Objective + Theory)</option>
-        </select>
-      </div>
+      <div class="field"><label>Exam Type <span>*</span></label><select id="exType" class="sel"><option value="objective">Objective (Auto-Graded)</option><option value="theory">Theory (Manual Grading)</option><option value="mixed">Mixed (Objective + Theory)</option></select></div>
     </div>
     <div class="field-row">
       <div class="field"><label>Duration (minutes) <span>*</span></label><input type="number" id="exDuration" class="inp" value="60" min="5" max="300" /></div>
@@ -338,70 +346,25 @@
     </div>
     <div class="field-row">
       <div class="field"><label>Total Marks</label><input type="number" id="exTotalMarks" class="inp" value="100" min="1" /></div>
-      <div class="field">
-        <label>Exam Year</label>
-        <input type="number" id="exYear" class="inp" value="2025" min="2020" max="2035" />
-        <div class="field-hint">e.g. 2025 for the 2024/2025 session</div>
-      </div>
+      <div class="field"><label>Exam Year</label><input type="number" id="exYear" class="inp" value="2025" min="2020" max="2035" /><div class="field-hint">e.g. 2025 for 2024/2025 session</div></div>
     </div>
     <div class="field-row">
-      <div class="field">
-        <label>Term</label>
-        <select id="exTerm" class="sel">
-          <option value="">-- Select Term --</option>
-          <option value="first">First Term</option>
-          <option value="second">Second Term</option>
-          <option value="third">Third Term</option>
-        </select>
-      </div>
+      <div class="field"><label>Term</label><select id="exTerm" class="sel"><option value="">-- Select Term --</option><option value="first">First Term</option><option value="second">Second Term</option><option value="third">Third Term</option></select></div>
       <div class="field"><label>Session</label><input type="text" id="exSession" class="inp" placeholder="e.g. 2024/2025" /></div>
     </div>
-
-    <!-- ✅ Activation Window -->
     <div style="background:rgba(108,99,255,0.06); border:1px solid rgba(108,99,255,0.2); border-radius:10px; padding:16px; margin-bottom:16px;">
       <div style="font-size:13px; font-weight:700; color:#a78bfa; margin-bottom:12px;">⏰ Exam Access Window (optional)</div>
       <div class="field-row">
-        <div class="field" style="margin-bottom:0;">
-          <label>Activates At</label>
-          <input type="datetime-local" id="exScheduledStart" class="inp" />
-          <div class="field-hint">Students cannot enter before this time</div>
-        </div>
-        <div class="field" style="margin-bottom:0;">
-          <label>Expires At</label>
-          <input type="datetime-local" id="exScheduledEnd" class="inp" />
-          <div class="field-hint">Code stops working after this time</div>
-        </div>
+        <div class="field" style="margin-bottom:0;"><label>Activates At</label><input type="datetime-local" id="exScheduledStart" class="inp" /><div class="field-hint">Students cannot enter before this time</div></div>
+        <div class="field" style="margin-bottom:0;"><label>Expires At</label><input type="datetime-local" id="exScheduledEnd" class="inp" /><div class="field-hint">Code stops working after this time</div></div>
       </div>
     </div>
-
     <div class="field-row">
-      <div class="field">
-        <label>Shuffle Questions</label>
-        <select id="exShuffle" class="sel">
-          <option value="true">Yes — randomize order</option>
-          <option value="false">No — keep order</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Shuffle Answer Options</label>
-        <select id="exShuffleOptions" class="sel">
-          <option value="false">No — keep option order</option>
-          <option value="true">Yes — randomize options</option>
-        </select>
-        <div class="field-hint">Prevents copying between students</div>
-      </div>
+      <div class="field"><label>Shuffle Questions</label><select id="exShuffle" class="sel"><option value="true">Yes — randomize order</option><option value="false">No — keep order</option></select></div>
+      <div class="field"><label>Shuffle Answer Options</label><select id="exShuffleOptions" class="sel"><option value="false">No — keep option order</option><option value="true">Yes — randomize options</option></select><div class="field-hint">Prevents copying between students</div></div>
     </div>
-    <div class="field">
-      <label>Instructions</label>
-      <textarea id="exInstructions" class="tex" rows="2" placeholder="e.g. Answer all questions. No calculators allowed."></textarea>
-    </div>
-    <div class="field">
-      <label>Auto-release results?</label>
-      <select id="exAutoRelease" class="sel">
-        <option value="false">No — Admin must release manually</option>
-        <option value="true">Yes — Release immediately (objective only)</option>
-      </select>
-    </div>
+    <div class="field"><label>Instructions</label><textarea id="exInstructions" class="tex" rows="2" placeholder="e.g. Answer all questions. No calculators."></textarea></div>
+    <div class="field"><label>Auto-release results?</label><select id="exAutoRelease" class="sel"><option value="false">No — Admin releases manually</option><option value="true">Yes — Release immediately (objective only)</option></select></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('examModal')">Cancel</button>
       <button class="btn btn-primary" id="saveExamBtn" onclick="saveExam()">Create Exam</button>
@@ -409,7 +372,7 @@
   </div>
 </div>
 
-<!-- ===== EXAM DETAIL / QUESTION MANAGER MODAL ===== -->
+<!-- ===== EXAM DETAIL MODAL ===== -->
 <div class="modal-overlay" id="examDetailModal" style="display:none;">
   <div class="modal-box modal-box-wide" style="max-width:820px;">
     <div class="modal-header">
@@ -422,8 +385,8 @@
     <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:20px;">
       <div id="detailAccessCode" style="background:rgba(108,99,255,0.12); border:1px solid rgba(108,99,255,0.25); border-radius:10px; padding:10px 18px; font-family:monospace; font-size:18px; font-weight:900; color:#a78bfa; letter-spacing:4px;"></div>
       <button class="btn btn-sm btn-secondary" onclick="copyAccessCode()">📋 Copy Code</button>
-      <button class="btn btn-sm btn-green"     id="publishBtn" onclick="publishExam()">🚀 Publish Exam</button>
-      <button class="btn btn-sm btn-danger"    id="endExamBtn" onclick="endCurrentExam()" style="display:none;">⏹ End Exam</button>
+      <button class="btn btn-sm btn-green"  id="publishBtn"  onclick="publishExam()">🚀 Publish Exam</button>
+      <button class="btn btn-sm btn-danger" id="endExamBtn"  onclick="endCurrentExam()" style="display:none;">⏹ End Exam</button>
     </div>
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
       <div style="font-size:15px; font-weight:700; color:#fff;">Questions <span id="qCountBadge" style="font-size:13px; color:var(--muted); font-weight:400;"></span></div>
@@ -438,14 +401,19 @@
   </div>
 </div>
 
-<!-- ===== ADD QUESTION MODAL ===== -->
+<!-- ============================================
+     ADD QUESTION MODAL
+     ✅ PHASE G: Image preview, audio, table builder,
+     live preview panel
+============================================ -->
 <div class="modal-overlay" id="addQuestionModal" style="display:none;">
-  <div class="modal-box modal-box-wide" style="max-width:640px;">
+  <div class="modal-box modal-box-wide" style="max-width:660px;">
     <div class="modal-header">
       <h2>Add Question</h2>
       <button class="modal-close" onclick="closeModal('addQuestionModal')">✕</button>
     </div>
 
+    <!-- Question Type -->
     <div class="field">
       <label>Question Type</label>
       <select id="qType" class="sel" onchange="onQuestionTypeChange()">
@@ -456,43 +424,78 @@
       </select>
     </div>
 
+    <!-- Question Text -->
     <div class="field">
       <label>Question Text <span>*</span></label>
-      <textarea id="qText" class="tex" rows="3" placeholder="Enter your question here... Use $formula$ for math" oninput="updateMathPreview()"></textarea>
+      <textarea id="qText" class="tex" rows="3" placeholder="Enter your question here... Use $formula$ for math" oninput="updateMathPreview(); updateQPreview();"></textarea>
       <div class="field-hint">
         Math: <code style="background:rgba(255,255,255,0.08); padding:1px 5px; border-radius:3px; font-family:monospace; color:#a78bfa;">$x^2$</code> inline &nbsp;·&nbsp;
         <code style="background:rgba(255,255,255,0.08); padding:1px 5px; border-radius:3px; font-family:monospace; color:#a78bfa;">$$formula$$</code> display block
       </div>
     </div>
 
-    <!-- ✅ Live math preview -->
+    <!-- Math Preview -->
     <div id="mathPreviewWrap" style="display:none; margin-bottom:16px;">
       <div style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;">Math Preview</div>
       <div class="math-preview" id="mathPreviewEl"></div>
     </div>
 
-    <!-- ✅ Math reference guide -->
+    <!-- Math Guide -->
     <div class="math-help-box" style="margin-bottom:16px;">
-      <strong style="color:#fff; font-size:12px;">📐 Math / Science Notation Guide</strong><br/>
+      <strong style="color:#fff; font-size:12px;">📐 Math / Science Notation</strong><br/>
       <code>$x^2$</code> → x² &nbsp;·&nbsp; <code>$H_2SO_4$</code> → H₂SO₄ &nbsp;·&nbsp; <code>$\sqrt{25}$</code> → √25<br/>
       <code>$\frac{a}{b}$</code> → fraction &nbsp;·&nbsp; <code>$F = ma$</code> → F = ma &nbsp;·&nbsp; <code>$$...$$</code> large equation
     </div>
 
+    <!-- ✅ PHASE G: Image URL + Live Preview -->
     <div class="field">
       <label>Image URL (optional)</label>
-      <input type="url" id="qImage" class="inp" placeholder="https://... (attach image to question)" />
+      <input type="url" id="qImage" class="inp" placeholder="https://... (paste any image URL)" oninput="onImageUrlInput(this.value)" />
+      <div class="field-hint">Tip: upload to imgur.com or cloudinary.com for free hosting</div>
+      <div id="qImagePreview" class="img-preview-wrap" style="display:none;">
+        <img id="qImagePreviewImg" src="" alt="Image Preview" onerror="document.getElementById('qImagePreview').style.display='none'" />
+        <button type="button" class="remove-btn" onclick="clearQImage()">✕ Remove image</button>
+      </div>
     </div>
 
-    <!-- Objective options -->
+    <!-- ✅ PHASE G: Audio URL -->
+    <div class="field">
+      <label>Audio URL (optional)</label>
+      <input type="url" id="qAudio" class="inp" placeholder="https://... (.mp3, .wav, .ogg)" oninput="onAudioUrlInput(this.value)" />
+      <div class="field-hint">Students will see an audio player and must listen before answering</div>
+      <div id="qAudioPreview" class="audio-preview-wrap" style="display:none;">
+        <audio id="qAudioPreviewEl" controls></audio>
+      </div>
+    </div>
+
+    <!-- ✅ PHASE G: Table Builder -->
+    <div class="field">
+      <label>Data Table (optional)</label>
+      <div class="tbl-controls">
+        <label>Rows:</label>
+        <input type="number" id="tblRows" class="tbl-num-inp" value="3" min="1" max="10" />
+        <label>Cols:</label>
+        <input type="number" id="tblCols" class="tbl-num-inp" value="3" min="1" max="8" />
+        <button type="button" class="btn btn-secondary btn-sm" onclick="buildQTable()">🔧 Build Table</button>
+        <button type="button" class="btn btn-danger btn-sm" id="clearTblBtn" onclick="clearQTable()" style="display:none;">✕ Remove</button>
+      </div>
+      <div id="qTableBuilderWrap" style="display:none;">
+        <div class="field-hint" style="margin-bottom:8px;">Click any cell to edit. First row = column headers (shown in purple).</div>
+        <div id="qTableGrid" class="tbl-grid-wrap"></div>
+      </div>
+      <input type="hidden" id="qTableHtml" />
+    </div>
+
+    <!-- Objective Options -->
     <div id="objectiveSection">
       <div style="font-size:12px; font-weight:700; color:var(--secondary); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:12px;">Answer Options</div>
-      <div class="field"><label>Option A <span>*</span></label><input type="text" id="qOptA" class="inp" placeholder="First option" /></div>
-      <div class="field"><label>Option B <span>*</span></label><input type="text" id="qOptB" class="inp" placeholder="Second option" /></div>
-      <div class="field"><label>Option C</label><input type="text" id="qOptC" class="inp" placeholder="Third option (optional)" /></div>
-      <div class="field"><label>Option D</label><input type="text" id="qOptD" class="inp" placeholder="Fourth option (optional)" /></div>
+      <div class="field"><label>Option A <span>*</span></label><input type="text" id="qOptA" class="inp" placeholder="First option" oninput="updateQPreview()" /></div>
+      <div class="field"><label>Option B <span>*</span></label><input type="text" id="qOptB" class="inp" placeholder="Second option" oninput="updateQPreview()" /></div>
+      <div class="field"><label>Option C</label><input type="text" id="qOptC" class="inp" placeholder="Third option (optional)" oninput="updateQPreview()" /></div>
+      <div class="field"><label>Option D</label><input type="text" id="qOptD" class="inp" placeholder="Fourth option (optional)" oninput="updateQPreview()" /></div>
       <div class="field">
         <label>Correct Answer <span>*</span></label>
-        <select id="qCorrect" class="sel">
+        <select id="qCorrect" class="sel" onchange="updateQPreview()">
           <option value="">-- Select correct option --</option>
           <option value="0">A — First option</option>
           <option value="1">B — Second option</option>
@@ -506,10 +509,7 @@
     <div id="trueFalseSection" style="display:none;">
       <div class="field">
         <label>Correct Answer <span>*</span></label>
-        <select id="qTrueFalse" class="sel">
-          <option value="0">True</option>
-          <option value="1">False</option>
-        </select>
+        <select id="qTrueFalse" class="sel"><option value="0">True</option><option value="1">False</option></select>
       </div>
     </div>
 
@@ -521,17 +521,33 @@
 
     <div class="field-row">
       <div class="field"><label>Marks</label><input type="number" id="qMarks" class="inp" value="1" min="1" max="100" /></div>
-      <div class="field">
-        <label>Difficulty</label>
-        <select id="qDifficulty" class="sel">
-          <option value="easy">Easy</option>
-          <option value="medium" selected>Medium</option>
-          <option value="hard">Hard</option>
-        </select>
-      </div>
+      <div class="field"><label>Difficulty</label><select id="qDifficulty" class="sel"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></div>
     </div>
     <div class="field"><label>Topic (optional)</label><input type="text" id="qTopic" class="inp" placeholder="e.g. Algebra, Photosynthesis" /></div>
     <div class="field"><label>Explanation (shown after exam)</label><textarea id="qExplanation" class="tex" rows="2" placeholder="Why is this the correct answer?"></textarea></div>
+
+    <!-- ✅ PHASE G: Question Preview Toggle -->
+    <div style="margin-bottom:16px;">
+      <button type="button" class="btn btn-secondary btn-sm" onclick="toggleQPreview()" id="previewToggleBtn">👁 Show Preview</button>
+      <div id="qPreviewWrap" style="display:none;">
+        <div class="q-preview-panel">
+          <div class="q-preview-label">👁 Student View Preview</div>
+          <!-- Audio preview -->
+          <div id="pvAudio" style="display:none;" class="q-preview-audio-wrap">
+            <div class="q-preview-audio-label">🔊 Listen before answering</div>
+            <audio id="pvAudioEl" controls style="width:100%;"></audio>
+          </div>
+          <!-- Question text -->
+          <div class="q-preview-qtext" id="pvText"></div>
+          <!-- Image -->
+          <div id="pvImage" style="display:none; margin-bottom:12px;"><img src="" alt="" style="max-width:100%; max-height:200px; border-radius:8px;" /></div>
+          <!-- Table -->
+          <div id="pvTable" style="display:none; overflow-x:auto; margin-bottom:12px;"></div>
+          <!-- Options -->
+          <div id="pvOptions"></div>
+        </div>
+      </div>
+    </div>
 
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('addQuestionModal')">Cancel</button>
@@ -540,7 +556,7 @@
   </div>
 </div>
 
-<!-- ===== GRADE THEORY MODAL ===== -->
+<!-- GRADE THEORY MODAL -->
 <div class="modal-overlay" id="gradeModal" style="display:none;">
   <div class="modal-box modal-box-wide" style="max-width:700px;">
     <div class="modal-header">
@@ -562,15 +578,13 @@
   </div>
 </div>
 
+
 <script src="/institution/js/inst.api.js"></script>
 <script>
 /* ============================================
    INSTITUTION TEACHER DASHBOARD
-   ✅ CBT UPGRADES:
-     - KaTeX math rendering (questions + preview)
-     - examYear field
-     - Activation window (scheduledStart/End)
-     - shuffleOptions support
+   ✅ PHASE G: Image preview, audio, table builder,
+               question preview panel
 ============================================ */
 
 var _myExams        = [];
@@ -580,15 +594,18 @@ var _activeResultId = null;
 var _gradeAnswers   = [];
 var _schoolUser     = null;
 
-/* ---- KaTeX config ---- */
+/* ✅ PHASE G: Table builder state */
+var _qTableData     = [];
+var _previewVisible = false;
+
+/* ---- KaTeX ---- */
 var _katexOpts = {
   delimiters: [
-    { left: '$$', right: '$$', display: true },
-    { left: '$',  right: '$',  display: false }
+    { left:'$$', right:'$$', display:true },
+    { left:'$',  right:'$',  display:false }
   ],
   throwOnError: false
 };
-
 function katexRender(el) {
   if (!el || !window._katexReady || typeof renderMathInElement === 'undefined') return;
   try { renderMathInElement(el, _katexOpts); } catch(e) {}
@@ -596,15 +613,207 @@ function katexRender(el) {
 
 /* ---- Live math preview ---- */
 function updateMathPreview() {
-  var text = (document.getElementById('qText') || {}).value || '';
+  var text = (document.getElementById('qText')||{}).value || '';
   var wrap = document.getElementById('mathPreviewWrap');
   var prev = document.getElementById('mathPreviewEl');
   if (!wrap || !prev) return;
   var hasMath = text.indexOf('$') !== -1;
   wrap.style.display = hasMath ? 'block' : 'none';
-  if (hasMath) {
-    prev.textContent = text;
-    katexRender(prev);
+  if (hasMath) { prev.textContent = text; katexRender(prev); }
+}
+
+/* ============================================
+   ✅ PHASE G: IMAGE PREVIEW
+============================================ */
+function onImageUrlInput(url) {
+  var wrap = document.getElementById('qImagePreview');
+  var img  = document.getElementById('qImagePreviewImg');
+  if (!wrap || !img) return;
+  if (url && url.length > 10 && (url.startsWith('http') || url.startsWith('data:'))) {
+    img.src = url;
+    img.onerror = function() { wrap.style.display='none'; };
+    wrap.style.display = 'block';
+  } else {
+    wrap.style.display = 'none';
+  }
+  updateQPreview();
+}
+
+function clearQImage() {
+  var el = document.getElementById('qImage');
+  if (el) el.value = '';
+  onImageUrlInput('');
+}
+
+/* ============================================
+   ✅ PHASE G: AUDIO PREVIEW
+============================================ */
+function onAudioUrlInput(url) {
+  var wrap  = document.getElementById('qAudioPreview');
+  var audio = document.getElementById('qAudioPreviewEl');
+  if (!wrap || !audio) return;
+  if (url && url.length > 10) {
+    audio.src          = url;
+    wrap.style.display = 'block';
+  } else {
+    wrap.style.display = 'none';
+    audio.src          = '';
+  }
+  updateQPreview();
+}
+
+/* ============================================
+   ✅ PHASE G: TABLE BUILDER
+============================================ */
+function buildQTable() {
+  var rows = Math.min(Math.max(parseInt((document.getElementById('tblRows')||{}).value)||3, 1), 10);
+  var cols = Math.min(Math.max(parseInt((document.getElementById('tblCols')||{}).value)||3, 1), 8);
+
+  _qTableData = [];
+  for (var r = 0; r < rows; r++) {
+    _qTableData.push([]);
+    for (var c = 0; c < cols; c++) {
+      _qTableData[r].push(r === 0 ? 'Column ' + (c+1) : '');
+    }
+  }
+
+  renderQTableGrid();
+  var wrap = document.getElementById('qTableBuilderWrap');
+  var btn  = document.getElementById('clearTblBtn');
+  if (wrap) wrap.style.display = 'block';
+  if (btn)  btn.style.display  = 'inline-flex';
+  saveQTableHtml();
+}
+
+function renderQTableGrid() {
+  var grid = document.getElementById('qTableGrid');
+  if (!grid) return;
+  var html = '<table class="tbl-builder-table">';
+  for (var r = 0; r < _qTableData.length; r++) {
+    html += '<tr>';
+    for (var c = 0; c < _qTableData[r].length; c++) {
+      var isHeader = r === 0;
+      html += '<td contenteditable="true" data-r="' + r + '" data-c="' + c + '"' +
+        (isHeader ? ' data-header="true"' : '') +
+        ' oninput="onQTableCell(this)" onblur="saveQTableHtml()">' +
+        escHtml(_qTableData[r][c]) + '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</table>';
+  grid.innerHTML = html;
+}
+
+function onQTableCell(el) {
+  var r = parseInt(el.dataset.r);
+  var c = parseInt(el.dataset.c);
+  if (_qTableData[r] !== undefined) _qTableData[r][c] = el.innerText || '';
+}
+
+function saveQTableHtml() {
+  if (!_qTableData || _qTableData.length === 0) {
+    var el = document.getElementById('qTableHtml');
+    if (el) el.value = '';
+    updateQPreview(); return;
+  }
+  var html = '<table class="q-table">';
+  for (var r = 0; r < _qTableData.length; r++) {
+    html += '<tr>';
+    for (var c = 0; c < _qTableData[r].length; c++) {
+      var cell = escHtml(_qTableData[r][c] || '');
+      html += r === 0 ? '<th>' + cell + '</th>' : '<td>' + cell + '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</table>';
+  var el = document.getElementById('qTableHtml');
+  if (el) el.value = html;
+  updateQPreview();
+}
+
+function clearQTable() {
+  _qTableData = [];
+  var el   = document.getElementById('qTableHtml');
+  var wrap = document.getElementById('qTableBuilderWrap');
+  var btn  = document.getElementById('clearTblBtn');
+  var grid = document.getElementById('qTableGrid');
+  if (el)   el.value             = '';
+  if (wrap) wrap.style.display   = 'none';
+  if (btn)  btn.style.display    = 'none';
+  if (grid) grid.innerHTML       = '';
+  updateQPreview();
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ============================================
+   ✅ PHASE G: QUESTION PREVIEW PANEL
+============================================ */
+function toggleQPreview() {
+  _previewVisible = !_previewVisible;
+  var wrap = document.getElementById('qPreviewWrap');
+  var btn  = document.getElementById('previewToggleBtn');
+  if (wrap) wrap.style.display = _previewVisible ? 'block' : 'none';
+  if (btn)  btn.textContent    = _previewVisible ? '👁 Hide Preview' : '👁 Show Preview';
+  if (_previewVisible) updateQPreview();
+}
+
+function updateQPreview() {
+  if (!_previewVisible) return;
+  var text     = (document.getElementById('qText')      ||{}).value || '';
+  var imageUrl = (document.getElementById('qImage')     ||{}).value || '';
+  var audioUrl = (document.getElementById('qAudio')     ||{}).value || '';
+  var tableHtml= (document.getElementById('qTableHtml') ||{}).value || '';
+  var optA     = (document.getElementById('qOptA')      ||{}).value || '';
+  var optB     = (document.getElementById('qOptB')      ||{}).value || '';
+  var optC     = (document.getElementById('qOptC')      ||{}).value || '';
+  var optD     = (document.getElementById('qOptD')      ||{}).value || '';
+  var correct  = parseInt((document.getElementById('qCorrect')||{}).value);
+  var letters  = ['A','B','C','D'];
+  var options  = [optA,optB,optC,optD].filter(function(o){return o.trim();});
+
+  /* Audio */
+  var pvAudio = document.getElementById('pvAudio');
+  var pvAudioEl = document.getElementById('pvAudioEl');
+  if (pvAudio && pvAudioEl) {
+    if (audioUrl) { pvAudioEl.src=audioUrl; pvAudio.style.display='block'; }
+    else { pvAudio.style.display='none'; pvAudioEl.src=''; }
+  }
+
+  /* Text */
+  var pvText = document.getElementById('pvText');
+  if (pvText) { pvText.textContent = text; katexRender(pvText); }
+
+  /* Image */
+  var pvImage = document.getElementById('pvImage');
+  if (pvImage) {
+    if (imageUrl) {
+      var img = pvImage.querySelector('img');
+      if (img) img.src = imageUrl;
+      pvImage.style.display = 'block';
+    } else { pvImage.style.display = 'none'; }
+  }
+
+  /* Table */
+  var pvTable = document.getElementById('pvTable');
+  if (pvTable) {
+    if (tableHtml) { pvTable.innerHTML = tableHtml; pvTable.style.display='block'; }
+    else { pvTable.innerHTML=''; pvTable.style.display='none'; }
+  }
+
+  /* Options */
+  var pvOpts = document.getElementById('pvOptions');
+  if (pvOpts) {
+    pvOpts.innerHTML = options.map(function(opt, i) {
+      var isCorrect = i === correct;
+      return '<div class="q-preview-option' + (isCorrect ? ' correct' : '') + '">' +
+        '<span class="q-preview-opt-letter">' + letters[i] + '</span>' +
+        '<span style="font-size:14px; color:#fff; flex:1;">' + opt + '</span>' +
+        (isCorrect ? '<span style="font-size:11px; font-weight:700; color:var(--green); margin-left:auto;">✓ Correct</span>' : '') +
+      '</div>';
+    }).join('');
   }
 }
 
@@ -620,690 +829,407 @@ document.addEventListener('DOMContentLoaded', async function() {
 });
 
 function fillSidebar() {
-  var u = _schoolUser;
-  if (!u) return;
-  var av = document.getElementById('sbAvatar');
-  var nm = document.getElementById('sbName');
-  var rl = document.getElementById('sbRole');
-  var sc = document.getElementById('sbSchoolTag');
-  if (av) av.textContent = (u.name || 'T').charAt(0).toUpperCase();
-  if (nm) nm.textContent = u.name || '—';
-  if (rl) rl.textContent = u.role === 'vice_principal' ? 'Vice Principal' : 'Teacher';
-  if (sc) sc.textContent = '🏫 My School';
+  var u = _schoolUser; if (!u) return;
+  var av=document.getElementById('sbAvatar'); if(av)av.textContent=(u.name||'T').charAt(0).toUpperCase();
+  var nm=document.getElementById('sbName');   if(nm)nm.textContent=u.name||'—';
+  var rl=document.getElementById('sbRole');   if(rl)rl.textContent=u.role==='vice_principal'?'Vice Principal':'Teacher';
+  var sc=document.getElementById('sbSchoolTag'); if(sc)sc.textContent='🏫 My School';
 }
 
 /* ============================================ SECTION NAV */
 function showSection(name) {
-  document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
-  document.querySelectorAll('.nav-item[data-sec]').forEach(function(n) { n.classList.remove('active'); });
-  var sec = document.getElementById('sec-' + name);
-  if (sec) sec.classList.add('active');
-  var nav = document.querySelector('.nav-item[data-sec="' + name + '"]');
-  if (nav) nav.classList.add('active');
-  var ml = document.getElementById('mobileSec');
-  var labels = { overview:'Overview', exams:'Exams', results:'Results', grading:'Grading' };
-  if (ml) ml.textContent = labels[name] || name;
-  if (window.innerWidth <= 960) closeSidebar();
-  if (name === 'exams')   loadExams();
-  if (name === 'results') loadResults();
-  if (name === 'grading') loadGradingExamList();
+  document.querySelectorAll('.section').forEach(function(s){s.classList.remove('active');});
+  document.querySelectorAll('.nav-item[data-sec]').forEach(function(n){n.classList.remove('active');});
+  var sec=document.getElementById('sec-'+name); if(sec)sec.classList.add('active');
+  var nav=document.querySelector('.nav-item[data-sec="'+name+'"]'); if(nav)nav.classList.add('active');
+  var ml=document.getElementById('mobileSec'); var labels={overview:'Overview',exams:'Exams',results:'Results',grading:'Grading'};
+  if(ml)ml.textContent=labels[name]||name;
+  if(window.innerWidth<=960)closeSidebar();
+  if(name==='exams')loadExams();
+  if(name==='results')loadResults();
+  if(name==='grading')loadGradingExamList();
 }
 
-function openSidebar()  { document.getElementById('sidebar').classList.add('open');    document.getElementById('sidebarOverlay').classList.add('visible');    document.body.style.overflow = 'hidden'; }
-function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('visible'); document.body.style.overflow = '';       }
+function openSidebar()  { document.getElementById('sidebar').classList.add('open');    document.getElementById('sidebarOverlay').classList.add('visible');    document.body.style.overflow='hidden'; }
+function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('visible'); document.body.style.overflow=''; }
 
 /* ============================================ OVERVIEW */
 async function loadOverview() {
   var res = await instApi('/teacher/exams');
   if (!res.ok) { instToast('Failed to load dashboard.', 'error'); return; }
   _myExams = res.data.exams || [];
-  var published   = _myExams.filter(function(e) { return e.status === 'published' || e.status === 'active'; }).length;
-  var submissions = _myExams.reduce(function(s, e) { return s + (e.totalAttempts || 0); }, 0);
+  var published   = _myExams.filter(function(e){return e.status==='published'||e.status==='active';}).length;
+  var submissions = _myExams.reduce(function(s,e){return s+(e.totalAttempts||0);},0);
   document.getElementById('stTotalExams').textContent   = _myExams.length;
   document.getElementById('stPublished').textContent    = published;
   document.getElementById('stSubmissions').textContent  = submissions;
   document.getElementById('stPendingGrade').textContent = '—';
-  var wt = document.getElementById('welcomeTitle');
-  if (wt && _schoolUser) wt.textContent = 'Welcome, ' + (_schoolUser.name || 'Teacher') + '!';
-  renderOverviewExams(_myExams.slice(0, 5));
+  var wt=document.getElementById('welcomeTitle'); if(wt&&_schoolUser)wt.textContent='Welcome, '+(_schoolUser.name||'Teacher')+'!';
+  renderOverviewExams(_myExams.slice(0,5));
 }
 
 function renderOverviewExams(exams) {
-  var tbody = document.getElementById('overviewExamsBody');
-  if (!tbody) return;
-  if (!exams || exams.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><div class="empty-icon">📝</div><div class="empty-title">No exams yet</div><div class="empty-sub">Create your first exam using the button above.</div></div></td></tr>';
-    return;
-  }
-  tbody.innerHTML = exams.map(function(e) {
-    return '<tr>' +
-      '<td style="font-weight:700; color:#fff;">' + (e.title || '—') + '</td>' +
-      '<td>' + (e.subject || '—') + '</td>' +
-      '<td style="font-family:monospace; font-weight:700;">' + (e.examYear || '—') + '</td>' +
-      '<td><span style="font-family:monospace; background:rgba(108,99,255,0.12); color:#a78bfa; padding:3px 10px; border-radius:6px; font-size:13px; font-weight:700;">' + (e.accessCode || '—') + '</span></td>' +
-      '<td>' + statusBadge(e.status) + '</td>' +
-      '<td style="font-weight:700;">' + (e.totalAttempts || 0) + '</td>' +
-      '<td><button class="btn btn-sm btn-secondary" onclick="openExamDetail(\'' + e._id + '\')">Manage →</button></td>' +
-    '</tr>';
-  }).join('');
+  var tbody=document.getElementById('overviewExamsBody'); if(!tbody)return;
+  if(!exams||exams.length===0){tbody.innerHTML='<tr><td colspan="7"><div class="empty"><div class="empty-icon">📝</div><div class="empty-title">No exams yet</div><div class="empty-sub">Create your first exam using the button above.</div></div></td></tr>';return;}
+  tbody.innerHTML=exams.map(function(e){return'<tr><td style="font-weight:700; color:#fff;">'+(e.title||'—')+'</td><td>'+(e.subject||'—')+'</td><td style="font-family:monospace; font-weight:700;">'+(e.examYear||'—')+'</td><td><span style="font-family:monospace; background:rgba(108,99,255,0.12); color:#a78bfa; padding:3px 10px; border-radius:6px; font-size:13px; font-weight:700;">'+(e.accessCode||'—')+'</span></td><td>'+statusBadge(e.status)+'</td><td style="font-weight:700;">'+(e.totalAttempts||0)+'</td><td><button class="btn btn-sm btn-secondary" onclick="openExamDetail(\''+e._id+'\')">Manage →</button></td></tr>';}).join('');
 }
 
 /* ============================================ EXAMS */
 async function loadExams() {
-  var res = await instApi('/teacher/exams');
-  if (!res.ok) { instToast('Failed to load exams.', 'error'); return; }
-  _myExams = res.data.exams || [];
-
-  var countSub = document.getElementById('examCountSub');
-  if (countSub) countSub.textContent = _myExams.length + ' exam' + (_myExams.length !== 1 ? 's' : '');
-
-  /* Populate result filter dropdown */
-  var filterSel = document.getElementById('resultExamFilter');
-  if (filterSel) {
-    filterSel.innerHTML = '<option value="">All Exams</option>' +
-      _myExams.map(function(e) { return '<option value="' + e._id + '">' + e.title + ' — ' + (e.subject || '') + '</option>'; }).join('');
-  }
-
-  /* Populate grading dropdown */
-  var gradeSelect = document.getElementById('gradeExamSelect');
-  if (gradeSelect) {
-    var theoryExams = _myExams.filter(function(e) { return e.examType === 'theory' || e.examType === 'mixed'; });
-    gradeSelect.innerHTML = '<option value="">-- Select Exam to Grade --</option>' +
-      theoryExams.map(function(e) { return '<option value="' + e._id + '">' + e.title + ' (' + (e.subject || '') + ')</option>'; }).join('');
-  }
-
-  var tbody = document.getElementById('examsTableBody');
-  if (!tbody) return;
-
-  if (_myExams.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10"><div class="empty"><div class="empty-icon">📝</div><div class="empty-title">No exams yet</div><div class="empty-sub">Create your first exam using the green button above.</div></div></td></tr>';
-    return;
-  }
-
-  var typeBadgeMap = { objective:'badge-purple', theory:'badge-orange', mixed:'badge-yellow' };
-
-  tbody.innerHTML = _myExams.map(function(e) {
-    return '<tr>' +
-      '<td style="font-weight:700; color:#fff; max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + (e.title || '—') + '</td>' +
-      '<td>' + (e.subject || '—') + '</td>' +
-      '<td>' + (e.class || '—') + '</td>' +
-      '<td><span class="badge ' + (typeBadgeMap[e.examType] || 'badge-muted') + '">' + (e.examType || 'objective') + '</span></td>' +
-      '<td style="font-family:monospace; font-weight:700; color:#a0a0c0;">' + (e.examYear || '—') + '</td>' +
-      '<td><span style="font-family:monospace; font-weight:900; font-size:13px; color:#a78bfa; background:rgba(108,99,255,0.1); padding:3px 8px; border-radius:6px;">' + (e.accessCode || '—') + '</span></td>' +
-      '<td>' + statusBadge(e.status) + '</td>' +
-      '<td style="font-weight:700;">' + (e.totalQuestions || 0) + '</td>' +
-      '<td style="font-weight:700;">' + (e.totalAttempts || 0) + '</td>' +
-      '<td><div style="display:flex; gap:6px; flex-wrap:wrap;">' +
-        '<button class="btn btn-sm btn-primary" onclick="openExamDetail(\'' + e._id + '\')">Manage</button>' +
-        (e.status === 'draft'     ? '<button class="btn btn-sm btn-green"   onclick="quickPublish(\'' + e._id + '\')">Publish</button>' : '') +
-        (e.status === 'published' ? '<button class="btn btn-sm btn-danger"  onclick="quickEnd(\'' + e._id + '\')">End</button>'        : '') +
-        (e.status !== 'active'   ? '<button class="btn btn-sm btn-danger"   onclick="deleteExam(\'' + e._id + '\',\'' + (e.title || '').replace(/'/g,'') + '\')">🗑</button>' : '') +
-      '</div></td>' +
-    '</tr>';
-  }).join('');
+  var res=await instApi('/teacher/exams'); if(!res.ok){instToast('Failed to load exams.','error');return;}
+  _myExams=res.data.exams||[];
+  var countSub=document.getElementById('examCountSub'); if(countSub)countSub.textContent=_myExams.length+' exam'+(_myExams.length!==1?'s':'');
+  var filterSel=document.getElementById('resultExamFilter');
+  if(filterSel)filterSel.innerHTML='<option value="">All Exams</option>'+_myExams.map(function(e){return'<option value="'+e._id+'">'+e.title+' — '+(e.subject||'')+'</option>';}).join('');
+  var gradeSelect=document.getElementById('gradeExamSelect');
+  if(gradeSelect){var theoryExams=_myExams.filter(function(e){return e.examType==='theory'||e.examType==='mixed';});gradeSelect.innerHTML='<option value="">-- Select Exam to Grade --</option>'+theoryExams.map(function(e){return'<option value="'+e._id+'">'+e.title+' ('+( e.subject||'')+')</option>';}).join('');}
+  var tbody=document.getElementById('examsTableBody'); if(!tbody)return;
+  if(_myExams.length===0){tbody.innerHTML='<tr><td colspan="10"><div class="empty"><div class="empty-icon">📝</div><div class="empty-title">No exams yet</div></div></td></tr>';return;}
+  var typeBadgeMap={objective:'badge-purple',theory:'badge-orange',mixed:'badge-yellow'};
+  tbody.innerHTML=_myExams.map(function(e){return'<tr><td style="font-weight:700; color:#fff; max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">'+(e.title||'—')+'</td><td>'+(e.subject||'—')+'</td><td>'+(e.class||'—')+'</td><td><span class="badge '+(typeBadgeMap[e.examType]||'badge-muted')+'">'+(e.examType||'objective')+'</span></td><td style="font-family:monospace; font-weight:700; color:#a0a0c0;">'+(e.examYear||'—')+'</td><td><span style="font-family:monospace; font-weight:900; font-size:13px; color:#a78bfa; background:rgba(108,99,255,0.1); padding:3px 8px; border-radius:6px;">'+(e.accessCode||'—')+'</span></td><td>'+statusBadge(e.status)+'</td><td style="font-weight:700;">'+(e.totalQuestions||0)+'</td><td style="font-weight:700;">'+(e.totalAttempts||0)+'</td><td><div style="display:flex; gap:6px; flex-wrap:wrap;"><button class="btn btn-sm btn-primary" onclick="openExamDetail(\''+e._id+'\')">Manage</button>'+(e.status==='draft'?'<button class="btn btn-sm btn-green" onclick="quickPublish(\''+e._id+'\')">Publish</button>':'')+(e.status==='published'?'<button class="btn btn-sm btn-danger" onclick="quickEnd(\''+e._id+'\')">End</button>':'')+'</div></td></tr>';}).join('');
 }
 
 function statusBadge(status) {
-  var map = {
-    draft:    '<span class="badge badge-muted">Draft</span>',
-    published:'<span class="badge badge-green">Published</span>',
-    active:   '<span class="badge badge-purple">Active</span>',
-    ended:    '<span class="badge badge-orange">Ended</span>',
-    archived: '<span class="badge badge-muted">Archived</span>'
-  };
-  return map[status] || '<span class="badge badge-muted">' + (status || '—') + '</span>';
+  var map={draft:'<span class="badge badge-muted">Draft</span>',published:'<span class="badge badge-green">Published</span>',active:'<span class="badge badge-purple">Active</span>',ended:'<span class="badge badge-orange">Ended</span>',archived:'<span class="badge badge-muted">Archived</span>'};
+  return map[status]||'<span class="badge badge-muted">'+(status||'—')+'</span>';
 }
 
-/* ============================================ CREATE / EDIT EXAM */
+/* ============================================ CREATE/EDIT EXAM */
 function openCreateExamModal() {
   closeAllModals();
-  document.getElementById('editExamId').value           = '';
-  document.getElementById('examModalTitle').textContent = 'Create New Exam';
-  document.getElementById('saveExamBtn').textContent    = 'Create Exam';
-  document.getElementById('examModalErr').style.display = 'none';
-
-  ['exTitle','exSubject','exClass','exSession','exInstructions','exScheduledStart','exScheduledEnd'].forEach(function(id) {
-    var el = document.getElementById(id); if (el) el.value = '';
-  });
-  var dur = document.getElementById('exDuration');   if (dur) dur.value = '60';
-  var pm  = document.getElementById('exPassMark');   if (pm)  pm.value  = '50';
-  var tm  = document.getElementById('exTotalMarks'); if (tm)  tm.value  = '100';
-  var yr  = document.getElementById('exYear');       if (yr)  yr.value  = new Date().getFullYear();
-
-  document.getElementById('examModal').style.display = 'flex';
+  document.getElementById('editExamId').value='';
+  document.getElementById('examModalTitle').textContent='Create New Exam';
+  document.getElementById('saveExamBtn').textContent='Create Exam';
+  document.getElementById('examModalErr').style.display='none';
+  ['exTitle','exSubject','exClass','exSession','exInstructions','exScheduledStart','exScheduledEnd'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  var dur=document.getElementById('exDuration'); if(dur)dur.value='60';
+  var pm=document.getElementById('exPassMark');  if(pm)pm.value='50';
+  var tm=document.getElementById('exTotalMarks');if(tm)tm.value='100';
+  var yr=document.getElementById('exYear');      if(yr)yr.value=new Date().getFullYear();
+  document.getElementById('examModal').style.display='flex';
 }
 
 function openEditExamModal(exam) {
   closeAllModals();
-  document.getElementById('editExamId').value           = exam._id;
-  document.getElementById('examModalTitle').textContent = 'Edit Exam';
-  document.getElementById('saveExamBtn').textContent    = 'Save Changes';
-  document.getElementById('examModalErr').style.display = 'none';
-
-  var flds = {
-    'exTitle':         exam.title        || '',
-    'exSubject':       exam.subject      || '',
-    'exClass':         exam.class        || '',
-    'exSession':       exam.session      || '',
-    'exInstructions':  exam.instructions || '',
-    'exDuration':      exam.duration     || 60,
-    'exPassMark':      exam.passMark     || 50,
-    'exTotalMarks':    exam.totalMarks   || 100,
-    'exType':          exam.examType     || 'objective',
-    'exTerm':          exam.term         || '',
-    'exShuffle':       String(exam.shuffleQuestions !== false),
-    'exShuffleOptions':String(!!exam.shuffleOptions),
-    'exAutoRelease':   String(exam.showResultsAfter || false),
-    'exYear':          exam.examYear     || new Date().getFullYear()
-  };
-  Object.keys(flds).forEach(function(id) { var el = document.getElementById(id); if (el) el.value = flds[id]; });
-
-  if (exam.scheduledStart) {
-    var ss = document.getElementById('exScheduledStart');
-    if (ss) ss.value = new Date(exam.scheduledStart).toISOString().slice(0, 16);
-  }
-  if (exam.scheduledEnd) {
-    var se = document.getElementById('exScheduledEnd');
-    if (se) se.value = new Date(exam.scheduledEnd).toISOString().slice(0, 16);
-  }
-
-  document.getElementById('examModal').style.display = 'flex';
+  document.getElementById('editExamId').value=exam._id;
+  document.getElementById('examModalTitle').textContent='Edit Exam';
+  document.getElementById('saveExamBtn').textContent='Save Changes';
+  document.getElementById('examModalErr').style.display='none';
+  var flds={'exTitle':exam.title||'','exSubject':exam.subject||'','exClass':exam.class||'','exSession':exam.session||'','exInstructions':exam.instructions||'','exDuration':exam.duration||60,'exPassMark':exam.passMark||50,'exTotalMarks':exam.totalMarks||100,'exType':exam.examType||'objective','exTerm':exam.term||'','exShuffle':String(exam.shuffleQuestions!==false),'exShuffleOptions':String(!!exam.shuffleOptions),'exAutoRelease':String(exam.showResultsAfter||false),'exYear':exam.examYear||new Date().getFullYear()};
+  Object.keys(flds).forEach(function(id){var el=document.getElementById(id);if(el)el.value=flds[id];});
+  if(exam.scheduledStart){var ss=document.getElementById('exScheduledStart');if(ss)ss.value=new Date(exam.scheduledStart).toISOString().slice(0,16);}
+  if(exam.scheduledEnd){var se=document.getElementById('exScheduledEnd');if(se)se.value=new Date(exam.scheduledEnd).toISOString().slice(0,16);}
+  document.getElementById('examModal').style.display='flex';
 }
 
 async function saveExam() {
-  var btn    = document.getElementById('saveExamBtn');
-  var errEl  = document.getElementById('examModalErr');
-  var editId = document.getElementById('editExamId').value.trim();
-  errEl.style.display = 'none';
-
-  var ssVal = (document.getElementById('exScheduledStart') || {}).value || '';
-  var seVal = (document.getElementById('exScheduledEnd')   || {}).value || '';
-
-  var payload = {
-    title:           (document.getElementById('exTitle')        || {}).value.trim(),
-    subject:         (document.getElementById('exSubject')      || {}).value.trim(),
-    class:           (document.getElementById('exClass')        || {}).value.trim(),
-    term:            (document.getElementById('exTerm')         || {}).value,
-    session:         (document.getElementById('exSession')      || {}).value.trim(),
-    examType:        (document.getElementById('exType')         || {}).value,
-    duration:        parseInt((document.getElementById('exDuration')    || {}).value) || 60,
-    passMark:        parseInt((document.getElementById('exPassMark')    || {}).value) || 50,
-    totalMarks:      parseInt((document.getElementById('exTotalMarks')  || {}).value) || 100,
-    instructions:    (document.getElementById('exInstructions')  || {}).value.trim(),
-    shuffleQuestions:(document.getElementById('exShuffle')         || {}).value === 'true',
-    shuffleOptions:  (document.getElementById('exShuffleOptions')  || {}).value === 'true',
-    showResultsAfter:(document.getElementById('exAutoRelease')     || {}).value === 'true',
-    examYear:        parseInt((document.getElementById('exYear')   || {}).value) || new Date().getFullYear(),
-    scheduledStart:  ssVal ? new Date(ssVal).toISOString() : null,
-    scheduledEnd:    seVal ? new Date(seVal).toISOString() : null
+  var btn=document.getElementById('saveExamBtn'); var errEl=document.getElementById('examModalErr');
+  var editId=document.getElementById('editExamId').value.trim(); errEl.style.display='none';
+  var ssVal=(document.getElementById('exScheduledStart')||{}).value||'';
+  var seVal=(document.getElementById('exScheduledEnd')||{}).value||'';
+  var payload={
+    title:(document.getElementById('exTitle')||{}).value.trim(),
+    subject:(document.getElementById('exSubject')||{}).value.trim(),
+    class:(document.getElementById('exClass')||{}).value.trim(),
+    term:(document.getElementById('exTerm')||{}).value,
+    session:(document.getElementById('exSession')||{}).value.trim(),
+    examType:(document.getElementById('exType')||{}).value,
+    duration:parseInt((document.getElementById('exDuration')||{}).value)||60,
+    passMark:parseInt((document.getElementById('exPassMark')||{}).value)||50,
+    totalMarks:parseInt((document.getElementById('exTotalMarks')||{}).value)||100,
+    instructions:(document.getElementById('exInstructions')||{}).value.trim(),
+    shuffleQuestions:(document.getElementById('exShuffle')||{}).value==='true',
+    shuffleOptions:(document.getElementById('exShuffleOptions')||{}).value==='true',
+    showResultsAfter:(document.getElementById('exAutoRelease')||{}).value==='true',
+    examYear:parseInt((document.getElementById('exYear')||{}).value)||new Date().getFullYear(),
+    scheduledStart:ssVal?new Date(ssVal).toISOString():null,
+    scheduledEnd:seVal?new Date(seVal).toISOString():null
   };
-
-  if (!payload.title)   { errEl.textContent = '⚠️ Exam title is required.'; errEl.style.display = 'block'; return; }
-  if (!payload.subject) { errEl.textContent = '⚠️ Subject is required.';    errEl.style.display = 'block'; return; }
-
-  if (btn) { btn.innerHTML = '<span class="spinner"></span> Saving...'; btn.disabled = true; }
-
-  var endpoint = editId ? '/teacher/exams/' + editId : '/teacher/exams';
-  var method   = editId ? 'PUT' : 'POST';
-  var res      = await instApi(endpoint, method, payload);
-
-  if (btn) { btn.innerHTML = editId ? 'Save Changes' : 'Create Exam'; btn.disabled = false; }
-
-  if (res.ok) {
-    instToast(editId ? 'Exam updated!' : '✅ Exam created! Now add questions.', 'success');
-    closeModal('examModal');
-    await loadExams();
-    await loadOverview();
-    if (!editId && res.data.exam) {
-      setTimeout(function() { openExamDetail(res.data.exam._id); }, 400);
-    }
-  } else {
-    errEl.textContent   = res.data.message || 'Failed to save exam.';
-    errEl.style.display = 'block';
-  }
+  if(!payload.title){errEl.textContent='⚠️ Exam title is required.';errEl.style.display='block';return;}
+  if(!payload.subject){errEl.textContent='⚠️ Subject is required.';errEl.style.display='block';return;}
+  if(btn){btn.innerHTML='<span class="spinner"></span> Saving...';btn.disabled=true;}
+  var endpoint=editId?'/teacher/exams/'+editId:'/teacher/exams';
+  var res=await instApi(endpoint,editId?'PUT':'POST',payload);
+  if(btn){btn.innerHTML=editId?'Save Changes':'Create Exam';btn.disabled=false;}
+  if(res.ok){
+    instToast(editId?'Exam updated!':'✅ Exam created! Now add questions.','success');
+    closeModal('examModal'); await loadExams(); await loadOverview();
+    if(!editId&&res.data.exam)setTimeout(function(){openExamDetail(res.data.exam._id);},400);
+  }else{errEl.textContent=res.data.message||'Failed to save exam.';errEl.style.display='block';}
 }
 
-/* ============================================ EXAM DETAIL + QUESTION MANAGER */
+/* ============================================ EXAM DETAIL */
 async function openExamDetail(examId) {
-  _activeExamId = examId;
-  closeAllModals();
-  document.getElementById('examDetailModal').style.display = 'flex';
-  document.getElementById('questionsList').innerHTML =
-    '<div style="color:var(--muted); text-align:center; padding:28px;">Loading...</div>';
-
-  var res = await instApi('/teacher/exams/' + examId);
-  if (!res.ok) { instToast('Failed to load exam.', 'error'); return; }
-
-  var exam      = res.data.exam;
-  var questions = res.data.questions || [];
-
-  document.getElementById('detailExamTitle').textContent = exam.title || 'Exam';
-  document.getElementById('detailExamMeta').textContent  =
-    (exam.subject || '') +
-    (exam.class   ? ' · ' + exam.class   : '') +
-    (exam.examYear ? ' · ' + exam.examYear : '') +
-    ' · ' + (exam.duration || 60) + ' mins · ' + (exam.examType || 'objective');
-
-  document.getElementById('detailAccessCode').textContent = exam.accessCode || '—';
-
-  /* Show/hide publish / end buttons based on status */
-  var pubBtn = document.getElementById('publishBtn');
-  var endBtn = document.getElementById('endExamBtn');
-  if (pubBtn) pubBtn.style.display = exam.status === 'draft' ? 'inline-flex' : 'none';
-  if (endBtn) endBtn.style.display = (exam.status === 'published' || exam.status === 'active') ? 'inline-flex' : 'none';
-
+  _activeExamId=examId; closeAllModals();
+  document.getElementById('examDetailModal').style.display='flex';
+  document.getElementById('questionsList').innerHTML='<div style="color:var(--muted); text-align:center; padding:28px;">Loading...</div>';
+  var res=await instApi('/teacher/exams/'+examId); if(!res.ok){instToast('Failed to load exam.','error');return;}
+  var exam=res.data.exam; var questions=res.data.questions||[];
+  document.getElementById('detailExamTitle').textContent=exam.title||'Exam';
+  document.getElementById('detailExamMeta').textContent=(exam.subject||'')+(exam.class?' · '+exam.class:'')+(exam.examYear?' · '+exam.examYear:'')+' · '+(exam.duration||60)+' mins · '+(exam.examType||'objective');
+  document.getElementById('detailAccessCode').textContent=exam.accessCode||'—';
+  var pubBtn=document.getElementById('publishBtn'); var endBtn=document.getElementById('endExamBtn');
+  if(pubBtn)pubBtn.style.display=exam.status==='draft'?'inline-flex':'none';
+  if(endBtn)endBtn.style.display=(exam.status==='published'||exam.status==='active')?'inline-flex':'none';
   renderQuestionsList(questions);
 }
 
 function renderQuestionsList(questions) {
-  var container  = document.getElementById('questionsList');
-  var countBadge = document.getElementById('qCountBadge');
-
-  if (countBadge) countBadge.textContent = '(' + questions.length + ' question' + (questions.length !== 1 ? 's' : '') + ')';
-
-  if (!questions || questions.length === 0) {
-    container.innerHTML =
-      '<div class="empty" style="padding:32px;"><div class="empty-icon">📋</div>' +
-      '<div class="empty-title">No questions yet</div>' +
-      '<div class="empty-sub">Add questions using the "+ Add Question" button above. You cannot publish an exam with no questions.</div></div>';
+  var container=document.getElementById('questionsList');
+  var countBadge=document.getElementById('qCountBadge');
+  if(countBadge)countBadge.textContent='('+questions.length+' question'+(questions.length!==1?'s':'')+ ')';
+  if(!questions||questions.length===0){
+    container.innerHTML='<div class="empty" style="padding:32px;"><div class="empty-icon">📋</div><div class="empty-title">No questions yet</div><div class="empty-sub">Add questions using the "+ Add Question" button above.</div></div>';
     return;
   }
-
-  var letters = ['A', 'B', 'C', 'D'];
-
-  container.innerHTML = questions.map(function(q, i) {
-    var opts = '';
-
-    if (q.questionType === 'objective' || q.questionType === 'fill_in_blank') {
-      opts = (q.options || []).map(function(opt, idx) {
-        var isCorrect = idx === q.correctAnswer;
-        return '<span style="font-size:12px; padding:2px 8px; border-radius:5px; margin-right:4px;' +
-          'background:' + (isCorrect ? 'rgba(67,233,123,0.15)' : 'rgba(255,255,255,0.04)') + ';' +
-          'color:'      + (isCorrect ? 'var(--green)'          : 'var(--secondary)') + ';' +
-          'border:1px solid ' + (isCorrect ? 'rgba(67,233,123,0.3)' : 'var(--border)') + ';">' +
-          letters[idx] + ': ' + opt + (isCorrect ? ' ✓' : '') +
-        '</span>';
-      }).join('');
-    } else if (q.questionType === 'true_false') {
-      opts = '<span style="font-size:12px; color:var(--green);">Answer: ' + (q.correctAnswer === 0 ? 'True' : 'False') + '</span>';
-    } else {
-      opts = '<span style="font-size:12px; color:var(--muted); font-style:italic;">Theory — manual grading</span>';
+  var letters=['A','B','C','D'];
+  container.innerHTML=questions.map(function(q,i){
+    var rowId='qrow_'+i;
+    var opts='';
+    if(q.questionType==='objective'||q.questionType==='fill_in_blank'){
+      opts=(q.options||[]).map(function(opt,idx){var isCorrect=idx===q.correctAnswer;return'<span style="font-size:12px; padding:2px 8px; border-radius:5px; margin-right:4px; background:'+(isCorrect?'rgba(67,233,123,0.15)':'rgba(255,255,255,0.04)')+'; color:'+(isCorrect?'var(--green)':'var(--secondary)')+'; border:1px solid '+(isCorrect?'rgba(67,233,123,0.3)':'var(--border)')+';">'+letters[idx]+': '+opt+(isCorrect?' ✓':'')+'</span>';}).join('');
+    }else if(q.questionType==='true_false'){
+      opts='<span style="font-size:12px; color:var(--green);">Answer: '+(q.correctAnswer===0?'True':'False')+'</span>';
+    }else{
+      opts='<span style="font-size:12px; color:var(--muted); font-style:italic;">Theory — manual grading</span>';
     }
 
-    /* Build question row with KaTeX-renderable text */
-    var rowId = 'qrow_' + i;
-    return '<div style="padding:14px 16px; border-bottom:1px solid var(--border);" id="' + rowId + '">' +
-      '<div style="display:flex; align-items:flex-start; gap:12px;">' +
-        '<span style="width:26px; height:26px; border-radius:6px; background:rgba(108,99,255,0.12); color:#a78bfa; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; flex-shrink:0;">' + (i + 1) + '</span>' +
-        '<div style="flex:1; min-width:0;">' +
-          /* ✅ data-qtext attribute used to render KaTeX after DOM insertion */
-          '<div class="q-text-render" data-qtext="' + encodeURIComponent(q.question || '') + '" style="font-size:14px; font-weight:600; color:#fff; margin-bottom:6px; line-height:1.5;">' + (q.question || '') + '</div>' +
-          (q.imageUrl ? '<img src="' + q.imageUrl + '" style="max-width:100%; max-height:120px; border-radius:6px; margin-bottom:8px;" />' : '') +
-          '<div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:4px;">' + opts + '</div>' +
-          (q.explanation ? '<div style="font-size:11px; color:var(--muted); font-style:italic; margin-top:4px;">💡 ' + q.explanation + '</div>' : '') +
-          '<div style="font-size:11px; color:var(--muted); margin-top:4px;">' +
-            (q.marks || 1) + ' mark' + ((q.marks || 1) !== 1 ? 's' : '') +
-            (q.topic ? ' · ' + q.topic : '') +
-            ' · ' + (q.difficulty || 'medium') +
-          '</div>' +
-        '</div>' +
-        '<button onclick="deleteQuestion(\'' + q._id + '\')" style="padding:5px 9px; border-radius:6px; font-size:12px; cursor:pointer; font-family:inherit; background:rgba(255,101,132,0.08); border:1px solid rgba(255,101,132,0.25); color:var(--red); flex-shrink:0;">🗑</button>' +
-      '</div>' +
+    /* ✅ PHASE G: Show rich content indicators */
+    var richBadges='';
+    if(q.imageUrl) richBadges+=' <span style="font-size:10px; background:rgba(67,233,123,0.1); color:var(--green); padding:2px 6px; border-radius:4px; font-weight:700;">🖼 IMG</span>';
+    if(q.audioUrl) richBadges+=' <span style="font-size:10px; background:rgba(108,99,255,0.1); color:#a78bfa; padding:2px 6px; border-radius:4px; font-weight:700;">🔊 AUDIO</span>';
+    if(q.tableHtml) richBadges+=' <span style="font-size:10px; background:rgba(255,165,0,0.1); color:var(--orange); padding:2px 6px; border-radius:4px; font-weight:700;">📊 TABLE</span>';
+
+    return '<div style="padding:14px 16px; border-bottom:1px solid var(--border);" id="'+rowId+'">'+
+      '<div style="display:flex; align-items:flex-start; gap:12px;">'+
+        '<span style="width:26px; height:26px; border-radius:6px; background:rgba(108,99,255,0.12); color:#a78bfa; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; flex-shrink:0;">'+(i+1)+'</span>'+
+        '<div style="flex:1; min-width:0;">'+
+          '<div class="q-text-render" data-qtext="'+encodeURIComponent(q.question||'')+'" style="font-size:14px; font-weight:600; color:#fff; margin-bottom:4px; line-height:1.5;">'+(q.question||'')+'</div>'+
+          richBadges+
+          (q.imageUrl?'<img src="'+q.imageUrl+'" style="max-width:100%; max-height:100px; border-radius:6px; margin:6px 0; display:block;" />':'')+
+          (q.tableHtml?'<div style="font-size:12px; color:var(--muted); margin-bottom:4px;">Table: '+((_qTableData&&_qTableData.length?_qTableData.length+' rows':'included'))+'</div>':'')+
+          (q.audioUrl?'<audio controls src="'+q.audioUrl+'" style="width:100%; max-width:240px; margin:6px 0; display:block;"></audio>':'')+
+          '<div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;">'+opts+'</div>'+
+          (q.explanation?'<div style="font-size:11px; color:var(--muted); font-style:italic; margin-top:4px;">💡 '+q.explanation+'</div>':'')+
+          '<div style="font-size:11px; color:var(--muted); margin-top:4px;">'+(q.marks||1)+' mark'+((q.marks||1)!==1?'s':'')+(q.topic?' · '+q.topic:'')+' · '+(q.difficulty||'medium')+'</div>'+
+        '</div>'+
+        '<button onclick="deleteQuestion(\''+q._id+'\')" style="padding:5px 9px; border-radius:6px; font-size:12px; cursor:pointer; font-family:inherit; background:rgba(255,101,132,0.08); border:1px solid rgba(255,101,132,0.25); color:var(--red); flex-shrink:0;">🗑</button>'+
+      '</div>'+
     '</div>';
   }).join('');
 
-  /* ✅ Render KaTeX on all question texts after DOM is ready */
-  setTimeout(function() {
-    container.querySelectorAll('.q-text-render').forEach(function(el) {
-      katexRender(el);
-    });
-  }, 50);
+  setTimeout(function(){
+    container.querySelectorAll('.q-text-render').forEach(function(el){katexRender(el);});
+  },50);
 }
 
 /* ============================================ ADD QUESTION */
 function openAddQuestionModal() {
-  if (!_activeExamId) { instToast('Open an exam first.', 'error'); return; }
-  ['qText','qImage','qOptA','qOptB','qOptC','qOptD','qExplanation','qModelAnswer','qMarkScheme','qTopic'].forEach(function(id) {
-    var el = document.getElementById(id); if (el) el.value = '';
-  });
-  var mEl = document.getElementById('qMarks');     if (mEl) mEl.value = '1';
-  var dEl = document.getElementById('qDifficulty');if (dEl) dEl.value = 'medium';
-  var tEl = document.getElementById('qType');      if (tEl) { tEl.value = 'objective'; onQuestionTypeChange(); }
-  var cEl = document.getElementById('qCorrect');   if (cEl) cEl.value = '';
-  var pw  = document.getElementById('mathPreviewWrap'); if (pw) pw.style.display = 'none';
-  document.getElementById('addQuestionModal').style.display = 'flex';
-  setTimeout(function() { var t = document.getElementById('qText'); if (t) t.focus(); }, 120);
+  if(!_activeExamId){instToast('Open an exam first.','error');return;}
+
+  /* Reset all fields */
+  ['qText','qImage','qOptA','qOptB','qOptC','qOptD','qExplanation','qModelAnswer','qMarkScheme','qTopic'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  ['qAudio'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+
+  var mEl=document.getElementById('qMarks');      if(mEl)mEl.value='1';
+  var dEl=document.getElementById('qDifficulty'); if(dEl)dEl.value='medium';
+  var tEl=document.getElementById('qType');       if(tEl){tEl.value='objective';onQuestionTypeChange();}
+  var cEl=document.getElementById('qCorrect');    if(cEl)cEl.value='';
+  var pw=document.getElementById('mathPreviewWrap'); if(pw)pw.style.display='none';
+
+  /* ✅ PHASE G: Reset rich content fields */
+  onImageUrlInput('');
+  onAudioUrlInput('');
+  clearQTable();
+  _previewVisible=false;
+  var pvWrap=document.getElementById('qPreviewWrap'); if(pvWrap)pvWrap.style.display='none';
+  var pvBtn=document.getElementById('previewToggleBtn'); if(pvBtn)pvBtn.textContent='👁 Show Preview';
+
+  document.getElementById('addQuestionModal').style.display='flex';
+  setTimeout(function(){var t=document.getElementById('qText');if(t)t.focus();},120);
 }
 
 function onQuestionTypeChange() {
-  var type = (document.getElementById('qType') || {}).value;
-  document.getElementById('objectiveSection').style.display = (type === 'objective' || type === 'fill_in_blank') ? 'block' : 'none';
-  document.getElementById('trueFalseSection').style.display  = type === 'true_false' ? 'block' : 'none';
-  document.getElementById('theorySection').style.display     = type === 'theory'     ? 'block' : 'none';
+  var type=(document.getElementById('qType')||{}).value;
+  document.getElementById('objectiveSection').style.display=(type==='objective'||type==='fill_in_blank')?'block':'none';
+  document.getElementById('trueFalseSection').style.display=type==='true_false'?'block':'none';
+  document.getElementById('theorySection').style.display=type==='theory'?'block':'none';
 }
 
 async function saveQuestion() {
-  var btn  = document.getElementById('saveQBtn');
-  var type = (document.getElementById('qType') || {}).value;
+  var btn=document.getElementById('saveQBtn');
+  var type=(document.getElementById('qType')||{}).value;
 
-  var optA = ((document.getElementById('qOptA') || {}).value || '').trim();
-  var optB = ((document.getElementById('qOptB') || {}).value || '').trim();
-  var optC = ((document.getElementById('qOptC') || {}).value || '').trim();
-  var optD = ((document.getElementById('qOptD') || {}).value || '').trim();
+  var optA=((document.getElementById('qOptA')||{}).value||'').trim();
+  var optB=((document.getElementById('qOptB')||{}).value||'').trim();
+  var optC=((document.getElementById('qOptC')||{}).value||'').trim();
+  var optD=((document.getElementById('qOptD')||{}).value||'').trim();
 
-  var options = [];
-  if (type === 'objective' || type === 'fill_in_blank') {
-    options = [optA, optB, optC, optD].filter(function(o) { return o !== ''; });
-    if (options.length < 2) { instToast('At least 2 options required.', 'error'); return; }
-  } else if (type === 'true_false') {
-    options = ['True', 'False'];
+  var options=[];
+  if(type==='objective'||type==='fill_in_blank'){
+    options=[optA,optB,optC,optD].filter(function(o){return o!=='';});
+    if(options.length<2){instToast('At least 2 options required.','error');return;}
+  }else if(type==='true_false'){
+    options=['True','False'];
   }
 
-  var correctAnswer = 0;
-  if (type === 'objective' || type === 'fill_in_blank') {
-    var cv = (document.getElementById('qCorrect') || {}).value;
-    if (cv === '' || cv === undefined) { instToast('Please select the correct answer.', 'error'); return; }
-    correctAnswer = parseInt(cv);
-    if (correctAnswer >= options.length) { instToast('Correct answer index out of range.', 'error'); return; }
-  } else if (type === 'true_false') {
-    correctAnswer = parseInt((document.getElementById('qTrueFalse') || {}).value) || 0;
+  var correctAnswer=0;
+  if(type==='objective'||type==='fill_in_blank'){
+    var cv=(document.getElementById('qCorrect')||{}).value;
+    if(cv===''||cv===undefined){instToast('Please select the correct answer.','error');return;}
+    correctAnswer=parseInt(cv);
+    if(correctAnswer>=options.length){instToast('Correct answer index out of range.','error');return;}
+  }else if(type==='true_false'){
+    correctAnswer=parseInt((document.getElementById('qTrueFalse')||{}).value)||0;
   }
 
-  var qText = ((document.getElementById('qText') || {}).value || '').trim();
-  if (!qText) { instToast('Question text is required.', 'error'); return; }
+  var qText=((document.getElementById('qText')||{}).value||'').trim();
+  if(!qText){instToast('Question text is required.','error');return;}
 
-  var payload = {
+  /* ✅ PHASE G: Collect rich content */
+  var imageUrl  = ((document.getElementById('qImage')    ||{}).value||'').trim();
+  var audioUrl  = ((document.getElementById('qAudio')    ||{}).value||'').trim();
+  var tableHtml = ((document.getElementById('qTableHtml')||{}).value||'');
+
+  var payload={
     questionType:  type,
     question:      qText,
     options:       options,
     correctAnswer: correctAnswer,
-    explanation:   ((document.getElementById('qExplanation') || {}).value || '').trim(),
-    modelAnswer:   ((document.getElementById('qModelAnswer') || {}).value || '').trim(),
-    markScheme:    ((document.getElementById('qMarkScheme')  || {}).value || '').trim(),
-    marks:         parseInt((document.getElementById('qMarks')      || {}).value) || 1,
-    difficulty:    (document.getElementById('qDifficulty')   || {}).value || 'medium',
-    topic:         ((document.getElementById('qTopic')       || {}).value || '').trim(),
-    imageUrl:      ((document.getElementById('qImage')       || {}).value || '').trim()
+    explanation:   ((document.getElementById('qExplanation')||{}).value||'').trim(),
+    modelAnswer:   ((document.getElementById('qModelAnswer')||{}).value||'').trim(),
+    markScheme:    ((document.getElementById('qMarkScheme') ||{}).value||'').trim(),
+    marks:         parseInt((document.getElementById('qMarks')     ||{}).value)||1,
+    difficulty:    (document.getElementById('qDifficulty') ||{}).value||'medium',
+    topic:         ((document.getElementById('qTopic')     ||{}).value||'').trim(),
+    imageUrl:      imageUrl,
+    audioUrl:      audioUrl,   /* ✅ PHASE G */
+    tableHtml:     tableHtml   /* ✅ PHASE G */
   };
 
-  if (btn) { btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true; }
+  if(btn){btn.innerHTML='<span class="spinner"></span>';btn.disabled=true;}
+  var res=await instApi('/teacher/exams/'+_activeExamId+'/questions','POST',payload);
+  if(btn){btn.innerHTML='Add Question';btn.disabled=false;}
 
-  var res = await instApi('/teacher/exams/' + _activeExamId + '/questions', 'POST', payload);
-
-  if (btn) { btn.innerHTML = 'Add Question'; btn.disabled = false; }
-
-  if (res.ok) {
-    instToast('Question added! ✅', 'success');
-    closeModal('addQuestionModal');
-    openExamDetail(_activeExamId);
-  } else {
-    instToast(res.data.message || 'Failed to add question.', 'error');
-  }
+  if(res.ok){instToast('Question added! ✅','success');closeModal('addQuestionModal');openExamDetail(_activeExamId);}
+  else instToast(res.data.message||'Failed to add question.','error');
 }
 
 async function deleteQuestion(qId) {
-  if (!confirm('Delete this question? This cannot be undone.')) return;
-  var res = await instApi('/teacher/questions/' + qId, 'DELETE');
-  if (res.ok) {
-    instToast('Question deleted.', 'success');
-    openExamDetail(_activeExamId);
-  } else {
-    instToast(res.data.message || 'Delete failed.', 'error');
-  }
+  if(!confirm('Delete this question? This cannot be undone.'))return;
+  var res=await instApi('/teacher/questions/'+qId,'DELETE');
+  if(res.ok){instToast('Question deleted.','success');openExamDetail(_activeExamId);}
+  else instToast(res.data.message||'Delete failed.','error');
 }
 
-/* ============================================ PUBLISH / END */
+/* ============================================ PUBLISH/END */
 function copyAccessCode() {
-  var code = document.getElementById('detailAccessCode').textContent;
-  navigator.clipboard.writeText(code).then(function() {
-    instToast('Access code copied: ' + code, 'success');
-  }).catch(function() {
-    instToast('Code: ' + code, 'info');
-  });
+  var code=document.getElementById('detailAccessCode').textContent;
+  navigator.clipboard.writeText(code).then(function(){instToast('Access code copied: '+code,'success');}).catch(function(){instToast('Code: '+code,'info');});
 }
 
 async function publishExam() {
-  if (!_activeExamId) return;
-  if (!confirm('Publish this exam? Students will be able to join using the access code.')) return;
-  var res = await instApi('/teacher/exams/' + _activeExamId + '/publish', 'POST');
-  if (res.ok) {
-    instToast('✅ Exam published! Access code: ' + res.data.accessCode, 'success');
-    openExamDetail(_activeExamId);
-    loadExams();
-  } else {
-    instToast(res.data.message || 'Publish failed.', 'error');
-  }
+  if(!_activeExamId)return;
+  if(!confirm('Publish this exam? Students will be able to join using the access code.'))return;
+  var res=await instApi('/teacher/exams/'+_activeExamId+'/publish','POST');
+  if(res.ok){instToast('✅ Exam published! Code: '+res.data.accessCode,'success');openExamDetail(_activeExamId);loadExams();}
+  else instToast(res.data.message||'Publish failed.','error');
 }
 
 async function quickPublish(examId) {
-  if (!confirm('Publish this exam?')) return;
-  _activeExamId = examId;
-  var res = await instApi('/teacher/exams/' + examId + '/publish', 'POST');
-  if (res.ok) { instToast('Exam published! Code: ' + res.data.accessCode, 'success'); loadExams(); loadOverview(); }
-  else { instToast(res.data.message || 'Failed.', 'error'); }
+  if(!confirm('Publish this exam?'))return;
+  _activeExamId=examId;
+  var res=await instApi('/teacher/exams/'+examId+'/publish','POST');
+  if(res.ok){instToast('Exam published! Code: '+res.data.accessCode,'success');loadExams();loadOverview();}
+  else instToast(res.data.message||'Failed.','error');
 }
 
 async function endCurrentExam() {
-  if (!_activeExamId) return;
-  if (!confirm('End this exam? No new students can join after this.')) return;
-  var res = await instApi('/teacher/exams/' + _activeExamId + '/end', 'POST');
-  if (res.ok) { instToast('Exam ended.', 'success'); openExamDetail(_activeExamId); loadExams(); }
-  else { instToast(res.data.message || 'Failed.', 'error'); }
+  if(!_activeExamId)return;
+  if(!confirm('End this exam? No new students can join after this.'))return;
+  var res=await instApi('/teacher/exams/'+_activeExamId+'/end','POST');
+  if(res.ok){instToast('Exam ended.','success');openExamDetail(_activeExamId);loadExams();}
+  else instToast(res.data.message||'Failed.','error');
 }
 
 async function quickEnd(examId) {
-  if (!confirm('End this exam?')) return;
-  _activeExamId = examId;
-  var res = await instApi('/teacher/exams/' + examId + '/end', 'POST');
-  if (res.ok) { instToast('Exam ended.', 'success'); loadExams(); }
-  else { instToast(res.data.message || 'Failed.', 'error'); }
-}
-
-async function deleteExam(examId, title) {
-  if (!confirm('Delete exam "' + title + '"? This cannot be undone.')) return;
-  instToast('Deletion must be done via school admin for data safety.', 'warning');
+  if(!confirm('End this exam?'))return;
+  _activeExamId=examId;
+  var res=await instApi('/teacher/exams/'+examId+'/end','POST');
+  if(res.ok){instToast('Exam ended.','success');loadExams();}
+  else instToast(res.data.message||'Failed.','error');
 }
 
 /* ============================================ RESULTS */
 async function loadResults() {
-  var examId = (document.getElementById('resultExamFilter') || {}).value;
-  var url    = '/school/results' + (examId ? '?examId=' + examId : '');
-  var res    = await instApi(url);
-  if (!res.ok) { instToast('Failed to load results.', 'error'); return; }
-
-  _myResults = res.data.results || [];
-
-  var heading = document.getElementById('resultsHeading');
-  var sumBar  = document.getElementById('resultsSummaryBar');
-  if (heading) heading.textContent = _myResults.length + ' Submission' + (_myResults.length !== 1 ? 's' : '');
-
-  if (sumBar && _myResults.length > 0) {
-    var passed   = _myResults.filter(function(r) { return r.isPassed; }).length;
-    var avgScore = Math.round(_myResults.reduce(function(s, r) { return s + (r.scorePercent || 0); }, 0) / _myResults.length);
-    sumBar.innerHTML =
-      '<span style="color:var(--green);">✅ Passed: ' + passed + '</span>' +
-      '<span style="color:var(--red);">❌ Failed: ' + (_myResults.length - passed) + '</span>' +
-      '<span>📊 Avg: ' + avgScore + '%</span>';
-  } else if (sumBar) { sumBar.innerHTML = ''; }
-
-  var tbody = document.getElementById('resultsTableBody');
-  if (!tbody) return;
-
-  if (_myResults.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8"><div class="empty"><div class="empty-icon">📊</div><div class="empty-title">No submissions yet</div><div class="empty-sub">Publish an exam and share the access code with students.</div></div></td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = _myResults.map(function(r) {
-    var pct      = r.scorePercent || 0;
-    var barColor = pct >= 70 ? 'var(--green)' : pct >= 50 ? 'var(--orange)' : 'var(--red)';
-    var exam     = r.examId || {};
-    var needsGrading = !r.theoryMarked && (exam.examType === 'theory' || exam.examType === 'mixed');
-
-    return '<tr>' +
-      '<td style="font-weight:700; color:#fff;">' + (r.studentName || '—') + '</td>' +
-      '<td style="font-size:13px;">' + (exam.title || '—') + '</td>' +
-      '<td>' +
-        '<div style="font-weight:800; color:' + barColor + ';">' + pct + '%</div>' +
-        '<div class="result-bar-wrap"><div class="result-bar-fill" style="width:' + pct + '%; background:' + barColor + ';"></div></div>' +
-      '</td>' +
-      '<td>' + (r.isPassed ? '<span class="badge badge-green">Passed</span>' : '<span class="badge badge-red">Failed</span>') + '</td>' +
-      '<td>' + (needsGrading ? '<span class="badge badge-orange">Needs Grading</span>' : r.theoryMarked ? '<span class="badge badge-green">Graded</span>' : '<span class="badge badge-muted">N/A</span>') + '</td>' +
-      '<td>' + (r.isReleased ? '<span class="badge badge-green">Released</span>' : '<span class="badge badge-muted">Pending</span>') + '</td>' +
-      '<td style="font-size:12px;">' + instFmtDate(r.createdAt) + '</td>' +
-      '<td>' + (needsGrading ? '<button class="btn btn-sm" style="background:rgba(255,165,0,0.1); border:1px solid rgba(255,165,0,0.3); color:var(--orange);" onclick="openGradeModal(\'' + r._id + '\')">✏️ Grade</button>' : '—') + '</td>' +
-    '</tr>';
+  var examId=(document.getElementById('resultExamFilter')||{}).value;
+  var url='/school/results'+(examId?'?examId='+examId:'');
+  var res=await instApi(url); if(!res.ok){instToast('Failed to load results.','error');return;}
+  _myResults=res.data.results||[];
+  var heading=document.getElementById('resultsHeading'); var sumBar=document.getElementById('resultsSummaryBar');
+  if(heading)heading.textContent=_myResults.length+' Submission'+(_myResults.length!==1?'s':'');
+  if(sumBar&&_myResults.length>0){var passed=_myResults.filter(function(r){return r.isPassed;}).length;var avgScore=Math.round(_myResults.reduce(function(s,r){return s+(r.scorePercent||0);},0)/_myResults.length);sumBar.innerHTML='<span style="color:var(--green);">✅ Passed: '+passed+'</span><span style="color:var(--red);">❌ Failed: '+(_myResults.length-passed)+'</span><span>📊 Avg: '+avgScore+'%</span>';}else if(sumBar)sumBar.innerHTML='';
+  var tbody=document.getElementById('resultsTableBody'); if(!tbody)return;
+  if(_myResults.length===0){tbody.innerHTML='<tr><td colspan="8"><div class="empty"><div class="empty-icon">📊</div><div class="empty-title">No submissions yet</div></div></td></tr>';return;}
+  tbody.innerHTML=_myResults.map(function(r){
+    var pct=r.scorePercent||0; var barColor=pct>=70?'var(--green)':pct>=50?'var(--orange)':'var(--red)';
+    var exam=r.examId||{}; var needsGrading=!r.theoryMarked&&(exam.examType==='theory'||exam.examType==='mixed');
+    return'<tr><td style="font-weight:700; color:#fff;">'+(r.studentName||'—')+'</td><td style="font-size:13px;">'+(exam.title||'—')+'</td><td><div style="font-weight:800; color:'+barColor+';">'+pct+'%</div><div class="result-bar-wrap"><div class="result-bar-fill" style="width:'+pct+'%; background:'+barColor+';"></div></div></td><td>'+(r.isPassed?'<span class="badge badge-green">Passed</span>':'<span class="badge badge-red">Failed</span>')+'</td><td>'+(needsGrading?'<span class="badge badge-orange">Needs Grading</span>':r.theoryMarked?'<span class="badge badge-green">Graded</span>':'<span class="badge badge-muted">N/A</span>')+'</td><td>'+(r.isReleased?'<span class="badge badge-green">Released</span>':'<span class="badge badge-muted">Pending</span>')+'</td><td style="font-size:12px;">'+instFmtDate(r.createdAt)+'</td><td>'+(needsGrading?'<button class="btn btn-sm btn-orange" onclick="openGradeModal(\''+r._id+'\')">✏️ Grade</button>':'—')+'</td></tr>';
   }).join('');
 }
 
-function filterResults() { loadResults(); }
+function filterResults(){loadResults();}
 
 /* ============================================ GRADING */
 async function loadGradingExamList() {
-  if (_myExams.length === 0) {
-    var res = await instApi('/teacher/exams');
-    if (res.ok) _myExams = res.data.exams || [];
-  }
-  var sel = document.getElementById('gradeExamSelect');
-  if (!sel) return;
-  var theoryExams = _myExams.filter(function(e) { return e.examType === 'theory' || e.examType === 'mixed'; });
-  sel.innerHTML = '<option value="">-- Select Exam to Grade --</option>' +
-    theoryExams.map(function(e) { return '<option value="' + e._id + '">' + e.title + ' — ' + (e.subject || '') + '</option>'; }).join('');
-  if (theoryExams.length === 0) {
-    document.getElementById('gradingContent').innerHTML =
-      '<div class="empty"><div class="empty-icon">✏️</div><div class="empty-title">No theory exams</div><div class="empty-sub">Create an exam with theory or mixed questions to enable manual grading here.</div></div>';
-  }
+  if(_myExams.length===0){var res=await instApi('/teacher/exams');if(res.ok)_myExams=res.data.exams||[];}
+  var sel=document.getElementById('gradeExamSelect'); if(!sel)return;
+  var theoryExams=_myExams.filter(function(e){return e.examType==='theory'||e.examType==='mixed';});
+  sel.innerHTML='<option value="">-- Select Exam to Grade --</option>'+theoryExams.map(function(e){return'<option value="'+e._id+'">'+e.title+' — '+(e.subject||'')+'</option>';}).join('');
+  if(theoryExams.length===0)document.getElementById('gradingContent').innerHTML='<div class="empty"><div class="empty-icon">✏️</div><div class="empty-title">No theory exams</div><div class="empty-sub">Create an exam with theory or mixed questions to enable grading here.</div></div>';
 }
 
 async function loadGradingQueue() {
-  var examId  = (document.getElementById('gradeExamSelect') || {}).value;
-  if (!examId) { instToast('Please select an exam.', 'error'); return; }
-  var content = document.getElementById('gradingContent');
-  if (content) content.innerHTML = '<div style="text-align:center; padding:32px; color:var(--muted);">Loading submissions...</div>';
-
-  var res = await instApi('/teacher/exams/' + examId + '/results');
-  if (!res.ok) { instToast('Failed to load results.', 'error'); return; }
-
-  var results  = res.data.results || [];
-  var ungraded = results.filter(function(r) { return !r.theoryMarked; });
-
-  if (!content) return;
-
-  if (ungraded.length === 0) {
-    content.innerHTML =
-      '<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">All submissions graded</div><div class="empty-sub">Every theory submission for this exam has been graded.</div></div>';
-    return;
-  }
-
-  content.innerHTML =
-    '<div class="card">' +
-      '<div class="card-head"><h3>Ungraded Submissions</h3><span style="font-size:13px; color:var(--muted);">' + ungraded.length + ' pending</span></div>' +
-      '<div style="padding:8px 0;">' +
-        ungraded.map(function(r) {
-          return '<div style="display:flex; align-items:center; gap:14px; padding:14px 20px; border-bottom:1px solid var(--border);">' +
-            '<div style="width:40px; height:40px; border-radius:10px; background:rgba(255,165,0,0.12); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">📝</div>' +
-            '<div style="flex:1;">' +
-              '<div style="font-size:14px; font-weight:700; color:#fff;">' + (r.studentName || '—') + '</div>' +
-              '<div style="font-size:12px; color:var(--muted);">Submitted ' + instFmtDate(r.createdAt) + ' · Obj: ' + (r.objectiveScore || 0) + '/' + (r.objectiveTotal || 0) + '</div>' +
-            '</div>' +
-            '<button class="btn btn-sm btn-primary" onclick="openGradeModal(\'' + r._id + '\')">✏️ Grade Now</button>' +
-          '</div>';
-        }).join('') +
-      '</div>' +
-    '</div>';
+  var examId=(document.getElementById('gradeExamSelect')||{}).value; if(!examId){instToast('Please select an exam.','error');return;}
+  var content=document.getElementById('gradingContent'); if(content)content.innerHTML='<div style="text-align:center; padding:32px; color:var(--muted);">Loading submissions...</div>';
+  var res=await instApi('/teacher/exams/'+examId+'/results'); if(!res.ok){instToast('Failed to load results.','error');return;}
+  var results=res.data.results||[]; var ungraded=results.filter(function(r){return!r.theoryMarked;});
+  if(!content)return;
+  if(ungraded.length===0){content.innerHTML='<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">All submissions graded</div></div>';return;}
+  content.innerHTML='<div class="card"><div class="card-head"><h3>Ungraded Submissions</h3><span style="font-size:13px; color:var(--muted);">'+ungraded.length+' pending</span></div><div style="padding:8px 0;">'+ungraded.map(function(r){return'<div style="display:flex; align-items:center; gap:14px; padding:14px 20px; border-bottom:1px solid var(--border);"><div style="width:40px; height:40px; border-radius:10px; background:rgba(255,165,0,0.12); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">📝</div><div style="flex:1;"><div style="font-size:14px; font-weight:700; color:#fff;">'+(r.studentName||'—')+'</div><div style="font-size:12px; color:var(--muted);">Submitted '+instFmtDate(r.createdAt)+' · Obj: '+(r.objectiveScore||0)+'/'+(r.objectiveTotal||0)+'</div></div><button class="btn btn-sm btn-primary" onclick="openGradeModal(\''+r._id+'\')">✏️ Grade Now</button></div>';}).join('')+'</div></div>';
 }
 
 async function openGradeModal(resultId) {
-  _activeResultId = resultId;
-
-  /* Fetch all results to find this one */
-  var res     = await instApi('/school/results?limit=200');
-  var allRes  = res.ok ? (res.data.results || []) : [];
-  var result  = allRes.find(function(r) { return r._id === resultId; });
-
-  if (!result) { instToast('Loading submission...', 'info'); return; }
-
-  document.getElementById('gradeModalTitle').textContent = 'Grade — ' + (result.studentName || 'Student');
-  document.getElementById('gradeModalMeta').textContent  =
-    (result.examId ? (result.examId.title || 'Exam') : '') +
-    ' · Obj: ' + (result.objectiveScore || 0) + '/' + (result.objectiveTotal || 0);
-
-  document.getElementById('gradeObjScore').textContent =
-    (result.objectiveScore || 0) + ' / ' + (result.objectiveTotal || 0) + ' marks';
-
-  var theoryAnswers = (result.answers || []).filter(function(a) { return a.questionType === 'theory'; });
-  _gradeAnswers = theoryAnswers;
-
-  var container = document.getElementById('gradeQuestionsContainer');
-  if (!container) return;
-
-  if (theoryAnswers.length === 0) {
-    container.innerHTML = '<div style="color:var(--muted); text-align:center; padding:24px; font-size:14px;">No theory questions in this submission.</div>';
-  } else {
-    container.innerHTML = theoryAnswers.map(function(a, i) {
-      return '<div class="theory-q">' +
-        '<div style="font-size:13px; font-weight:700; color:#fff; margin-bottom:8px;">Q' + (i + 1) + '. ' + (a.question || a.questionId || 'Question') + '</div>' +
-        '<div style="font-size:11px; color:var(--muted); margin-bottom:6px;">Student\'s answer:</div>' +
-        '<div class="theory-answer-box">' + (a.userAnswer || '<em>No answer provided</em>') + '</div>' +
-        '<div style="display:flex; gap:12px; align-items:center; margin-top:10px; flex-wrap:wrap;">' +
-          '<div class="field" style="margin-bottom:0; flex:1; min-width:120px;">' +
-            '<label>Marks Awarded</label>' +
-            '<input type="number" id="gradeMarks_' + i + '" class="inp" value="0" min="0" max="' + (a.marksAvailable || 10) + '" />' +
-            '<div class="field-hint">Max: ' + (a.marksAvailable || 10) + ' marks</div>' +
-          '</div>' +
-          '<div class="field" style="margin-bottom:0; flex:2;">' +
-            '<label>Teacher Comment (optional)</label>' +
-            '<input type="text" id="gradeComment_' + i + '" class="inp" placeholder="Good attempt, but missing..." />' +
-          '</div>' +
-        '</div>' +
-      '</div>';
-    }).join('');
-  }
-
-  document.getElementById('gradeModal').style.display = 'flex';
+  _activeResultId=resultId;
+  var res=await instApi('/school/results?limit=200'); var allRes=res.ok?(res.data.results||[]):[];
+  var result=allRes.find(function(r){return r._id===resultId;});
+  if(!result){instToast('Loading submission...','info');return;}
+  document.getElementById('gradeModalTitle').textContent='Grade — '+(result.studentName||'Student');
+  document.getElementById('gradeModalMeta').textContent=(result.examId?(result.examId.title||'Exam'):'')+' · Obj: '+(result.objectiveScore||0)+'/'+(result.objectiveTotal||0);
+  document.getElementById('gradeObjScore').textContent=(result.objectiveScore||0)+' / '+(result.objectiveTotal||0)+' marks';
+  var theoryAnswers=(result.answers||[]).filter(function(a){return a.questionType==='theory';});
+  _gradeAnswers=theoryAnswers;
+  var container=document.getElementById('gradeQuestionsContainer'); if(!container)return;
+  if(theoryAnswers.length===0){container.innerHTML='<div style="color:var(--muted); text-align:center; padding:24px; font-size:14px;">No theory questions in this submission.</div>';}
+  else{container.innerHTML=theoryAnswers.map(function(a,i){return'<div class="theory-q"><div style="font-size:13px; font-weight:700; color:#fff; margin-bottom:8px;">Q'+(i+1)+'. '+(a.question||a.questionId||'Question')+'</div><div style="font-size:11px; color:var(--muted); margin-bottom:6px;">Student\'s answer:</div><div class="theory-answer-box">'+(a.userAnswer||'<em>No answer provided</em>')+'</div><div style="display:flex; gap:12px; align-items:center; margin-top:10px; flex-wrap:wrap;"><div class="field" style="margin-bottom:0; flex:1; min-width:120px;"><label>Marks Awarded</label><input type="number" id="gradeMarks_'+i+'" class="inp" value="0" min="0" max="'+(a.marksAvailable||10)+'" /><div class="field-hint">Max: '+(a.marksAvailable||10)+' marks</div></div><div class="field" style="margin-bottom:0; flex:2;"><label>Teacher Comment (optional)</label><input type="text" id="gradeComment_'+i+'" class="inp" placeholder="Good attempt, but missing..." /></div></div></div>';}).join('');}
+  document.getElementById('gradeModal').style.display='flex';
 }
 
 async function submitGrades() {
-  if (!_activeResultId) return;
-  var btn = document.getElementById('submitGradeBtn');
-  if (btn) { btn.innerHTML = '<span class="spinner spinner-dark"></span> Submitting...'; btn.disabled = true; }
-
-  var grades = _gradeAnswers.map(function(a, i) {
-    return {
-      questionId:     a.questionId,
-      marksAwarded:   parseInt((document.getElementById('gradeMarks_'   + i) || {}).value) || 0,
-      teacherComment: ((document.getElementById('gradeComment_' + i) || {}).value || '').trim()
-    };
-  });
-
-  var res = await instApi('/teacher/results/' + _activeResultId + '/grade', 'POST', { grades: grades });
-
-  if (btn) { btn.innerHTML = '✅ Submit Grades'; btn.disabled = false; }
-
-  if (res.ok) {
-    instToast('Grades submitted successfully!', 'success');
-    closeModal('gradeModal');
-    loadResults();
-    loadGradingQueue();
-  } else {
-    instToast(res.data.message || 'Grading failed.', 'error');
-  }
+  if(!_activeResultId)return;
+  var btn=document.getElementById('submitGradeBtn');
+  if(btn){btn.innerHTML='<span class="spinner"></span> Submitting...';btn.disabled=true;}
+  var grades=_gradeAnswers.map(function(a,i){return{questionId:a.questionId,marksAwarded:parseInt((document.getElementById('gradeMarks_'+i)||{}).value)||0,teacherComment:((document.getElementById('gradeComment_'+i)||{}).value||'').trim()};});
+  var res=await instApi('/teacher/results/'+_activeResultId+'/grade','POST',{grades});
+  if(btn){btn.innerHTML='✅ Submit Grades';btn.disabled=false;}
+  if(res.ok){instToast('Grades submitted successfully!','success');closeModal('gradeModal');loadResults();loadGradingQueue();}
+  else instToast(res.data.message||'Grading failed.','error');
 }
 
 /* ============================================ MODAL HELPERS */
-function closeModal(id) {
-  var el = document.getElementById(id);
-  if (el) el.style.display = 'none';
-}
-
-function closeAllModals() {
-  document.querySelectorAll('.modal-overlay').forEach(function(m) { m.style.display = 'none'; });
-}
-
-/* Close modal on backdrop click */
-document.addEventListener('click', function(e) {
-  if (e.target.classList.contains('modal-overlay')) closeAllModals();
-});
+function closeModal(id){var el=document.getElementById(id);if(el)el.style.display='none';}
+function closeAllModals(){document.querySelectorAll('.modal-overlay').forEach(function(m){m.style.display='none';});}
+document.addEventListener('click',function(e){if(e.target.classList.contains('modal-overlay'))closeAllModals();});
 </script>
 </body>
 </html>

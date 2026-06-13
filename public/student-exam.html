@@ -706,6 +706,105 @@
 
   })();
   </script>
+<!-- ============================================
+     ✅ PHASE G: RICH QUESTION RENDERING — Main Platform
+     Injects audio player + table display into the
+     existing student exam UI, triggered by
+     MutationObserver on question area changes.
+     Does NOT modify student-exam.js.
+============================================ -->
+<style>
+  /* Audio player in exam */
+  .sg-audio-wrap { background:rgba(108,99,255,0.06); border:1px solid rgba(108,99,255,0.2); border-radius:10px; padding:12px 15px; margin-bottom:14px; }
+  .sg-audio-label { font-size:12px; font-weight:700; color:#a78bfa; margin-bottom:7px; }
+  .sg-audio-player { width:100%; }
 
+  /* Table in exam */
+  .sg-table-wrap { overflow-x:auto; margin-bottom:14px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); }
+  .q-table { width:100%; border-collapse:collapse; font-size:14px; }
+  .q-table th { background:rgba(108,99,255,0.15); color:#a78bfa; font-weight:700; padding:9px 12px; border:1px solid rgba(108,99,255,0.25); text-align:left; white-space:nowrap; }
+  .q-table td { padding:8px 12px; border:1px solid rgba(255,255,255,0.08); color:#fff; vertical-align:top; }
+  .q-table tr:nth-child(even) td { background:rgba(255,255,255,0.03); }
+</style>
+<script>
+(function() {
+  /* ============================================
+     PHASE G: Inject audio + table into student exam
+     The main student-exam.js sets question data
+     via the questions array and renderCurrentQuestion.
+     We watch the question area for DOM changes,
+     then inject audio/table when the question renders.
+  ============================================ */
+
+  /* Store reference to current question data */
+  var _lastAudio = '';
+  var _lastTable = '';
+
+  function injectRichContent() {
+    /* Access exam state from student-exam.js globals */
+    var examQuestions = window.examQuestions || window._questions || [];
+    var currentIndex  = window.currentQuestionIndex !== undefined
+      ? window.currentQuestionIndex
+      : (window._currentIdx !== undefined ? window._currentIdx : -1);
+
+    if (currentIndex < 0 || currentIndex >= examQuestions.length) return;
+
+    var q = examQuestions[currentIndex];
+    if (!q) return;
+
+    var audioUrl  = q.audioUrl  || '';
+    var tableHtml = q.tableHtml || '';
+
+    /* Skip if same as before */
+    if (audioUrl === _lastAudio && tableHtml === _lastTable) return;
+    _lastAudio = audioUrl; _lastTable = tableHtml;
+
+    var qArea = document.getElementById('sQuestionText');
+    if (!qArea) return;
+    var parent = qArea.parentNode;
+    if (!parent) return;
+
+    /* Remove any previously injected rich content */
+    var oldAudio = document.getElementById('sg-audio-inject');
+    var oldTable = document.getElementById('sg-table-inject');
+    if (oldAudio) oldAudio.parentNode.removeChild(oldAudio);
+    if (oldTable) oldTable.parentNode.removeChild(oldTable);
+
+    /* Inject audio (before question text) */
+    if (audioUrl) {
+      var audioDiv = document.createElement('div');
+      audioDiv.id = 'sg-audio-inject';
+      audioDiv.className = 'sg-audio-wrap';
+      audioDiv.innerHTML =
+        '<div class="sg-audio-label">🔊 Listen to audio before answering</div>' +
+        '<audio class="sg-audio-player" controls src="' + audioUrl + '"></audio>';
+      parent.insertBefore(audioDiv, qArea);
+    }
+
+    /* Inject table (after question text) */
+    if (tableHtml) {
+      var tableDiv = document.createElement('div');
+      tableDiv.id = 'sg-table-inject';
+      tableDiv.className = 'sg-table-wrap';
+      tableDiv.innerHTML = tableHtml;
+      /* Insert after question text */
+      if (qArea.nextSibling) { parent.insertBefore(tableDiv, qArea.nextSibling); }
+      else { parent.appendChild(tableDiv); }
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    /* Watch question text changes */
+    var qEl = document.getElementById('sQuestionText');
+    if (!qEl) return;
+
+    var obs = new MutationObserver(function() {
+      /* Small delay to let student-exam.js finish rendering */
+      setTimeout(injectRichContent, 100);
+    });
+    obs.observe(qEl, { childList:true, subtree:true, characterData:true });
+  });
+})();
+</script>
 </body>
 </html>

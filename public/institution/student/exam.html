@@ -112,6 +112,18 @@
 
     .q-image { max-width:100%; border-radius:10px; margin-bottom:16px; }
 
+    /* ✅ PHASE G: Audio player in exam */
+    .q-audio-wrap  { background:rgba(108,99,255,0.06); border:1px solid rgba(108,99,255,0.2); border-radius:10px; padding:13px 15px; margin-bottom:14px; }
+    .q-audio-label { font-size:12px; font-weight:700; color:#a78bfa; margin-bottom:8px; }
+    .q-audio-player { width:100%; }
+
+    /* ✅ PHASE G: Table display in exam */
+    .q-table-wrap { overflow-x:auto; margin-bottom:14px; border-radius:8px; border:1px solid var(--border); }
+    .q-table { width:100%; border-collapse:collapse; font-size:14px; }
+    .q-table th { background:rgba(108,99,255,0.15); color:#a78bfa; font-weight:700; padding:10px 13px; border:1px solid rgba(108,99,255,0.25); text-align:left; white-space:nowrap; }
+    .q-table td { padding:9px 13px; border:1px solid rgba(255,255,255,0.08); color:#fff; vertical-align:top; }
+    .q-table tr:nth-child(even) td { background:rgba(255,255,255,0.03); }
+
     .options-list { display:flex; flex-direction:column; gap:11px; margin-bottom:28px; }
     .option-btn {
       width:100%; padding:15px 16px; border-radius:12px; cursor:pointer;
@@ -125,10 +137,11 @@
     .option-btn:active:not(:disabled) { transform:scale(0.99); }
     .opt-letter { width:28px; height:28px; border-radius:50%; border:1px solid var(--border); background:rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:#6b6b8a; flex-shrink:0; transition:all 0.15s; }
     .option-btn.selected .opt-letter { background:var(--primary); border-color:var(--primary); color:#fff; }
-    .opt-text { font-size:15px; color:#fff; line-height:1.6; flex:1; }
+    .opt-text  { font-size:15px; color:#fff; line-height:1.6; flex:1; }
     .opt-text .katex { font-size:1em; }
 
-    .theory-input { width:100%; min-height:140px; background:rgba(255,255,255,0.04); border:2px solid var(--border); border-radius:12px; padding:14px; color:#fff; font-size:14px; font-family:inherit; resize:vertical; outline:none; transition:border-color 0.2s; }
+    /* theory-input allows text selection so students can type freely */
+    .theory-input { width:100%; min-height:140px; background:rgba(255,255,255,0.04); border:2px solid var(--border); border-radius:12px; padding:14px; color:#fff; font-size:14px; font-family:inherit; resize:vertical; outline:none; transition:border-color 0.2s; user-select:text; -webkit-user-select:text; }
     .theory-input:focus { border-color:var(--primary); }
     .theory-input::placeholder { color:#6b6b8a; }
 
@@ -193,11 +206,9 @@
       text-align:center;
       animation:shake 0.4s ease;
     }
-    .sec-overlay-card.warning-type {
-      border-color:rgba(255,165,0,0.5);
-    }
+    .sec-overlay-card.warning-type { border-color:rgba(255,165,0,0.5); }
 
-    .sec-overlay-icon { font-size:52px; margin-bottom:12px; }
+    .sec-overlay-icon  { font-size:52px; margin-bottom:12px; }
     .sec-overlay-title { font-size:20px; font-weight:900; margin:0 0 8px; }
     .sec-overlay-msg   { font-size:14px; color:#a0a0c0; margin:0 0 20px; line-height:1.6; }
 
@@ -211,18 +222,10 @@
       background:rgba(255,165,0,0.1); border-color:rgba(255,165,0,0.3); color:var(--orange);
     }
 
-    /* Countdown ring */
-    .sec-countdown-wrap {
-      position:relative; width:60px; height:60px;
-      margin:0 auto 16px;
-    }
-    .sec-countdown-svg {
-      transform:rotate(-90deg);
-    }
-    .sec-countdown-track {
-      fill:none; stroke:rgba(255,255,255,0.08); stroke-width:4;
-    }
-    .sec-countdown-ring {
+    .sec-countdown-wrap { position:relative; width:60px; height:60px; margin:0 auto 16px; }
+    .sec-countdown-svg  { transform:rotate(-90deg); }
+    .sec-countdown-track { fill:none; stroke:rgba(255,255,255,0.08); stroke-width:4; }
+    .sec-countdown-ring  {
       fill:none; stroke:var(--red); stroke-width:4;
       stroke-dasharray:126; stroke-dashoffset:0;
       stroke-linecap:round;
@@ -275,7 +278,7 @@
       oninput="this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')" />
 
     <button class="btn-start" id="startBtn" onclick="verifyCode()">
-      Start Exam →
+      Start Exam &rarr;
     </button>
 
     <p style="font-size:12px; color:#6b6b8a; text-align:center; margin-top:16px; line-height:1.7;">
@@ -291,7 +294,7 @@
 <div class="screen" id="briefingScreen">
   <div class="briefing-card">
     <div class="school-logo-wrap">
-      <div id="briefSchoolLogo" class="school-logo-icon">🏫</div>
+      <div id="briefSchoolLogo" class="school-logo-icon">&#127983;</div>
       <div>
         <div class="school-name" id="briefSchoolName">School Name</div>
         <div style="font-size:12px; color:#6b6b8a;">CBT Examination System</div>
@@ -301,27 +304,26 @@
     <div style="font-size:11px; font-weight:700; color:#6b6b8a; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px;">Exam Details</div>
 
     <div class="exam-info-grid">
-      <div class="exam-info-item"><div class="exam-info-label">Title</div>   <div class="exam-info-value" id="briefTitle">—</div></div>
-      <div class="exam-info-item"><div class="exam-info-label">Subject</div> <div class="exam-info-value" id="briefSubject">—</div></div>
-      <div class="exam-info-item"><div class="exam-info-label">Duration</div><div class="exam-info-value" id="briefDuration">—</div></div>
-      <div class="exam-info-item"><div class="exam-info-label">Questions</div><div class="exam-info-value" id="briefQCount">—</div></div>
+      <div class="exam-info-item"><div class="exam-info-label">Title</div>    <div class="exam-info-value" id="briefTitle">&#8212;</div></div>
+      <div class="exam-info-item"><div class="exam-info-label">Subject</div>  <div class="exam-info-value" id="briefSubject">&#8212;</div></div>
+      <div class="exam-info-item"><div class="exam-info-label">Duration</div> <div class="exam-info-value" id="briefDuration">&#8212;</div></div>
+      <div class="exam-info-item"><div class="exam-info-label">Questions</div><div class="exam-info-value" id="briefQCount">&#8212;</div></div>
     </div>
 
     <div id="briefInstructions" class="instructions-box" style="display:none;"></div>
 
-    <!-- ✅ PHASE F: Security rules in briefing -->
     <div class="security-rules-box">
-      <strong>🔒 Exam Security Rules</strong><br/>
-      • This exam runs in <strong>fullscreen mode</strong> — do not exit<br/>
-      • Tab-switching and window changes are <strong>detected and logged</strong><br/>
-      • Right-clicking and keyboard shortcuts are <strong>disabled</strong><br/>
-      • Copying exam content is <strong>blocked</strong><br/>
-      • Repeated violations will <strong>auto-submit your exam</strong>
+      <strong>&#128274; Exam Security Rules</strong><br/>
+      &#8226; This exam runs in <strong>fullscreen mode</strong> &#8212; do not exit<br/>
+      &#8226; Tab-switching and window changes are <strong>detected and logged</strong><br/>
+      &#8226; Right-clicking and keyboard shortcuts are <strong>disabled</strong><br/>
+      &#8226; Copying exam content is <strong>blocked</strong><br/>
+      &#8226; Repeated violations will <strong>auto-submit your exam</strong>
     </div>
 
-    <button class="btn-start" id="beginBtn" onclick="beginExam()">🚀 Begin Exam</button>
+    <button class="btn-start" id="beginBtn" onclick="beginExam()">&#128640; Begin Exam</button>
     <div style="text-align:center; margin-top:12px;">
-      <button style="background:none; border:none; color:#6b6b8a; font-size:13px; cursor:pointer; font-family:inherit;" onclick="showScreen('entry')">← Back</button>
+      <button style="background:none; border:none; color:#6b6b8a; font-size:13px; cursor:pointer; font-family:inherit;" onclick="showScreen('entry')">&larr; Back</button>
     </div>
   </div>
 </div>
@@ -332,10 +334,9 @@
 <div id="examScreen">
   <div class="exam-topbar">
     <span class="exam-title-tag" id="examTitleTag">Exam</span>
-    <!-- ✅ PHASE F: Security indicator -->
-    <span class="sec-indicator" id="secIndicator" title="Security monitoring active">🔒 Secure</span>
+    <span class="sec-indicator" id="secIndicator" title="Security monitoring active">&#128274; Secure</span>
     <span class="timer-display" id="timerDisplay">00:00</span>
-    <button class="quit-btn" onclick="confirmQuit()">✕ Quit</button>
+    <button class="quit-btn" onclick="confirmQuit()">&#10005; Quit</button>
   </div>
 
   <div class="exam-progress">
@@ -343,18 +344,29 @@
   </div>
 
   <div class="exam-body" id="examBody">
+
+    <!-- ✅ PHASE G: Audio player — shown above question when audioUrl exists -->
+    <div id="qAudioWrap" class="q-audio-wrap" style="display:none;">
+      <div class="q-audio-label">&#128266; Listen to audio before answering</div>
+      <audio id="qAudioEl" class="q-audio-player" controls></audio>
+    </div>
+
     <div class="q-counter" id="qCounter">Question 1 of 1</div>
     <div class="q-text"    id="qText">Loading...</div>
     <div id="qImageWrap"   style="display:none;"><img id="qImage" class="q-image" src="" alt="" /></div>
+
+    <!-- ✅ PHASE G: Table display — shown between question text and answer options -->
+    <div id="qTableDisplayWrap" class="q-table-wrap" style="display:none;"></div>
+
     <div class="options-list" id="optionsList"></div>
     <textarea id="theoryInput" class="theory-input" placeholder="Type your answer here..." style="display:none;" oninput="saveTheoryAnswer()"></textarea>
   </div>
 
   <div class="exam-footer">
-    <button class="nav-btn nav-btn-prev" id="prevBtn" onclick="prevQuestion()" disabled>← Prev</button>
-    <button class="q-grid-btn" onclick="toggleQGrid()">📋</button>
-    <button class="nav-btn nav-btn-next"   id="nextBtn"   onclick="nextQuestion()">Next →</button>
-    <button class="nav-btn nav-btn-submit" id="submitBtn" onclick="confirmSubmit()" style="display:none;">Submit ✓</button>
+    <button class="nav-btn nav-btn-prev" id="prevBtn" onclick="prevQuestion()" disabled>&larr; Prev</button>
+    <button class="q-grid-btn" onclick="toggleQGrid()">&#128203;</button>
+    <button class="nav-btn nav-btn-next"   id="nextBtn"   onclick="nextQuestion()">Next &rarr;</button>
+    <button class="nav-btn nav-btn-submit" id="submitBtn" onclick="confirmSubmit()" style="display:none;">Submit &#10003;</button>
   </div>
 </div>
 
@@ -364,8 +376,8 @@
 <div class="q-overlay" id="qOverlay" onclick="handleOverlayClick(event)">
   <div class="q-panel">
     <div class="q-panel-head">
-      <h3>📋 Questions</h3>
-      <button style="background:none; border:none; color:#6b6b8a; font-size:20px; cursor:pointer;" onclick="toggleQGrid()">✕</button>
+      <h3>&#128203; Questions</h3>
+      <button style="background:none; border:none; color:#6b6b8a; font-size:20px; cursor:pointer;" onclick="toggleQGrid()">&#10005;</button>
     </div>
     <div class="q-dots" id="qDots"></div>
     <div style="margin-top:18px; font-size:12px; color:#6b6b8a; line-height:1.9;">
@@ -377,22 +389,16 @@
 
 <!-- ============================================
      ✅ PHASE F: SECURITY VIOLATION OVERLAY
-     Shown on every security violation.
-     Student cannot dismiss for 5 seconds.
-     Auto-submits on max violations.
 ============================================ -->
 <div class="sec-overlay" id="secOverlay">
   <div class="sec-overlay-card" id="secOverlayCard">
 
-    <div class="sec-overlay-icon" id="secOverlayIcon">⚠️</div>
+    <div class="sec-overlay-icon" id="secOverlayIcon">&#9888;&#65039;</div>
     <div class="sec-overlay-title" id="secOverlayTitle">Security Violation Detected</div>
     <div class="sec-overlay-msg"   id="secOverlayMsg">This incident has been recorded and will be reviewed by your teacher.</div>
 
-    <div class="sec-violation-count" id="secViolationCount">
-      Violation 1 of 3
-    </div>
+    <div class="sec-violation-count" id="secViolationCount">Violation 1 of 3</div>
 
-    <!-- Countdown ring — student must wait before dismissing -->
     <div class="sec-countdown-wrap" id="secCountdownWrap">
       <svg class="sec-countdown-svg" width="60" height="60" viewBox="0 0 44 44">
         <circle class="sec-countdown-track" cx="22" cy="22" r="20" />
@@ -415,27 +421,27 @@
 ============================================ -->
 <div class="screen" id="resultScreen">
   <div class="result-card">
-    <div class="result-emoji"  id="resultEmoji">🏆</div>
+    <div class="result-emoji"  id="resultEmoji">&#127942;</div>
     <div class="result-title"  id="resultTitle">Well Done!</div>
     <div class="result-sub"    id="resultSub">Your exam has been submitted.</div>
 
     <div class="score-circle" id="scoreCircle">
-      <span class="score-pct" id="scorePct">—</span>
+      <span class="score-pct" id="scorePct">&#8212;</span>
       <span class="score-lbl">Score</span>
     </div>
 
     <div class="result-stats">
-      <div class="result-stat"><div class="result-stat-val" id="rsCorrect">—</div><div class="result-stat-lbl">Correct</div></div>
-      <div class="result-stat"><div class="result-stat-val" id="rsTotalQ">—</div> <div class="result-stat-lbl">Questions</div></div>
-      <div class="result-stat"><div class="result-stat-val" id="rsTime">—</div>   <div class="result-stat-lbl">Time</div></div>
+      <div class="result-stat"><div class="result-stat-val" id="rsCorrect">&#8212;</div><div class="result-stat-lbl">Correct</div></div>
+      <div class="result-stat"><div class="result-stat-val" id="rsTotalQ">&#8212;</div> <div class="result-stat-lbl">Questions</div></div>
+      <div class="result-stat"><div class="result-stat-val" id="rsTime">&#8212;</div>   <div class="result-stat-lbl">Time</div></div>
     </div>
 
     <div id="pendingNotice" class="pending-notice" style="display:none;">
-      ⏳ Your theory answers are being reviewed by your teacher.
+      Your theory answers are being reviewed by your teacher.
     </div>
 
     <button class="btn-home" onclick="window.location.replace('/institution/student/exam.html')">
-      ← Back to Exam Portal
+      &larr; Back to Exam Portal
     </button>
   </div>
 </div>
@@ -444,25 +450,26 @@
 <script src="/institution/js/inst.api.js"></script>
 <script>
 /* ============================================
-   STUDENT EXAM ENGINE
+   INSTITUTION STUDENT EXAM ENGINE
    ✅ PHASE F: CBT Security + Anti-Cheat
+   ✅ PHASE G: Audio player + Table rendering
    ✅ KaTeX math rendering
+   
+   Base: OLD working Phase F code (Document 15)
+   Added: Phase G audio/table support in renderQuestion
 ============================================ */
 
-/* ---- State ---- */
-var _session     = null;
-var _questions   = [];
-var _answers     = {};
-var _currentIdx  = 0;
-var _timerInt    = null;
-var _timeLeft    = 0;
-var _startTime   = Date.now();
-var _submitted   = false;
+/* ---- Core State ---- */
+var _session    = null;
+var _questions  = [];
+var _answers    = {};
+var _currentIdx = 0;
+var _timerInt   = null;
+var _timeLeft   = 0;
+var _startTime  = Date.now();
+var _submitted  = false;
 
-/* ============================================
-   ✅ PHASE F: Security state object
-   Tracks all security events for reporting
-============================================ */
+/* ✅ PHASE F: Security state */
 var _security = {
   isActive:        false,
   fullscreenExits: 0,
@@ -471,16 +478,16 @@ var _security = {
   copyAttempts:    0,
   devtoolAttempts: 0,
   totalViolations: 0,
-  maxViolations:   5,        /* auto-submit threshold */
-  fsMaxViolations: 3,        /* fullscreen-specific threshold */
+  maxViolations:   5,
+  fsMaxViolations: 3,
   dismissCountdown:null,
-  log:             []        /* [{type, time, msg}] */
+  log:             []
 };
 
 /* ---- KaTeX config ---- */
 var _katexOpts = {
   delimiters: [
-    { left: '$$', right: '$$', display: true },
+    { left: '$$', right: '$$', display: true  },
     { left: '$',  right: '$',  display: false }
   ],
   throwOnError: false,
@@ -488,38 +495,56 @@ var _katexOpts = {
 };
 
 function setTextWithMath(element, text) {
-  if (!element) return;
+  if (!element) { return; }
   element.textContent = text || '';
   if (window._katexReady && typeof renderMathInElement !== 'undefined') {
     try { renderMathInElement(element, _katexOpts); } catch(e) {}
   }
 }
 
-/* ============================================ SCREEN NAV */
+/* ============================================
+   SCREEN NAVIGATION
+============================================ */
 function showScreen(name) {
-  document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+  document.querySelectorAll('.screen').forEach(function(s) {
+    s.classList.remove('active');
+  });
   var examEl = document.getElementById('examScreen');
   examEl.classList.remove('active');
   if (name === 'exam') {
     examEl.classList.add('active');
   } else {
     var el = document.getElementById(name + 'Screen');
-    if (el) el.classList.add('active');
+    if (el) { el.classList.add('active'); }
   }
 }
 
-/* ============================================ VERIFY CODE */
+/* ============================================
+   VERIFY CODE
+============================================ */
 async function verifyCode() {
   var btn   = document.getElementById('startBtn');
   var errEl = document.getElementById('entryErr');
   errEl.style.display = 'none';
 
-  var name  = ((document.getElementById('studentName')  || {}).value || '').trim();
-  var admNo = ((document.getElementById('admissionNo')  || {}).value || '').trim();
-  var code  = ((document.getElementById('accessCode')   || {}).value || '').trim().toUpperCase();
+  var nameEl  = document.getElementById('studentName');
+  var admEl   = document.getElementById('admissionNo');
+  var codeEl  = document.getElementById('accessCode');
 
-  if (!name) { errEl.textContent = '⚠️ Please enter your full name.'; errEl.style.display = 'block'; return; }
-  if (!code || code.length < 4) { errEl.textContent = '⚠️ Please enter a valid access code.'; errEl.style.display = 'block'; return; }
+  var name  = nameEl  ? nameEl.value.trim()                    : '';
+  var admNo = admEl   ? admEl.value.trim()                     : '';
+  var code  = codeEl  ? codeEl.value.trim().toUpperCase()      : '';
+
+  if (!name) {
+    errEl.textContent = 'Please enter your full name.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (!code || code.length < 4) {
+    errEl.textContent = 'Please enter a valid access code.';
+    errEl.style.display = 'block';
+    return;
+  }
 
   if (btn) { btn.innerHTML = '<span class="spinner"></span> Verifying...'; btn.disabled = true; }
 
@@ -529,7 +554,7 @@ async function verifyCode() {
     admissionNo: admNo
   });
 
-  if (btn) { btn.innerHTML = 'Start Exam →'; btn.disabled = false; }
+  if (btn) { btn.innerHTML = 'Start Exam'; btn.disabled = false; }
 
   if (res.ok) {
     _session   = res.data;
@@ -539,50 +564,65 @@ async function verifyCode() {
     fillBriefing(res.data);
     showScreen('briefing');
   } else {
-    errEl.textContent   = res.data.message || 'Invalid access code. Please check and try again.';
+    errEl.textContent   = (res.data && res.data.message) ? res.data.message : 'Invalid access code. Please check and try again.';
     errEl.style.display = 'block';
   }
 }
 
-/* ============================================ BRIEFING */
+/* ============================================
+   BRIEFING
+============================================ */
 function fillBriefing(data) {
   var exam   = data.exam   || {};
   var school = data.school || {};
 
   var logoWrap = document.getElementById('briefSchoolLogo');
-  if (school.logo) {
-    logoWrap.innerHTML = '<img src="' + school.logo + '" class="school-logo-img" alt="Logo" />';
-  } else {
-    logoWrap.textContent = (school.name || 'S').charAt(0).toUpperCase();
+  if (logoWrap) {
+    if (school.logo) {
+      logoWrap.innerHTML = '<img src="' + school.logo + '" class="school-logo-img" alt="Logo" />';
+    } else {
+      logoWrap.textContent = (school.name || 'S').charAt(0).toUpperCase();
+    }
   }
-  document.getElementById('briefSchoolName').textContent = school.name  || '—';
-  document.getElementById('briefTitle').textContent      = exam.title   || '—';
-  document.getElementById('briefSubject').textContent    = exam.subject  || '—';
-  document.getElementById('briefDuration').textContent   = (exam.duration || 60) + ' mins';
-  document.getElementById('briefQCount').textContent     = exam.totalQuestions || _questions.length;
+
+  var el;
+  el = document.getElementById('briefSchoolName'); if (el) { el.textContent = school.name  || ''; }
+  el = document.getElementById('briefTitle');      if (el) { el.textContent = exam.title   || ''; }
+  el = document.getElementById('briefSubject');    if (el) { el.textContent = exam.subject || ''; }
+  el = document.getElementById('briefDuration');   if (el) { el.textContent = (exam.duration || 60) + ' mins'; }
+  el = document.getElementById('briefQCount');     if (el) { el.textContent = exam.totalQuestions || _questions.length; }
 
   var instrEl = document.getElementById('briefInstructions');
-  if (exam.instructions) {
+  if (instrEl && exam.instructions) {
     instrEl.textContent   = exam.instructions;
     instrEl.style.display = 'block';
   }
 }
 
-/* ============================================ BEGIN EXAM */
+/* ============================================
+   BEGIN EXAM
+============================================ */
 function beginExam() {
   showScreen('exam');
-  document.getElementById('examTitleTag').textContent = (_session.exam || {}).title || 'Exam';
 
-  /* ✅ PHASE F: Initialize all security features */
+  var titleEl = document.getElementById('examTitleTag');
+  if (titleEl) { titleEl.textContent = (_session.exam || {}).title || 'Exam'; }
+
   initSecurity();
 
   window.addEventListener('beforeunload', function(e) {
-    if (!_submitted) { e.preventDefault(); e.returnValue = ''; }
+    if (!_submitted) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
   });
 
   window.history.pushState({ exam: true }, '');
   window.addEventListener('popstate', function() {
-    if (!_submitted) { window.history.pushState({ exam: true }, ''); confirmQuit(); }
+    if (!_submitted) {
+      window.history.pushState({ exam: true }, '');
+      confirmQuit();
+    }
   });
 
   buildQGrid();
@@ -592,223 +632,187 @@ function beginExam() {
 
 /* ============================================
    ✅ PHASE F: SECURITY INITIALIZATION
-   Call once when exam begins.
 ============================================ */
 function initSecurity() {
   _security.isActive = true;
 
-  /* 1. Request fullscreen */
   requestExamFullscreen();
 
-  /* 2. Fullscreen exit detection */
   document.addEventListener('fullscreenchange',       onFullscreenChange);
   document.addEventListener('webkitfullscreenchange', onFullscreenChange);
   document.addEventListener('mozfullscreenchange',    onFullscreenChange);
-
-  /* 3. Tab switch / visibility change */
-  document.addEventListener('visibilitychange', onVisibilityChange);
-
-  /* 4. Window focus/blur */
+  document.addEventListener('visibilitychange',       onVisibilityChange);
   window.addEventListener('blur',  onWindowBlur);
   window.addEventListener('focus', onWindowFocus);
+  document.addEventListener('keydown',     blockKeyboardShortcuts, true);
+  document.addEventListener('contextmenu', blockContextMenu,       true);
 
-  /* 5. Keyboard shortcut blocking */
-  document.addEventListener('keydown', blockKeyboardShortcuts, true);
-
-  /* 6. Right-click disable */
-  document.addEventListener('contextmenu', blockContextMenu, true);
-
-  /* 7. Copy protection on exam body */
   var examBody = document.getElementById('examBody');
   if (examBody) {
-    examBody.addEventListener('copy',  blockCopy, true);
-    examBody.addEventListener('cut',   blockCopy, true);
+    examBody.addEventListener('copy', blockCopy, true);
+    examBody.addEventListener('cut',  blockCopy, true);
   }
 
-  /* 8. Update indicator */
   updateSecIndicator();
-
   logSecurityEvent('init', 'Exam security initialized');
 }
 
-/* ---- Fullscreen ---- */
 function requestExamFullscreen() {
   var el = document.documentElement;
   try {
-    if      (el.requestFullscreen)       el.requestFullscreen();
-    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-    else if (el.mozRequestFullScreen)    el.mozRequestFullScreen();
+    if      (el.requestFullscreen)       { el.requestFullscreen(); }
+    else if (el.webkitRequestFullscreen) { el.webkitRequestFullscreen(); }
+    else if (el.mozRequestFullScreen)    { el.mozRequestFullScreen(); }
   } catch(e) {
-    /* Fullscreen not available (e.g. some mobile browsers) — log but continue */
-    logSecurityEvent('fs_unavailable', 'Fullscreen not supported on this device');
+    logSecurityEvent('fs_unavailable', 'Fullscreen not supported');
   }
 }
 
 function isInFullscreen() {
   return !!(
-    document.fullscreenElement ||
+    document.fullscreenElement       ||
     document.webkitFullscreenElement ||
     document.mozFullScreenElement
   );
 }
 
 function onFullscreenChange() {
-  if (!_security.isActive || _submitted) return;
+  if (!_security.isActive || _submitted) { return; }
   if (!isInFullscreen()) {
     _security.fullscreenExits++;
-    logSecurityEvent('fullscreen_exit', 'Student exited fullscreen (exit #' + _security.fullscreenExits + ')');
+    logSecurityEvent('fullscreen_exit', 'Student exited fullscreen #' + _security.fullscreenExits);
     var remaining = _security.fsMaxViolations - _security.fullscreenExits;
     if (_security.fullscreenExits >= _security.fsMaxViolations) {
       showSecurityWarning(
         'danger',
-        '🚫 Fullscreen Exited — Maximum Reached',
+        'Fullscreen Exited - Maximum Reached',
         'You have exited fullscreen ' + _security.fullscreenExits + ' times. Your exam is being submitted automatically.',
-        true  /* auto-submit */
+        true
       );
     } else {
       showSecurityWarning(
         'danger',
-        '🖥 Fullscreen Exited',
+        'Fullscreen Exited',
         'Please stay in fullscreen mode during the exam. This incident has been recorded. ' + remaining + ' violation' + (remaining !== 1 ? 's' : '') + ' remaining before auto-submit.'
       );
     }
   }
 }
 
-/* ---- Tab / Visibility ---- */
 function onVisibilityChange() {
-  if (!_security.isActive || _submitted) return;
+  if (!_security.isActive || _submitted) { return; }
   if (document.hidden) {
     _security.tabSwitches++;
     _security.totalViolations++;
-    logSecurityEvent('tab_switch', 'Tab switch / window hidden (#' + _security.tabSwitches + ')');
+    logSecurityEvent('tab_switch', 'Tab switch #' + _security.tabSwitches);
+    updateSecIndicator();
     var remaining = _security.maxViolations - _security.totalViolations;
     if (_security.totalViolations >= _security.maxViolations) {
       showSecurityWarning(
         'danger',
-        '⚠️ Maximum Violations Reached',
+        'Maximum Violations Reached',
         'You have accumulated ' + _security.totalViolations + ' security violations. Your exam is being submitted.',
         true
       );
     } else {
       showSecurityWarning(
         'warning',
-        '👁 Tab Switch Detected',
+        'Tab Switch Detected',
         'Switching tabs or windows during an exam is not allowed. This incident has been recorded. ' + remaining + ' violation' + (remaining !== 1 ? 's' : '') + ' before auto-submit.'
       );
     }
-    updateSecIndicator();
   }
 }
 
-/* ---- Window focus/blur ---- */
 var _blurTimeout = null;
 function onWindowBlur() {
-  if (!_security.isActive || _submitted) return;
-  /* Small delay — browser sometimes fires blur briefly */
+  if (!_security.isActive || _submitted) { return; }
   _blurTimeout = setTimeout(function() {
     if (!document.hidden) {
-      /* Window lost focus but tab is still visible (e.g. Alt+Tab, devtools) */
       _security.focusLosses++;
       _security.totalViolations++;
-      logSecurityEvent('focus_loss', 'Window focus lost (#' + _security.focusLosses + ')');
+      logSecurityEvent('focus_loss', 'Window focus lost #' + _security.focusLosses);
       updateSecIndicator();
     }
   }, 300);
 }
 
 function onWindowFocus() {
-  if (_blurTimeout) { clearTimeout(_blurTimeout); _blurTimeout = null; }
+  if (_blurTimeout) {
+    clearTimeout(_blurTimeout);
+    _blurTimeout = null;
+  }
 }
 
-/* ---- Keyboard shortcut blocking ---- */
 function blockKeyboardShortcuts(e) {
-  if (!_security.isActive || _submitted) return;
-
-  /* F12 */
+  if (!_security.isActive || _submitted) { return; }
   if (e.key === 'F12') {
-    e.preventDefault(); e.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
     _security.devtoolAttempts++;
-    logSecurityEvent('devtools_attempt', 'F12 pressed');
+    logSecurityEvent('devtools', 'F12 pressed');
     return false;
   }
-  /* Ctrl/Cmd combinations */
   if (e.ctrlKey || e.metaKey) {
-    var blocked = {
-      'i': 'Devtools (Ctrl+I)',
-      'u': 'View Source (Ctrl+U)',
-      'p': 'Print (Ctrl+P)',
-      's': 'Save (Ctrl+S)',
-      'j': 'Devtools Console (Ctrl+J)'
-    };
     var key = e.key ? e.key.toLowerCase() : '';
+    var blocked = { 'i':1, 'u':1, 'p':1, 's':1, 'j':1 };
     if (blocked[key]) {
-      e.preventDefault(); e.stopPropagation();
+      e.preventDefault();
+      e.stopPropagation();
       if (key === 'i' || key === 'j') {
         _security.devtoolAttempts++;
-        logSecurityEvent('devtools_attempt', blocked[key]);
+        logSecurityEvent('devtools', 'Ctrl+' + key.toUpperCase());
       }
       return false;
     }
-    /* Ctrl+Shift+I / Ctrl+Shift+J */
     if (e.shiftKey && (key === 'i' || key === 'j' || key === 'c')) {
-      e.preventDefault(); e.stopPropagation();
+      e.preventDefault();
+      e.stopPropagation();
       _security.devtoolAttempts++;
-      logSecurityEvent('devtools_attempt', 'Ctrl+Shift+' + key.toUpperCase());
+      logSecurityEvent('devtools', 'Ctrl+Shift+' + key.toUpperCase());
       return false;
     }
   }
 }
 
-/* ---- Right-click disable ---- */
 function blockContextMenu(e) {
-  if (!_security.isActive || _submitted) return;
+  if (!_security.isActive || _submitted) { return; }
   e.preventDefault();
   logSecurityEvent('rightclick', 'Right-click attempted');
   return false;
 }
 
-/* ---- Copy protection ---- */
 function blockCopy(e) {
-  if (!_security.isActive || _submitted) return;
+  if (!_security.isActive || _submitted) { return; }
   e.preventDefault();
   _security.copyAttempts++;
-  logSecurityEvent('copy_attempt', 'Copy/Cut attempted on exam content');
+  logSecurityEvent('copy', 'Copy/Cut attempted on exam content');
   return false;
 }
 
-/* ---- Violation logging ---- */
 function logSecurityEvent(type, msg) {
-  _security.log.push({
-    type: type,
-    time: new Date().toISOString(),
-    msg:  msg
-  });
+  _security.log.push({ type: type, time: new Date().toISOString(), msg: msg });
 }
 
-/* ---- Security indicator update ---- */
 function updateSecIndicator() {
   var el = document.getElementById('secIndicator');
-  if (!el) return;
-  var total = _security.totalViolations;
-  if (total === 0) {
-    el.textContent  = '🔒 Secure';
-    el.className    = 'sec-indicator';
+  if (!el) { return; }
+  var t = _security.totalViolations;
+  if (t === 0) {
+    el.textContent = 'Secure';
+    el.className   = 'sec-indicator';
   } else {
-    el.textContent  = '⚠️ ' + total + ' Violation' + (total !== 1 ? 's' : '');
-    el.className    = 'sec-indicator violated';
+    el.textContent = t + ' Violation' + (t !== 1 ? 's' : '');
+    el.className   = 'sec-indicator violated';
   }
 }
 
 /* ============================================
-   ✅ PHASE F: SECURITY VIOLATION OVERLAY
-   type: 'warning' | 'danger'
-   autoSubmit: if true, submits after countdown
+   ✅ PHASE F: SECURITY WARNING OVERLAY
 ============================================ */
 function showSecurityWarning(type, title, message, autoSubmit) {
   autoSubmit = autoSubmit || false;
 
-  /* Update overlay content */
   var overlay   = document.getElementById('secOverlay');
   var card      = document.getElementById('secOverlayCard');
   var iconEl    = document.getElementById('secOverlayIcon');
@@ -820,42 +824,40 @@ function showSecurityWarning(type, title, message, autoSubmit) {
   var btn       = document.getElementById('secDismissBtn');
   var autoMsgEl = document.getElementById('secAutoSubmitMsg');
 
-  if (!overlay) return;
+  if (!overlay) { return; }
 
-  var isDanger = type === 'danger';
-  iconEl.textContent  = isDanger ? '🚫' : '⚠️';
+  var isDanger = (type === 'danger');
+
+  iconEl.textContent  = isDanger ? 'X' : '!';
   titleEl.textContent = title   || 'Security Violation';
   msgEl.textContent   = message || 'This incident has been recorded.';
 
   var total = _security.totalViolations;
-  countEl.textContent  = 'Violation ' + total + ' of ' + _security.maxViolations;
-  countEl.className    = 'sec-violation-count' + (isDanger ? '' : ' warning-type');
-  card.className       = 'sec-overlay-card' + (isDanger ? '' : ' warning-type');
-  ring.className       = 'sec-countdown-ring' + (isDanger ? '' : ' warning-type');
+  countEl.textContent = 'Violation ' + total + ' of ' + _security.maxViolations;
+  countEl.className   = 'sec-violation-count' + (isDanger ? '' : ' warning-type');
+  card.className      = 'sec-overlay-card'    + (isDanger ? '' : ' warning-type');
+  ring.className      = 'sec-countdown-ring'  + (isDanger ? '' : ' warning-type');
 
   if (autoSubmit) {
-    autoMsgEl.textContent   = '⏰ Your exam will be submitted when the countdown reaches zero.';
+    autoMsgEl.textContent   = 'Your exam will be submitted when the countdown reaches zero.';
     autoMsgEl.style.display = 'block';
-    btn.textContent          = 'Submitting...';
-    btn.disabled             = true;
-    btn.className            = 'sec-dismiss-btn';
+    btn.textContent         = 'Submitting...';
+    btn.disabled            = true;
+    btn.className           = 'sec-dismiss-btn';
   } else {
-    autoMsgEl.style.display  = 'none';
-    btn.textContent          = 'Wait 5 seconds...';
-    btn.disabled             = true;
-    btn.className            = 'sec-dismiss-btn';
+    autoMsgEl.style.display = 'none';
+    btn.textContent         = 'Wait 5 seconds...';
+    btn.disabled            = true;
+    btn.className           = 'sec-dismiss-btn';
   }
 
-  /* Show overlay */
   overlay.classList.add('active');
 
-  /* Countdown: 5 seconds */
-  var seconds = autoSubmit ? 5 : 5;
+  var seconds = 5;
   var elapsed = 0;
-  numEl.textContent = seconds;
+  numEl.textContent           = seconds;
   ring.style.strokeDashoffset = '0';
 
-  /* Clear any previous countdown */
   if (_security.dismissCountdown) {
     clearInterval(_security.dismissCountdown);
     _security.dismissCountdown = null;
@@ -863,29 +865,25 @@ function showSecurityWarning(type, title, message, autoSubmit) {
 
   _security.dismissCountdown = setInterval(function() {
     elapsed++;
-    var remaining = seconds - elapsed;
-    numEl.textContent = remaining;
-    /* Animate ring */
-    var offset = (elapsed / seconds) * 126;
-    ring.style.strokeDashoffset = offset;
+    numEl.textContent           = seconds - elapsed;
+    ring.style.strokeDashoffset = String((elapsed / seconds) * 126);
 
     if (elapsed >= seconds) {
       clearInterval(_security.dismissCountdown);
       _security.dismissCountdown = null;
+
       if (autoSubmit) {
-        /* Auto-submit now */
         overlay.classList.remove('active');
-        _submitted = false; /* reset so submitExam can run */
+        _submitted = false;
         submitExam(true);
       } else {
-        /* Allow dismiss */
-        btn.textContent = '✓ I Understand — Continue Exam';
-        btn.disabled    = false;
-        btn.className   = 'sec-dismiss-btn ready';
-        /* Re-request fullscreen after dismiss for fullscreen violations */
         if (title && title.indexOf('Fullscreen') !== -1) {
-          btn.textContent = '🖥 Return to Fullscreen →';
+          btn.textContent = 'Return to Fullscreen';
+        } else {
+          btn.textContent = 'I Understand - Continue Exam';
         }
+        btn.disabled  = false;
+        btn.className = 'sec-dismiss-btn ready';
       }
     }
   }, 1000);
@@ -893,208 +891,298 @@ function showSecurityWarning(type, title, message, autoSubmit) {
 
 function dismissSecurityWarning() {
   var overlay = document.getElementById('secOverlay');
-  if (overlay) overlay.classList.remove('active');
-  /* Re-request fullscreen */
+  if (overlay) { overlay.classList.remove('active'); }
   if (_security.isActive && !_submitted) {
     setTimeout(requestExamFullscreen, 300);
   }
 }
 
-/* ---- Deactivate security on exam end ---- */
 function deactivateSecurity() {
   _security.isActive = false;
-  document.removeEventListener('visibilitychange',       onVisibilityChange);
+
   document.removeEventListener('fullscreenchange',       onFullscreenChange);
   document.removeEventListener('webkitfullscreenchange', onFullscreenChange);
   document.removeEventListener('mozfullscreenchange',    onFullscreenChange);
+  document.removeEventListener('visibilitychange',       onVisibilityChange);
   document.removeEventListener('keydown',                blockKeyboardShortcuts, true);
-  document.removeEventListener('contextmenu',            blockContextMenu, true);
+  document.removeEventListener('contextmenu',            blockContextMenu,       true);
   window.removeEventListener('blur',  onWindowBlur);
   window.removeEventListener('focus', onWindowFocus);
-  /* Exit fullscreen cleanly */
+
+  if (_security.dismissCountdown) {
+    clearInterval(_security.dismissCountdown);
+    _security.dismissCountdown = null;
+  }
+
   try {
-    if (document.exitFullscreen)       document.exitFullscreen();
-    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-    else if (document.mozCancelFullScreen)  document.mozCancelFullScreen();
+    if      (document.exitFullscreen)       { document.exitFullscreen(); }
+    else if (document.webkitExitFullscreen) { document.webkitExitFullscreen(); }
+    else if (document.mozCancelFullScreen)  { document.mozCancelFullScreen(); }
   } catch(e) {}
 }
 
-/* ============================================ RENDER QUESTION */
+/* ============================================
+   RENDER QUESTION
+   ✅ PHASE G additions: audioUrl + tableHtml
+============================================ */
 function renderQuestion(idx) {
-  if (idx < 0 || idx >= _questions.length) return;
+  if (idx < 0 || idx >= _questions.length) { return; }
   _currentIdx = idx;
 
   var q       = _questions[idx];
-  var letters = ['A','B','C','D','E'];
+  var letters = ['A', 'B', 'C', 'D', 'E'];
+  var i, el;
 
-  document.getElementById('qCounter').textContent = 'Question ' + (idx+1) + ' of ' + _questions.length;
+  var counterEl = document.getElementById('qCounter');
+  if (counterEl) { counterEl.textContent = 'Question ' + (idx + 1) + ' of ' + _questions.length; }
 
   setTextWithMath(document.getElementById('qText'), q.question || '');
 
+  /* ✅ PHASE G: Audio player */
+  var audioWrap = document.getElementById('qAudioWrap');
+  var audioEl   = document.getElementById('qAudioEl');
+  if (audioWrap && audioEl) {
+    if (q.audioUrl) {
+      audioEl.src             = q.audioUrl;
+      audioEl.load();
+      audioWrap.style.display = 'block';
+    } else {
+      audioWrap.style.display = 'none';
+      audioEl.src             = '';
+    }
+  }
+
+  /* Image */
   var imgWrap = document.getElementById('qImageWrap');
   var imgEl   = document.getElementById('qImage');
-  if (q.imageUrl) { imgEl.src = q.imageUrl; imgWrap.style.display = 'block'; }
-  else { imgWrap.style.display = 'none'; }
+  if (imgWrap && imgEl) {
+    if (q.imageUrl) {
+      imgEl.src              = q.imageUrl;
+      imgWrap.style.display  = 'block';
+    } else {
+      imgWrap.style.display  = 'none';
+    }
+  }
 
-  var optList    = document.getElementById('optionsList');
-  var theoryInp  = document.getElementById('theoryInput');
-  var qId        = q._id.toString();
+  /* ✅ PHASE G: Table display */
+  var tableWrap = document.getElementById('qTableDisplayWrap');
+  if (tableWrap) {
+    if (q.tableHtml) {
+      tableWrap.innerHTML     = q.tableHtml;
+      tableWrap.style.display = 'block';
+    } else {
+      tableWrap.innerHTML     = '';
+      tableWrap.style.display = 'none';
+    }
+  }
+
+  /* Options / Theory */
+  var optList   = document.getElementById('optionsList');
+  var theoryInp = document.getElementById('theoryInput');
+  var qId       = q._id.toString();
   var savedAnswer = _answers[qId];
 
   if (q.questionType === 'theory') {
-    optList.style.display   = 'none';
-    theoryInp.style.display = 'block';
-    theoryInp.dataset.qid   = qId;
-    theoryInp.value         = savedAnswer || '';
+    if (optList)   { optList.style.display   = 'none'; }
+    if (theoryInp) {
+      theoryInp.style.display = 'block';
+      theoryInp.dataset.qid   = qId;
+      theoryInp.value         = (savedAnswer !== undefined) ? savedAnswer : '';
+    }
   } else {
-    theoryInp.style.display = 'none';
-    optList.style.display   = 'flex';
+    if (theoryInp) { theoryInp.style.display = 'none'; }
+    if (optList) {
+      optList.style.display = 'flex';
+      var options = q.options || [];
 
-    var options = q.options || [];
+      optList.innerHTML = options.map(function(opt, idx2) {
+        var isSelected = (savedAnswer === idx2);
+        return '<button class="option-btn' + (isSelected ? ' selected' : '') + '" onclick="selectAnswer(' + idx2 + ')">' +
+          '<span class="opt-letter">' + (letters[idx2] || String(idx2)) + '</span>' +
+          '<span class="opt-text" id="optText_' + idx + '_' + idx2 + '"></span>' +
+        '</button>';
+      }).join('');
 
-    optList.innerHTML = options.map(function(opt, i) {
-      var isSelected = savedAnswer === i;
-      return '<button class="option-btn' + (isSelected ? ' selected' : '') + '" onclick="selectAnswer(' + i + ')">' +
-        '<span class="opt-letter">' + (letters[i] || i) + '</span>' +
-        '<span class="opt-text" id="optText_' + idx + '_' + i + '"></span>' +
-      '</button>';
-    }).join('');
-
-    options.forEach(function(opt, i) {
-      var el = document.getElementById('optText_' + idx + '_' + i);
-      if (el) setTextWithMath(el, opt);
-    });
+      for (i = 0; i < options.length; i++) {
+        el = document.getElementById('optText_' + idx + '_' + i);
+        if (el) { setTextWithMath(el, options[i]); }
+      }
+    }
   }
 
-  var pct = ((idx+1) / _questions.length) * 100;
-  document.getElementById('progressFill').style.width = pct + '%';
+  var pct = ((idx + 1) / _questions.length) * 100;
+  var fillEl = document.getElementById('progressFill');
+  if (fillEl) { fillEl.style.width = pct + '%'; }
 
-  document.getElementById('prevBtn').disabled = idx === 0;
-  var isLast = idx === _questions.length - 1;
-  document.getElementById('nextBtn').style.display   = isLast ? 'none'       : 'inline-flex';
-  document.getElementById('submitBtn').style.display = isLast ? 'inline-flex': 'none';
+  var prevBtn  = document.getElementById('prevBtn');
+  var nextBtn  = document.getElementById('nextBtn');
+  var submitBtn = document.getElementById('submitBtn');
+  var isLast   = (idx === _questions.length - 1);
+
+  if (prevBtn)   { prevBtn.disabled      = (idx === 0); }
+  if (nextBtn)   { nextBtn.style.display = isLast ? 'none'        : 'inline-flex'; }
+  if (submitBtn) { submitBtn.style.display = isLast ? 'inline-flex' : 'none'; }
 
   var body = document.getElementById('examBody');
-  if (body) body.scrollTop = 0;
+  if (body) { body.scrollTop = 0; }
 
   updateQDot(idx);
 }
 
-/* ============================================ ANSWERS */
+/* ============================================
+   ANSWERS
+============================================ */
 function selectAnswer(optIdx) {
   var q   = _questions[_currentIdx];
   var qId = q._id.toString();
   _answers[qId] = optIdx;
 
-  try { sessionStorage.setItem('examAnswers_' + qId, optIdx); } catch(e) {}
+  try { sessionStorage.setItem('examAnswers_' + qId, String(optIdx)); } catch(e) {}
 
-  document.querySelectorAll('.option-btn').forEach(function(btn, i) {
-    if (i === optIdx) btn.classList.add('selected');
-    else              btn.classList.remove('selected');
-  });
+  var buttons = document.querySelectorAll('.option-btn');
+  for (var i = 0; i < buttons.length; i++) {
+    if (i === optIdx) { buttons[i].classList.add('selected'); }
+    else              { buttons[i].classList.remove('selected'); }
+  }
 
   updateQDot(_currentIdx);
 }
 
 function saveTheoryAnswer() {
   var inp = document.getElementById('theoryInput');
-  if (!inp) return;
+  if (!inp) { return; }
   _answers[inp.dataset.qid] = inp.value;
 }
 
-/* ============================================ NAVIGATION */
-function prevQuestion() { if (_currentIdx > 0) renderQuestion(_currentIdx - 1); }
-function nextQuestion() { if (_currentIdx < _questions.length - 1) renderQuestion(_currentIdx + 1); }
-function goToQuestion(idx) { renderQuestion(idx); toggleQGrid(); }
+/* ============================================
+   NAVIGATION
+============================================ */
+function prevQuestion() {
+  if (_currentIdx > 0) { renderQuestion(_currentIdx - 1); }
+}
+function nextQuestion() {
+  if (_currentIdx < _questions.length - 1) { renderQuestion(_currentIdx + 1); }
+}
+function goToQuestion(idx) {
+  renderQuestion(idx);
+  toggleQGrid();
+}
 
-/* ============================================ Q GRID */
+/* ============================================
+   QUESTION GRID
+============================================ */
 function buildQGrid() {
   var container = document.getElementById('qDots');
-  if (!container) return;
-  container.innerHTML = _questions.map(function(q, i) {
-    return '<div class="q-dot" id="qdot_' + i + '" onclick="goToQuestion(' + i + ')">' + (i+1) + '</div>';
-  }).join('');
+  if (!container) { return; }
+  var html = '';
+  for (var i = 0; i < _questions.length; i++) {
+    html += '<div class="q-dot" id="qdot_' + i + '" onclick="goToQuestion(' + i + ')">' + (i + 1) + '</div>';
+  }
+  container.innerHTML = html;
 }
 
-function updateQDot(idx) {
-  _questions.forEach(function(q, i) {
+function updateQDot(currentIdx) {
+  for (var i = 0; i < _questions.length; i++) {
     var dot = document.getElementById('qdot_' + i);
-    if (!dot) return;
-    var qId = q._id.toString();
-    dot.className = 'q-dot' +
-      (i === idx ? ' current' : '') +
-      (_answers[qId] !== undefined ? ' answered' : '');
-  });
+    if (!dot) { continue; }
+    var qId = _questions[i]._id.toString();
+    var cls = 'q-dot';
+    if (i === currentIdx)              { cls += ' current'; }
+    if (_answers[qId] !== undefined)   { cls += ' answered'; }
+    dot.className = cls;
+  }
 }
 
-function toggleQGrid() { var ov = document.getElementById('qOverlay'); if (ov) ov.classList.toggle('open'); }
-function handleOverlayClick(e) { if (e.target.id === 'qOverlay') toggleQGrid(); }
+function toggleQGrid() {
+  var ov = document.getElementById('qOverlay');
+  if (ov) { ov.classList.toggle('open'); }
+}
+function handleOverlayClick(e) {
+  if (e.target.id === 'qOverlay') { toggleQGrid(); }
+}
 
-/* ============================================ TIMER */
+/* ============================================
+   TIMER
+============================================ */
 function startTimer() {
   updateTimerDisplay();
   _timerInt = setInterval(function() {
     _timeLeft--;
     updateTimerDisplay();
-    if (_timeLeft <= 0) { clearInterval(_timerInt); autoSubmit(); }
+    if (_timeLeft <= 0) {
+      clearInterval(_timerInt);
+      autoSubmit();
+    }
   }, 1000);
 }
 
 function updateTimerDisplay() {
   var el = document.getElementById('timerDisplay');
-  if (!el) return;
+  if (!el) { return; }
   var m = Math.floor(Math.max(0, _timeLeft) / 60);
   var s = Math.max(0, _timeLeft) % 60;
   el.textContent = pad(m) + ':' + pad(s);
-  el.className   = 'timer-display' + (_timeLeft <= 60 ? ' danger' : _timeLeft <= 300 ? ' warning' : '');
+  if (_timeLeft <= 60) {
+    el.className = 'timer-display danger';
+  } else if (_timeLeft <= 300) {
+    el.className = 'timer-display warning';
+  } else {
+    el.className = 'timer-display';
+  }
 }
 
-function pad(n) { return n < 10 ? '0' + n : '' + n; }
+function pad(n) { return n < 10 ? '0' + n : String(n); }
 
-/* ============================================ SUBMIT */
+/* ============================================
+   SUBMIT
+============================================ */
 function confirmSubmit() {
   var answered   = Object.keys(_answers).length;
   var unanswered = _questions.length - answered;
-  var msg = 'Submit your exam now?\n\n✅ Answered: ' + answered + ' / ' + _questions.length;
-  if (unanswered > 0) msg += '\n⬜ Unanswered: ' + unanswered;
+  var msg = 'Submit your exam now?\n\nAnswered: ' + answered + ' / ' + _questions.length;
+  if (unanswered > 0) { msg += '\nUnanswered: ' + unanswered; }
   msg += '\n\nThis cannot be undone.';
-  if (confirm(msg)) submitExam(false);
+  if (confirm(msg)) { submitExam(false); }
 }
 
 function autoSubmit() {
-  if (_submitted) return;
+  if (_submitted) { return; }
   setTimeout(function() {
-    if (!_submitted) { alert('⏰ Time is up! Your exam is being submitted.'); submitExam(true); }
+    if (!_submitted) {
+      alert('Time is up! Your exam is being submitted.');
+      submitExam(true);
+    }
   }, 300);
 }
 
 async function submitExam(wasAuto, retryCount) {
-  if (_submitted) return;
+  if (_submitted) { return; }
   _submitted = true;
   retryCount = retryCount || 0;
 
   clearInterval(_timerInt);
-  deactivateSecurity(); /* ✅ PHASE F: deactivate all security hooks */
+  deactivateSecurity();
 
   var submitBtn = document.getElementById('submitBtn');
-  if (submitBtn) { submitBtn.innerHTML = '<span class="spinner spinner-dark"></span>'; submitBtn.disabled = true; }
+  if (submitBtn) {
+    submitBtn.innerHTML = '<span class="spinner"></span>';
+    submitBtn.disabled  = true;
+  }
 
   var timeTaken = Math.round((Date.now() - _startTime) / 1000);
 
-  /* ✅ PHASE F: Include full security data in submission */
   var res = await instApi('/student/submit', 'POST', {
     sessionToken:       _session.sessionToken,
     answers:            _answers,
     timeTaken:          timeTaken,
     wasAutoSubmit:      wasAuto,
-    /* Security data — backward-compatible + new fields */
     tabSwitchCount:     _security.tabSwitches,
     securityViolations: _security.totalViolations,
     fullscreenExits:    _security.fullscreenExits,
     focusLosses:        _security.focusLosses,
     copyAttempts:       _security.copyAttempts,
     devtoolAttempts:    _security.devtoolAttempts,
-    violationLog:       _security.log.slice(-20) /* last 20 events max */
+    violationLog:       _security.log.slice(-20)
   });
 
   if (res.ok) {
@@ -1104,8 +1192,12 @@ async function submitExam(wasAuto, retryCount) {
     setTimeout(function() { submitExam(wasAuto, retryCount + 1); }, 2500);
   } else {
     _submitted = false;
-    if (submitBtn) { submitBtn.innerHTML = 'Submit ✓'; submitBtn.disabled = false; }
-    alert('Submission failed: ' + (res.data.message || 'Network error.') + '\n\nYour answers are saved. Try again.');
+    if (submitBtn) {
+      submitBtn.innerHTML = 'Submit';
+      submitBtn.disabled  = false;
+    }
+    var errMsg = (res.data && res.data.message) ? res.data.message : 'Network error.';
+    alert('Submission failed: ' + errMsg + '\n\nYour answers are saved. Try again.');
   }
 }
 
@@ -1114,33 +1206,38 @@ function showResult(result, timeTaken) {
 
   var pct    = result.scorePercent || 0;
   var passed = result.isPassed;
-  var emoji  = pct >= 80 ? '🏆' : pct >= 60 ? '🥇' : pct >= 50 ? '✅' : '📚';
   var title  = pct >= 80 ? 'Excellent!' : pct >= 60 ? 'Great Job!' : pct >= 50 ? 'You Passed!' : 'Keep Practising!';
   var color  = passed ? 'var(--green)' : 'var(--red)';
 
-  document.getElementById('resultEmoji').textContent = emoji;
-  document.getElementById('resultTitle').textContent = title;
-  document.getElementById('resultSub').textContent   = passed
-    ? 'Congratulations! You passed this exam.'
-    : "Don't give up — review the material and try again.";
+  var emojiEl   = document.getElementById('resultEmoji');
+  var titleEl   = document.getElementById('resultTitle');
+  var subEl     = document.getElementById('resultSub');
+  var pctEl     = document.getElementById('scorePct');
+  var circleEl  = document.getElementById('scoreCircle');
+  var correctEl = document.getElementById('rsCorrect');
+  var totalQEl  = document.getElementById('rsTotalQ');
+  var timeEl    = document.getElementById('rsTime');
+  var pendEl    = document.getElementById('pendingNotice');
 
-  document.getElementById('scorePct').textContent = pct + '%';
-  document.getElementById('scorePct').style.color  = color;
-
-  var circle = document.getElementById('scoreCircle');
-  if (circle) circle.style.borderColor = color + '33';
+  if (emojiEl)  { emojiEl.textContent  = pct >= 80 ? 'Trophy' : pct >= 60 ? 'Medal' : pct >= 50 ? 'Pass' : 'Study'; }
+  if (titleEl)  { titleEl.textContent  = title; }
+  if (subEl)    { subEl.textContent    = passed ? 'Congratulations! You passed this exam.' : 'Keep practising and try again.'; }
+  if (pctEl)    { pctEl.textContent    = pct + '%'; pctEl.style.color = color; }
+  if (circleEl) { circleEl.style.borderColor = color + '33'; }
 
   var mins = Math.floor(timeTaken / 60);
   var secs = timeTaken % 60;
-  document.getElementById('rsCorrect').textContent = result.score || 0;
-  document.getElementById('rsTotalQ').textContent  = result.totalQuestions || _questions.length;
-  document.getElementById('rsTime').textContent    = mins + 'm ' + secs + 's';
+  if (correctEl) { correctEl.textContent = result.score || 0; }
+  if (totalQEl)  { totalQEl.textContent  = result.totalQuestions || _questions.length; }
+  if (timeEl)    { timeEl.textContent    = mins + 'm ' + secs + 's'; }
 
-  if (result.hasTheory || !result.isReleased) {
-    document.getElementById('pendingNotice').style.display = 'block';
-    if (!result.isReleased && !result.hasTheory) {
-      document.getElementById('pendingNotice').textContent = '⏳ Your results will be released by your teacher or school admin.';
-      document.getElementById('scorePct').textContent = '?';
+  if (pendEl) {
+    if (result.hasTheory || !result.isReleased) {
+      pendEl.style.display = 'block';
+      if (!result.isReleased && !result.hasTheory) {
+        pendEl.textContent = 'Your results will be released by your teacher or school admin.';
+        if (pctEl) { pctEl.textContent = '?'; }
+      }
     }
   }
 }
