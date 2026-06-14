@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" id="htmlRoot">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,75 +8,68 @@
   <link rel="stylesheet" href="css/student-exam.css" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
 
-  <!-- KaTeX for math/science equations -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" crossorigin="anonymous" />
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js" crossorigin="anonymous"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"
     crossorigin="anonymous" onload="window._katexReady = true;"></script>
 
   <style>
-    /* KaTeX display math centering */
+    /* KaTeX display math */
     #sQuestionText .katex-display { margin:12px 0; }
     .s-option-text .katex { font-size:1em; }
 
-    @keyframes spin   { to { transform:rotate(360deg); } }
-    @keyframes shake  { 0%,100% { transform:translateX(0); } 25% { transform:translateX(-8px); } 75% { transform:translateX(8px); } }
+    @keyframes spin  { to { transform:rotate(360deg); } }
+    @keyframes shake { 0%,100% { transform:translateX(0); } 25% { transform:translateX(-8px); } 75% { transform:translateX(8px); } }
 
-    /* ============================================
-       ✅ PHASE F: SECURITY OVERLAY STYLES
-    ============================================ */
+    /* ✅ PHASE H: Language selector */
+    .lang-selector-wrap { margin-bottom:20px; }
+    .lang-selector-label { font-size:12px; font-weight:700; color:var(--text-muted,#6b6b8a); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:8px; }
+    .lang-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+    .lang-btn {
+      padding:10px 6px; border-radius:10px;
+      border:2px solid var(--border,rgba(255,255,255,0.08));
+      background:rgba(255,255,255,0.03); color:var(--text-secondary,#a0a0c0);
+      font-size:12px; font-weight:700; cursor:pointer; font-family:inherit;
+      text-align:center; transition:all 0.15s; line-height:1.4;
+    }
+    .lang-btn:hover { border-color:rgba(108,99,255,0.4); background:rgba(108,99,255,0.07); color:#fff; }
+    .lang-btn.active { border-color:var(--primary,#6c63ff); background:rgba(108,99,255,0.18); color:#a78bfa; }
+    .lang-btn .lang-native  { font-size:13px; font-weight:800; display:block; }
+    .lang-btn .lang-english { font-size:10px; color:var(--text-muted,#6b6b8a); display:block; margin-top:1px; }
+    .lang-btn.active .lang-english { color:#a78bfa; }
+
+    /* ✅ PHASE F: Security overlay */
     .sec-overlay {
-      position:fixed; inset:0;
-      background:rgba(0,0,0,0.93);
-      z-index:99999;
-      display:none;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      padding:24px;
+      position:fixed; inset:0; background:rgba(0,0,0,0.93); z-index:99999;
+      display:none; flex-direction:column; align-items:center; justify-content:center; padding:24px;
     }
     .sec-overlay.active { display:flex; }
-
     .sec-overlay-card {
-      background:#1a1a2e;
-      border:2px solid rgba(255,101,132,0.45);
-      border-radius:20px;
-      padding:36px 28px;
-      max-width:400px;
-      width:100%;
-      text-align:center;
-      animation:shake 0.4s ease;
+      background:#1a1a2e; border:2px solid rgba(255,101,132,0.45);
+      border-radius:20px; padding:36px 28px; max-width:400px; width:100%;
+      text-align:center; animation:shake 0.4s ease;
     }
     .sec-overlay-card.warn-type { border-color:rgba(255,165,0,0.5); }
-
     .sec-overlay-icon  { font-size:52px; margin-bottom:12px; }
     .sec-overlay-title { font-size:20px; font-weight:900; color:#fff; margin:0 0 8px; }
     .sec-overlay-msg   { font-size:14px; color:#a0a0c0; margin:0 0 20px; line-height:1.6; }
-
     .sec-vcount {
       display:inline-flex; align-items:center; gap:6px;
       background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3);
-      color:#ff6584; padding:6px 16px; border-radius:20px;
-      font-size:13px; font-weight:800; margin-bottom:20px;
+      color:#ff6584; padding:6px 16px; border-radius:20px; font-size:13px; font-weight:800; margin-bottom:20px;
     }
     .sec-vcount.warn-type { background:rgba(255,165,0,0.1); border-color:rgba(255,165,0,0.3); color:#ffa500; }
-
     .sec-countdown-wrap { position:relative; width:60px; height:60px; margin:0 auto 16px; }
     .sec-cd-track { fill:none; stroke:rgba(255,255,255,0.08); stroke-width:4; }
     .sec-cd-ring  { fill:none; stroke:#ff6584; stroke-width:4; stroke-dasharray:126; stroke-dashoffset:0; stroke-linecap:round; transition:stroke-dashoffset 1s linear; }
     .sec-cd-ring.warn-type { stroke:#ffa500; }
     .sec-cd-num { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:900; color:#fff; }
-
     .sec-dismiss-btn {
       width:100%; padding:13px; border-radius:12px; border:none;
       background:rgba(255,255,255,0.08); color:#a0a0c0;
-      font-size:14px; font-weight:700; cursor:not-allowed;
-      font-family:inherit; transition:all 0.2s;
+      font-size:14px; font-weight:700; cursor:not-allowed; font-family:inherit; transition:all 0.2s;
     }
-    .sec-dismiss-btn.ready {
-      background:linear-gradient(135deg,#6c63ff,#574fd6);
-      color:#fff; cursor:pointer;
-    }
+    .sec-dismiss-btn.ready { background:linear-gradient(135deg,#6c63ff,#574fd6); color:#fff; cursor:pointer; }
     .sec-auto-msg {
       background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3);
       border-radius:10px; padding:12px 14px; font-size:13px; color:#ff6584;
@@ -86,8 +79,7 @@
     /* Security rules box in instructions */
     .sec-rules-box {
       background:rgba(255,165,0,0.07); border:1px solid rgba(255,165,0,0.25);
-      border-radius:10px; padding:14px 16px;
-      font-size:13px; color:#ffa500; line-height:1.9; margin-top:16px;
+      border-radius:10px; padding:14px 16px; font-size:13px; color:#ffa500; line-height:1.9; margin-top:16px;
     }
     .sec-rules-box strong { color:#fff; }
 
@@ -95,12 +87,50 @@
     .sec-topbar-badge {
       font-size:11px; font-weight:700; color:#a0a0c0;
       padding:4px 8px; border-radius:6px;
-      background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
-      white-space:nowrap; flex-shrink:0;
+      background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); white-space:nowrap; flex-shrink:0;
     }
-    .sec-topbar-badge.violated {
-      color:#ffa500; background:rgba(255,165,0,0.08); border-color:rgba(255,165,0,0.25);
+    .sec-topbar-badge.violated { color:#ffa500; background:rgba(255,165,0,0.08); border-color:rgba(255,165,0,0.25); }
+
+    /* ✅ PHASE G: Audio player */
+    .sg-audio-wrap  { background:rgba(108,99,255,0.06); border:1px solid rgba(108,99,255,0.2); border-radius:10px; padding:12px 15px; margin-bottom:14px; }
+    .sg-audio-label { font-size:12px; font-weight:700; color:#a78bfa; margin-bottom:7px; }
+    .sg-audio-player { width:100%; }
+
+    /* ✅ PHASE G: Table in exam */
+    .sg-table-wrap { overflow-x:auto; margin-bottom:14px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); }
+    .q-table { width:100%; border-collapse:collapse; font-size:14px; }
+    .q-table th { background:rgba(108,99,255,0.15); color:#a78bfa; font-weight:700; padding:9px 12px; border:1px solid rgba(108,99,255,0.25); text-align:left; white-space:nowrap; }
+    .q-table td { padding:8px 12px; border:1px solid rgba(255,255,255,0.08); color:#fff; vertical-align:top; }
+    .q-table tr:nth-child(even) td { background:rgba(255,255,255,0.03); }
+
+    /* ✅ PHASE H: Styled confirm modal */
+    .h-confirm-overlay {
+      position:fixed; inset:0; background:rgba(0,0,0,0.82); z-index:99998;
+      display:none; align-items:center; justify-content:center; padding:20px;
     }
+    .h-confirm-overlay.active { display:flex; }
+    .h-confirm-box {
+      background:#1a1a2e; border:1px solid rgba(255,255,255,0.08);
+      border-radius:20px; padding:32px 26px; max-width:380px; width:100%; text-align:center;
+    }
+    .h-confirm-icon  { font-size:40px; margin-bottom:12px; }
+    .h-confirm-title { font-size:18px; font-weight:900; color:#fff; margin:0 0 8px; }
+    .h-confirm-msg   { font-size:14px; color:#a0a0c0; margin:0 0 22px; line-height:1.6; }
+    .h-confirm-btns  { display:flex; gap:10px; }
+    .h-confirm-cancel { flex:1; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.06); color:#a0a0c0; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
+    .h-confirm-ok     { flex:1; padding:12px; border-radius:10px; border:none; background:linear-gradient(135deg,#6c63ff,#574fd6); color:#fff; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
+    .h-confirm-ok.danger { background:linear-gradient(135deg,#ff6584,#c0392b); }
+
+    /* ✅ PHASE H: RTL overrides */
+    [dir="rtl"] .s-topbar        { flex-direction:row-reverse; }
+    [dir="rtl"] .s-inst-card     { text-align:right; }
+    [dir="rtl"] .s-inst-meta     { direction:rtl; }
+    [dir="rtl"] .s-nav-panel     { order:unset; }
+    [dir="rtl"] .s-question-area { direction:rtl; }
+    [dir="rtl"] #sOptionsArea    { direction:rtl; }
+    [dir="rtl"] .lang-grid       { direction:rtl; }
+    [dir="rtl"] .h-confirm-btns  { flex-direction:row-reverse; }
+    [dir="rtl"] #sNavGrid        { direction:rtl; }
   </style>
 </head>
 <body class="s-exam-body">
@@ -108,71 +138,97 @@
   <!-- LOADER -->
   <div id="sLoader" style="position:fixed; inset:0; background:var(--dark); display:flex; align-items:center; justify-content:center; z-index:9999; flex-direction:column; gap:16px;">
     <div style="width:48px; height:48px; border:4px solid rgba(108,99,255,0.2); border-top-color:var(--primary); border-radius:50%; animation:spin 0.8s linear infinite;"></div>
-    <p style="color:var(--text-secondary);">Preparing your exam...</p>
+    <p id="sLoaderText" style="color:var(--text-secondary);">Preparing your exam...</p>
   </div>
 
   <!-- INSTRUCTIONS SCREEN -->
   <div id="sInstructions" style="display:none; min-height:100vh; align-items:center; justify-content:center; padding:24px; overflow-y:auto;">
     <div class="s-inst-card">
+
+      <!-- ✅ PHASE H: Language selector on instructions screen -->
+      <div class="lang-selector-wrap">
+        <div class="lang-selector-label" id="sLangLabel">Select Language</div>
+        <div class="lang-grid" id="sLangGrid">
+          <button class="lang-btn active" onclick="sSelectLang('en')">
+            <span class="lang-native">English</span>
+            <span class="lang-english">English</span>
+          </button>
+          <button class="lang-btn" onclick="sSelectLang('ha')">
+            <span class="lang-native">Hausa</span>
+            <span class="lang-english">Hausa</span>
+          </button>
+          <button class="lang-btn" onclick="sSelectLang('yo')">
+            <span class="lang-native">Yoruba</span>
+            <span class="lang-english">Yoruba</span>
+          </button>
+          <button class="lang-btn" onclick="sSelectLang('ig')">
+            <span class="lang-native">Igbo</span>
+            <span class="lang-english">Igbo</span>
+          </button>
+          <button class="lang-btn" onclick="sSelectLang('fr')">
+            <span class="lang-native">Francais</span>
+            <span class="lang-english">French</span>
+          </button>
+          <button class="lang-btn" onclick="sSelectLang('ar')">
+            <span class="lang-native">&#1593;&#1585;&#1576;&#1610;</span>
+            <span class="lang-english">Arabic</span>
+          </button>
+        </div>
+      </div>
+
       <div style="text-align:center; margin-bottom:28px;">
-        <div style="font-size:48px; margin-bottom:12px;">📋</div>
-        <h1 id="sExamTitle" style="font-size:24px; font-weight:800; margin-bottom:6px;">Exam Title</h1>
-        <p id="sExamSubject" style="color:var(--text-secondary); font-size:14px;"></p>
+        <div style="font-size:48px; margin-bottom:12px;">&#128203;</div>
+        <h1 id="sExamTitle"   style="font-size:24px; font-weight:800; margin-bottom:6px;">Exam Title</h1>
+        <p  id="sExamSubject" style="color:var(--text-secondary); font-size:14px;"></p>
       </div>
 
       <div class="s-inst-meta">
         <div class="s-inst-meta-item">
-          <div style="font-size:22px;">⏱</div>
+          <div style="font-size:22px;">&#9201;</div>
           <div>
             <div id="sInstDuration" style="font-size:20px; font-weight:800;">--</div>
-            <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Minutes</div>
+            <div id="sInstMinsLabel" style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Minutes</div>
           </div>
         </div>
         <div class="s-inst-meta-item">
-          <div style="font-size:22px;">📋</div>
+          <div style="font-size:22px;">&#128203;</div>
           <div>
             <div id="sInstQuestions" style="font-size:20px; font-weight:800;">--</div>
-            <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Questions</div>
+            <div id="sInstQLabel" style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Questions</div>
           </div>
         </div>
         <div class="s-inst-meta-item">
-          <div style="font-size:22px;">🎯</div>
+          <div style="font-size:22px;">&#127919;</div>
           <div>
             <div id="sInstPassMark" style="font-size:20px; font-weight:800;">--%</div>
-            <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Pass Mark</div>
+            <div id="sInstPassLabel" style="font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:600;">Pass Mark</div>
           </div>
         </div>
       </div>
 
       <div style="margin-bottom:24px;">
-        <h3 style="font-size:15px; font-weight:700; margin-bottom:12px;">📌 Instructions</h3>
-        <p id="sInstText" style="font-size:14px; color:var(--text-secondary); background:rgba(108,99,255,0.07); border:1px solid rgba(108,99,255,0.15); padding:14px 16px; border-radius:8px; line-height:1.7;"></p>
+        <h3 id="sInstHeading" style="font-size:15px; font-weight:700; margin-bottom:12px;">Instructions</h3>
+        <p  id="sInstText" style="font-size:14px; color:var(--text-secondary); background:rgba(108,99,255,0.07); border:1px solid rgba(108,99,255,0.15); padding:14px 16px; border-radius:8px; line-height:1.7;"></p>
       </div>
 
-      <!-- ✅ PHASE F: Security rules shown before exam starts -->
-      <div class="sec-rules-box">
-        <strong>🔒 Exam Security Rules</strong><br/>
-        • This exam runs in <strong>fullscreen mode</strong> — do not exit<br/>
-        • Tab-switching and window changes are <strong>detected and logged</strong><br/>
-        • Right-clicking and keyboard shortcuts are <strong>disabled</strong><br/>
-        • Copying exam content is <strong>blocked</strong><br/>
-        • Repeated violations will <strong>auto-submit your exam</strong>
-      </div>
+      <!-- ✅ PHASE F + H: Security rules — translatable -->
+      <div class="sec-rules-box" id="sSecRulesBox"></div>
 
       <div style="margin-top:20px; margin-bottom:28px; background:rgba(255,165,0,0.07); border:1px solid rgba(255,165,0,0.2); border-radius:10px; padding:14px 16px;">
-        <p style="font-size:13px; color:#ffa500; font-weight:600;">⚠️ Important Rules</p>
-        <ul style="list-style:none; margin-top:8px; display:flex; flex-direction:column; gap:6px;">
-          <li style="font-size:13px; color:var(--text-secondary);">• The timer starts immediately when you click Begin</li>
-          <li style="font-size:13px; color:var(--text-secondary);">• Your exam auto-submits when time runs out</li>
-          <li style="font-size:13px; color:var(--text-secondary);">• You cannot re-enter the exam after submitting</li>
-          <li style="font-size:13px; color:var(--text-secondary);">• For theory questions, type your answer clearly</li>
+        <p id="sImportantLabel" style="font-size:13px; color:#ffa500; font-weight:600; margin:0 0 8px;"></p>
+        <ul style="list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px;" id="sRulesList">
+          <li id="sRule1" style="font-size:13px; color:var(--text-secondary);"></li>
+          <li id="sRule2" style="font-size:13px; color:var(--text-secondary);"></li>
+          <li id="sRule3" style="font-size:13px; color:var(--text-secondary);"></li>
+          <li id="sRule4" style="font-size:13px; color:var(--text-secondary);"></li>
         </ul>
       </div>
 
       <div style="display:flex; gap:12px; justify-content:flex-end;">
-        <a href="student-login.html" class="btn btn-secondary">← Go Back</a>
-        <button class="btn btn-primary" onclick="beginStudentExam()" style="background:linear-gradient(135deg,#43e97b,#38f9d7); color:#0f0f1a;">
-          Begin Exam →
+        <a href="student-login.html" class="btn btn-secondary" id="sGoBackBtn">Go Back</a>
+        <button class="btn btn-primary" id="sBeginBtn" onclick="beginStudentExam()"
+          style="background:linear-gradient(135deg,#43e97b,#38f9d7); color:#0f0f1a;">
+          Begin Exam
         </button>
       </div>
     </div>
@@ -183,32 +239,30 @@
 
     <header class="s-topbar">
       <div style="display:flex; align-items:center; gap:12px; min-width:0;">
-        <div style="font-size:13px; font-weight:800; color:#43e97b; white-space:nowrap;">⚡ LatLomp</div>
+        <div style="font-size:13px; font-weight:800; color:#43e97b; white-space:nowrap;">&#9889; LatLomp</div>
         <div id="sTopbarTitle" style="font-size:13px; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;"></div>
       </div>
 
       <div id="sTimerWrapper" class="s-timer">
-        <span>⏱</span>
+        <span>&#9201;</span>
         <span id="sTimerDisplay" style="font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; min-width:72px; text-align:center;">00:00:00</span>
       </div>
 
       <div style="display:flex; align-items:center; gap:8px;">
-        <!-- ✅ PHASE F: Security indicator -->
-        <span class="sec-topbar-badge" id="sSecBadge">🔒 Secure</span>
+        <!-- ✅ PHASE F: Security badge -->
+        <span class="sec-topbar-badge" id="sSecBadge">Secure</span>
         <div style="font-size:13px; color:var(--text-secondary); background:var(--card-bg); border:1px solid var(--border); padding:5px 12px; border-radius:20px; white-space:nowrap;">
           <span id="sAnsweredCount">0</span>/<span id="sTotalCount">0</span>
         </div>
-        <button onclick="sConfirmSubmit()" class="s-submit-btn">Submit</button>
+        <button onclick="sTriggerSubmit()" class="s-submit-btn" id="sSubmitTopBtn">Submit</button>
       </div>
     </header>
 
     <div class="s-exam-main">
-
       <div class="s-question-area">
-
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:20px;">
           <div style="font-size:13px; font-weight:600; color:var(--text-secondary); background:var(--card-bg); border:1px solid var(--border); padding:6px 14px; border-radius:6px;">
-            Question <span id="sCurrentNum">1</span> of <span id="sTotalNum">0</span>
+            <span id="sQLabel">Question</span> <span id="sCurrentNum">1</span> <span id="sOfLabel">of</span> <span id="sTotalNum">0</span>
           </div>
           <div id="sQTypeBadge" style="font-size:12px; font-weight:700; padding:4px 12px; border-radius:20px; background:rgba(108,99,255,0.12); color:var(--primary-light);">Objective</div>
         </div>
@@ -220,9 +274,8 @@
         <div id="sOptionsArea" style="display:flex; flex-direction:column; gap:12px; margin-bottom:24px;"></div>
 
         <div id="sTheoryArea" style="display:none; margin-bottom:24px;">
-          <label style="display:block; font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:10px;">Write your answer below:</label>
+          <label id="sTheoryLabel" style="display:block; font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:10px;">Write your answer below:</label>
           <textarea id="sTheoryAnswer" rows="8"
-            placeholder="Type your answer here..."
             oninput="saveTheoryAnswer()"
             style="width:100%; background:var(--card-bg); border:1px solid var(--border); border-radius:10px; padding:16px; color:var(--text-primary); font-size:15px; font-family:inherit; outline:none; resize:vertical; box-sizing:border-box; line-height:1.7; transition:border-color 0.2s;"
             onfocus="this.style.borderColor='#43e97b'"
@@ -233,61 +286,52 @@
         <div style="display:flex; align-items:center; justify-content:space-between; padding-top:16px;">
           <button onclick="sNavigate(-1)" id="sPrevBtn"
             style="padding:12px 28px; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; background:var(--card-bg); border:1px solid var(--border); color:var(--text-secondary); transition:var(--transition);">
-            ← Previous
+            Previous
           </button>
           <span style="font-size:14px; color:var(--text-muted); font-weight:600;">
             <span id="sNavCurrent">1</span> / <span id="sNavTotal">0</span>
           </span>
           <button onclick="sNavigate(1)" id="sNextBtn"
             style="padding:12px 28px; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:white; border:none; transition:var(--transition);">
-            Next →
+            Next
           </button>
         </div>
-
       </div>
 
       <aside class="s-nav-panel">
-        <div style="padding:16px 16px 12px; border-bottom:1px solid var(--border); font-size:14px; font-weight:700;">Questions</div>
+        <div style="padding:16px 16px 12px; border-bottom:1px solid var(--border); font-size:14px; font-weight:700;" id="sNavPanelTitle">Questions</div>
         <div id="sNavGrid" style="padding:14px; display:grid; grid-template-columns:repeat(5,1fr); gap:6px; flex:1; overflow-y:auto;"></div>
         <div style="padding:16px; border-top:1px solid var(--border);">
-          <button onclick="sConfirmSubmit()" style="width:100%; padding:13px; background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:white; border:none; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit;">
-            🏁 Submit Exam
+          <button id="sNavSubmitBtn" onclick="sTriggerSubmit()"
+            style="width:100%; padding:13px; background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:white; border:none; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit;">
+            Submit Exam
           </button>
         </div>
       </aside>
-
     </div>
   </div>
 
-  <!-- SUBMIT MODAL -->
-  <div id="sSubmitModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:9000; align-items:center; justify-content:center; padding:20px;">
-    <div style="background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:40px; max-width:400px; width:100%; text-align:center;">
-      <div style="font-size:48px; margin-bottom:16px;">⚠️</div>
-      <h2 style="font-size:22px; font-weight:800; margin-bottom:8px;">Submit Exam?</h2>
-      <p id="sSubmitMsg" style="font-size:14px; color:var(--text-secondary); margin-bottom:24px;"></p>
-      <div style="display:flex; gap:12px; justify-content:center;">
-        <button onclick="document.getElementById('sSubmitModal').style.display='none'" style="padding:12px 24px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text-secondary); border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit;">
-          Continue Exam
-        </button>
-        <button onclick="sSubmitExam()" id="sFinalSubmitBtn" style="padding:12px 24px; background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:white; border:none; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit;">
-          Yes, Submit →
-        </button>
+  <!-- ✅ PHASE H: Styled submit confirmation modal (replaces browser confirm) -->
+  <div class="h-confirm-overlay" id="sConfirmModal">
+    <div class="h-confirm-box">
+      <div class="h-confirm-icon"  id="sConfirmIcon">?</div>
+      <div class="h-confirm-title" id="sConfirmTitle">Submit Exam?</div>
+      <div class="h-confirm-msg"   id="sConfirmMsg"></div>
+      <div class="h-confirm-btns">
+        <button class="h-confirm-cancel" id="sConfirmCancel" onclick="sResolveConfirm(false)">Continue Exam</button>
+        <button class="h-confirm-ok"     id="sConfirmOk"     onclick="sResolveConfirm(true)">Submit Now</button>
       </div>
     </div>
   </div>
 
-  <div id="sAutoNotice" style="display:none; position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--secondary); color:white; padding:14px 28px; border-radius:30px; font-weight:700; font-size:15px; z-index:9999; box-shadow:0 8px 30px rgba(255,101,132,0.4);">
-    ⏰ Time is up! Submitting your exam...
+  <div id="sAutoNotice" style="display:none; position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--secondary); color:white; padding:14px 28px; border-radius:30px; font-weight:700; font-size:15px; z-index:9999; box-shadow:0 8px 30px rgba(255,101,132,0.4);" id="sAutoNoticeEl">
+    Time is up! Submitting your exam...
   </div>
 
-  <!-- ============================================
-       ✅ PHASE F: SECURITY VIOLATION OVERLAY
-       Injected here (before body close) so it
-       renders above all existing UI elements.
-  ============================================ -->
+  <!-- ✅ PHASE F: SECURITY VIOLATION OVERLAY -->
   <div class="sec-overlay" id="sSecOverlay">
     <div class="sec-overlay-card" id="sSecCard">
-      <div class="sec-overlay-icon"  id="sSecIcon">⚠️</div>
+      <div class="sec-overlay-icon"  id="sSecIcon">!</div>
       <div class="sec-overlay-title" id="sSecTitle">Security Violation</div>
       <div class="sec-overlay-msg"   id="sSecMsg">This incident has been recorded.</div>
       <div class="sec-vcount"        id="sSecVCount">Violation 1 of 5</div>
@@ -298,9 +342,7 @@
         </svg>
         <div class="sec-cd-num" id="sSecCdNum">5</div>
       </div>
-      <button class="sec-dismiss-btn" id="sSecDismissBtn" onclick="sSecDismiss()" disabled>
-        Wait 5 seconds...
-      </button>
+      <button class="sec-dismiss-btn" id="sSecDismissBtn" onclick="sSecDismiss()" disabled>Wait 5 seconds...</button>
       <div class="sec-auto-msg" id="sSecAutoMsg" style="display:none;"></div>
     </div>
   </div>
@@ -309,14 +351,14 @@
   <div id="sResultScreen" style="display:none; min-height:100vh; padding:40px 24px; overflow-y:auto;">
     <div style="max-width:600px; margin:0 auto;">
       <div style="text-align:center; background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:40px; margin-bottom:24px;">
-        <div id="sResultTrophy" style="font-size:64px; margin-bottom:12px;">🏆</div>
-        <h1 id="sResultTitle"  style="font-size:28px; font-weight:800; margin-bottom:8px;">Result</h1>
-        <div id="sResultScore" style="font-size:56px; font-weight:900; margin:16px 0;"></div>
-        <div id="sResultTag"   style="display:inline-block; padding:6px 20px; border-radius:20px; font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:24px;"></div>
-        <p id="sResultMsg" style="font-size:15px; color:var(--text-secondary); line-height:1.7; max-width:400px; margin:0 auto 28px;"></p>
+        <div id="sResultTrophy" style="font-size:64px; margin-bottom:12px;">&#127942;</div>
+        <h1  id="sResultTitle"  style="font-size:28px; font-weight:800; margin-bottom:8px;">Result</h1>
+        <div id="sResultScore"  style="font-size:56px; font-weight:900; margin:16px 0;"></div>
+        <div id="sResultTag"    style="display:inline-block; padding:6px 20px; border-radius:20px; font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:24px;"></div>
+        <p   id="sResultMsg"    style="font-size:15px; color:var(--text-secondary); line-height:1.7; max-width:400px; margin:0 auto 28px;"></p>
         <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
-          <a href="student-login.html" class="btn btn-secondary">Take Another Exam</a>
-          <a href="index.html"         class="btn btn-primary">Go to Home</a>
+          <a href="student-login.html" class="btn btn-secondary" id="sTakeAnotherBtn">Take Another Exam</a>
+          <a href="index.html"         class="btn btn-primary"   id="sGoHomeBtn">Go to Home</a>
         </div>
       </div>
     </div>
@@ -326,16 +368,450 @@
   <script src="js/student-exam.js"></script>
 
   <!-- ============================================
-       ✅ PHASE F: CBT SECURITY MODULE
-       Self-contained. Does not modify student-exam.js.
-       Wraps beginStudentExam + sSubmitExam to inject
-       security activation/deactivation.
-       All features are deterrent-based — they activate
-       as soon as the exam screen becomes visible.
+       ✅ PHASE H: MULTI-LANGUAGE SYSTEM
+       Runs first — sets translations before
+       Phase F/G scripts use any UI strings.
+       student-exam.js is NOT modified.
   ============================================ -->
   <script>
   (function() {
-    /* ---- Security state ---- */
+
+    /* ---- Active language ---- */
+    var _sLang = 'en';
+
+    /* ============================================
+       TRANSLATION STRINGS — all 6 languages
+    ============================================ */
+    var _ST = {
+      en: {
+        langLabel:       'Select Language',
+        loaderText:      'Preparing your exam...',
+        instHeading:     'Instructions',
+        instMins:        'Minutes',
+        instQLabel:      'Questions',
+        instPassLabel:   'Pass Mark',
+        importantLabel:  'Important Rules',
+        rule1:           'The timer starts immediately when you click Begin',
+        rule2:           'Your exam auto-submits when time runs out',
+        rule3:           'You cannot re-enter the exam after submitting',
+        rule4:           'For theory questions, type your answer clearly',
+        secRules:        '<strong>Exam Security Rules</strong><br>&#8226; This exam runs in fullscreen mode &#8212; do not exit<br>&#8226; Tab-switching and window changes are detected and logged<br>&#8226; Right-clicking and keyboard shortcuts are disabled<br>&#8226; Copying exam content is blocked<br>&#8226; Repeated violations will auto-submit your exam',
+        goBackBtn:       'Go Back',
+        beginBtn:        'Begin Exam',
+        submitTopBtn:    'Submit',
+        qLabel:          'Question',
+        ofLabel:         'of',
+        theoryLabel:     'Write your answer below:',
+        theoryPH:        'Type your answer here...',
+        prevBtn:         'Previous',
+        nextBtn:         'Next',
+        navPanelTitle:   'Questions',
+        navSubmitBtn:    'Submit Exam',
+        secureLabel:     'Secure',
+        secViolation:    'Violation {n} of {max}',
+        secWait:         'Wait 5 seconds...',
+        secDismissOk:    'I Understand - Continue Exam',
+        secDismissFs:    'Return to Fullscreen',
+        secSubmitting:   'Submitting...',
+        secAutoMsg:      'Your exam will be submitted when the countdown reaches zero.',
+        secTitleFs:      'Fullscreen Exited',
+        secMsgFs:        'Please stay in fullscreen mode. {n} exit(s) remaining before auto-submit.',
+        secTitleFsMax:   'Fullscreen - Maximum Reached',
+        secMsgFsMax:     'You have exited fullscreen {n} times. Your exam is being submitted.',
+        secTitleTab:     'Tab Switch Detected',
+        secMsgTab:       'Switching tabs is not allowed. {n} violation(s) before auto-submit.',
+        secTitleMax:     'Maximum Violations Reached',
+        secMsgMax:       'Your exam is being submitted due to repeated violations.',
+        confirmSubmitTitle:  'Submit Exam?',
+        confirmSubmitMsg:    'Answered: {answered} / {total}. Unanswered: {unanswered}. This cannot be undone.',
+        confirmSubmitOk:     'Submit Now',
+        confirmSubmitCancel: 'Continue Exam',
+        confirmQuitTitle:    'Quit Exam?',
+        confirmQuitMsg:      'Your progress will be LOST and you will need to start over.',
+        confirmQuitOk:       'Quit',
+        confirmQuitCancel:   'Stay',
+        timeUp:          'Time is up! Submitting your exam...',
+        takeAnother:     'Take Another Exam',
+        goHome:          'Go to Home',
+        audioLabel:      'Listen to audio before answering'
+      },
+
+      ha: {
+        langLabel:       'Zabar Harshe',
+        loaderText:      'Ana shirya jarrabawar ka...',
+        instHeading:     'Umarnai',
+        instMins:        'Mintoci',
+        instQLabel:      'Tambayoyi',
+        instPassLabel:   'Maki na Wucewa',
+        importantLabel:  'Muhimman Dokoki',
+        rule1:           'Agogo yana farawa nan da nan lokacin da ka danna Fara',
+        rule2:           'Jarrabawar ka tana tura kai tsaye lokacin da lokaci ya kare',
+        rule3:           'Ba za ka iya sake shiga jarrabawar ba bayan turawa',
+        rule4:           'Don tambayoyin ka, rubuta amsar ka a fili',
+        secRules:        '<strong>Dokoki na Tsaro</strong><br>&#8226; Wannan jarrabawa tana gudana a cikakken allo<br>&#8226; Ana gano canjin tab da taga kuma ana rubuta su<br>&#8226; An hana danna dama da makullin gajeriyar hanya<br>&#8226; An hana kwafin abubuwan jarrabawa<br>&#8226; Cin zarafi akai-akai zai tura jarrabawar kai tsaye',
+        goBackBtn:       'Koma Baya',
+        beginBtn:        'Fara Jarrabawa',
+        submitTopBtn:    'Tura',
+        qLabel:          'Tambaya',
+        ofLabel:         'daga',
+        theoryLabel:     'Rubuta amsar ka a kasa:',
+        theoryPH:        'Rubuta amsar ka anan...',
+        prevBtn:         'Baya',
+        nextBtn:         'Gaba',
+        navPanelTitle:   'Tambayoyi',
+        navSubmitBtn:    'Tura Jarrabawa',
+        secureLabel:     'Lafiya',
+        secViolation:    'Cin Zarafi {n} daga {max}',
+        secWait:         'Jira Daƙiƙa 5...',
+        secDismissOk:    'Na Fahimta - Ci Gaba',
+        secDismissFs:    'Koma Cikakken Allo',
+        secSubmitting:   'Ana Tura...',
+        secAutoMsg:      'Za a tura jarrabawar ka lokacin da ƙidaya ta kai sifili.',
+        secTitleFs:      'An Fita daga Cikakken Allo',
+        secMsgFs:        'Don Allah kasance a cikakken allo. Fita {n} da ya rage.',
+        secTitleFsMax:   'Mafi Girman Fita Ya Kai',
+        secMsgFsMax:     'Ka fita sau {n}. Ana tura jarrabawar ka.',
+        secTitleTab:     'An Gano Canjin Tab',
+        secMsgTab:       'Ba a barin canjin tab. Cin zarafi {n} da ya rage.',
+        secTitleMax:     'Mafi Girman Cin Zarafi Ya Kai',
+        secMsgMax:       'Ana tura jarrabawar ka saboda cin zarafi akai-akai.',
+        confirmSubmitTitle:  'Tura Jarrabawa?',
+        confirmSubmitMsg:    'An Amsa: {answered} / {total}. Ba a Amsa: {unanswered}. Ba za a iya canza hakan ba.',
+        confirmSubmitOk:     'Tura Yanzu',
+        confirmSubmitCancel: 'Ci Gaba da Jarrabawa',
+        confirmQuitTitle:    'Fita daga Jarrabawa?',
+        confirmQuitMsg:      'Za a RASA ci gaban ka kuma za ka buƙaci fara daga farko.',
+        confirmQuitOk:       'Fita',
+        confirmQuitCancel:   'Kasance',
+        timeUp:          'Lokaci ya ƙare! Ana tura jarrabawar ka...',
+        takeAnother:     'Dauki Wata Jarrabawa',
+        goHome:          'Koma Gida',
+        audioLabel:      'Saurari sauti kafin amsa'
+      },
+
+      yo: {
+        langLabel:       'Yan Ede',
+        loaderText:      'N pese idanwo rẹ...',
+        instHeading:     'Awọn Itọnisọna',
+        instMins:        'Iseju',
+        instQLabel:      'Awọn Ibeere',
+        instPassLabel:   'Ami Kọja',
+        importantLabel:  'Awọn Ofin Pataki',
+        rule1:           'Aago naa bẹrẹ lẹsẹkẹsẹ nigba ti o tẹ Bẹrẹ',
+        rule2:           'Idanwo rẹ n fi ara rẹ silẹ nigba ti akoko ba pari',
+        rule3:           'O ko le pada si idanwo lẹhin fifẹ silẹ',
+        rule4:           'Fun awọn ibeere imọ-ọrọ, tẹ idahun rẹ kedere',
+        secRules:        '<strong>Awọn Ofin Aabo</strong><br>&#8226; Idanwo yii n ṣiṣẹ ni ipo iboju kikun<br>&#8226; Yipada taabu ati awọn window ni a ṣayẹwo<br>&#8226; A ti dina titẹ ọtun ati awọn bọtini kekere<br>&#8226; Didi akoonu idanwo jẹ dina<br>&#8226; Ẹ̀tọ́ ti a tun ṣe yoo fi idanwo silẹ lai da duro',
+        goBackBtn:       'Pada Sẹhin',
+        beginBtn:        'Bẹrẹ Idanwo',
+        submitTopBtn:    'Fi silẹ',
+        qLabel:          'Ibeere',
+        ofLabel:         'lati',
+        theoryLabel:     'Kọ idahun rẹ ni isalẹ:',
+        theoryPH:        'Tẹ idahun rẹ nibi...',
+        prevBtn:         'Sẹhin',
+        nextBtn:         'Siwaju',
+        navPanelTitle:   'Awọn Ibeere',
+        navSubmitBtn:    'Fi Idanwo Silẹ',
+        secureLabel:     'Aabo',
+        secViolation:    'Ẹ̀tọ́ {n} lati {max}',
+        secWait:         'Duro Iṣẹju 5...',
+        secDismissOk:    'Mo Gbọye - Tẹsiwaju',
+        secDismissFs:    'Pada si Iboju Kikun',
+        secSubmitting:   'N fi silẹ...',
+        secAutoMsg:      'A o fi idanwo rẹ silẹ nigba ti ikawe de odo.',
+        secTitleFs:      'Ti Jade kuro ni Iboju Kikun',
+        secMsgFs:        'Jọwọ wa ni ipo iboju kikun. Jade {n} to ku.',
+        secTitleFsMax:   'Iye Jade Ti Pọ si Ipele Giga',
+        secMsgFsMax:     'O ti jade igba {n}. A n fi idanwo rẹ silẹ.',
+        secTitleTab:     'A Ṣayẹwo Yipada Taabu',
+        secMsgTab:       'Yiyipada taabu ko gba laaye. Ẹ̀tọ́ {n} to ku.',
+        secTitleMax:     'Iye Ẹ̀tọ́ Ti Pọ si Ipele Giga',
+        secMsgMax:       'A n fi idanwo rẹ silẹ nitori awọn ẹ̀tọ́ leralera.',
+        confirmSubmitTitle:  'Fi Idanwo Silẹ?',
+        confirmSubmitMsg:    'Ti dahun: {answered} / {total}. Ko dahun: {unanswered}. A ko le yi eyi pada.',
+        confirmSubmitOk:     'Fi Silẹ Bayi',
+        confirmSubmitCancel: 'Tẹsiwaju Idanwo',
+        confirmQuitTitle:    'Jade kuro ni Idanwo?',
+        confirmQuitMsg:      'Ilọsiwaju rẹ yoo SONU ati pe iwọ yoo nilo lati bẹrẹ lẹẹkansi.',
+        confirmQuitOk:       'Jade',
+        confirmQuitCancel:   'Wa',
+        timeUp:          'Akoko ti pari! N fi idanwo rẹ silẹ...',
+        takeAnother:     'Ṣe Idanwo Miran',
+        goHome:          'Pada si Ile',
+        audioLabel:      'Gbọ ohun ṣaaju ki o to dahun'
+      },
+
+      ig: {
+        langLabel:       'Họrọ Asụsụ',
+        loaderText:      'Na-akwadebe ule gị...',
+        instHeading:     'Ntuziaka',
+        instMins:        'Nkeji',
+        instQLabel:      'Ajụjụ',
+        instPassLabel:   'Akara Gafere',
+        importantLabel:  'Iwu Dị Mkpa',
+        rule1:           'Elekere na-amalite ozugbo mgbe ị pịa Malite',
+        rule2:           'A na-ezipu ule gị na-akpaghị aka mgbe oge gwụchara',
+        rule3:           'Ị nweghị ike ilaghachi na ule mgbe eziputara ya',
+        rule4:           'Maka ajụjụ edemede, dee azịza gị n\'ụzọ doro anya',
+        secRules:        '<strong>Iwu Nchekwa Ule</strong><br>&#8226; Ule a na-aga n\'ụzọ ihuenyo zuru ezu<br>&#8226; A na-achọpụta mgbanwe tab na windo ma dee ya<br>&#8226; Ebiela isi ikpe nri na mmalite dị mkpụmkpụ<br>&#8226; Ichere ihe ule ebiela<br>&#8226; Mmegbu ugboro ugboro ga-ezipu ule ná mmalite',
+        goBackBtn:       'Laghachi',
+        beginBtn:        'Malite Ule',
+        submitTopBtn:    'Zipu',
+        qLabel:          'Ajụjụ',
+        ofLabel:         'n\'ime',
+        theoryLabel:     'Dee azịza gị n\'okpuru:',
+        theoryPH:        'Dee azịza gị ebe a...',
+        prevBtn:         'Azụ',
+        nextBtn:         'Ihu',
+        navPanelTitle:   'Ajụjụ',
+        navSubmitBtn:    'Zipu Ule',
+        secureLabel:     'Nchekwa',
+        secViolation:    'Mmegbu {n} n\'ime {max}',
+        secWait:         'Chere Sekọnd 5...',
+        secDismissOk:    'Aghọtara m - Gaa n\'ihu',
+        secDismissFs:    'Laghachi na Ihuenyo Zuru Ezu',
+        secSubmitting:   'Na-ezipu...',
+        secAutoMsg:      'A ga-ezipu ule gị mgbe ọnụọgụ eru ala.',
+        secTitleFs:      'Apụọla na Ihuenyo Zuru Ezu',
+        secMsgFs:        'Biko nọdụ na ihuenyo zuru ezu. Ọpụpụ {n} fọdụrụ.',
+        secTitleFsMax:   'Ọnụ Ọgụgụ Ọpụpụ Eruola',
+        secMsgFsMax:     'Apụọla ugboro {n}. A na-ezipu ule gị.',
+        secTitleTab:     'Achọpụtara mgbanwe Tab',
+        secMsgTab:       'Agba igbanwe tab amaghị. Mmegbu {n} fọdụrụ.',
+        secTitleMax:     'Ọnụ Ọgụgụ Mmegbu Eruola',
+        secMsgMax:       'A na-ezipu ule gị n\'ihi mmegbu ugboro ugboro.',
+        confirmSubmitTitle:  'Zipu Ule?',
+        confirmSubmitMsg:    'Azaala: {answered} / {total}. Azaghịghị: {unanswered}. Enweghị ike mgbanwe.',
+        confirmSubmitOk:     'Zipu Ugbu a',
+        confirmSubmitCancel: 'Gaa n\'ihu na Ule',
+        confirmQuitTitle:    'Pụọ na Ule?',
+        confirmQuitMsg:      'A ga-EFU ọganiihu gị ma ị ga-adị mkpa ịmalite ọzọ.',
+        confirmQuitOk:       'Pụọ',
+        confirmQuitCancel:   'Nọdụ',
+        timeUp:          'Oge agwụla! Na-ezipu ule gị...',
+        takeAnother:     'Were Ule Ọzọ',
+        goHome:          'Laghachi n\'Ụlọ',
+        audioLabel:      'Nụ ụda tupu ị zaaa'
+      },
+
+      fr: {
+        langLabel:       'Choisir la Langue',
+        loaderText:      'Preparation de votre examen...',
+        instHeading:     'Instructions',
+        instMins:        'Minutes',
+        instQLabel:      'Questions',
+        instPassLabel:   'Note de Passage',
+        importantLabel:  'Regles Importantes',
+        rule1:           'Le minuteur demarre immediatement lorsque vous cliquez sur Commencer',
+        rule2:           'Votre examen se soumet automatiquement a la fin du temps',
+        rule3:           'Vous ne pouvez pas reentrer dans l\'examen apres la soumission',
+        rule4:           'Pour les questions theoriques, tapez votre reponse clairement',
+        secRules:        '<strong>Regles de Securite</strong><br>&#8226; Cet examen fonctionne en mode plein ecran<br>&#8226; Le changement d\'onglets est detecte et enregistre<br>&#8226; Le clic droit et les raccourcis sont desactives<br>&#8226; La copie du contenu est bloquee<br>&#8226; Les violations repetees soumettront automatiquement votre examen',
+        goBackBtn:       'Retour',
+        beginBtn:        'Commencer l\'Examen',
+        submitTopBtn:    'Soumettre',
+        qLabel:          'Question',
+        ofLabel:         'sur',
+        theoryLabel:     'Ecrivez votre reponse ci-dessous:',
+        theoryPH:        'Tapez votre reponse ici...',
+        prevBtn:         'Precedent',
+        nextBtn:         'Suivant',
+        navPanelTitle:   'Questions',
+        navSubmitBtn:    'Soumettre l\'Examen',
+        secureLabel:     'Securise',
+        secViolation:    'Violation {n} sur {max}',
+        secWait:         'Attendez 5 secondes...',
+        secDismissOk:    'Je Comprends - Continuer',
+        secDismissFs:    'Retourner en Plein Ecran',
+        secSubmitting:   'Soumission...',
+        secAutoMsg:      'Votre examen sera soumis quand le compte a rebours atteint zero.',
+        secTitleFs:      'Plein Ecran Quitte',
+        secMsgFs:        'Restez en plein ecran. {n} sortie(s) restante(s).',
+        secTitleFsMax:   'Plein Ecran - Maximum Atteint',
+        secMsgFsMax:     'Vous avez quitte le plein ecran {n} fois. Soumission en cours.',
+        secTitleTab:     'Changement d\'Onglet Detecte',
+        secMsgTab:       'Changer d\'onglet n\'est pas autorise. {n} violation(s) restante(s).',
+        secTitleMax:     'Maximum de Violations Atteint',
+        secMsgMax:       'Votre examen est soumis en raison de violations repetees.',
+        confirmSubmitTitle:  'Soumettre l\'Examen?',
+        confirmSubmitMsg:    'Repondu: {answered} / {total}. Sans reponse: {unanswered}. Cela ne peut pas etre annule.',
+        confirmSubmitOk:     'Soumettre Maintenant',
+        confirmSubmitCancel: 'Continuer l\'Examen',
+        confirmQuitTitle:    'Quitter l\'Examen?',
+        confirmQuitMsg:      'Votre progression sera PERDUE et vous devrez recommencer.',
+        confirmQuitOk:       'Quitter',
+        confirmQuitCancel:   'Rester',
+        timeUp:          'Le temps est ecoule! Soumission en cours...',
+        takeAnother:     'Passer un Autre Examen',
+        goHome:          'Aller a l\'Accueil',
+        audioLabel:      'Ecoutez l\'audio avant de repondre'
+      },
+
+      ar: {
+        langLabel:       'اختر اللغة',
+        loaderText:      'جار تحضير امتحانك...',
+        instHeading:     'التعليمات',
+        instMins:        'دقيقة',
+        instQLabel:      'الأسئلة',
+        instPassLabel:   'درجة النجاح',
+        importantLabel:  'قواعد مهمة',
+        rule1:           'يبدأ المؤقت فور النقر على ابدأ',
+        rule2:           'يُرسل امتحانك تلقائياً عند انتهاء الوقت',
+        rule3:           'لا يمكنك إعادة دخول الامتحان بعد الإرسال',
+        rule4:           'للأسئلة النظرية، اكتب إجابتك بوضوح',
+        secRules:        '<strong>قواعد أمان الامتحان</strong><br>&#8226; يعمل هذا الامتحان في وضع الشاشة الكاملة<br>&#8226; يتم اكتشاف تبديل التبويبات وتسجيلها<br>&#8226; النقر بزر الماوس الأيمن والاختصارات معطلة<br>&#8226; نسخ محتوى الامتحان محظور<br>&#8226; المخالفات المتكررة ستُرسل الامتحان تلقائياً',
+        goBackBtn:       'رجوع',
+        beginBtn:        'ابدأ الامتحان',
+        submitTopBtn:    'إرسال',
+        qLabel:          'السؤال',
+        ofLabel:         'من',
+        theoryLabel:     'اكتب إجابتك أدناه:',
+        theoryPH:        'اكتب إجابتك هنا...',
+        prevBtn:         'السابق',
+        nextBtn:         'التالي',
+        navPanelTitle:   'الأسئلة',
+        navSubmitBtn:    'إرسال الامتحان',
+        secureLabel:     'آمن',
+        secViolation:    'مخالفة {n} من {max}',
+        secWait:         'انتظر 5 ثوانٍ...',
+        secDismissOk:    'فهمت - متابعة',
+        secDismissFs:    'العودة إلى الشاشة الكاملة',
+        secSubmitting:   'جار الإرسال...',
+        secAutoMsg:      'سيتم إرسال امتحانك عندما يصل العد التنازلي إلى الصفر.',
+        secTitleFs:      'تم الخروج من الشاشة الكاملة',
+        secMsgFs:        'يرجى البقاء في وضع الشاشة الكاملة. {n} محاولة متبقية.',
+        secTitleFsMax:   'تم الوصول إلى الحد الأقصى للخروج',
+        secMsgFsMax:     'لقد خرجت {n} مرات. جار إرسال امتحانك.',
+        secTitleTab:     'تم اكتشاف تبديل التبويب',
+        secMsgTab:       'لا يُسمح بتبديل التبويبات. {n} مخالفة متبقية.',
+        secTitleMax:     'تم الوصول إلى الحد الأقصى للمخالفات',
+        secMsgMax:       'جار إرسال امتحانك بسبب المخالفات المتكررة.',
+        confirmSubmitTitle:  'إرسال الامتحان؟',
+        confirmSubmitMsg:    'تمت الإجابة: {answered} / {total}. لم يُجَب: {unanswered}. لا يمكن التراجع.',
+        confirmSubmitOk:     'إرسال الآن',
+        confirmSubmitCancel: 'متابعة الامتحان',
+        confirmQuitTitle:    'الخروج من الامتحان؟',
+        confirmQuitMsg:      'ستُفقد كل التقدم وستحتاج إلى البدء من جديد.',
+        confirmQuitOk:       'خروج',
+        confirmQuitCancel:   'بقاء',
+        timeUp:          'انتهى الوقت! جار إرسال امتحانك...',
+        takeAnother:     'أداء امتحان آخر',
+        goHome:          'العودة إلى الرئيسية',
+        audioLabel:      'استمع للصوت قبل الإجابة'
+      }
+    };
+
+    /* ---- Translation helpers ---- */
+    function sT(key) {
+      var s = _ST[_sLang] || _ST['en'];
+      return (s[key] !== undefined) ? s[key] : ((_ST['en'][key]) || key);
+    }
+
+    function sTFmt(key, vars) {
+      var str = sT(key);
+      var k;
+      for (k in vars) {
+        if (vars.hasOwnProperty(k)) {
+          str = str.replace(new RegExp('\\{' + k + '\\}', 'g'), String(vars[k]));
+        }
+      }
+      return str;
+    }
+
+    function sSetText(id, val) { var el = document.getElementById(id); if (el) { el.textContent = val; } }
+    function sSetHtml(id, val) { var el = document.getElementById(id); if (el) { el.innerHTML  = val; } }
+    function sSetAttr(id, attr, val) { var el = document.getElementById(id); if (el) { el[attr] = val; } }
+
+    /* ---- Apply language to all UI ---- */
+    function sApplyLang(code) {
+      _sLang = code;
+      try { sessionStorage.setItem('latlomp_lang', code); } catch(e) {}
+
+      /* RTL toggle */
+      var htmlEl = document.getElementById('htmlRoot');
+      if (htmlEl) {
+        if (code === 'ar') {
+          htmlEl.setAttribute('dir', 'rtl');
+          htmlEl.setAttribute('lang', 'ar');
+        } else {
+          htmlEl.setAttribute('dir', 'ltr');
+          htmlEl.setAttribute('lang', code);
+        }
+      }
+
+      /* Lang button highlight */
+      var btns = document.querySelectorAll('.lang-btn');
+      var i;
+      for (i = 0; i < btns.length; i++) {
+        var onclickVal = btns[i].getAttribute('onclick') || '';
+        btns[i].className = (onclickVal === "sSelectLang('" + code + "')") ? 'lang-btn active' : 'lang-btn';
+      }
+
+      /* Instructions screen */
+      sSetText('sLangLabel',     sT('langLabel'));
+      sSetText('sLoaderText',    sT('loaderText'));
+      sSetText('sInstHeading',   sT('instHeading'));
+      sSetText('sInstMinsLabel', sT('instMins'));
+      sSetText('sInstQLabel',    sT('instQLabel'));
+      sSetText('sInstPassLabel', sT('instPassLabel'));
+      sSetText('sImportantLabel',sT('importantLabel'));
+      sSetText('sRule1',         '• ' + sT('rule1'));
+      sSetText('sRule2',         '• ' + sT('rule2'));
+      sSetText('sRule3',         '• ' + sT('rule3'));
+      sSetText('sRule4',         '• ' + sT('rule4'));
+      sSetHtml('sSecRulesBox',   sT('secRules'));
+      sSetText('sGoBackBtn',     sT('goBackBtn'));
+      sSetText('sBeginBtn',      sT('beginBtn'));
+
+      /* Exam interface */
+      sSetText('sSubmitTopBtn',  sT('submitTopBtn'));
+      sSetText('sQLabel',        sT('qLabel'));
+      sSetText('sOfLabel',       sT('ofLabel'));
+      sSetText('sTheoryLabel',   sT('theoryLabel'));
+      sSetAttr('sTheoryAnswer', 'placeholder', sT('theoryPH'));
+      sSetText('sPrevBtn',       sT('prevBtn'));
+      sSetText('sNextBtn',       sT('nextBtn'));
+      sSetText('sNavPanelTitle', sT('navPanelTitle'));
+      sSetText('sNavSubmitBtn',  sT('navSubmitBtn'));
+      sSetText('sSecBadge',      sT('secureLabel'));
+
+      /* Result screen */
+      sSetText('sTakeAnotherBtn', sT('takeAnother'));
+      sSetText('sGoHomeBtn',      sT('goHome'));
+
+      /* Time up notice */
+      var noticeEl = document.getElementById('sAutoNotice');
+      if (noticeEl) { noticeEl.textContent = sT('timeUp'); }
+
+      /* Expose to Phase F IIFE via window */
+      window._sT    = sT;
+      window._sTFmt = sTFmt;
+      window._sLang = code;
+    }
+
+    /* ---- Expose lang select function globally ---- */
+    window.sSelectLang = function(code) { sApplyLang(code); };
+
+    /* ---- Init on load ---- */
+    var saved = 'en';
+    try { saved = sessionStorage.getItem('latlomp_lang') || 'en'; } catch(e) {}
+    var valid = { en:1, ha:1, yo:1, ig:1, fr:1, ar:1 };
+    sApplyLang(valid[saved] ? saved : 'en');
+
+  })();
+  </script>
+
+  <!-- ============================================
+       ✅ PHASE F: CBT SECURITY MODULE
+       Self-contained IIFE. Wraps beginStudentExam
+       + sSubmitExam. Does NOT modify student-exam.js.
+       ✅ PHASE H: All security strings now use
+       window._sT / window._sTFmt for translations.
+  ============================================ -->
+  <script>
+  (function() {
+
     var _sec = {
       isActive:        false,
       fullscreenExits: 0,
@@ -350,77 +826,79 @@
       log:             []
     };
 
-    /* ---- KaTeX config (same as KaTeX patch below) ---- */
-    var _katexOpts = {
-      delimiters: [
-        { left: '$$', right: '$$', display: true },
-        { left: '$',  right: '$',  display: false }
-      ],
-      throwOnError: false,
-      output: 'html'
-    };
+    /* Translation helper — falls back to English if Phase H not loaded */
+    function st(key) {
+      if (window._sT) { return window._sT(key); }
+      var fallback = {
+        secureLabel:'Secure', secViolation:'Violation {n} of {max}',
+        secWait:'Wait 5 seconds...', secDismissOk:'I Understand - Continue Exam',
+        secDismissFs:'Return to Fullscreen', secSubmitting:'Submitting...',
+        secAutoMsg:'Your exam will be submitted when the countdown reaches zero.',
+        secTitleFs:'Fullscreen Exited', secMsgFs:'Stay in fullscreen. {n} exit(s) remaining.',
+        secTitleFsMax:'Fullscreen - Maximum Reached', secMsgFsMax:'You have exited {n} times. Submitting.',
+        secTitleTab:'Tab Switch Detected', secMsgTab:'Tab switching not allowed. {n} violation(s) remaining.',
+        secTitleMax:'Maximum Violations Reached', secMsgMax:'Submitting due to repeated violations.'
+      };
+      return fallback[key] || key;
+    }
 
-    /* ============================================
-       SECURITY INIT — called when exam begins
-    ============================================ */
+    function stf(key, vars) {
+      if (window._sTFmt) { return window._sTFmt(key, vars); }
+      var str = st(key);
+      var k;
+      for (k in vars) {
+        if (vars.hasOwnProperty(k)) {
+          str = str.replace(new RegExp('\\{' + k + '\\}', 'g'), String(vars[k]));
+        }
+      }
+      return str;
+    }
+
     function initSec() {
-      if (_sec.isActive) return;
+      if (_sec.isActive) { return; }
       _sec.isActive = true;
-
       requestFs();
-
       document.addEventListener('fullscreenchange',       onFsChange);
       document.addEventListener('webkitfullscreenchange', onFsChange);
       document.addEventListener('mozfullscreenchange',    onFsChange);
       document.addEventListener('visibilitychange',       onVisChange);
       window.addEventListener('blur',  onWinBlur);
       window.addEventListener('focus', onWinFocus);
-      document.addEventListener('keydown',     blockKeys,    true);
-      document.addEventListener('contextmenu', blockMenu,    true);
-
-      /* Copy protection on question text only */
-      var qEl = document.getElementById('sQuestionText');
-      if (qEl) {
-        qEl.addEventListener('copy', blockCopy, true);
-        qEl.addEventListener('cut',  blockCopy, true);
-      }
+      document.addEventListener('keydown',     blockKeys, true);
+      document.addEventListener('contextmenu', blockMenu, true);
+      var qEl  = document.getElementById('sQuestionText');
       var optEl = document.getElementById('sOptionsArea');
-      if (optEl) {
-        optEl.addEventListener('copy', blockCopy, true);
-      }
-
+      if (qEl)  { qEl.addEventListener('copy',  blockCopy, true); qEl.addEventListener('cut', blockCopy, true); }
+      if (optEl){ optEl.addEventListener('copy', blockCopy, true); }
       logSec('init', 'Security initialized');
       updateSecBadge();
     }
 
     function deactivateSec() {
-      if (!_sec.isActive) return;
+      if (!_sec.isActive) { return; }
       _sec.isActive = false;
       document.removeEventListener('fullscreenchange',       onFsChange);
       document.removeEventListener('webkitfullscreenchange', onFsChange);
       document.removeEventListener('mozfullscreenchange',    onFsChange);
       document.removeEventListener('visibilitychange',       onVisChange);
-      document.removeEventListener('keydown',     blockKeys,    true);
-      document.removeEventListener('contextmenu', blockMenu,    true);
+      document.removeEventListener('keydown',     blockKeys, true);
+      document.removeEventListener('contextmenu', blockMenu, true);
       window.removeEventListener('blur',  onWinBlur);
       window.removeEventListener('focus', onWinFocus);
-      /* Exit fullscreen */
       try {
-        if      (document.exitFullscreen)       document.exitFullscreen();
-        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-        else if (document.mozCancelFullScreen)  document.mozCancelFullScreen();
+        if      (document.exitFullscreen)       { document.exitFullscreen(); }
+        else if (document.webkitExitFullscreen) { document.webkitExitFullscreen(); }
+        else if (document.mozCancelFullScreen)  { document.mozCancelFullScreen(); }
       } catch(e) {}
-      /* Store log for potential future use */
       try { sessionStorage.setItem('_secLog', JSON.stringify(_sec.log)); } catch(e) {}
     }
 
-    /* ---- Fullscreen ---- */
     function requestFs() {
       var el = document.documentElement;
       try {
-        if      (el.requestFullscreen)       el.requestFullscreen();
-        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-        else if (el.mozRequestFullScreen)    el.mozRequestFullScreen();
+        if      (el.requestFullscreen)       { el.requestFullscreen(); }
+        else if (el.webkitRequestFullscreen) { el.webkitRequestFullscreen(); }
+        else if (el.mozRequestFullScreen)    { el.mozRequestFullScreen(); }
       } catch(e) {}
     }
 
@@ -429,128 +907,90 @@
     }
 
     function onFsChange() {
-      if (!_sec.isActive) return;
+      if (!_sec.isActive) { return; }
       if (!isFs()) {
         _sec.fullscreenExits++;
         _sec.totalViolations++;
-        logSec('fs_exit', 'Fullscreen exited #' + _sec.fullscreenExits);
+        logSec('fs_exit', 'Fullscreen exit #' + _sec.fullscreenExits);
         updateSecBadge();
+        var rem = _sec.fsMaxViolations - _sec.fullscreenExits;
         if (_sec.fullscreenExits >= _sec.fsMaxViolations) {
-          showSecWarning('danger',
-            '🚫 Fullscreen Exited — Limit Reached',
-            'You have exited fullscreen ' + _sec.fullscreenExits + ' times. Your exam is being submitted automatically.',
-            true);
+          showSecWarn('danger', st('secTitleFsMax'), stf('secMsgFsMax', { n: _sec.fullscreenExits }), true);
         } else {
-          var rem = _sec.fsMaxViolations - _sec.fullscreenExits;
-          showSecWarning('danger',
-            '🖥 Fullscreen Exited',
-            'Please stay in fullscreen during the exam. ' + rem + ' exit' + (rem!==1?'s':'') + ' remaining before auto-submit.');
+          showSecWarn('danger', st('secTitleFs'), stf('secMsgFs', { n: rem }), false);
         }
       }
     }
 
-    /* ---- Tab / Visibility ---- */
     function onVisChange() {
-      if (!_sec.isActive) return;
+      if (!_sec.isActive) { return; }
       if (document.hidden) {
         _sec.tabSwitches++;
         _sec.totalViolations++;
         logSec('tab_switch', 'Tab switch #' + _sec.tabSwitches);
         updateSecBadge();
+        var rem = _sec.maxViolations - _sec.totalViolations;
         if (_sec.totalViolations >= _sec.maxViolations) {
-          showSecWarning('danger',
-            '⚠️ Maximum Violations Reached',
-            'Your exam is being submitted automatically due to repeated violations.',
-            true);
+          showSecWarn('danger', st('secTitleMax'), st('secMsgMax'), true);
         } else {
-          var rem = _sec.maxViolations - _sec.totalViolations;
-          showSecWarning('warning',
-            '👁 Tab Switch Detected',
-            'Switching tabs is not allowed during the exam. ' + rem + ' violation' + (rem!==1?'s':'') + ' remaining before auto-submit.');
+          showSecWarn('warning', st('secTitleTab'), stf('secMsgTab', { n: rem }), false);
         }
       }
     }
 
-    /* ---- Window focus/blur ---- */
     var _blurT = null;
     function onWinBlur() {
-      if (!_sec.isActive) return;
+      if (!_sec.isActive) { return; }
       _blurT = setTimeout(function() {
         if (!document.hidden) {
           _sec.focusLosses++;
           _sec.totalViolations++;
-          logSec('focus_loss', 'Window focus lost #' + _sec.focusLosses);
+          logSec('focus_loss', 'Focus loss #' + _sec.focusLosses);
           updateSecBadge();
         }
       }, 300);
     }
-    function onWinFocus() {
-      if (_blurT) { clearTimeout(_blurT); _blurT = null; }
-    }
+    function onWinFocus() { if (_blurT) { clearTimeout(_blurT); _blurT = null; } }
 
-    /* ---- Keyboard blocker ---- */
     function blockKeys(e) {
-      if (!_sec.isActive) return;
-      if (e.key === 'F12') {
-        e.preventDefault(); e.stopPropagation();
-        _sec.devtoolAttempts++;
-        logSec('devtools', 'F12 pressed');
-        return false;
-      }
+      if (!_sec.isActive) { return; }
+      if (e.key === 'F12') { e.preventDefault(); e.stopPropagation(); _sec.devtoolAttempts++; logSec('devtools', 'F12'); return false; }
       if (e.ctrlKey || e.metaKey) {
         var k = (e.key || '').toLowerCase();
         var blocked = { 'i':1, 'u':1, 'p':1, 's':1, 'j':1 };
         if (blocked[k]) {
           e.preventDefault(); e.stopPropagation();
-          if (k==='i'||k==='j') { _sec.devtoolAttempts++; logSec('devtools','Ctrl+'+k.toUpperCase()); }
+          if (k === 'i' || k === 'j') { _sec.devtoolAttempts++; logSec('devtools', 'Ctrl+' + k.toUpperCase()); }
           return false;
         }
-        if (e.shiftKey && (k==='i'||k==='j'||k==='c')) {
+        if (e.shiftKey && (k === 'i' || k === 'j' || k === 'c')) {
           e.preventDefault(); e.stopPropagation();
           _sec.devtoolAttempts++;
-          logSec('devtools','Ctrl+Shift+'+k.toUpperCase());
+          logSec('devtools', 'Ctrl+Shift+' + k.toUpperCase());
           return false;
         }
       }
     }
 
-    /* ---- Right-click ---- */
-    function blockMenu(e) {
-      if (!_sec.isActive) return;
-      e.preventDefault();
-      logSec('rightclick', 'Right-click attempted');
-      return false;
-    }
+    function blockMenu(e) { if (!_sec.isActive) { return; } e.preventDefault(); logSec('rightclick', 'Right-click'); return false; }
+    function blockCopy(e) { if (!_sec.isActive) { return; } e.preventDefault(); _sec.copyAttempts++; logSec('copy', 'Copy/Cut'); return false; }
+    function logSec(type, msg) { _sec.log.push({ type: type, time: new Date().toISOString(), msg: msg }); }
 
-    /* ---- Copy ---- */
-    function blockCopy(e) {
-      if (!_sec.isActive) return;
-      e.preventDefault();
-      _sec.copyAttempts++;
-      logSec('copy', 'Copy/cut attempted');
-      return false;
-    }
-
-    /* ---- Logging ---- */
-    function logSec(type, msg) {
-      _sec.log.push({ type:type, time:new Date().toISOString(), msg:msg });
-    }
-
-    /* ---- Badge update ---- */
     function updateSecBadge() {
       var el = document.getElementById('sSecBadge');
-      if (!el) return;
+      if (!el) { return; }
       var t = _sec.totalViolations;
-      if (t === 0) { el.textContent='🔒 Secure'; el.className='sec-topbar-badge'; }
-      else { el.textContent='⚠️ '+t+' Violation'+(t!==1?'s':''); el.className='sec-topbar-badge violated'; }
+      if (t === 0) {
+        el.textContent = st('secureLabel');
+        el.className   = 'sec-topbar-badge';
+      } else {
+        el.textContent = t + ' ' + st('secViolation').replace('{n}', String(t)).replace('{max}', String(_sec.maxViolations));
+        el.className   = 'sec-topbar-badge violated';
+      }
     }
 
-    /* ============================================
-       SECURITY WARNING OVERLAY
-    ============================================ */
-    function showSecWarning(type, title, msg, autoSubmit) {
+    function showSecWarn(type, title, msg, autoSubmit) {
       autoSubmit = autoSubmit || false;
-
       var overlay  = document.getElementById('sSecOverlay');
       var card     = document.getElementById('sSecCard');
       var iconEl   = document.getElementById('sSecIcon');
@@ -561,250 +1001,287 @@
       var numEl    = document.getElementById('sSecCdNum');
       var btn      = document.getElementById('sSecDismissBtn');
       var autoEl   = document.getElementById('sSecAutoMsg');
-      if (!overlay) return;
+      if (!overlay) { return; }
 
-      var isDanger = type === 'danger';
-      iconEl.textContent  = isDanger ? '🚫' : '⚠️';
-      titleEl.textContent = title   || 'Security Violation';
-      msgEl.textContent   = msg     || 'This incident has been recorded.';
-      vcountEl.textContent = 'Violation ' + _sec.totalViolations + ' of ' + _sec.maxViolations;
+      var isDanger = (type === 'danger');
+      iconEl.textContent  = isDanger ? '!' : '!';
+      titleEl.textContent = title || 'Security Violation';
+      msgEl.textContent   = msg   || '';
+      vcountEl.textContent = stf('secViolation', { n: _sec.totalViolations, max: _sec.maxViolations });
       vcountEl.className   = 'sec-vcount' + (isDanger ? '' : ' warn-type');
       card.className       = 'sec-overlay-card' + (isDanger ? '' : ' warn-type');
       ring.className       = 'sec-cd-ring' + (isDanger ? '' : ' warn-type');
 
       if (autoSubmit) {
-        autoEl.textContent   = '⏰ Your exam will be submitted when the countdown reaches zero.';
+        autoEl.textContent   = st('secAutoMsg');
         autoEl.style.display = 'block';
-        btn.textContent      = 'Submitting...';
+        btn.textContent      = st('secSubmitting');
         btn.disabled         = true;
         btn.className        = 'sec-dismiss-btn';
       } else {
         autoEl.style.display = 'none';
-        btn.textContent      = 'Wait 5 seconds...';
+        btn.textContent      = st('secWait');
         btn.disabled         = true;
         btn.className        = 'sec-dismiss-btn';
       }
 
       overlay.classList.add('active');
 
-      /* Countdown */
       var secs = 5; var elapsed = 0;
-      numEl.textContent = secs;
+      numEl.textContent           = secs;
       ring.style.strokeDashoffset = '0';
-
       if (_sec.cdTimer) { clearInterval(_sec.cdTimer); _sec.cdTimer = null; }
 
       _sec.cdTimer = setInterval(function() {
         elapsed++;
-        numEl.textContent = secs - elapsed;
-        ring.style.strokeDashoffset = ((elapsed / secs) * 126) + '';
-
+        numEl.textContent           = secs - elapsed;
+        ring.style.strokeDashoffset = String((elapsed / secs) * 126);
         if (elapsed >= secs) {
           clearInterval(_sec.cdTimer); _sec.cdTimer = null;
           if (autoSubmit) {
             overlay.classList.remove('active');
-            /* Trigger submit via the existing sSubmitExam or auto-notice */
-            if (typeof window.sSubmitExam === 'function') {
-              window.sSubmitExam();
-            } else {
-              /* fallback: show auto-submit notice and try button click */
+            if (typeof window.sSubmitExam === 'function') { window.sSubmitExam(); }
+            else {
               var n = document.getElementById('sAutoNotice');
-              if (n) n.style.display = 'block';
+              if (n) { n.style.display = 'block'; }
               var fb = document.getElementById('sFinalSubmitBtn');
-              if (fb) {
-                document.getElementById('sSubmitModal').style.display = 'none';
-                fb.click();
-              }
+              if (fb) { var sm = document.getElementById('sSubmitModal'); if (sm) { sm.style.display = 'none'; } fb.click(); }
             }
           } else {
-            btn.textContent = '✓ I Understand — Continue Exam';
+            btn.textContent = (title && title.indexOf('Fullscreen') !== -1) ? st('secDismissFs') : st('secDismissOk');
             btn.disabled    = false;
             btn.className   = 'sec-dismiss-btn ready';
-            if (title && title.indexOf('Fullscreen') !== -1) {
-              btn.textContent = '🖥 Return to Fullscreen →';
-            }
           }
         }
       }, 1000);
     }
 
-    /* Dismiss function called by button */
     window.sSecDismiss = function() {
       var overlay = document.getElementById('sSecOverlay');
-      if (overlay) overlay.classList.remove('active');
-      if (_sec.isActive) {
-        setTimeout(requestFs, 300);
-      }
+      if (overlay) { overlay.classList.remove('active'); }
+      if (_sec.isActive) { setTimeout(requestFs, 300); }
     };
 
-    /* ============================================
-       HOOK INTO EXISTING student-exam.js FUNCTIONS
-       Wrap beginStudentExam → init security
-       Wrap sSubmitExam     → deactivate security
-    ============================================ */
+    /* ---- HOOK into student-exam.js functions ---- */
     document.addEventListener('DOMContentLoaded', function() {
 
-      /* Wrap beginStudentExam */
+      /* Wrap beginStudentExam → init security */
       var origBegin = window.beginStudentExam;
       window.beginStudentExam = function() {
-        if (typeof origBegin === 'function') origBegin.apply(this, arguments);
-        /* Small delay to let exam screen render first */
+        if (typeof origBegin === 'function') { origBegin.apply(this, arguments); }
         setTimeout(initSec, 200);
       };
 
-      /* Wrap sSubmitExam */
+      /* Wrap sSubmitExam → deactivate security */
       var origSubmit = window.sSubmitExam;
       window.sSubmitExam = function() {
         deactivateSec();
-        if (typeof origSubmit === 'function') origSubmit.apply(this, arguments);
+        if (typeof origSubmit === 'function') { origSubmit.apply(this, arguments); }
       };
 
-      /* Also deactivate if result screen appears (MutationObserver safety net) */
+      /* Safety net: deactivate if result screen appears */
       var resultEl = document.getElementById('sResultScreen');
       if (resultEl) {
         var obs = new MutationObserver(function(mutations) {
-          mutations.forEach(function(m) {
-            if (m.type === 'attributes' && m.attributeName === 'style') {
-              if (resultEl.style.display !== 'none') {
-                deactivateSec();
-              }
+          var i;
+          for (i = 0; i < mutations.length; i++) {
+            if (mutations[i].type === 'attributes' && mutations[i].attributeName === 'style') {
+              if (resultEl.style.display !== 'none') { deactivateSec(); }
             }
-          });
+          }
         });
         obs.observe(resultEl, { attributes: true });
       }
     });
 
-    /* ============================================
-       KATEX INTEGRATION PATCH
-       (kept from original, now combined with
-        security module in single script block)
-    ============================================ */
+    /* ---- KaTeX patch (combined with security) ---- */
+    var _kOpts = {
+      delimiters: [
+        { left:'$$', right:'$$', display:true  },
+        { left:'$',  right:'$',  display:false }
+      ],
+      throwOnError: false,
+      output: 'html'
+    };
+
     document.addEventListener('DOMContentLoaded', function() {
       var qTextEl = document.getElementById('sQuestionText');
       var optArea = document.getElementById('sOptionsArea');
-      if (!qTextEl || !optArea) return;
+      if (!qTextEl || !optArea) { return; }
 
       var qObs = new MutationObserver(function() {
         if (window._katexReady && typeof renderMathInElement !== 'undefined') {
-          try { renderMathInElement(qTextEl, _katexOpts); } catch(e) {}
+          try { renderMathInElement(qTextEl, _kOpts); } catch(e) {}
         }
       });
       qObs.observe(qTextEl, { childList:true, subtree:true, characterData:true });
 
       var optObs = new MutationObserver(function() {
-        if (!window._katexReady || typeof renderMathInElement === 'undefined') return;
-        optArea.querySelectorAll('.s-option-text, [data-opt-text]').forEach(function(el) {
-          if (!el.dataset.katexDone) {
-            el.dataset.katexDone = '1';
-            try { renderMathInElement(el, _katexOpts); } catch(e) {}
+        if (!window._katexReady || typeof renderMathInElement === 'undefined') { return; }
+        var els = optArea.querySelectorAll('.s-option-text, [data-opt-text]');
+        var i;
+        for (i = 0; i < els.length; i++) {
+          if (!els[i].dataset.katexDone) {
+            els[i].dataset.katexDone = '1';
+            try { renderMathInElement(els[i], _kOpts); } catch(e) {}
           }
-        });
+        }
       });
       optObs.observe(optArea, { childList:true, subtree:true });
     });
 
   })();
   </script>
-<!-- ============================================
-     ✅ PHASE G: RICH QUESTION RENDERING — Main Platform
-     Injects audio player + table display into the
-     existing student exam UI, triggered by
-     MutationObserver on question area changes.
-     Does NOT modify student-exam.js.
-============================================ -->
-<style>
-  /* Audio player in exam */
-  .sg-audio-wrap { background:rgba(108,99,255,0.06); border:1px solid rgba(108,99,255,0.2); border-radius:10px; padding:12px 15px; margin-bottom:14px; }
-  .sg-audio-label { font-size:12px; font-weight:700; color:#a78bfa; margin-bottom:7px; }
-  .sg-audio-player { width:100%; }
 
-  /* Table in exam */
-  .sg-table-wrap { overflow-x:auto; margin-bottom:14px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); }
-  .q-table { width:100%; border-collapse:collapse; font-size:14px; }
-  .q-table th { background:rgba(108,99,255,0.15); color:#a78bfa; font-weight:700; padding:9px 12px; border:1px solid rgba(108,99,255,0.25); text-align:left; white-space:nowrap; }
-  .q-table td { padding:8px 12px; border:1px solid rgba(255,255,255,0.08); color:#fff; vertical-align:top; }
-  .q-table tr:nth-child(even) td { background:rgba(255,255,255,0.03); }
-</style>
-<script>
-(function() {
-  /* ============================================
-     PHASE G: Inject audio + table into student exam
-     The main student-exam.js sets question data
-     via the questions array and renderCurrentQuestion.
-     We watch the question area for DOM changes,
-     then inject audio/table when the question renders.
-  ============================================ */
+  <!-- ============================================
+       ✅ PHASE H: Styled confirm modal system
+       Replaces sConfirmSubmit so the submit/quit
+       dialogs display in the selected language.
+       Wraps the existing sConfirmSubmit function
+       from student-exam.js without modifying it.
+  ============================================ -->
+  <script>
+  (function() {
 
-  /* Store reference to current question data */
-  var _lastAudio = '';
-  var _lastTable = '';
+    var _resolve = null;
 
-  function injectRichContent() {
-    /* Access exam state from student-exam.js globals */
-    var examQuestions = window.examQuestions || window._questions || [];
-    var currentIndex  = window.currentQuestionIndex !== undefined
-      ? window.currentQuestionIndex
-      : (window._currentIdx !== undefined ? window._currentIdx : -1);
-
-    if (currentIndex < 0 || currentIndex >= examQuestions.length) return;
-
-    var q = examQuestions[currentIndex];
-    if (!q) return;
-
-    var audioUrl  = q.audioUrl  || '';
-    var tableHtml = q.tableHtml || '';
-
-    /* Skip if same as before */
-    if (audioUrl === _lastAudio && tableHtml === _lastTable) return;
-    _lastAudio = audioUrl; _lastTable = tableHtml;
-
-    var qArea = document.getElementById('sQuestionText');
-    if (!qArea) return;
-    var parent = qArea.parentNode;
-    if (!parent) return;
-
-    /* Remove any previously injected rich content */
-    var oldAudio = document.getElementById('sg-audio-inject');
-    var oldTable = document.getElementById('sg-table-inject');
-    if (oldAudio) oldAudio.parentNode.removeChild(oldAudio);
-    if (oldTable) oldTable.parentNode.removeChild(oldTable);
-
-    /* Inject audio (before question text) */
-    if (audioUrl) {
-      var audioDiv = document.createElement('div');
-      audioDiv.id = 'sg-audio-inject';
-      audioDiv.className = 'sg-audio-wrap';
-      audioDiv.innerHTML =
-        '<div class="sg-audio-label">🔊 Listen to audio before answering</div>' +
-        '<audio class="sg-audio-player" controls src="' + audioUrl + '"></audio>';
-      parent.insertBefore(audioDiv, qArea);
+    function showHConfirm(icon, title, msg, okText, cancelText, danger) {
+      return new Promise(function(resolve) {
+        _resolve = resolve;
+        var overlay   = document.getElementById('sConfirmModal');
+        var iconEl    = document.getElementById('sConfirmIcon');
+        var titleEl   = document.getElementById('sConfirmTitle');
+        var msgEl     = document.getElementById('sConfirmMsg');
+        var okBtn     = document.getElementById('sConfirmOk');
+        var cancelBtn = document.getElementById('sConfirmCancel');
+        if (!overlay) { resolve(true); return; }
+        if (iconEl)    { iconEl.textContent    = icon  || '?'; }
+        if (titleEl)   { titleEl.textContent   = title || ''; }
+        if (msgEl)     { msgEl.textContent     = msg   || ''; }
+        if (okBtn)     {
+          okBtn.textContent = okText || 'OK';
+          okBtn.className   = 'h-confirm-ok' + (danger ? ' danger' : '');
+        }
+        if (cancelBtn) { cancelBtn.textContent = cancelText || 'Cancel'; }
+        overlay.classList.add('active');
+      });
     }
 
-    /* Inject table (after question text) */
-    if (tableHtml) {
-      var tableDiv = document.createElement('div');
-      tableDiv.id = 'sg-table-inject';
-      tableDiv.className = 'sg-table-wrap';
-      tableDiv.innerHTML = tableHtml;
-      /* Insert after question text */
-      if (qArea.nextSibling) { parent.insertBefore(tableDiv, qArea.nextSibling); }
-      else { parent.appendChild(tableDiv); }
+    window.sResolveConfirm = function(val) {
+      var overlay = document.getElementById('sConfirmModal');
+      if (overlay) { overlay.classList.remove('active'); }
+      if (_resolve) { _resolve(val); _resolve = null; }
+    };
+
+    /* ---- sTriggerSubmit: translatable submit confirmation ---- */
+    window.sTriggerSubmit = async function() {
+      /* Get answered count from student-exam.js globals */
+      var total      = window.examQuestions ? window.examQuestions.length : 0;
+      var answered   = 0;
+      if (window.studentAnswers) {
+        var k;
+        for (k in window.studentAnswers) {
+          if (window.studentAnswers.hasOwnProperty(k) && window.studentAnswers[k] !== undefined) { answered++; }
+        }
+      }
+      var unanswered = total - answered;
+
+      var sT    = window._sT    || function(k) { return k; };
+      var sTFmt = window._sTFmt || function(k) { return k; };
+
+      var confirmed = await showHConfirm(
+        '?',
+        sT('confirmSubmitTitle'),
+        sTFmt('confirmSubmitMsg', { answered: answered, total: total, unanswered: unanswered }),
+        sT('confirmSubmitOk'),
+        sT('confirmSubmitCancel'),
+        false
+      );
+      if (confirmed) {
+        /* Call the original confirm path in student-exam.js */
+        if (typeof window.sConfirmSubmit === 'function') { window.sConfirmSubmit(); }
+        else if (typeof window.sSubmitExam === 'function') { window.sSubmitExam(); }
+      }
+    };
+
+  })();
+  </script>
+
+  <!-- ============================================
+       ✅ PHASE G: RICH QUESTION RENDERING
+       Injects audio + table into student exam.
+       MutationObserver on sQuestionText.
+       Does NOT modify student-exam.js.
+       ✅ PHASE H: Audio label is translated.
+  ============================================ -->
+  <script>
+  (function() {
+
+    var _lastAudio = '';
+    var _lastTable = '';
+
+    function injectRichContent() {
+      var examQuestions = window.examQuestions || window._questions || [];
+      var currentIndex  = window.currentQuestionIndex !== undefined
+        ? window.currentQuestionIndex
+        : (window._currentIdx !== undefined ? window._currentIdx : -1);
+
+      if (currentIndex < 0 || currentIndex >= examQuestions.length) { return; }
+
+      var q = examQuestions[currentIndex];
+      if (!q) { return; }
+
+      var audioUrl  = q.audioUrl  || '';
+      var tableHtml = q.tableHtml || '';
+
+      if (audioUrl === _lastAudio && tableHtml === _lastTable) { return; }
+      _lastAudio = audioUrl;
+      _lastTable = tableHtml;
+
+      var qArea = document.getElementById('sQuestionText');
+      if (!qArea) { return; }
+      var parent = qArea.parentNode;
+      if (!parent) { return; }
+
+      var oldAudio = document.getElementById('sg-audio-inject');
+      var oldTable = document.getElementById('sg-table-inject');
+      if (oldAudio) { oldAudio.parentNode.removeChild(oldAudio); }
+      if (oldTable) { oldTable.parentNode.removeChild(oldTable); }
+
+      /* ✅ PHASE H: Use translated audio label */
+      var audioLabelText = (window._sT && window._sT('audioLabel')) || 'Listen to audio before answering';
+
+      if (audioUrl) {
+        var audioDiv = document.createElement('div');
+        audioDiv.id        = 'sg-audio-inject';
+        audioDiv.className = 'sg-audio-wrap';
+        audioDiv.innerHTML =
+          '<div class="sg-audio-label">' + audioLabelText + '</div>' +
+          '<audio class="sg-audio-player" controls src="' + audioUrl + '"></audio>';
+        parent.insertBefore(audioDiv, qArea);
+      }
+
+      if (tableHtml) {
+        var tableDiv = document.createElement('div');
+        tableDiv.id        = 'sg-table-inject';
+        tableDiv.className = 'sg-table-wrap';
+        tableDiv.innerHTML = tableHtml;
+        if (qArea.nextSibling) { parent.insertBefore(tableDiv, qArea.nextSibling); }
+        else { parent.appendChild(tableDiv); }
+      }
     }
-  }
 
-  document.addEventListener('DOMContentLoaded', function() {
-    /* Watch question text changes */
-    var qEl = document.getElementById('sQuestionText');
-    if (!qEl) return;
-
-    var obs = new MutationObserver(function() {
-      /* Small delay to let student-exam.js finish rendering */
-      setTimeout(injectRichContent, 100);
+    document.addEventListener('DOMContentLoaded', function() {
+      var qEl = document.getElementById('sQuestionText');
+      if (!qEl) { return; }
+      var obs = new MutationObserver(function() {
+        setTimeout(injectRichContent, 100);
+      });
+      obs.observe(qEl, { childList:true, subtree:true, characterData:true });
     });
-    obs.observe(qEl, { childList:true, subtree:true, characterData:true });
-  });
-})();
-</script>
+
+  })();
+  </script>
+
 </body>
 </html>

@@ -1,12 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" id="htmlRoot">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Student Exam — LatLomp Institution</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
 
-  <!-- KaTeX for math/science equations -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" crossorigin="anonymous" />
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js" crossorigin="anonymous"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"
@@ -30,7 +29,6 @@
     @keyframes fadeUp   { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
     @keyframes pulse    { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
     @keyframes shake    { 0%,100% { transform:translateX(0); } 25% { transform:translateX(-8px); } 75% { transform:translateX(8px); } }
-    @keyframes countdown{ from { stroke-dashoffset:0; } to { stroke-dashoffset:126; } }
 
     .screen { display:none; min-height:100vh; padding:24px 20px; align-items:center; justify-content:center; flex-direction:column; }
     .screen.active { display:flex; animation:fadeUp 0.3s ease; }
@@ -39,7 +37,7 @@
     .entry-card { background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:36px 30px; width:100%; max-width:420px; }
     .entry-logo  { font-size:48px; margin-bottom:12px; }
     .entry-title { font-size:22px; font-weight:800; margin:0 0 6px; }
-    .entry-sub   { font-size:14px; color:#a0a0c0; margin:0 0 28px; line-height:1.6; }
+    .entry-sub   { font-size:14px; color:#a0a0c0; margin:0 0 20px; line-height:1.6; }
 
     .inp { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:10px; padding:13px 14px; color:#fff; font-size:15px; font-family:inherit; outline:none; width:100%; transition:border-color 0.2s; margin-bottom:14px; }
     .inp:focus { border-color:var(--primary); }
@@ -49,8 +47,23 @@
     .btn-start { width:100%; padding:15px; background:linear-gradient(135deg,var(--primary),#574fd6); color:#fff; border:none; border-radius:12px; font-size:16px; font-weight:800; cursor:pointer; font-family:inherit; transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:10px; }
     .btn-start:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(108,99,255,0.45); }
     .btn-start:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
-
     .err-box { display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); padding:12px 16px; border-radius:8px; font-size:13px; margin-bottom:16px; line-height:1.5; }
+
+    /* ✅ PHASE H: Language selector */
+    .lang-selector-wrap { margin-bottom:20px; }
+    .lang-selector-label { font-size:12px; font-weight:700; color:#6b6b8a; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:8px; }
+    .lang-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+    .lang-btn {
+      padding:10px 6px; border-radius:10px; border:2px solid var(--border);
+      background:rgba(255,255,255,0.03); color:#a0a0c0;
+      font-size:12px; font-weight:700; cursor:pointer; font-family:inherit;
+      text-align:center; transition:all 0.15s; line-height:1.4;
+    }
+    .lang-btn:hover { border-color:rgba(108,99,255,0.4); background:rgba(108,99,255,0.07); color:#fff; }
+    .lang-btn.active { border-color:var(--primary); background:rgba(108,99,255,0.18); color:#a78bfa; }
+    .lang-btn .lang-native { font-size:13px; font-weight:800; display:block; }
+    .lang-btn .lang-english { font-size:10px; color:#6b6b8a; display:block; margin-top:1px; }
+    .lang-btn.active .lang-english { color:#a78bfa; }
 
     /* ---- BRIEFING ---- */
     .briefing-card { background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:36px 30px; width:100%; max-width:480px; }
@@ -58,22 +71,12 @@
     .school-logo-img  { width:52px; height:52px; border-radius:10px; object-fit:cover; }
     .school-logo-icon { width:52px; height:52px; border-radius:10px; background:linear-gradient(135deg,var(--primary),#574fd6); display:flex; align-items:center; justify-content:center; font-size:24px; font-weight:800; flex-shrink:0; }
     .school-name  { font-size:16px; font-weight:800; }
-
     .exam-info-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:24px; }
     .exam-info-item { background:rgba(255,255,255,0.04); border-radius:10px; padding:14px; }
     .exam-info-label { font-size:11px; color:#6b6b8a; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px; }
     .exam-info-value { font-size:15px; font-weight:800; color:#fff; }
-
     .instructions-box { background:rgba(108,99,255,0.06); border:1px solid rgba(108,99,255,0.2); border-radius:10px; padding:14px 16px; font-size:13px; color:#a0a0c0; line-height:1.7; margin-bottom:24px; }
-
-    /* ✅ PHASE F: Security rules shown in briefing */
-    .security-rules-box {
-      background:rgba(255,165,0,0.06);
-      border:1px solid rgba(255,165,0,0.25);
-      border-radius:10px; padding:14px 16px;
-      font-size:13px; color:#ffa500;
-      line-height:1.9; margin-bottom:24px;
-    }
+    .security-rules-box { background:rgba(255,165,0,0.06); border:1px solid rgba(255,165,0,0.25); border-radius:10px; padding:14px 16px; font-size:13px; color:#ffa500; line-height:1.9; margin-bottom:24px; }
     .security-rules-box strong { color:#fff; }
 
     /* ---- EXAM SCREEN ---- */
@@ -82,25 +85,12 @@
 
     .exam-topbar { display:flex; align-items:center; justify-content:space-between; padding:0 16px; height:54px; background:var(--dark-2); border-bottom:1px solid var(--border); flex-shrink:0; gap:10px; }
     .exam-title-tag { font-size:13px; font-weight:700; color:#a78bfa; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; }
-
     .timer-display { font-size:15px; font-weight:900; font-family:monospace; padding:6px 12px; border-radius:8px; white-space:nowrap; flex-shrink:0; transition:all 0.3s; background:rgba(67,233,123,0.1); border:1px solid rgba(67,233,123,0.25); color:var(--green); }
     .timer-display.warning { background:rgba(255,165,0,0.1);   border-color:rgba(255,165,0,0.3);   color:orange; }
     .timer-display.danger  { background:rgba(255,101,132,0.1); border-color:rgba(255,101,132,0.3); color:var(--red); animation:pulse 1s infinite; }
-
     .quit-btn { padding:6px 12px; border-radius:8px; background:rgba(255,101,132,0.08); border:1px solid rgba(255,101,132,0.25); color:var(--red); font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; flex-shrink:0; }
-
-    /* ✅ PHASE F: Security indicator in topbar */
-    .sec-indicator {
-      display:flex; align-items:center; gap:5px;
-      font-size:11px; font-weight:700; color:#a0a0c0;
-      padding:4px 8px; border-radius:6px;
-      background:rgba(255,255,255,0.04); border:1px solid var(--border);
-      flex-shrink:0;
-    }
-    .sec-indicator.violated {
-      color:var(--orange); background:rgba(255,165,0,0.08);
-      border-color:rgba(255,165,0,0.25);
-    }
+    .sec-indicator { display:flex; align-items:center; gap:5px; font-size:11px; font-weight:700; color:#a0a0c0; padding:4px 8px; border-radius:6px; background:rgba(255,255,255,0.04); border:1px solid var(--border); flex-shrink:0; }
+    .sec-indicator.violated { color:var(--orange); background:rgba(255,165,0,0.08); border-color:rgba(255,165,0,0.25); }
 
     .exam-progress { height:3px; background:rgba(255,255,255,0.06); flex-shrink:0; }
     .exam-progress-fill { height:100%; background:linear-gradient(90deg,var(--primary),var(--green)); transition:width 0.3s; }
@@ -109,15 +99,14 @@
     .q-counter { font-size:12px; font-weight:700; color:#6b6b8a; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px; }
     .q-text    { font-size:17px; font-weight:600; color:#fff; line-height:1.7; margin-bottom:20px; }
     .q-text .katex-display { margin:12px 0; }
-
     .q-image { max-width:100%; border-radius:10px; margin-bottom:16px; }
 
-    /* ✅ PHASE G: Audio player in exam */
+    /* ✅ PHASE G: Audio */
     .q-audio-wrap  { background:rgba(108,99,255,0.06); border:1px solid rgba(108,99,255,0.2); border-radius:10px; padding:13px 15px; margin-bottom:14px; }
     .q-audio-label { font-size:12px; font-weight:700; color:#a78bfa; margin-bottom:8px; }
     .q-audio-player { width:100%; }
 
-    /* ✅ PHASE G: Table display in exam */
+    /* ✅ PHASE G: Table */
     .q-table-wrap { overflow-x:auto; margin-bottom:14px; border-radius:8px; border:1px solid var(--border); }
     .q-table { width:100%; border-collapse:collapse; font-size:14px; }
     .q-table th { background:rgba(108,99,255,0.15); color:#a78bfa; font-weight:700; padding:10px 13px; border:1px solid rgba(108,99,255,0.25); text-align:left; white-space:nowrap; }
@@ -125,13 +114,7 @@
     .q-table tr:nth-child(even) td { background:rgba(255,255,255,0.03); }
 
     .options-list { display:flex; flex-direction:column; gap:11px; margin-bottom:28px; }
-    .option-btn {
-      width:100%; padding:15px 16px; border-radius:12px; cursor:pointer;
-      border:2px solid var(--border); background:rgba(255,255,255,0.03);
-      display:flex; align-items:flex-start; gap:12px;
-      font-family:inherit; transition:all 0.15s; text-align:left;
-      user-select:none; -webkit-user-select:none;
-    }
+    .option-btn { width:100%; padding:15px 16px; border-radius:12px; cursor:pointer; border:2px solid var(--border); background:rgba(255,255,255,0.03); display:flex; align-items:flex-start; gap:12px; font-family:inherit; transition:all 0.15s; text-align:left; user-select:none; -webkit-user-select:none; }
     .option-btn:hover:not(:disabled) { border-color:rgba(108,99,255,0.4); background:rgba(108,99,255,0.07); }
     .option-btn.selected { border-color:var(--primary); background:rgba(108,99,255,0.14); }
     .option-btn:active:not(:disabled) { transform:scale(0.99); }
@@ -140,7 +123,6 @@
     .opt-text  { font-size:15px; color:#fff; line-height:1.6; flex:1; }
     .opt-text .katex { font-size:1em; }
 
-    /* theory-input allows text selection so students can type freely */
     .theory-input { width:100%; min-height:140px; background:rgba(255,255,255,0.04); border:2px solid var(--border); border-radius:12px; padding:14px; color:#fff; font-size:14px; font-family:inherit; resize:vertical; outline:none; transition:border-color 0.2s; user-select:text; -webkit-user-select:text; }
     .theory-input:focus { border-color:var(--primary); }
     .theory-input::placeholder { color:#6b6b8a; }
@@ -152,7 +134,6 @@
     .nav-btn-submit { background:linear-gradient(135deg,var(--green),#38f9d7); color:#0f0f1a; }
     .nav-btn:hover:not(:disabled) { transform:translateY(-1px); }
     .nav-btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
-
     .q-grid-btn { padding:8px 13px; background:rgba(255,255,255,0.06); border:1px solid var(--border); color:#a0a0c0; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; border-radius:8px; white-space:nowrap; flex-shrink:0; }
 
     /* ---- Q NAVIGATOR ---- */
@@ -165,6 +146,39 @@
     .q-dot { width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; cursor:pointer; border:1px solid var(--border); background:rgba(255,255,255,0.04); color:#6b6b8a; transition:all 0.15s; }
     .q-dot.answered { background:rgba(67,233,123,0.15); border-color:rgba(67,233,123,0.3); color:var(--green); }
     .q-dot.current  { background:rgba(108,99,255,0.25); border-color:var(--primary); color:#a78bfa; }
+
+    /* ---- SECURITY OVERLAY ---- */
+    .sec-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:900; display:none; flex-direction:column; align-items:center; justify-content:center; padding:24px; }
+    .sec-overlay.active { display:flex; }
+    .sec-overlay-card { background:var(--dark-2); border:2px solid rgba(255,101,132,0.4); border-radius:20px; padding:36px 28px; max-width:400px; width:100%; text-align:center; animation:shake 0.4s ease; }
+    .sec-overlay-card.warning-type { border-color:rgba(255,165,0,0.5); }
+    .sec-overlay-icon  { font-size:52px; margin-bottom:12px; }
+    .sec-overlay-title { font-size:20px; font-weight:900; margin:0 0 8px; }
+    .sec-overlay-msg   { font-size:14px; color:#a0a0c0; margin:0 0 20px; line-height:1.6; }
+    .sec-violation-count { display:inline-flex; align-items:center; gap:6px; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); padding:6px 16px; border-radius:20px; font-size:13px; font-weight:800; margin-bottom:20px; }
+    .sec-violation-count.warning-type { background:rgba(255,165,0,0.1); border-color:rgba(255,165,0,0.3); color:var(--orange); }
+    .sec-countdown-wrap { position:relative; width:60px; height:60px; margin:0 auto 16px; }
+    .sec-countdown-svg  { transform:rotate(-90deg); }
+    .sec-countdown-track { fill:none; stroke:rgba(255,255,255,0.08); stroke-width:4; }
+    .sec-countdown-ring  { fill:none; stroke:var(--red); stroke-width:4; stroke-dasharray:126; stroke-dashoffset:0; stroke-linecap:round; transition:stroke-dashoffset 1s linear; }
+    .sec-countdown-ring.warning-type { stroke:var(--orange); }
+    .sec-countdown-num { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:900; color:#fff; }
+    .sec-dismiss-btn { width:100%; padding:13px; border-radius:12px; border:none; background:rgba(255,255,255,0.08); color:#a0a0c0; font-size:14px; font-weight:700; cursor:not-allowed; font-family:inherit; transition:all 0.2s; }
+    .sec-dismiss-btn.ready { background:linear-gradient(135deg,var(--primary),#574fd6); color:#fff; cursor:pointer; }
+    .sec-dismiss-btn.ready:hover { transform:translateY(-1px); }
+    .sec-auto-submit-msg { background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); border-radius:10px; padding:12px 14px; font-size:13px; color:var(--red); margin-top:14px; line-height:1.6; }
+
+    /* ✅ PHASE H: Styled confirm modal (replaces browser confirm()) */
+    .confirm-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:1000; display:none; align-items:center; justify-content:center; padding:20px; }
+    .confirm-modal-overlay.active { display:flex; }
+    .confirm-modal-box { background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:32px 26px; max-width:380px; width:100%; text-align:center; animation:fadeUp 0.2s ease; }
+    .confirm-modal-icon  { font-size:40px; margin-bottom:12px; }
+    .confirm-modal-title { font-size:18px; font-weight:900; margin:0 0 8px; }
+    .confirm-modal-msg   { font-size:14px; color:#a0a0c0; margin:0 0 22px; line-height:1.6; }
+    .confirm-modal-btns  { display:flex; gap:10px; }
+    .confirm-modal-cancel { flex:1; padding:12px; border-radius:10px; border:1px solid var(--border); background:rgba(255,255,255,0.06); color:#a0a0c0; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
+    .confirm-modal-ok     { flex:1; padding:12px; border-radius:10px; border:none; background:linear-gradient(135deg,var(--primary),#574fd6); color:#fff; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
+    .confirm-modal-ok.danger { background:linear-gradient(135deg,var(--red),#c0392b); }
 
     /* ---- RESULT ---- */
     .result-card   { background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:40px 28px; width:100%; max-width:440px; text-align:center; }
@@ -180,83 +194,23 @@
     .result-stat-lbl { font-size:11px; color:#6b6b8a; margin-top:2px; }
     .pending-notice { background:rgba(255,165,0,0.08); border:1px solid rgba(255,165,0,0.25); border-radius:12px; padding:14px 16px; font-size:13px; color:orange; line-height:1.6; margin-bottom:20px; }
     .btn-home { width:100%; padding:14px; background:linear-gradient(135deg,var(--primary),#574fd6); color:#fff; border:none; border-radius:12px; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; }
-
-    /* ============================================
-       ✅ PHASE F: SECURITY OVERLAY
-    ============================================ */
-    .sec-overlay {
-      position:fixed; inset:0;
-      background:rgba(0,0,0,0.92);
-      z-index:900;
-      display:none;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      padding:24px;
-    }
-    .sec-overlay.active { display:flex; }
-
-    .sec-overlay-card {
-      background:var(--dark-2);
-      border:2px solid rgba(255,101,132,0.4);
-      border-radius:20px;
-      padding:36px 28px;
-      max-width:400px;
-      width:100%;
-      text-align:center;
-      animation:shake 0.4s ease;
-    }
-    .sec-overlay-card.warning-type { border-color:rgba(255,165,0,0.5); }
-
-    .sec-overlay-icon  { font-size:52px; margin-bottom:12px; }
-    .sec-overlay-title { font-size:20px; font-weight:900; margin:0 0 8px; }
-    .sec-overlay-msg   { font-size:14px; color:#a0a0c0; margin:0 0 20px; line-height:1.6; }
-
-    .sec-violation-count {
-      display:inline-flex; align-items:center; gap:6px;
-      background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3);
-      color:var(--red); padding:6px 16px; border-radius:20px;
-      font-size:13px; font-weight:800; margin-bottom:20px;
-    }
-    .sec-violation-count.warning-type {
-      background:rgba(255,165,0,0.1); border-color:rgba(255,165,0,0.3); color:var(--orange);
-    }
-
-    .sec-countdown-wrap { position:relative; width:60px; height:60px; margin:0 auto 16px; }
-    .sec-countdown-svg  { transform:rotate(-90deg); }
-    .sec-countdown-track { fill:none; stroke:rgba(255,255,255,0.08); stroke-width:4; }
-    .sec-countdown-ring  {
-      fill:none; stroke:var(--red); stroke-width:4;
-      stroke-dasharray:126; stroke-dashoffset:0;
-      stroke-linecap:round;
-      transition:stroke-dashoffset 1s linear;
-    }
-    .sec-countdown-ring.warning-type { stroke:var(--orange); }
-    .sec-countdown-num {
-      position:absolute; inset:0;
-      display:flex; align-items:center; justify-content:center;
-      font-size:18px; font-weight:900; color:#fff;
-    }
-
-    .sec-dismiss-btn {
-      width:100%; padding:13px; border-radius:12px; border:none;
-      background:rgba(255,255,255,0.08); color:#a0a0c0;
-      font-size:14px; font-weight:700; cursor:not-allowed;
-      font-family:inherit; transition:all 0.2s;
-    }
-    .sec-dismiss-btn.ready {
-      background:linear-gradient(135deg,var(--primary),#574fd6);
-      color:#fff; cursor:pointer;
-    }
-    .sec-dismiss-btn.ready:hover { transform:translateY(-1px); }
-
-    .sec-auto-submit-msg {
-      background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3);
-      border-radius:10px; padding:12px 14px;
-      font-size:13px; color:var(--red); margin-top:14px; line-height:1.6;
-    }
-
     .spinner { width:20px; height:20px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block; }
+
+    /* ✅ PHASE H: RTL layout overrides */
+    [dir="rtl"] .exam-topbar    { flex-direction:row-reverse; }
+    [dir="rtl"] .exam-footer    { flex-direction:row-reverse; }
+    [dir="rtl"] .option-btn     { flex-direction:row-reverse; text-align:right; }
+    [dir="rtl"] .school-logo-wrap { flex-direction:row-reverse; }
+    [dir="rtl"] .q-panel        { border-left:none; border-right:1px solid var(--border); }
+    [dir="rtl"] .q-overlay      { align-items:flex-start; }
+    [dir="rtl"] .exam-info-label,
+    [dir="rtl"] .exam-info-value,
+    [dir="rtl"] .q-counter,
+    [dir="rtl"] .q-text,
+    [dir="rtl"] .entry-title,
+    [dir="rtl"] .entry-sub      { text-align:right; }
+    [dir="rtl"] .lang-grid      { direction:rtl; }
+    [dir="rtl"] .confirm-modal-btns { flex-direction:row-reverse; }
   </style>
 </head>
 <body>
@@ -266,25 +220,48 @@
 ============================================ -->
 <div class="screen active" id="entryScreen">
   <div class="entry-card">
-    <div class="entry-logo">🎓</div>
-    <div class="entry-title">Student Exam Portal</div>
-    <div class="entry-sub">Enter your name and the exam access code provided by your teacher.</div>
+    <div class="entry-logo">&#127891;</div>
+    <div class="entry-title" id="entryTitle">Student Exam Portal</div>
+    <div class="entry-sub"   id="entrySub">Enter your name and the exam access code provided by your teacher.</div>
+
+    <!-- ✅ PHASE H: Language selector -->
+    <div class="lang-selector-wrap">
+      <div class="lang-selector-label" id="langSelectorLabel">Select Language</div>
+      <div class="lang-grid" id="langGrid">
+        <button class="lang-btn active" onclick="selectLang('en')">
+          <span class="lang-native">English</span>
+          <span class="lang-english">English</span>
+        </button>
+        <button class="lang-btn" onclick="selectLang('ha')">
+          <span class="lang-native">Hausa</span>
+          <span class="lang-english">Hausa</span>
+        </button>
+        <button class="lang-btn" onclick="selectLang('yo')">
+          <span class="lang-native">Yoruba</span>
+          <span class="lang-english">Yoruba</span>
+        </button>
+        <button class="lang-btn" onclick="selectLang('ig')">
+          <span class="lang-native">Igbo</span>
+          <span class="lang-english">Igbo</span>
+        </button>
+        <button class="lang-btn" onclick="selectLang('fr')">
+          <span class="lang-native">Francais</span>
+          <span class="lang-english">French</span>
+        </button>
+        <button class="lang-btn" onclick="selectLang('ar')">
+          <span class="lang-native">&#1593;&#1585;&#1576;&#1610;</span>
+          <span class="lang-english">Arabic</span>
+        </button>
+      </div>
+    </div>
 
     <div id="entryErr" class="err-box"></div>
-
-    <input type="text" id="studentName" class="inp" placeholder="Your Full Name" autocomplete="name" />
-    <input type="text" id="admissionNo" class="inp" placeholder="Admission / Reg Number (optional)" />
-    <input type="text" id="accessCode"  class="inp code-inp" placeholder="EXAM CODE" maxlength="8" autocomplete="off"
+    <input type="text" id="studentName" class="inp" autocomplete="name" />
+    <input type="text" id="admissionNo" class="inp" />
+    <input type="text" id="accessCode"  class="inp code-inp" maxlength="8" autocomplete="off"
       oninput="this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')" />
-
-    <button class="btn-start" id="startBtn" onclick="verifyCode()">
-      Start Exam &rarr;
-    </button>
-
-    <p style="font-size:12px; color:#6b6b8a; text-align:center; margin-top:16px; line-height:1.7;">
-      Your answers are auto-saved. Do not close this tab during the exam.<br/>
-      Tab-switching and fullscreen exits are monitored.
-    </p>
+    <button class="btn-start" id="startBtn" onclick="verifyCode()">Start Exam</button>
+    <p id="entryNote" style="font-size:12px; color:#6b6b8a; text-align:center; margin-top:16px; line-height:1.7;"></p>
   </div>
 </div>
 
@@ -297,33 +274,26 @@
       <div id="briefSchoolLogo" class="school-logo-icon">&#127983;</div>
       <div>
         <div class="school-name" id="briefSchoolName">School Name</div>
-        <div style="font-size:12px; color:#6b6b8a;">CBT Examination System</div>
+        <div id="briefSystemLabel" style="font-size:12px; color:#6b6b8a;">CBT Examination System</div>
       </div>
     </div>
 
-    <div style="font-size:11px; font-weight:700; color:#6b6b8a; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px;">Exam Details</div>
+    <div id="briefDetailsLabel" style="font-size:11px; font-weight:700; color:#6b6b8a; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px;"></div>
 
     <div class="exam-info-grid">
-      <div class="exam-info-item"><div class="exam-info-label">Title</div>    <div class="exam-info-value" id="briefTitle">&#8212;</div></div>
-      <div class="exam-info-item"><div class="exam-info-label">Subject</div>  <div class="exam-info-value" id="briefSubject">&#8212;</div></div>
-      <div class="exam-info-item"><div class="exam-info-label">Duration</div> <div class="exam-info-value" id="briefDuration">&#8212;</div></div>
-      <div class="exam-info-item"><div class="exam-info-label">Questions</div><div class="exam-info-value" id="briefQCount">&#8212;</div></div>
+      <div class="exam-info-item"><div class="exam-info-label" id="lbTitle"></div>    <div class="exam-info-value" id="briefTitle"></div></div>
+      <div class="exam-info-item"><div class="exam-info-label" id="lbSubject"></div>  <div class="exam-info-value" id="briefSubject"></div></div>
+      <div class="exam-info-item"><div class="exam-info-label" id="lbDuration"></div> <div class="exam-info-value" id="briefDuration"></div></div>
+      <div class="exam-info-item"><div class="exam-info-label" id="lbQuestions"></div><div class="exam-info-value" id="briefQCount"></div></div>
     </div>
 
     <div id="briefInstructions" class="instructions-box" style="display:none;"></div>
 
-    <div class="security-rules-box">
-      <strong>&#128274; Exam Security Rules</strong><br/>
-      &#8226; This exam runs in <strong>fullscreen mode</strong> &#8212; do not exit<br/>
-      &#8226; Tab-switching and window changes are <strong>detected and logged</strong><br/>
-      &#8226; Right-clicking and keyboard shortcuts are <strong>disabled</strong><br/>
-      &#8226; Copying exam content is <strong>blocked</strong><br/>
-      &#8226; Repeated violations will <strong>auto-submit your exam</strong>
-    </div>
+    <div class="security-rules-box" id="secRulesBox"></div>
 
-    <button class="btn-start" id="beginBtn" onclick="beginExam()">&#128640; Begin Exam</button>
+    <button class="btn-start" id="beginBtn" onclick="beginExam()">Begin Exam</button>
     <div style="text-align:center; margin-top:12px;">
-      <button style="background:none; border:none; color:#6b6b8a; font-size:13px; cursor:pointer; font-family:inherit;" onclick="showScreen('entry')">&larr; Back</button>
+      <button id="backBtn" style="background:none; border:none; color:#6b6b8a; font-size:13px; cursor:pointer; font-family:inherit;" onclick="showScreen('entry')">Back</button>
     </div>
   </div>
 </div>
@@ -334,115 +304,97 @@
 <div id="examScreen">
   <div class="exam-topbar">
     <span class="exam-title-tag" id="examTitleTag">Exam</span>
-    <span class="sec-indicator" id="secIndicator" title="Security monitoring active">&#128274; Secure</span>
-    <span class="timer-display" id="timerDisplay">00:00</span>
-    <button class="quit-btn" onclick="confirmQuit()">&#10005; Quit</button>
+    <span class="sec-indicator"  id="secIndicator">Secure</span>
+    <span class="timer-display"  id="timerDisplay">00:00</span>
+    <button class="quit-btn" id="quitBtn" onclick="triggerQuit()">Quit</button>
   </div>
-
-  <div class="exam-progress">
-    <div class="exam-progress-fill" id="progressFill" style="width:0%;"></div>
-  </div>
+  <div class="exam-progress"><div class="exam-progress-fill" id="progressFill" style="width:0%;"></div></div>
 
   <div class="exam-body" id="examBody">
-
-    <!-- ✅ PHASE G: Audio player — shown above question when audioUrl exists -->
     <div id="qAudioWrap" class="q-audio-wrap" style="display:none;">
-      <div class="q-audio-label">&#128266; Listen to audio before answering</div>
+      <div class="q-audio-label" id="qAudioLabel">Listen to audio before answering</div>
       <audio id="qAudioEl" class="q-audio-player" controls></audio>
     </div>
-
     <div class="q-counter" id="qCounter">Question 1 of 1</div>
     <div class="q-text"    id="qText">Loading...</div>
     <div id="qImageWrap"   style="display:none;"><img id="qImage" class="q-image" src="" alt="" /></div>
-
-    <!-- ✅ PHASE G: Table display — shown between question text and answer options -->
     <div id="qTableDisplayWrap" class="q-table-wrap" style="display:none;"></div>
-
     <div class="options-list" id="optionsList"></div>
-    <textarea id="theoryInput" class="theory-input" placeholder="Type your answer here..." style="display:none;" oninput="saveTheoryAnswer()"></textarea>
+    <textarea id="theoryInput" class="theory-input" style="display:none;" oninput="saveTheoryAnswer()"></textarea>
   </div>
 
   <div class="exam-footer">
-    <button class="nav-btn nav-btn-prev" id="prevBtn" onclick="prevQuestion()" disabled>&larr; Prev</button>
+    <button class="nav-btn nav-btn-prev" id="prevBtn" onclick="prevQuestion()" disabled>Prev</button>
     <button class="q-grid-btn" onclick="toggleQGrid()">&#128203;</button>
-    <button class="nav-btn nav-btn-next"   id="nextBtn"   onclick="nextQuestion()">Next &rarr;</button>
-    <button class="nav-btn nav-btn-submit" id="submitBtn" onclick="confirmSubmit()" style="display:none;">Submit &#10003;</button>
+    <button class="nav-btn nav-btn-next"   id="nextBtn"   onclick="nextQuestion()">Next</button>
+    <button class="nav-btn nav-btn-submit" id="submitBtn" onclick="triggerSubmit()" style="display:none;">Submit</button>
   </div>
 </div>
 
-<!-- ============================================
-     Q NAVIGATOR
-============================================ -->
+<!-- Q NAVIGATOR -->
 <div class="q-overlay" id="qOverlay" onclick="handleOverlayClick(event)">
   <div class="q-panel">
     <div class="q-panel-head">
-      <h3>&#128203; Questions</h3>
+      <h3 id="qNavTitle">Questions</h3>
       <button style="background:none; border:none; color:#6b6b8a; font-size:20px; cursor:pointer;" onclick="toggleQGrid()">&#10005;</button>
     </div>
     <div class="q-dots" id="qDots"></div>
     <div style="margin-top:18px; font-size:12px; color:#6b6b8a; line-height:1.9;">
-      <div><span style="display:inline-block; width:12px; height:12px; background:rgba(67,233,123,0.3); border-radius:3px; margin-right:6px;"></span>Answered</div>
-      <div><span style="display:inline-block; width:12px; height:12px; background:rgba(108,99,255,0.3); border-radius:3px; margin-right:6px;"></span>Current</div>
+      <div><span style="display:inline-block; width:12px; height:12px; background:rgba(67,233,123,0.3); border-radius:3px; margin-right:6px;"></span><span id="legendAnswered">Answered</span></div>
+      <div><span style="display:inline-block; width:12px; height:12px; background:rgba(108,99,255,0.3); border-radius:3px; margin-right:6px;"></span><span id="legendCurrent">Current</span></div>
     </div>
   </div>
 </div>
 
-<!-- ============================================
-     ✅ PHASE F: SECURITY VIOLATION OVERLAY
-============================================ -->
+<!-- SECURITY OVERLAY -->
 <div class="sec-overlay" id="secOverlay">
   <div class="sec-overlay-card" id="secOverlayCard">
-
-    <div class="sec-overlay-icon" id="secOverlayIcon">&#9888;&#65039;</div>
-    <div class="sec-overlay-title" id="secOverlayTitle">Security Violation Detected</div>
-    <div class="sec-overlay-msg"   id="secOverlayMsg">This incident has been recorded and will be reviewed by your teacher.</div>
-
-    <div class="sec-violation-count" id="secViolationCount">Violation 1 of 3</div>
-
-    <div class="sec-countdown-wrap" id="secCountdownWrap">
+    <div class="sec-overlay-icon"  id="secOverlayIcon">!</div>
+    <div class="sec-overlay-title" id="secOverlayTitle">Security Violation</div>
+    <div class="sec-overlay-msg"   id="secOverlayMsg">This incident has been recorded.</div>
+    <div class="sec-violation-count" id="secViolationCount">Violation 1 of 5</div>
+    <div class="sec-countdown-wrap">
       <svg class="sec-countdown-svg" width="60" height="60" viewBox="0 0 44 44">
         <circle class="sec-countdown-track" cx="22" cy="22" r="20" />
         <circle class="sec-countdown-ring" id="secCountdownRing" cx="22" cy="22" r="20" />
       </svg>
       <div class="sec-countdown-num" id="secCountdownNum">5</div>
     </div>
-
-    <button class="sec-dismiss-btn" id="secDismissBtn" onclick="dismissSecurityWarning()" disabled>
-      Wait 5 seconds...
-    </button>
-
+    <button class="sec-dismiss-btn" id="secDismissBtn" onclick="dismissSecurityWarning()" disabled>Wait...</button>
     <div class="sec-auto-submit-msg" id="secAutoSubmitMsg" style="display:none;"></div>
-
   </div>
 </div>
 
-<!-- ============================================
-     RESULT SCREEN
-============================================ -->
+<!-- ✅ PHASE H: Styled confirm modal (replaces browser confirm() for translation) -->
+<div class="confirm-modal-overlay" id="confirmModal">
+  <div class="confirm-modal-box">
+    <div class="confirm-modal-icon"  id="confirmModalIcon">?</div>
+    <div class="confirm-modal-title" id="confirmModalTitle">Confirm</div>
+    <div class="confirm-modal-msg"   id="confirmModalMsg"></div>
+    <div class="confirm-modal-btns">
+      <button class="confirm-modal-cancel" id="confirmModalCancel" onclick="resolveConfirm(false)">Cancel</button>
+      <button class="confirm-modal-ok"     id="confirmModalOk"     onclick="resolveConfirm(true)">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESULT SCREEN -->
 <div class="screen" id="resultScreen">
   <div class="result-card">
     <div class="result-emoji"  id="resultEmoji">&#127942;</div>
     <div class="result-title"  id="resultTitle">Well Done!</div>
     <div class="result-sub"    id="resultSub">Your exam has been submitted.</div>
-
-    <div class="score-circle" id="scoreCircle">
-      <span class="score-pct" id="scorePct">&#8212;</span>
-      <span class="score-lbl">Score</span>
+    <div class="score-circle"  id="scoreCircle">
+      <span class="score-pct" id="scorePct">-</span>
+      <span class="score-lbl" id="scoreLbl">Score</span>
     </div>
-
     <div class="result-stats">
-      <div class="result-stat"><div class="result-stat-val" id="rsCorrect">&#8212;</div><div class="result-stat-lbl">Correct</div></div>
-      <div class="result-stat"><div class="result-stat-val" id="rsTotalQ">&#8212;</div> <div class="result-stat-lbl">Questions</div></div>
-      <div class="result-stat"><div class="result-stat-val" id="rsTime">&#8212;</div>   <div class="result-stat-lbl">Time</div></div>
+      <div class="result-stat"><div class="result-stat-val" id="rsCorrect">-</div><div class="result-stat-lbl" id="rsCorrectLbl">Correct</div></div>
+      <div class="result-stat"><div class="result-stat-val" id="rsTotalQ">-</div> <div class="result-stat-lbl" id="rsTotalQLbl">Questions</div></div>
+      <div class="result-stat"><div class="result-stat-val" id="rsTime">-</div>   <div class="result-stat-lbl" id="rsTimeLbl">Time</div></div>
     </div>
-
-    <div id="pendingNotice" class="pending-notice" style="display:none;">
-      Your theory answers are being reviewed by your teacher.
-    </div>
-
-    <button class="btn-home" onclick="window.location.replace('/institution/student/exam.html')">
-      &larr; Back to Exam Portal
-    </button>
+    <div id="pendingNotice" class="pending-notice" style="display:none;"></div>
+    <button class="btn-home" id="btnHome" onclick="window.location.replace('/institution/student/exam.html')">Back to Exam Portal</button>
   </div>
 </div>
 
@@ -452,11 +404,10 @@
 /* ============================================
    INSTITUTION STUDENT EXAM ENGINE
    ✅ PHASE F: CBT Security + Anti-Cheat
-   ✅ PHASE G: Audio player + Table rendering
-   ✅ KaTeX math rendering
-   
-   Base: OLD working Phase F code (Document 15)
-   Added: Phase G audio/table support in renderQuestion
+   ✅ PHASE G: Audio + Table rendering
+   ✅ PHASE H: Multi-Language (EN/HA/YO/IG/FR/AR)
+              RTL support for Arabic
+              Styled confirm modal (translatable)
 ============================================ */
 
 /* ---- Core State ---- */
@@ -484,7 +435,561 @@ var _security = {
   log:             []
 };
 
-/* ---- KaTeX config ---- */
+/* ✅ PHASE H: Active language code */
+var _lang = 'en';
+
+/* ============================================
+   ✅ PHASE H: TRANSLATION STRINGS
+   All UI strings for all 6 languages.
+   Question content is NOT translated here —
+   that comes from the teacher.
+============================================ */
+var _T = {
+  en: {
+    langLabel:         'Select Language',
+    entryTitle:        'Student Exam Portal',
+    entrySub:          'Enter your name and the exam access code provided by your teacher.',
+    entryNote:         'Your answers are auto-saved. Do not close this tab during the exam. Tab-switching and fullscreen exits are monitored.',
+    namePlaceholder:   'Your Full Name',
+    admNoPlaceholder:  'Admission / Reg Number (optional)',
+    codePlaceholder:   'EXAM CODE',
+    startBtn:          'Start Exam',
+    errName:           'Please enter your full name.',
+    errCode:           'Please enter a valid access code.',
+    verifying:         'Verifying...',
+    briefSystem:       'CBT Examination System',
+    briefDetails:      'EXAM DETAILS',
+    lbTitle:           'Title',
+    lbSubject:         'Subject',
+    lbDuration:        'Duration',
+    lbQuestions:       'Questions',
+    mins:              'mins',
+    secRules:          '<strong>Exam Security Rules</strong><br>&#8226; This exam runs in fullscreen mode &#8212; do not exit<br>&#8226; Tab-switching and window changes are detected and logged<br>&#8226; Right-clicking and keyboard shortcuts are disabled<br>&#8226; Copying exam content is blocked<br>&#8226; Repeated violations will auto-submit your exam',
+    beginBtn:          'Begin Exam',
+    backBtn:           'Back',
+    secureLabel:       'Secure',
+    quitBtn:           'Quit',
+    audioLabel:        'Listen to audio before answering',
+    theoryPlaceholder: 'Type your answer here...',
+    prevBtn:           'Prev',
+    nextBtn:           'Next',
+    submitBtn:         'Submit',
+    qNavTitle:         'Questions',
+    legendAnswered:    'Answered',
+    legendCurrent:     'Current',
+    qCounter:          'Question {n} of {total}',
+    secViolation:      'Violation {n} of {max}',
+    secWait:           'Wait 5 seconds...',
+    secDismissFs:      'Return to Fullscreen',
+    secDismissOk:      'I Understand - Continue Exam',
+    secSubmitting:     'Submitting...',
+    secAutoMsg:        'Your exam will be submitted when the countdown reaches zero.',
+    secTitleFs:        'Fullscreen Exited',
+    secMsgFs:          'Please stay in fullscreen mode. {n} exit(s) remaining before auto-submit.',
+    secTitleFsMax:     'Fullscreen - Maximum Reached',
+    secMsgFsMax:       'You have exited fullscreen {n} times. Your exam is being submitted.',
+    secTitleTab:       'Tab Switch Detected',
+    secMsgTab:         'Switching tabs is not allowed. {n} violation(s) before auto-submit.',
+    secTitleMax:       'Maximum Violations Reached',
+    secMsgMax:         'Your exam is being submitted due to repeated violations.',
+    submitConfirmTitle:'Submit Exam?',
+    submitConfirmMsg:  'Answered: {answered} / {total}. Unanswered: {unanswered}. This cannot be undone.',
+    submitConfirmOk:   'Submit Now',
+    submitConfirmCancel:'Continue Exam',
+    quitConfirmTitle:  'Quit Exam?',
+    quitConfirmMsg:    'Your progress will be LOST and you will need to start over.',
+    quitConfirmOk:     'Quit',
+    quitConfirmCancel: 'Stay',
+    timeUp:            'Time is up! Your exam is being submitted.',
+    submitFail:        'Submission failed. Your answers are saved. Please try again.',
+    retrying:          'Retrying...',
+    scoreLbl:          'Score',
+    rsCorrectLbl:      'Correct',
+    rsTotalQLbl:       'Questions',
+    rsTimeLbl:         'Time',
+    resultExcellent:   'Excellent!',
+    resultGreat:       'Great Job!',
+    resultPass:        'You Passed!',
+    resultFail:        'Keep Practising!',
+    resultPassSub:     'Congratulations! You passed this exam.',
+    resultFailSub:     'Keep practising and try again.',
+    pendingTheory:     'Your theory answers are being reviewed by your teacher.',
+    pendingRelease:    'Your results will be released by your teacher or school admin.',
+    btnHome:           'Back to Exam Portal'
+  },
+
+  ha: {
+    langLabel:         'Zabar Harshe',
+    entryTitle:        'Portal na Jarrabawar Dalibai',
+    entrySub:          'Shigar da sunanka da lambar sirri na jarrabawa da malaminku ya baku.',
+    entryNote:         'An adana amsoshinku kai tsaye. Kar ka rufe wannan shafin yayin jarrabawa.',
+    namePlaceholder:   'Cikakken Sunanka',
+    admNoPlaceholder:  'Lambar Shiga (zaɓi)',
+    codePlaceholder:   'LAMBA TA JARRABAWA',
+    startBtn:          'Fara Jarrabawa',
+    errName:           'Don Allah shigar da cikakken sunanka.',
+    errCode:           'Don Allah shigar da ingantacciyar lamba ta jarrabawa.',
+    verifying:         'Ana tabbatarwa...',
+    briefSystem:       'Tsarin Jarrabawar CBT',
+    briefDetails:      'BAYANAN JARRABAWA',
+    lbTitle:           'Taken',
+    lbSubject:         'Darasin',
+    lbDuration:        'Tsawon Lokaci',
+    lbQuestions:       'Tambayoyi',
+    mins:              'minti',
+    secRules:          '<strong>Dokoki na Tsaro na Jarrabawa</strong><br>&#8226; Wannan jarrabawa tana gudana a cikakken allo &#8212; kar ka fita<br>&#8226; Ana gano canjin tab da taga kuma ana rubuta su<br>&#8226; An hana danna dama da makullin gajeriyar hanya<br>&#8226; An hana kwafin abun ciki na jarrabawa<br>&#8226; Cin zarafi akai-akai zai tura jarrabawar kai tsaye',
+    beginBtn:          'Fara Jarrabawa',
+    backBtn:           'Koma Baya',
+    secureLabel:       'Lafiya',
+    quitBtn:           'Fita',
+    audioLabel:        'Saurari sauti kafin amsa',
+    theoryPlaceholder: 'Rubuta amsar ka anan...',
+    prevBtn:           'Baya',
+    nextBtn:           'Gaba',
+    submitBtn:         'Tura',
+    qNavTitle:         'Tambayoyi',
+    legendAnswered:    'An Amsa',
+    legendCurrent:     'Na Yanzu',
+    qCounter:          'Tambaya {n} daga {total}',
+    secViolation:      'Cin Zarafi {n} daga {max}',
+    secWait:           'Jira Daƙiƙa 5...',
+    secDismissFs:      'Koma Cikakken Allo',
+    secDismissOk:      'Na Fahimta - Ci Gaba da Jarrabawa',
+    secSubmitting:     'Ana Tura...',
+    secAutoMsg:        'Za a tura jarrabawar ka lokacin da ƙidaya ta kai sifili.',
+    secTitleFs:        'An Fita daga Cikakken Allo',
+    secMsgFs:          'Don Allah kasance a cikakken allo. Fita {n} da ya rage kafin a tura kai tsaye.',
+    secTitleFsMax:     'Mafi Girman Fita daga Allo Ya Kai',
+    secMsgFsMax:       'Ka fita daga cikakken allo sau {n}. Ana tura jarrabawar ka.',
+    secTitleTab:       'An Gano Canjin Tab',
+    secMsgTab:         'Ba a barin canjin tab yayin jarrabawa. Cin zarafi {n} da ya rage.',
+    secTitleMax:       'Mafi Girman Cin Zarafi Ya Kai',
+    secMsgMax:         'Ana tura jarrabawar ka saboda cin zarafi akai-akai.',
+    submitConfirmTitle:'Tura Jarrabawa?',
+    submitConfirmMsg:  'An Amsa: {answered} / {total}. Ba a Amsa: {unanswered}. Ba za a iya canza hakan ba.',
+    submitConfirmOk:   'Tura Yanzu',
+    submitConfirmCancel:'Ci Gaba da Jarrabawa',
+    quitConfirmTitle:  'Fita daga Jarrabawa?',
+    quitConfirmMsg:    'Za a RASA ci gaban ka kuma za ka buƙaci fara daga farko.',
+    quitConfirmOk:     'Fita',
+    quitConfirmCancel: 'Kasance',
+    timeUp:            'Lokaci ya ƙare! Ana tura jarrabawar ka.',
+    submitFail:        'Turawa ta kasa. An adana amsoshinku. Don Allah sake gwadawa.',
+    retrying:          'Ana sake gwadawa...',
+    scoreLbl:          'Maki',
+    rsCorrectLbl:      'Daidai',
+    rsTotalQLbl:       'Tambayoyi',
+    rsTimeLbl:         'Lokaci',
+    resultExcellent:   'Kyau Sosai!',
+    resultGreat:       'Aikin Kyau!',
+    resultPass:        'Ka Wuce!',
+    resultFail:        'Ci Gaba da Ƙoƙari!',
+    resultPassSub:     'Barka da cin jarrabawa!',
+    resultFailSub:     'Ci gaba da ƙoƙari kuma sake gwadawa.',
+    pendingTheory:     'Malaminku yana duba amsoshin ka na rubutu.',
+    pendingRelease:    'Malaminku ko mai kula da makaranta zai sakar da sakamakon ka.',
+    btnHome:           'Koma Portal na Jarrabawa'
+  },
+
+  yo: {
+    langLabel:         'Yan Ede',
+    entryTitle:        'Oju-opo Idanwo Akeko',
+    entrySub:          'Tẹ orukọ rẹ ati koodu wiwọle idanwo ti olukọ rẹ fun ọ.',
+    entryNote:         'A tọju awọn idahun rẹ lai da duro. Ma pa taabu yii lakoko idanwo.',
+    namePlaceholder:   'Orukọ Pipe Rẹ',
+    admNoPlaceholder:  'Nọmba Gbigba (aṣayan)',
+    codePlaceholder:   'KOODU IDANWO',
+    startBtn:          'Bẹrẹ Idanwo',
+    errName:           'Jọwọ tẹ orukọ pipe rẹ.',
+    errCode:           'Jọwọ tẹ koodu wiwọle to tọ.',
+    verifying:         'N ṣayẹwo...',
+    briefSystem:       'Eto Idanwo CBT',
+    briefDetails:      'ALAYE IDANWO',
+    lbTitle:           'Akọle',
+    lbSubject:         'Ero-eko',
+    lbDuration:        'Iye Akoko',
+    lbQuestions:       'Awọn Ibeere',
+    mins:              'iseju',
+    secRules:          '<strong>Awọn Ofin Aabo Idanwo</strong><br>&#8226; Idanwo yii n ṣiṣẹ ni ipo iboju kikun &#8212; maṣe jade<br>&#8226; Yipada taabu ati awọn ayipada window ni a ṣayẹwo<br>&#8226; A ti dina titẹ ọtun ati awọn bọtini kekere<br>&#8226; Didi akoonu idanwo jẹ dina<br>&#8226; Ẹ̀tọ́ ti a tun ṣe yoo fi idanwo silẹ lai da duro',
+    beginBtn:          'Bẹrẹ Idanwo',
+    backBtn:           'Pada Sẹhin',
+    secureLabel:       'Aabo',
+    quitBtn:           'Jade',
+    audioLabel:        'Gbọ ohun ṣaaju ki o to dahun',
+    theoryPlaceholder: 'Tẹ idahun rẹ nibi...',
+    prevBtn:           'Sẹhin',
+    nextBtn:           'Siwaju',
+    submitBtn:         'Fi silẹ',
+    qNavTitle:         'Awọn Ibeere',
+    legendAnswered:    'Ti dahun',
+    legendCurrent:     'Lọwọlọwọ',
+    qCounter:          'Ibeere {n} lati {total}',
+    secViolation:      'Ẹ̀tọ́ {n} lati {max}',
+    secWait:           'Duro Iṣẹju 5...',
+    secDismissFs:      'Pada si Iboju Kikun',
+    secDismissOk:      'Mo Gbọye - Tẹsiwaju Idanwo',
+    secSubmitting:     'N fi silẹ...',
+    secAutoMsg:        'A o fi idanwo rẹ silẹ nigba ti ikawe de odo.',
+    secTitleFs:        'Ti Jade kuro ni Iboju Kikun',
+    secMsgFs:          'Jọwọ wa ni ipo iboju kikun. Jade {n} to ku ṣaaju ki a to fi silẹ.',
+    secTitleFsMax:     'Iye Jade ti Pọ si Ipele Giga',
+    secMsgFsMax:       'O ti jade kuro ni iboju kikun {n} igba. A n fi idanwo rẹ silẹ.',
+    secTitleTab:       'A Ṣayẹwo Yipada Taabu',
+    secMsgTab:         'Yiyipada awọn taabu ko gba laaye. Ẹ̀tọ́ {n} to ku.',
+    secTitleMax:       'Iye Ẹ̀tọ́ Ti Pọ si Ipele Giga',
+    secMsgMax:         'A n fi idanwo rẹ silẹ nitori awọn ẹ̀tọ́ leralera.',
+    submitConfirmTitle:'Fi Idanwo Silẹ?',
+    submitConfirmMsg:  'Ti dahun: {answered} / {total}. Ko dahun: {unanswered}. A ko le yi eyi pada.',
+    submitConfirmOk:   'Fi Silẹ Bayi',
+    submitConfirmCancel:'Tẹsiwaju Idanwo',
+    quitConfirmTitle:  'Jade kuro ni Idanwo?',
+    quitConfirmMsg:    'Ilọsiwaju rẹ yoo SONU ati pe iwọ yoo nilo lati bẹrẹ lẹẹkansi.',
+    quitConfirmOk:     'Jade',
+    quitConfirmCancel: 'Wa',
+    timeUp:            'Akoko ti pari! A n fi idanwo rẹ silẹ.',
+    submitFail:        'Fifẹ silẹ kuna. Awọn idahun rẹ ti fipamọ. Jọwọ gbiyanju lẹẹkansi.',
+    retrying:          'N tun gbiyanju...',
+    scoreLbl:          'Ikun',
+    rsCorrectLbl:      'To',
+    rsTotalQLbl:       'Awọn Ibeere',
+    rsTimeLbl:         'Akoko',
+    resultExcellent:   'Dara Ju!',
+    resultGreat:       'Iṣẹ Dara!',
+    resultPass:        'O Ti Kọja!',
+    resultFail:        'Tẹsiwaju Igbiyanju!',
+    resultPassSub:     'Oriire! O ti kọja idanwo yii.',
+    resultFailSub:     'Tẹsiwaju iṣe ati gbiyanju lẹẹkansi.',
+    pendingTheory:     'Olukọ rẹ n ṣayẹwo awọn idahun imọ-ọrọ rẹ.',
+    pendingRelease:    'Olukọ rẹ tabi olori ile-iwe yoo tu awọn abajade rẹ silẹ.',
+    btnHome:           'Pada si Oju-opo Idanwo'
+  },
+
+  ig: {
+    langLabel:         'Họrọ Asụsụ',
+    entryTitle:        'Ọnụ ụzọ Ule Ụmụakwụkwọ',
+    entrySub:          'Tinye aha gị na koodu nnabata ule nke onye nkụzi gị nyere gị.',
+    entryNote:         'A na-echekwa azịza gị na-akpaghị aka. Emechakwa tab a n\'oge ule.',
+    namePlaceholder:   'Aha Gị Zuru Ezu',
+    admNoPlaceholder:  'Nọmba Nnabata (nhọrọ)',
+    codePlaceholder:   'KOODU ULE',
+    startBtn:          'Malite Ule',
+    errName:           'Biko tinye aha gị zuru ezu.',
+    errCode:           'Biko tinye koodu nnabata ziri ezi.',
+    verifying:         'Na-enyocha...',
+    briefSystem:       'Usoro Ule CBT',
+    briefDetails:      'NKỌWA ULE',
+    lbTitle:           'Aha',
+    lbSubject:         'Ọmụmụ ihe',
+    lbDuration:        'Ogologo Oge',
+    lbQuestions:       'Ajụjụ',
+    mins:              'nkeji',
+    secRules:          '<strong>Iwu Nchekwa Ule</strong><br>&#8226; Ule a na-aga n\'ụzọ ihuenyo zuru ezu &#8212; emerọla<br>&#8226; A na-achọpụta mgbanwe tab na windo ma dee ya<br>&#8226; Ebiela isi ikpe nri na mmalite dị mkpụmkpụ<br>&#8226; Ichere ihe ule ebiela<br>&#8226; Mmegbu ugboro ugboro ga-ezipu ule ná mmalite',
+    beginBtn:          'Malite Ule',
+    backBtn:           'Laghachi',
+    secureLabel:       'Nchekwa',
+    quitBtn:           'Pụọ',
+    audioLabel:        'Nụ ụda tupu ị zaaa',
+    theoryPlaceholder: 'Dee azịza gị ebe a...',
+    prevBtn:           'Azụ',
+    nextBtn:           'Ihu',
+    submitBtn:         'Zipu',
+    qNavTitle:         'Ajụjụ',
+    legendAnswered:    'Azaala',
+    legendCurrent:     'Ugbu a',
+    qCounter:          'Ajụjụ {n} n\'ime {total}',
+    secViolation:      'Mmegbu {n} n\'ime {max}',
+    secWait:           'Chere Sekọnd 5...',
+    secDismissFs:      'Laghachi na Ihuenyo Zuru Ezu',
+    secDismissOk:      'Aghọtara m - Gaa n\'ihu na Ule',
+    secSubmitting:     'Na-ezipu...',
+    secAutoMsg:        'A ga-ezipu ule gị mgbe ọnụọgụ eru ala.',
+    secTitleFs:        'Apụọla na Ihuenyo Zuru Ezu',
+    secMsgFs:          'Biko nọdụ na ihuenyo zuru ezu. Ị nwere {n} ọpụpụ tupu ezipu ná mmalite.',
+    secTitleFsMax:     'Ọnụ Ọgụgụ Ọpụpụ Eruola',
+    secMsgFsMax:       'Apụọla na ihuenyo zuru ezu ugboro {n}. A na-ezipu ule gị.',
+    secTitleTab:       'Achọpụtara mgbanwe Tab',
+    secMsgTab:         'Agba igbanwe tab n\'oge ule amaghị. Mmegbu {n} fọdụrụ.',
+    secTitleMax:       'Ọnụ Ọgụgụ Mmegbu Eruola',
+    secMsgMax:         'A na-ezipu ule gị n\'ihi mmegbu ugboro ugboro.',
+    submitConfirmTitle:'Zipu Ule?',
+    submitConfirmMsg:  'Azaala: {answered} / {total}. Azaghịghị: {unanswered}. Enweghị ike mgbanwe.',
+    submitConfirmOk:   'Zipu Ugbu a',
+    submitConfirmCancel:'Gaa n\'ihu na Ule',
+    quitConfirmTitle:  'Pụọ na Ule?',
+    quitConfirmMsg:    'A ga-EFU ọganiihu gị ma ị ga-adị mkpa ịmalite ọzọ.',
+    quitConfirmOk:     'Pụọ',
+    quitConfirmCancel: 'Nọdụ',
+    timeUp:            'Oge agwụla! A na-ezipu ule gị.',
+    submitFail:        'Izipụ dapụtara. Echekwara azịza gị. Biko nwaa ọzọ.',
+    retrying:          'Na-anwale ọzọ...',
+    scoreLbl:          'Nha',
+    rsCorrectLbl:      'Ziri Ezi',
+    rsTotalQLbl:       'Ajụjụ',
+    rsTimeLbl:         'Oge',
+    resultExcellent:   'Ọ dị mma Nke Ukwuu!',
+    resultGreat:       'Ọrụ Dị Mma!',
+    resultPass:        'Gafere!',
+    resultFail:        'Nọgide na Nnwale!',
+    resultPassSub:     'Congratulations! I gafere ule a.',
+    resultFailSub:     'Nọgide na mmemme ma nwaa ọzọ.',
+    pendingTheory:     'Onye nkụzi gị na-elele azịza edemede gị.',
+    pendingRelease:    'Onye nkụzi gị ma ọ bụ onye nlekọta ụlọ akwụkwọ ga-ahapụ nsonaazụ gị.',
+    btnHome:           'Laghachi na Ụzọ Ule'
+  },
+
+  fr: {
+    langLabel:         'Choisir la Langue',
+    entryTitle:        'Portail d\'Examen Etudiant',
+    entrySub:          'Entrez votre nom et le code d\'acces a l\'examen fourni par votre professeur.',
+    entryNote:         'Vos reponses sont sauvegardees automatiquement. Ne fermez pas cet onglet pendant l\'examen.',
+    namePlaceholder:   'Votre Nom Complet',
+    admNoPlaceholder:  'Numero d\'immatriculation (optionnel)',
+    codePlaceholder:   'CODE D\'EXAMEN',
+    startBtn:          'Commencer l\'Examen',
+    errName:           'Veuillez entrer votre nom complet.',
+    errCode:           'Veuillez entrer un code d\'acces valide.',
+    verifying:         'Verification...',
+    briefSystem:       'Systeme d\'Examen CBT',
+    briefDetails:      'DETAILS DE L\'EXAMEN',
+    lbTitle:           'Titre',
+    lbSubject:         'Matiere',
+    lbDuration:        'Duree',
+    lbQuestions:       'Questions',
+    mins:              'min',
+    secRules:          '<strong>Regles de Securite</strong><br>&#8226; Cet examen fonctionne en mode plein ecran &#8212; ne quittez pas<br>&#8226; Le changement d\'onglets et de fenetres est detecte et enregistre<br>&#8226; Le clic droit et les raccourcis clavier sont desactives<br>&#8226; La copie du contenu de l\'examen est bloquee<br>&#8226; Les violations repetees soumettront automatiquement votre examen',
+    beginBtn:          'Commencer l\'Examen',
+    backBtn:           'Retour',
+    secureLabel:       'Securise',
+    quitBtn:           'Quitter',
+    audioLabel:        'Ecoutez l\'audio avant de repondre',
+    theoryPlaceholder: 'Tapez votre reponse ici...',
+    prevBtn:           'Precedent',
+    nextBtn:           'Suivant',
+    submitBtn:         'Soumettre',
+    qNavTitle:         'Questions',
+    legendAnswered:    'Repondu',
+    legendCurrent:     'Actuel',
+    qCounter:          'Question {n} sur {total}',
+    secViolation:      'Violation {n} sur {max}',
+    secWait:           'Attendez 5 secondes...',
+    secDismissFs:      'Retourner en Plein Ecran',
+    secDismissOk:      'Je Comprends - Continuer l\'Examen',
+    secSubmitting:     'Soumission...',
+    secAutoMsg:        'Votre examen sera soumis quand le compte a rebours atteint zero.',
+    secTitleFs:        'Plein Ecran Quitte',
+    secMsgFs:          'Restez en plein ecran. {n} sortie(s) restante(s) avant la soumission automatique.',
+    secTitleFsMax:     'Plein Ecran - Maximum Atteint',
+    secMsgFsMax:       'Vous avez quitte le plein ecran {n} fois. Votre examen est en cours de soumission.',
+    secTitleTab:       'Changement d\'Onglet Detecte',
+    secMsgTab:         'Changer d\'onglet n\'est pas autorise. {n} violation(s) restante(s).',
+    secTitleMax:       'Maximum de Violations Atteint',
+    secMsgMax:         'Votre examen est soumis en raison de violations repetees.',
+    submitConfirmTitle:'Soumettre l\'Examen?',
+    submitConfirmMsg:  'Repondu: {answered} / {total}. Sans reponse: {unanswered}. Cela ne peut pas etre annule.',
+    submitConfirmOk:   'Soumettre Maintenant',
+    submitConfirmCancel:'Continuer l\'Examen',
+    quitConfirmTitle:  'Quitter l\'Examen?',
+    quitConfirmMsg:    'Votre progression sera PERDUE et vous devrez recommencer.',
+    quitConfirmOk:     'Quitter',
+    quitConfirmCancel: 'Rester',
+    timeUp:            'Le temps est ecoule! Votre examen est en cours de soumission.',
+    submitFail:        'La soumission a echoue. Vos reponses sont sauvegardees. Veuillez reessayer.',
+    retrying:          'Nouvelle tentative...',
+    scoreLbl:          'Score',
+    rsCorrectLbl:      'Correct',
+    rsTotalQLbl:       'Questions',
+    rsTimeLbl:         'Temps',
+    resultExcellent:   'Excellent!',
+    resultGreat:       'Tres Bien!',
+    resultPass:        'Recu!',
+    resultFail:        'Continuez a Pratiquer!',
+    resultPassSub:     'Felicitations! Vous avez reussi cet examen.',
+    resultFailSub:     'Continuez a pratiquer et reessayez.',
+    pendingTheory:     'Votre professeur examine vos reponses theoriques.',
+    pendingRelease:    'Votre professeur ou l\'administrateur publiera vos resultats.',
+    btnHome:           'Retour au Portail d\'Examen'
+  },
+
+  ar: {
+    langLabel:         'اختر اللغة',
+    entryTitle:        'بوابة امتحان الطالب',
+    entrySub:          'أدخل اسمك ورمز الوصول للامتحان الذي أعطاك إياه معلمك.',
+    entryNote:         'يتم حفظ إجاباتك تلقائياً. لا تغلق هذه النافذة أثناء الامتحان.',
+    namePlaceholder:   'اسمك الكامل',
+    admNoPlaceholder:  'رقم القيد (اختياري)',
+    codePlaceholder:   'رمز الامتحان',
+    startBtn:          'بدء الامتحان',
+    errName:           'الرجاء إدخال اسمك الكامل.',
+    errCode:           'الرجاء إدخال رمز وصول صحيح.',
+    verifying:         'جار التحقق...',
+    briefSystem:       'نظام الامتحان الإلكتروني',
+    briefDetails:      'تفاصيل الامتحان',
+    lbTitle:           'العنوان',
+    lbSubject:         'المادة',
+    lbDuration:        'المدة',
+    lbQuestions:       'الأسئلة',
+    mins:              'دقيقة',
+    secRules:          '<strong>قواعد أمان الامتحان</strong><br>&#8226; يعمل هذا الامتحان في وضع الشاشة الكاملة &#8212; لا تخرج<br>&#8226; يتم اكتشاف تبديل التبويبات وتسجيلها<br>&#8226; النقر بزر الماوس الأيمن والاختصارات معطلة<br>&#8226; نسخ محتوى الامتحان محظور<br>&#8226; المخالفات المتكررة ستُرسل الامتحان تلقائياً',
+    beginBtn:          'ابدأ الامتحان',
+    backBtn:           'رجوع',
+    secureLabel:       'آمن',
+    quitBtn:           'خروج',
+    audioLabel:        'استمع للصوت قبل الإجابة',
+    theoryPlaceholder: 'اكتب إجابتك هنا...',
+    prevBtn:           'السابق',
+    nextBtn:           'التالي',
+    submitBtn:         'إرسال',
+    qNavTitle:         'الأسئلة',
+    legendAnswered:    'تمت الإجابة',
+    legendCurrent:     'الحالي',
+    qCounter:          'السؤال {n} من {total}',
+    secViolation:      'مخالفة {n} من {max}',
+    secWait:           'انتظر 5 ثوانٍ...',
+    secDismissFs:      'العودة إلى الشاشة الكاملة',
+    secDismissOk:      'فهمت - متابعة الامتحان',
+    secSubmitting:     'جار الإرسال...',
+    secAutoMsg:        'سيتم إرسال امتحانك عندما يصل العد التنازلي إلى الصفر.',
+    secTitleFs:        'تم الخروج من الشاشة الكاملة',
+    secMsgFs:          'يرجى البقاء في وضع الشاشة الكاملة. {n} محاولة متبقية قبل الإرسال التلقائي.',
+    secTitleFsMax:     'تم الوصول إلى الحد الأقصى للخروج',
+    secMsgFsMax:       'لقد خرجت من الشاشة الكاملة {n} مرات. جار إرسال امتحانك.',
+    secTitleTab:       'تم اكتشاف تبديل التبويب',
+    secMsgTab:         'لا يُسمح بتبديل التبويبات أثناء الامتحان. {n} مخالفة متبقية.',
+    secTitleMax:       'تم الوصول إلى الحد الأقصى للمخالفات',
+    secMsgMax:         'جار إرسال امتحانك بسبب المخالفات المتكررة.',
+    submitConfirmTitle:'إرسال الامتحان؟',
+    submitConfirmMsg:  'تمت الإجابة: {answered} / {total}. لم يُجَب: {unanswered}. لا يمكن التراجع.',
+    submitConfirmOk:   'إرسال الآن',
+    submitConfirmCancel:'متابعة الامتحان',
+    quitConfirmTitle:  'الخروج من الامتحان؟',
+    quitConfirmMsg:    'ستُفقد كل التقدم وستحتاج إلى البدء من جديد.',
+    quitConfirmOk:     'خروج',
+    quitConfirmCancel: 'بقاء',
+    timeUp:            'انتهى الوقت! جار إرسال امتحانك.',
+    submitFail:        'فشل الإرسال. تم حفظ إجاباتك. الرجاء المحاولة مرة أخرى.',
+    retrying:          'إعادة المحاولة...',
+    scoreLbl:          'النتيجة',
+    rsCorrectLbl:      'صحيح',
+    rsTotalQLbl:       'الأسئلة',
+    rsTimeLbl:         'الوقت',
+    resultExcellent:   'ممتاز!',
+    resultGreat:       'عمل رائع!',
+    resultPass:        'نجحت!',
+    resultFail:        'استمر في المحاولة!',
+    resultPassSub:     'تهانينا! لقد نجحت في هذا الامتحان.',
+    resultFailSub:     'استمر في التدرب وحاول مرة أخرى.',
+    pendingTheory:     'معلمك يراجع إجاباتك النظرية.',
+    pendingRelease:    'سيُصدر معلمك أو مدير المدرسة نتائجك.',
+    btnHome:           'العودة إلى بوابة الامتحان'
+  }
+};
+
+/* ============================================
+   ✅ PHASE H: Translation helpers
+============================================ */
+function t(key) {
+  var strings = _T[_lang] || _T['en'];
+  return strings[key] !== undefined ? strings[key] : (_T['en'][key] || key);
+}
+
+function tFmt(key, vars) {
+  var str = t(key);
+  var k;
+  for (k in vars) {
+    if (vars.hasOwnProperty(k)) {
+      str = str.replace(new RegExp('\\{' + k + '\\}', 'g'), vars[k]);
+    }
+  }
+  return str;
+}
+
+function setText(id, val) {
+  var el = document.getElementById(id);
+  if (el) { el.textContent = val; }
+}
+
+function setHtml(id, val) {
+  var el = document.getElementById(id);
+  if (el) { el.innerHTML = val; }
+}
+
+function setAttr(id, attr, val) {
+  var el = document.getElementById(id);
+  if (el) { el[attr] = val; }
+}
+
+/* ============================================
+   ✅ PHASE H: Apply language to all UI elements
+============================================ */
+function applyLang(code) {
+  _lang = code;
+  try { sessionStorage.setItem('latlomp_lang', code); } catch(e) {}
+
+  /* RTL toggle */
+  var htmlEl = document.getElementById('htmlRoot');
+  if (htmlEl) {
+    if (code === 'ar') {
+      htmlEl.setAttribute('dir', 'rtl');
+      htmlEl.setAttribute('lang', 'ar');
+    } else {
+      htmlEl.setAttribute('dir', 'ltr');
+      htmlEl.setAttribute('lang', code);
+    }
+  }
+
+  /* Lang button highlight */
+  var btns = document.querySelectorAll('.lang-btn');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].className = btns[i].onclick && btns[i].getAttribute('onclick') === ("selectLang('" + code + "')")
+      ? 'lang-btn active'
+      : 'lang-btn';
+  }
+
+  /* Entry screen */
+  setText('langSelectorLabel', t('langLabel'));
+  setText('entryTitle',        t('entryTitle'));
+  setText('entrySub',          t('entrySub'));
+  setText('entryNote',         t('entryNote'));
+  setAttr('studentName', 'placeholder', t('namePlaceholder'));
+  setAttr('admissionNo', 'placeholder', t('admNoPlaceholder'));
+  setAttr('accessCode',  'placeholder', t('codePlaceholder'));
+  setText('startBtn',          t('startBtn'));
+
+  /* Briefing screen */
+  setText('briefSystemLabel',  t('briefSystem'));
+  setText('briefDetailsLabel', t('briefDetails'));
+  setText('lbTitle',           t('lbTitle'));
+  setText('lbSubject',         t('lbSubject'));
+  setText('lbDuration',        t('lbDuration'));
+  setText('lbQuestions',       t('lbQuestions'));
+  setHtml('secRulesBox',       t('secRules'));
+  setText('beginBtn',          t('beginBtn'));
+  setText('backBtn',           t('backBtn'));
+
+  /* Exam screen */
+  setText('quitBtn',           t('quitBtn'));
+  setText('prevBtn',           t('prevBtn'));
+  setText('nextBtn',           t('nextBtn'));
+  setText('submitBtn',         t('submitBtn'));
+  setText('qNavTitle',         t('qNavTitle'));
+  setText('legendAnswered',    t('legendAnswered'));
+  setText('legendCurrent',     t('legendCurrent'));
+  setText('qAudioLabel',       t('audioLabel'));
+  setAttr('theoryInput', 'placeholder', t('theoryPlaceholder'));
+
+  /* Result screen */
+  setText('scoreLbl',          t('scoreLbl'));
+  setText('rsCorrectLbl',      t('rsCorrectLbl'));
+  setText('rsTotalQLbl',       t('rsTotalQLbl'));
+  setText('rsTimeLbl',         t('rsTimeLbl'));
+  setText('btnHome',           t('btnHome'));
+}
+
+function selectLang(code) {
+  applyLang(code);
+}
+
+/* KaTeX */
 var _katexOpts = {
   delimiters: [
     { left: '$$', right: '$$', display: true  },
@@ -503,12 +1008,46 @@ function setTextWithMath(element, text) {
 }
 
 /* ============================================
+   ✅ PHASE H: Styled confirm modal
+   Replaces browser confirm() so dialogs
+   can display translated text
+============================================ */
+var _confirmResolve = null;
+
+function showConfirm(icon, title, msg, okText, cancelText, okDanger) {
+  return new Promise(function(resolve) {
+    _confirmResolve = resolve;
+    var overlay   = document.getElementById('confirmModal');
+    var iconEl    = document.getElementById('confirmModalIcon');
+    var titleEl   = document.getElementById('confirmModalTitle');
+    var msgEl     = document.getElementById('confirmModalMsg');
+    var okBtn     = document.getElementById('confirmModalOk');
+    var cancelBtn = document.getElementById('confirmModalCancel');
+    if (!overlay) { resolve(true); return; }
+    if (iconEl)    { iconEl.textContent    = icon || '?'; }
+    if (titleEl)   { titleEl.textContent   = title || ''; }
+    if (msgEl)     { msgEl.textContent     = msg || ''; }
+    if (okBtn)     {
+      okBtn.textContent = okText || t('submitConfirmOk');
+      okBtn.className   = 'confirm-modal-ok' + (okDanger ? ' danger' : '');
+    }
+    if (cancelBtn) { cancelBtn.textContent = cancelText || t('submitConfirmCancel'); }
+    overlay.classList.add('active');
+  });
+}
+
+function resolveConfirm(val) {
+  var overlay = document.getElementById('confirmModal');
+  if (overlay) { overlay.classList.remove('active'); }
+  if (_confirmResolve) { _confirmResolve(val); _confirmResolve = null; }
+}
+
+/* ============================================
    SCREEN NAVIGATION
 ============================================ */
 function showScreen(name) {
-  document.querySelectorAll('.screen').forEach(function(s) {
-    s.classList.remove('active');
-  });
+  var screens = document.querySelectorAll('.screen');
+  for (var i = 0; i < screens.length; i++) { screens[i].classList.remove('active'); }
   var examEl = document.getElementById('examScreen');
   examEl.classList.remove('active');
   if (name === 'exam') {
@@ -527,26 +1066,26 @@ async function verifyCode() {
   var errEl = document.getElementById('entryErr');
   errEl.style.display = 'none';
 
-  var nameEl  = document.getElementById('studentName');
-  var admEl   = document.getElementById('admissionNo');
-  var codeEl  = document.getElementById('accessCode');
+  var nameEl = document.getElementById('studentName');
+  var admEl  = document.getElementById('admissionNo');
+  var codeEl = document.getElementById('accessCode');
 
-  var name  = nameEl  ? nameEl.value.trim()                    : '';
-  var admNo = admEl   ? admEl.value.trim()                     : '';
-  var code  = codeEl  ? codeEl.value.trim().toUpperCase()      : '';
+  var name  = nameEl  ? nameEl.value.trim()             : '';
+  var admNo = admEl   ? admEl.value.trim()              : '';
+  var code  = codeEl  ? codeEl.value.trim().toUpperCase() : '';
 
   if (!name) {
-    errEl.textContent = 'Please enter your full name.';
+    errEl.textContent   = t('errName');
     errEl.style.display = 'block';
     return;
   }
   if (!code || code.length < 4) {
-    errEl.textContent = 'Please enter a valid access code.';
+    errEl.textContent   = t('errCode');
     errEl.style.display = 'block';
     return;
   }
 
-  if (btn) { btn.innerHTML = '<span class="spinner"></span> Verifying...'; btn.disabled = true; }
+  if (btn) { btn.innerHTML = '<span class="spinner"></span> ' + t('verifying'); btn.disabled = true; }
 
   var res = await instApi('/student/verify-code', 'POST', {
     accessCode:  code,
@@ -554,7 +1093,7 @@ async function verifyCode() {
     admissionNo: admNo
   });
 
-  if (btn) { btn.innerHTML = 'Start Exam'; btn.disabled = false; }
+  if (btn) { btn.textContent = t('startBtn'); btn.disabled = false; }
 
   if (res.ok) {
     _session   = res.data;
@@ -564,7 +1103,7 @@ async function verifyCode() {
     fillBriefing(res.data);
     showScreen('briefing');
   } else {
-    errEl.textContent   = (res.data && res.data.message) ? res.data.message : 'Invalid access code. Please check and try again.';
+    errEl.textContent   = (res.data && res.data.message) ? res.data.message : t('errCode');
     errEl.style.display = 'block';
   }
 }
@@ -585,12 +1124,11 @@ function fillBriefing(data) {
     }
   }
 
-  var el;
-  el = document.getElementById('briefSchoolName'); if (el) { el.textContent = school.name  || ''; }
-  el = document.getElementById('briefTitle');      if (el) { el.textContent = exam.title   || ''; }
-  el = document.getElementById('briefSubject');    if (el) { el.textContent = exam.subject || ''; }
-  el = document.getElementById('briefDuration');   if (el) { el.textContent = (exam.duration || 60) + ' mins'; }
-  el = document.getElementById('briefQCount');     if (el) { el.textContent = exam.totalQuestions || _questions.length; }
+  setText('briefSchoolName', school.name  || '');
+  setText('briefTitle',      exam.title   || '');
+  setText('briefSubject',    exam.subject || '');
+  setText('briefDuration',   (exam.duration || 60) + ' ' + t('mins'));
+  setText('briefQCount',     String(exam.totalQuestions || _questions.length));
 
   var instrEl = document.getElementById('briefInstructions');
   if (instrEl && exam.instructions) {
@@ -604,25 +1142,18 @@ function fillBriefing(data) {
 ============================================ */
 function beginExam() {
   showScreen('exam');
-
   var titleEl = document.getElementById('examTitleTag');
   if (titleEl) { titleEl.textContent = (_session.exam || {}).title || 'Exam'; }
 
   initSecurity();
 
   window.addEventListener('beforeunload', function(e) {
-    if (!_submitted) {
-      e.preventDefault();
-      e.returnValue = '';
-    }
+    if (!_submitted) { e.preventDefault(); e.returnValue = ''; }
   });
 
   window.history.pushState({ exam: true }, '');
   window.addEventListener('popstate', function() {
-    if (!_submitted) {
-      window.history.pushState({ exam: true }, '');
-      confirmQuit();
-    }
+    if (!_submitted) { window.history.pushState({ exam: true }, ''); triggerQuit(); }
   });
 
   buildQGrid();
@@ -631,299 +1162,7 @@ function beginExam() {
 }
 
 /* ============================================
-   ✅ PHASE F: SECURITY INITIALIZATION
-============================================ */
-function initSecurity() {
-  _security.isActive = true;
-
-  requestExamFullscreen();
-
-  document.addEventListener('fullscreenchange',       onFullscreenChange);
-  document.addEventListener('webkitfullscreenchange', onFullscreenChange);
-  document.addEventListener('mozfullscreenchange',    onFullscreenChange);
-  document.addEventListener('visibilitychange',       onVisibilityChange);
-  window.addEventListener('blur',  onWindowBlur);
-  window.addEventListener('focus', onWindowFocus);
-  document.addEventListener('keydown',     blockKeyboardShortcuts, true);
-  document.addEventListener('contextmenu', blockContextMenu,       true);
-
-  var examBody = document.getElementById('examBody');
-  if (examBody) {
-    examBody.addEventListener('copy', blockCopy, true);
-    examBody.addEventListener('cut',  blockCopy, true);
-  }
-
-  updateSecIndicator();
-  logSecurityEvent('init', 'Exam security initialized');
-}
-
-function requestExamFullscreen() {
-  var el = document.documentElement;
-  try {
-    if      (el.requestFullscreen)       { el.requestFullscreen(); }
-    else if (el.webkitRequestFullscreen) { el.webkitRequestFullscreen(); }
-    else if (el.mozRequestFullScreen)    { el.mozRequestFullScreen(); }
-  } catch(e) {
-    logSecurityEvent('fs_unavailable', 'Fullscreen not supported');
-  }
-}
-
-function isInFullscreen() {
-  return !!(
-    document.fullscreenElement       ||
-    document.webkitFullscreenElement ||
-    document.mozFullScreenElement
-  );
-}
-
-function onFullscreenChange() {
-  if (!_security.isActive || _submitted) { return; }
-  if (!isInFullscreen()) {
-    _security.fullscreenExits++;
-    logSecurityEvent('fullscreen_exit', 'Student exited fullscreen #' + _security.fullscreenExits);
-    var remaining = _security.fsMaxViolations - _security.fullscreenExits;
-    if (_security.fullscreenExits >= _security.fsMaxViolations) {
-      showSecurityWarning(
-        'danger',
-        'Fullscreen Exited - Maximum Reached',
-        'You have exited fullscreen ' + _security.fullscreenExits + ' times. Your exam is being submitted automatically.',
-        true
-      );
-    } else {
-      showSecurityWarning(
-        'danger',
-        'Fullscreen Exited',
-        'Please stay in fullscreen mode during the exam. This incident has been recorded. ' + remaining + ' violation' + (remaining !== 1 ? 's' : '') + ' remaining before auto-submit.'
-      );
-    }
-  }
-}
-
-function onVisibilityChange() {
-  if (!_security.isActive || _submitted) { return; }
-  if (document.hidden) {
-    _security.tabSwitches++;
-    _security.totalViolations++;
-    logSecurityEvent('tab_switch', 'Tab switch #' + _security.tabSwitches);
-    updateSecIndicator();
-    var remaining = _security.maxViolations - _security.totalViolations;
-    if (_security.totalViolations >= _security.maxViolations) {
-      showSecurityWarning(
-        'danger',
-        'Maximum Violations Reached',
-        'You have accumulated ' + _security.totalViolations + ' security violations. Your exam is being submitted.',
-        true
-      );
-    } else {
-      showSecurityWarning(
-        'warning',
-        'Tab Switch Detected',
-        'Switching tabs or windows during an exam is not allowed. This incident has been recorded. ' + remaining + ' violation' + (remaining !== 1 ? 's' : '') + ' before auto-submit.'
-      );
-    }
-  }
-}
-
-var _blurTimeout = null;
-function onWindowBlur() {
-  if (!_security.isActive || _submitted) { return; }
-  _blurTimeout = setTimeout(function() {
-    if (!document.hidden) {
-      _security.focusLosses++;
-      _security.totalViolations++;
-      logSecurityEvent('focus_loss', 'Window focus lost #' + _security.focusLosses);
-      updateSecIndicator();
-    }
-  }, 300);
-}
-
-function onWindowFocus() {
-  if (_blurTimeout) {
-    clearTimeout(_blurTimeout);
-    _blurTimeout = null;
-  }
-}
-
-function blockKeyboardShortcuts(e) {
-  if (!_security.isActive || _submitted) { return; }
-  if (e.key === 'F12') {
-    e.preventDefault();
-    e.stopPropagation();
-    _security.devtoolAttempts++;
-    logSecurityEvent('devtools', 'F12 pressed');
-    return false;
-  }
-  if (e.ctrlKey || e.metaKey) {
-    var key = e.key ? e.key.toLowerCase() : '';
-    var blocked = { 'i':1, 'u':1, 'p':1, 's':1, 'j':1 };
-    if (blocked[key]) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (key === 'i' || key === 'j') {
-        _security.devtoolAttempts++;
-        logSecurityEvent('devtools', 'Ctrl+' + key.toUpperCase());
-      }
-      return false;
-    }
-    if (e.shiftKey && (key === 'i' || key === 'j' || key === 'c')) {
-      e.preventDefault();
-      e.stopPropagation();
-      _security.devtoolAttempts++;
-      logSecurityEvent('devtools', 'Ctrl+Shift+' + key.toUpperCase());
-      return false;
-    }
-  }
-}
-
-function blockContextMenu(e) {
-  if (!_security.isActive || _submitted) { return; }
-  e.preventDefault();
-  logSecurityEvent('rightclick', 'Right-click attempted');
-  return false;
-}
-
-function blockCopy(e) {
-  if (!_security.isActive || _submitted) { return; }
-  e.preventDefault();
-  _security.copyAttempts++;
-  logSecurityEvent('copy', 'Copy/Cut attempted on exam content');
-  return false;
-}
-
-function logSecurityEvent(type, msg) {
-  _security.log.push({ type: type, time: new Date().toISOString(), msg: msg });
-}
-
-function updateSecIndicator() {
-  var el = document.getElementById('secIndicator');
-  if (!el) { return; }
-  var t = _security.totalViolations;
-  if (t === 0) {
-    el.textContent = 'Secure';
-    el.className   = 'sec-indicator';
-  } else {
-    el.textContent = t + ' Violation' + (t !== 1 ? 's' : '');
-    el.className   = 'sec-indicator violated';
-  }
-}
-
-/* ============================================
-   ✅ PHASE F: SECURITY WARNING OVERLAY
-============================================ */
-function showSecurityWarning(type, title, message, autoSubmit) {
-  autoSubmit = autoSubmit || false;
-
-  var overlay   = document.getElementById('secOverlay');
-  var card      = document.getElementById('secOverlayCard');
-  var iconEl    = document.getElementById('secOverlayIcon');
-  var titleEl   = document.getElementById('secOverlayTitle');
-  var msgEl     = document.getElementById('secOverlayMsg');
-  var countEl   = document.getElementById('secViolationCount');
-  var ring      = document.getElementById('secCountdownRing');
-  var numEl     = document.getElementById('secCountdownNum');
-  var btn       = document.getElementById('secDismissBtn');
-  var autoMsgEl = document.getElementById('secAutoSubmitMsg');
-
-  if (!overlay) { return; }
-
-  var isDanger = (type === 'danger');
-
-  iconEl.textContent  = isDanger ? 'X' : '!';
-  titleEl.textContent = title   || 'Security Violation';
-  msgEl.textContent   = message || 'This incident has been recorded.';
-
-  var total = _security.totalViolations;
-  countEl.textContent = 'Violation ' + total + ' of ' + _security.maxViolations;
-  countEl.className   = 'sec-violation-count' + (isDanger ? '' : ' warning-type');
-  card.className      = 'sec-overlay-card'    + (isDanger ? '' : ' warning-type');
-  ring.className      = 'sec-countdown-ring'  + (isDanger ? '' : ' warning-type');
-
-  if (autoSubmit) {
-    autoMsgEl.textContent   = 'Your exam will be submitted when the countdown reaches zero.';
-    autoMsgEl.style.display = 'block';
-    btn.textContent         = 'Submitting...';
-    btn.disabled            = true;
-    btn.className           = 'sec-dismiss-btn';
-  } else {
-    autoMsgEl.style.display = 'none';
-    btn.textContent         = 'Wait 5 seconds...';
-    btn.disabled            = true;
-    btn.className           = 'sec-dismiss-btn';
-  }
-
-  overlay.classList.add('active');
-
-  var seconds = 5;
-  var elapsed = 0;
-  numEl.textContent           = seconds;
-  ring.style.strokeDashoffset = '0';
-
-  if (_security.dismissCountdown) {
-    clearInterval(_security.dismissCountdown);
-    _security.dismissCountdown = null;
-  }
-
-  _security.dismissCountdown = setInterval(function() {
-    elapsed++;
-    numEl.textContent           = seconds - elapsed;
-    ring.style.strokeDashoffset = String((elapsed / seconds) * 126);
-
-    if (elapsed >= seconds) {
-      clearInterval(_security.dismissCountdown);
-      _security.dismissCountdown = null;
-
-      if (autoSubmit) {
-        overlay.classList.remove('active');
-        _submitted = false;
-        submitExam(true);
-      } else {
-        if (title && title.indexOf('Fullscreen') !== -1) {
-          btn.textContent = 'Return to Fullscreen';
-        } else {
-          btn.textContent = 'I Understand - Continue Exam';
-        }
-        btn.disabled  = false;
-        btn.className = 'sec-dismiss-btn ready';
-      }
-    }
-  }, 1000);
-}
-
-function dismissSecurityWarning() {
-  var overlay = document.getElementById('secOverlay');
-  if (overlay) { overlay.classList.remove('active'); }
-  if (_security.isActive && !_submitted) {
-    setTimeout(requestExamFullscreen, 300);
-  }
-}
-
-function deactivateSecurity() {
-  _security.isActive = false;
-
-  document.removeEventListener('fullscreenchange',       onFullscreenChange);
-  document.removeEventListener('webkitfullscreenchange', onFullscreenChange);
-  document.removeEventListener('mozfullscreenchange',    onFullscreenChange);
-  document.removeEventListener('visibilitychange',       onVisibilityChange);
-  document.removeEventListener('keydown',                blockKeyboardShortcuts, true);
-  document.removeEventListener('contextmenu',            blockContextMenu,       true);
-  window.removeEventListener('blur',  onWindowBlur);
-  window.removeEventListener('focus', onWindowFocus);
-
-  if (_security.dismissCountdown) {
-    clearInterval(_security.dismissCountdown);
-    _security.dismissCountdown = null;
-  }
-
-  try {
-    if      (document.exitFullscreen)       { document.exitFullscreen(); }
-    else if (document.webkitExitFullscreen) { document.webkitExitFullscreen(); }
-    else if (document.mozCancelFullScreen)  { document.mozCancelFullScreen(); }
-  } catch(e) {}
-}
-
-/* ============================================
-   RENDER QUESTION
-   ✅ PHASE G additions: audioUrl + tableHtml
+   RENDER QUESTION (Phase F + G + H)
 ============================================ */
 function renderQuestion(idx) {
   if (idx < 0 || idx >= _questions.length) { return; }
@@ -933,22 +1172,25 @@ function renderQuestion(idx) {
   var letters = ['A', 'B', 'C', 'D', 'E'];
   var i, el;
 
+  /* ✅ PHASE H: Translated question counter */
   var counterEl = document.getElementById('qCounter');
-  if (counterEl) { counterEl.textContent = 'Question ' + (idx + 1) + ' of ' + _questions.length; }
+  if (counterEl) {
+    counterEl.textContent = tFmt('qCounter', { n: idx + 1, total: _questions.length });
+  }
 
   setTextWithMath(document.getElementById('qText'), q.question || '');
 
-  /* ✅ PHASE G: Audio player */
+  /* ✅ PHASE G: Audio */
   var audioWrap = document.getElementById('qAudioWrap');
   var audioEl   = document.getElementById('qAudioEl');
   if (audioWrap && audioEl) {
     if (q.audioUrl) {
-      audioEl.src             = q.audioUrl;
+      audioEl.src = q.audioUrl;
       audioEl.load();
       audioWrap.style.display = 'block';
     } else {
       audioWrap.style.display = 'none';
-      audioEl.src             = '';
+      audioEl.src = '';
     }
   }
 
@@ -956,24 +1198,15 @@ function renderQuestion(idx) {
   var imgWrap = document.getElementById('qImageWrap');
   var imgEl   = document.getElementById('qImage');
   if (imgWrap && imgEl) {
-    if (q.imageUrl) {
-      imgEl.src              = q.imageUrl;
-      imgWrap.style.display  = 'block';
-    } else {
-      imgWrap.style.display  = 'none';
-    }
+    if (q.imageUrl) { imgEl.src = q.imageUrl; imgWrap.style.display = 'block'; }
+    else { imgWrap.style.display = 'none'; }
   }
 
-  /* ✅ PHASE G: Table display */
+  /* ✅ PHASE G: Table */
   var tableWrap = document.getElementById('qTableDisplayWrap');
   if (tableWrap) {
-    if (q.tableHtml) {
-      tableWrap.innerHTML     = q.tableHtml;
-      tableWrap.style.display = 'block';
-    } else {
-      tableWrap.innerHTML     = '';
-      tableWrap.style.display = 'none';
-    }
+    if (q.tableHtml) { tableWrap.innerHTML = q.tableHtml; tableWrap.style.display = 'block'; }
+    else { tableWrap.innerHTML = ''; tableWrap.style.display = 'none'; }
   }
 
   /* Options / Theory */
@@ -988,13 +1221,13 @@ function renderQuestion(idx) {
       theoryInp.style.display = 'block';
       theoryInp.dataset.qid   = qId;
       theoryInp.value         = (savedAnswer !== undefined) ? savedAnswer : '';
+      theoryInp.placeholder   = t('theoryPlaceholder');
     }
   } else {
     if (theoryInp) { theoryInp.style.display = 'none'; }
     if (optList) {
       optList.style.display = 'flex';
       var options = q.options || [];
-
       optList.innerHTML = options.map(function(opt, idx2) {
         var isSelected = (savedAnswer === idx2);
         return '<button class="option-btn' + (isSelected ? ' selected' : '') + '" onclick="selectAnswer(' + idx2 + ')">' +
@@ -1002,7 +1235,6 @@ function renderQuestion(idx) {
           '<span class="opt-text" id="optText_' + idx + '_' + idx2 + '"></span>' +
         '</button>';
       }).join('');
-
       for (i = 0; i < options.length; i++) {
         el = document.getElementById('optText_' + idx + '_' + i);
         if (el) { setTextWithMath(el, options[i]); }
@@ -1010,17 +1242,17 @@ function renderQuestion(idx) {
     }
   }
 
-  var pct = ((idx + 1) / _questions.length) * 100;
+  var pct    = ((idx + 1) / _questions.length) * 100;
   var fillEl = document.getElementById('progressFill');
   if (fillEl) { fillEl.style.width = pct + '%'; }
 
-  var prevBtn  = document.getElementById('prevBtn');
-  var nextBtn  = document.getElementById('nextBtn');
+  var prevBtn   = document.getElementById('prevBtn');
+  var nextBtn   = document.getElementById('nextBtn');
   var submitBtn = document.getElementById('submitBtn');
-  var isLast   = (idx === _questions.length - 1);
+  var isLast    = (idx === _questions.length - 1);
 
-  if (prevBtn)   { prevBtn.disabled      = (idx === 0); }
-  if (nextBtn)   { nextBtn.style.display = isLast ? 'none'        : 'inline-flex'; }
+  if (prevBtn)   { prevBtn.disabled        = (idx === 0); }
+  if (nextBtn)   { nextBtn.style.display   = isLast ? 'none'        : 'inline-flex'; }
   if (submitBtn) { submitBtn.style.display = isLast ? 'inline-flex' : 'none'; }
 
   var body = document.getElementById('examBody');
@@ -1036,15 +1268,12 @@ function selectAnswer(optIdx) {
   var q   = _questions[_currentIdx];
   var qId = q._id.toString();
   _answers[qId] = optIdx;
-
   try { sessionStorage.setItem('examAnswers_' + qId, String(optIdx)); } catch(e) {}
-
   var buttons = document.querySelectorAll('.option-btn');
   for (var i = 0; i < buttons.length; i++) {
     if (i === optIdx) { buttons[i].classList.add('selected'); }
     else              { buttons[i].classList.remove('selected'); }
   }
-
   updateQDot(_currentIdx);
 }
 
@@ -1057,16 +1286,9 @@ function saveTheoryAnswer() {
 /* ============================================
    NAVIGATION
 ============================================ */
-function prevQuestion() {
-  if (_currentIdx > 0) { renderQuestion(_currentIdx - 1); }
-}
-function nextQuestion() {
-  if (_currentIdx < _questions.length - 1) { renderQuestion(_currentIdx + 1); }
-}
-function goToQuestion(idx) {
-  renderQuestion(idx);
-  toggleQGrid();
-}
+function prevQuestion() { if (_currentIdx > 0) { renderQuestion(_currentIdx - 1); } }
+function nextQuestion() { if (_currentIdx < _questions.length - 1) { renderQuestion(_currentIdx + 1); } }
+function goToQuestion(idx) { renderQuestion(idx); toggleQGrid(); }
 
 /* ============================================
    QUESTION GRID
@@ -1087,19 +1309,14 @@ function updateQDot(currentIdx) {
     if (!dot) { continue; }
     var qId = _questions[i]._id.toString();
     var cls = 'q-dot';
-    if (i === currentIdx)              { cls += ' current'; }
-    if (_answers[qId] !== undefined)   { cls += ' answered'; }
+    if (i === currentIdx)            { cls += ' current'; }
+    if (_answers[qId] !== undefined) { cls += ' answered'; }
     dot.className = cls;
   }
 }
 
-function toggleQGrid() {
-  var ov = document.getElementById('qOverlay');
-  if (ov) { ov.classList.toggle('open'); }
-}
-function handleOverlayClick(e) {
-  if (e.target.id === 'qOverlay') { toggleQGrid(); }
-}
+function toggleQGrid() { var ov = document.getElementById('qOverlay'); if (ov) { ov.classList.toggle('open'); } }
+function handleOverlayClick(e) { if (e.target.id === 'qOverlay') { toggleQGrid(); } }
 
 /* ============================================
    TIMER
@@ -1109,10 +1326,7 @@ function startTimer() {
   _timerInt = setInterval(function() {
     _timeLeft--;
     updateTimerDisplay();
-    if (_timeLeft <= 0) {
-      clearInterval(_timerInt);
-      autoSubmit();
-    }
+    if (_timeLeft <= 0) { clearInterval(_timerInt); autoSubmit(); }
   }, 1000);
 }
 
@@ -1122,37 +1336,56 @@ function updateTimerDisplay() {
   var m = Math.floor(Math.max(0, _timeLeft) / 60);
   var s = Math.max(0, _timeLeft) % 60;
   el.textContent = pad(m) + ':' + pad(s);
-  if (_timeLeft <= 60) {
-    el.className = 'timer-display danger';
-  } else if (_timeLeft <= 300) {
-    el.className = 'timer-display warning';
-  } else {
-    el.className = 'timer-display';
-  }
+  if (_timeLeft <= 60)       { el.className = 'timer-display danger'; }
+  else if (_timeLeft <= 300) { el.className = 'timer-display warning'; }
+  else                       { el.className = 'timer-display'; }
 }
 
 function pad(n) { return n < 10 ? '0' + n : String(n); }
 
 /* ============================================
-   SUBMIT
+   ✅ PHASE H: Submit / Quit with translated modals
 ============================================ */
-function confirmSubmit() {
+async function triggerSubmit() {
   var answered   = Object.keys(_answers).length;
   var unanswered = _questions.length - answered;
-  var msg = 'Submit your exam now?\n\nAnswered: ' + answered + ' / ' + _questions.length;
-  if (unanswered > 0) { msg += '\nUnanswered: ' + unanswered; }
-  msg += '\n\nThis cannot be undone.';
-  if (confirm(msg)) { submitExam(false); }
+  var confirmed  = await showConfirm(
+    '?',
+    t('submitConfirmTitle'),
+    tFmt('submitConfirmMsg', { answered: answered, total: _questions.length, unanswered: unanswered }),
+    t('submitConfirmOk'),
+    t('submitConfirmCancel'),
+    false
+  );
+  if (confirmed) { submitExam(false); }
+}
+
+async function triggerQuit() {
+  var confirmed = await showConfirm(
+    'X',
+    t('quitConfirmTitle'),
+    t('quitConfirmMsg'),
+    t('quitConfirmOk'),
+    t('quitConfirmCancel'),
+    true
+  );
+  if (confirmed) {
+    _submitted = true;
+    clearInterval(_timerInt);
+    deactivateSecurity();
+    showScreen('entry');
+  }
 }
 
 function autoSubmit() {
   if (_submitted) { return; }
+  var msgEl = document.createElement('div');
+  msgEl.textContent = t('timeUp');
+  msgEl.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--red);color:#fff;padding:14px 24px;border-radius:30px;font-weight:700;font-size:14px;z-index:9999;';
+  document.body.appendChild(msgEl);
   setTimeout(function() {
-    if (!_submitted) {
-      alert('Time is up! Your exam is being submitted.');
-      submitExam(true);
-    }
-  }, 300);
+    if (!_submitted) { submitExam(true); }
+  }, 500);
 }
 
 async function submitExam(wasAuto, retryCount) {
@@ -1164,10 +1397,7 @@ async function submitExam(wasAuto, retryCount) {
   deactivateSecurity();
 
   var submitBtn = document.getElementById('submitBtn');
-  if (submitBtn) {
-    submitBtn.innerHTML = '<span class="spinner"></span>';
-    submitBtn.disabled  = true;
-  }
+  if (submitBtn) { submitBtn.innerHTML = '<span class="spinner"></span>'; submitBtn.disabled = true; }
 
   var timeTaken = Math.round((Date.now() - _startTime) / 1000);
 
@@ -1192,64 +1422,290 @@ async function submitExam(wasAuto, retryCount) {
     setTimeout(function() { submitExam(wasAuto, retryCount + 1); }, 2500);
   } else {
     _submitted = false;
-    if (submitBtn) {
-      submitBtn.innerHTML = 'Submit';
-      submitBtn.disabled  = false;
-    }
-    var errMsg = (res.data && res.data.message) ? res.data.message : 'Network error.';
-    alert('Submission failed: ' + errMsg + '\n\nYour answers are saved. Try again.');
+    if (submitBtn) { submitBtn.textContent = t('submitBtn'); submitBtn.disabled = false; }
+    alert(t('submitFail'));
   }
 }
 
 function showResult(result, timeTaken) {
   showScreen('result');
-
   var pct    = result.scorePercent || 0;
   var passed = result.isPassed;
-  var title  = pct >= 80 ? 'Excellent!' : pct >= 60 ? 'Great Job!' : pct >= 50 ? 'You Passed!' : 'Keep Practising!';
+  var emoji  = pct >= 80 ? '&#127942;' : pct >= 60 ? '&#127945;' : pct >= 50 ? '&#9989;' : '&#128218;';
+  var title  = pct >= 80 ? t('resultExcellent') : pct >= 60 ? t('resultGreat') : pct >= 50 ? t('resultPass') : t('resultFail');
   var color  = passed ? 'var(--green)' : 'var(--red)';
 
-  var emojiEl   = document.getElementById('resultEmoji');
-  var titleEl   = document.getElementById('resultTitle');
-  var subEl     = document.getElementById('resultSub');
-  var pctEl     = document.getElementById('scorePct');
-  var circleEl  = document.getElementById('scoreCircle');
-  var correctEl = document.getElementById('rsCorrect');
-  var totalQEl  = document.getElementById('rsTotalQ');
-  var timeEl    = document.getElementById('rsTime');
-  var pendEl    = document.getElementById('pendingNotice');
+  setHtml('resultEmoji', emoji);
+  setText('resultTitle',  title);
+  setText('resultSub',    passed ? t('resultPassSub') : t('resultFailSub'));
+  setText('scorePct',     pct + '%');
 
-  if (emojiEl)  { emojiEl.textContent  = pct >= 80 ? 'Trophy' : pct >= 60 ? 'Medal' : pct >= 50 ? 'Pass' : 'Study'; }
-  if (titleEl)  { titleEl.textContent  = title; }
-  if (subEl)    { subEl.textContent    = passed ? 'Congratulations! You passed this exam.' : 'Keep practising and try again.'; }
-  if (pctEl)    { pctEl.textContent    = pct + '%'; pctEl.style.color = color; }
-  if (circleEl) { circleEl.style.borderColor = color + '33'; }
+  var pctEl = document.getElementById('scorePct');
+  if (pctEl) { pctEl.style.color = color; }
+
+  var circle = document.getElementById('scoreCircle');
+  if (circle) { circle.style.borderColor = color + '33'; }
 
   var mins = Math.floor(timeTaken / 60);
   var secs = timeTaken % 60;
-  if (correctEl) { correctEl.textContent = result.score || 0; }
-  if (totalQEl)  { totalQEl.textContent  = result.totalQuestions || _questions.length; }
-  if (timeEl)    { timeEl.textContent    = mins + 'm ' + secs + 's'; }
+  setText('rsCorrect', String(result.score || 0));
+  setText('rsTotalQ',  String(result.totalQuestions || _questions.length));
+  setText('rsTime',    mins + 'm ' + secs + 's');
 
+  var pendEl = document.getElementById('pendingNotice');
   if (pendEl) {
     if (result.hasTheory || !result.isReleased) {
       pendEl.style.display = 'block';
       if (!result.isReleased && !result.hasTheory) {
-        pendEl.textContent = 'Your results will be released by your teacher or school admin.';
+        pendEl.textContent = t('pendingRelease');
         if (pctEl) { pctEl.textContent = '?'; }
+      } else {
+        pendEl.textContent = t('pendingTheory');
       }
     }
   }
 }
 
-function confirmQuit() {
-  if (confirm('Are you sure you want to quit?\n\nYour progress will be LOST and you will need to start over.')) {
-    _submitted = true;
-    clearInterval(_timerInt);
-    deactivateSecurity();
-    showScreen('entry');
+/* ============================================
+   ✅ PHASE F: SECURITY ENGINE (unchanged)
+============================================ */
+function initSecurity() {
+  _security.isActive = true;
+  requestExamFullscreen();
+  document.addEventListener('fullscreenchange',       onFullscreenChange);
+  document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+  document.addEventListener('mozfullscreenchange',    onFullscreenChange);
+  document.addEventListener('visibilitychange',       onVisibilityChange);
+  window.addEventListener('blur',  onWindowBlur);
+  window.addEventListener('focus', onWindowFocus);
+  document.addEventListener('keydown',     blockKeyboardShortcuts, true);
+  document.addEventListener('contextmenu', blockContextMenu,       true);
+  var examBody = document.getElementById('examBody');
+  if (examBody) {
+    examBody.addEventListener('copy', blockCopy, true);
+    examBody.addEventListener('cut',  blockCopy, true);
+  }
+  updateSecIndicator();
+  logSecurityEvent('init', 'Exam security initialized');
+}
+
+function requestExamFullscreen() {
+  var el = document.documentElement;
+  try {
+    if      (el.requestFullscreen)       { el.requestFullscreen(); }
+    else if (el.webkitRequestFullscreen) { el.webkitRequestFullscreen(); }
+    else if (el.mozRequestFullScreen)    { el.mozRequestFullScreen(); }
+  } catch(e) { logSecurityEvent('fs_unavailable', 'Fullscreen not supported'); }
+}
+
+function isInFullscreen() {
+  return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement);
+}
+
+function onFullscreenChange() {
+  if (!_security.isActive || _submitted) { return; }
+  if (!isInFullscreen()) {
+    _security.fullscreenExits++;
+    logSecurityEvent('fullscreen_exit', 'Exit #' + _security.fullscreenExits);
+    var remaining = _security.fsMaxViolations - _security.fullscreenExits;
+    if (_security.fullscreenExits >= _security.fsMaxViolations) {
+      showSecurityWarning('danger', t('secTitleFsMax'), tFmt('secMsgFsMax', { n: _security.fullscreenExits }), true);
+    } else {
+      showSecurityWarning('danger', t('secTitleFs'), tFmt('secMsgFs', { n: remaining }));
+    }
   }
 }
+
+function onVisibilityChange() {
+  if (!_security.isActive || _submitted) { return; }
+  if (document.hidden) {
+    _security.tabSwitches++;
+    _security.totalViolations++;
+    logSecurityEvent('tab_switch', 'Switch #' + _security.tabSwitches);
+    updateSecIndicator();
+    var remaining = _security.maxViolations - _security.totalViolations;
+    if (_security.totalViolations >= _security.maxViolations) {
+      showSecurityWarning('danger', t('secTitleMax'), t('secMsgMax'), true);
+    } else {
+      showSecurityWarning('warning', t('secTitleTab'), tFmt('secMsgTab', { n: remaining }));
+    }
+  }
+}
+
+var _blurTimeout = null;
+function onWindowBlur() {
+  if (!_security.isActive || _submitted) { return; }
+  _blurTimeout = setTimeout(function() {
+    if (!document.hidden) {
+      _security.focusLosses++;
+      _security.totalViolations++;
+      logSecurityEvent('focus_loss', 'Focus loss #' + _security.focusLosses);
+      updateSecIndicator();
+    }
+  }, 300);
+}
+function onWindowFocus() {
+  if (_blurTimeout) { clearTimeout(_blurTimeout); _blurTimeout = null; }
+}
+
+function blockKeyboardShortcuts(e) {
+  if (!_security.isActive || _submitted) { return; }
+  if (e.key === 'F12') {
+    e.preventDefault(); e.stopPropagation();
+    _security.devtoolAttempts++;
+    logSecurityEvent('devtools', 'F12 pressed');
+    return false;
+  }
+  if (e.ctrlKey || e.metaKey) {
+    var key     = e.key ? e.key.toLowerCase() : '';
+    var blocked = { 'i':1, 'u':1, 'p':1, 's':1, 'j':1 };
+    if (blocked[key]) {
+      e.preventDefault(); e.stopPropagation();
+      if (key === 'i' || key === 'j') { _security.devtoolAttempts++; logSecurityEvent('devtools', 'Ctrl+' + key.toUpperCase()); }
+      return false;
+    }
+    if (e.shiftKey && (key === 'i' || key === 'j' || key === 'c')) {
+      e.preventDefault(); e.stopPropagation();
+      _security.devtoolAttempts++;
+      logSecurityEvent('devtools', 'Ctrl+Shift+' + key.toUpperCase());
+      return false;
+    }
+  }
+}
+
+function blockContextMenu(e) {
+  if (!_security.isActive || _submitted) { return; }
+  e.preventDefault();
+  logSecurityEvent('rightclick', 'Right-click attempted');
+  return false;
+}
+
+function blockCopy(e) {
+  if (!_security.isActive || _submitted) { return; }
+  e.preventDefault();
+  _security.copyAttempts++;
+  logSecurityEvent('copy', 'Copy/Cut attempted');
+  return false;
+}
+
+function logSecurityEvent(type, msg) {
+  _security.log.push({ type: type, time: new Date().toISOString(), msg: msg });
+}
+
+function updateSecIndicator() {
+  var el = document.getElementById('secIndicator');
+  if (!el) { return; }
+  var total = _security.totalViolations;
+  if (total === 0) {
+    el.textContent = t('secureLabel');
+    el.className   = 'sec-indicator';
+  } else {
+    el.textContent = total + ' ' + t('secViolation').split('{n}').join(String(total)).split('{max}').join(String(_security.maxViolations));
+    el.className   = 'sec-indicator violated';
+  }
+}
+
+function showSecurityWarning(type, title, message, autoSubmit) {
+  autoSubmit = autoSubmit || false;
+  var overlay   = document.getElementById('secOverlay');
+  var card      = document.getElementById('secOverlayCard');
+  var iconEl    = document.getElementById('secOverlayIcon');
+  var titleEl   = document.getElementById('secOverlayTitle');
+  var msgEl     = document.getElementById('secOverlayMsg');
+  var countEl   = document.getElementById('secViolationCount');
+  var ring      = document.getElementById('secCountdownRing');
+  var numEl     = document.getElementById('secCountdownNum');
+  var btn       = document.getElementById('secDismissBtn');
+  var autoMsgEl = document.getElementById('secAutoSubmitMsg');
+  if (!overlay) { return; }
+
+  var isDanger = (type === 'danger');
+  iconEl.textContent  = isDanger ? '!' : '!';
+  titleEl.textContent = title   || t('secOverlayTitle');
+  msgEl.textContent   = message || '';
+
+  var total = _security.totalViolations;
+  countEl.textContent = tFmt('secViolation', { n: total, max: _security.maxViolations });
+  countEl.className   = 'sec-violation-count' + (isDanger ? '' : ' warning-type');
+  card.className      = 'sec-overlay-card'    + (isDanger ? '' : ' warning-type');
+  ring.className      = 'sec-countdown-ring'  + (isDanger ? '' : ' warning-type');
+
+  if (autoSubmit) {
+    autoMsgEl.textContent   = t('secAutoMsg');
+    autoMsgEl.style.display = 'block';
+    btn.textContent         = t('secSubmitting');
+    btn.disabled            = true;
+    btn.className           = 'sec-dismiss-btn';
+  } else {
+    autoMsgEl.style.display = 'none';
+    btn.textContent         = t('secWait');
+    btn.disabled            = true;
+    btn.className           = 'sec-dismiss-btn';
+  }
+
+  overlay.classList.add('active');
+
+  var seconds = 5;
+  var elapsed = 0;
+  numEl.textContent           = seconds;
+  ring.style.strokeDashoffset = '0';
+
+  if (_security.dismissCountdown) { clearInterval(_security.dismissCountdown); _security.dismissCountdown = null; }
+
+  _security.dismissCountdown = setInterval(function() {
+    elapsed++;
+    numEl.textContent           = seconds - elapsed;
+    ring.style.strokeDashoffset = String((elapsed / seconds) * 126);
+
+    if (elapsed >= seconds) {
+      clearInterval(_security.dismissCountdown);
+      _security.dismissCountdown = null;
+      if (autoSubmit) {
+        overlay.classList.remove('active');
+        _submitted = false;
+        submitExam(true);
+      } else {
+        btn.textContent = (title && title.indexOf('Fullscreen') !== -1) ? t('secDismissFs') : t('secDismissOk');
+        btn.disabled    = false;
+        btn.className   = 'sec-dismiss-btn ready';
+      }
+    }
+  }, 1000);
+}
+
+function dismissSecurityWarning() {
+  var overlay = document.getElementById('secOverlay');
+  if (overlay) { overlay.classList.remove('active'); }
+  if (_security.isActive && !_submitted) { setTimeout(requestExamFullscreen, 300); }
+}
+
+function deactivateSecurity() {
+  _security.isActive = false;
+  document.removeEventListener('fullscreenchange',       onFullscreenChange);
+  document.removeEventListener('webkitfullscreenchange', onFullscreenChange);
+  document.removeEventListener('mozfullscreenchange',    onFullscreenChange);
+  document.removeEventListener('visibilitychange',       onVisibilityChange);
+  document.removeEventListener('keydown',                blockKeyboardShortcuts, true);
+  document.removeEventListener('contextmenu',            blockContextMenu,       true);
+  window.removeEventListener('blur',  onWindowBlur);
+  window.removeEventListener('focus', onWindowFocus);
+  if (_security.dismissCountdown) { clearInterval(_security.dismissCountdown); _security.dismissCountdown = null; }
+  try {
+    if      (document.exitFullscreen)       { document.exitFullscreen(); }
+    else if (document.webkitExitFullscreen) { document.webkitExitFullscreen(); }
+    else if (document.mozCancelFullScreen)  { document.mozCancelFullScreen(); }
+  } catch(e) {}
+}
+
+/* ============================================
+   ✅ PHASE H: INIT — apply saved language on load
+============================================ */
+(function() {
+  var saved = '';
+  try { saved = sessionStorage.getItem('latlomp_lang') || 'en'; } catch(e) { saved = 'en'; }
+  var valid = { en:1, ha:1, yo:1, ig:1, fr:1, ar:1 };
+  applyLang(valid[saved] ? saved : 'en');
+})();
 </script>
 </body>
 </html>
