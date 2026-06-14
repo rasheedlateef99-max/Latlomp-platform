@@ -145,29 +145,20 @@
     /* ============================================
        ✅ PHASE G: RICH CONTENT STYLES
     ============================================ */
-
-    /* Image preview */
     .img-preview-wrap { margin-top:8px; }
     .img-preview-wrap img { max-width:100%; max-height:180px; border-radius:8px; border:1px solid var(--border); display:block; }
     .img-preview-wrap .remove-btn { margin-top:5px; font-size:12px; color:var(--red); background:none; border:none; cursor:pointer; font-family:inherit; padding:0; }
-
-    /* Audio preview */
     .audio-preview-wrap { margin-top:8px; }
     .audio-preview-wrap audio { width:100%; border-radius:8px; }
-
-    /* Table builder */
     .tbl-controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
     .tbl-controls label { font-size:13px; color:var(--secondary); white-space:nowrap; }
     .tbl-num-inp { width:68px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; padding:8px 10px; color:#fff; font-size:13px; font-family:inherit; outline:none; }
     .tbl-num-inp:focus { border-color:var(--primary); }
-
     .tbl-grid-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:8px; margin-bottom:8px; }
     .tbl-builder-table { border-collapse:collapse; min-width:max-content; }
     .tbl-builder-table td { border:1px solid rgba(255,255,255,0.15); padding:7px 10px; min-width:90px; max-width:180px; outline:none; font-size:13px; color:#fff; white-space:nowrap; overflow:hidden; }
     .tbl-builder-table td:focus { background:rgba(108,99,255,0.1); outline:2px solid var(--primary); outline-offset:-2px; }
     .tbl-builder-table td[data-header="true"] { background:rgba(108,99,255,0.2); color:#a78bfa; font-weight:700; }
-
-    /* Question preview panel */
     .q-preview-panel { background:rgba(255,255,255,0.02); border:1px solid rgba(108,99,255,0.25); border-radius:12px; padding:18px; margin-top:12px; }
     .q-preview-label { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:14px; }
     .q-preview-qtext { font-size:16px; font-weight:600; color:#fff; line-height:1.7; margin-bottom:12px; }
@@ -212,9 +203,11 @@
     <button class="nav-item"        data-sec="results"  onclick="showSection('results')"> <span class="nav-icon">📈</span> Results</button>
     <button class="nav-item"        data-sec="grading"  onclick="showSection('grading')"> <span class="nav-icon">✏️</span>  Grading</button>
     <div class="sb-sep">Links</div>
-    <a class="nav-item" href="/institution/student/exam.html" target="_blank"><span class="nav-icon">🎓</span> Student Portal</a>
-    <a class="nav-item" href="/institution/school/dashboard.html">            <span class="nav-icon">🏫</span> School Admin</a>
-    <a class="nav-item" href="/institution/index.html">                       <span class="nav-icon">🏠</span> Home</a>
+    <!-- ✅ PHASE I: Reports page link -->
+    <a class="nav-item" href="/institution/teacher/reports.html">               <span class="nav-icon">📋</span> Reports &amp; Export</a>
+    <a class="nav-item" href="/institution/student/exam.html" target="_blank">  <span class="nav-icon">🎓</span> Student Portal</a>
+    <a class="nav-item" href="/institution/school/dashboard.html">              <span class="nav-icon">🏫</span> School Admin</a>
+    <a class="nav-item" href="/institution/index.html">                         <span class="nav-icon">🏠</span> Home</a>
   </nav>
   <div class="sb-footer">
     <button class="nav-item" style="color:var(--red);" onclick="instLogout()"><span class="nav-icon">🚪</span> Logout</button>
@@ -224,7 +217,7 @@
 <!-- MAIN -->
 <div class="main">
   <div class="mobile-bar">
-    <button class="ham-btn" onclick="openSidebar()">☰</button>
+    <button class="ham-btn" onclick="openSidebar()">&#9776;</button>
     <span style="font-size:15px; font-weight:800;">📝 Teacher Dashboard</span>
     <span style="font-size:12px; color:var(--muted);" id="mobileSec">Overview</span>
   </div>
@@ -258,6 +251,7 @@
           <button class="btn btn-primary"   onclick="openCreateExamModal()">+ Create Exam</button>
           <button class="btn btn-secondary" onclick="showSection('results')">📈 View Results</button>
           <button class="btn btn-secondary" onclick="showSection('grading')">✏️ Grade Theory</button>
+          <a      class="btn btn-secondary" href="/institution/teacher/reports.html">📋 Reports &amp; Export</a>
         </div>
       </div>
     </div>
@@ -282,9 +276,12 @@
     <div class="section" id="sec-results">
       <div class="page-header">
         <div><h1>Exam Results</h1><p>Student submissions and scores</p></div>
-        <select id="resultExamFilter" class="sel" style="width:auto; padding:8px 12px;" onchange="filterResults()">
-          <option value="">All Exams</option>
-        </select>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <select id="resultExamFilter" class="sel" style="width:auto; padding:8px 12px;" onchange="filterResults()">
+            <option value="">All Exams</option>
+          </select>
+          <a class="btn btn-secondary btn-sm" href="/institution/teacher/reports.html">📋 Full Reports</a>
+        </div>
       </div>
       <div class="card">
         <div class="card-head">
@@ -328,7 +325,7 @@
   <div class="modal-box modal-box-wide">
     <div class="modal-header">
       <h2 id="examModalTitle">Create New Exam</h2>
-      <button class="modal-close" onclick="closeModal('examModal')">✕</button>
+      <button class="modal-close" onclick="closeModal('examModal')">&#10005;</button>
     </div>
     <div id="examModalErr" style="display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); padding:12px; border-radius:8px; font-size:13px; margin-bottom:16px;"></div>
     <input type="hidden" id="editExamId" />
@@ -353,7 +350,7 @@
       <div class="field"><label>Session</label><input type="text" id="exSession" class="inp" placeholder="e.g. 2024/2025" /></div>
     </div>
     <div style="background:rgba(108,99,255,0.06); border:1px solid rgba(108,99,255,0.2); border-radius:10px; padding:16px; margin-bottom:16px;">
-      <div style="font-size:13px; font-weight:700; color:#a78bfa; margin-bottom:12px;">⏰ Exam Access Window (optional)</div>
+      <div style="font-size:13px; font-weight:700; color:#a78bfa; margin-bottom:12px;">Exam Access Window (optional)</div>
       <div class="field-row">
         <div class="field" style="margin-bottom:0;"><label>Activates At</label><input type="datetime-local" id="exScheduledStart" class="inp" /><div class="field-hint">Students cannot enter before this time</div></div>
         <div class="field" style="margin-bottom:0;"><label>Expires At</label><input type="datetime-local" id="exScheduledEnd" class="inp" /><div class="field-hint">Code stops working after this time</div></div>
@@ -380,13 +377,13 @@
         <h2 id="detailExamTitle">Exam Questions</h2>
         <div id="detailExamMeta" style="font-size:13px; color:var(--muted); margin-top:4px;"></div>
       </div>
-      <button class="modal-close" onclick="closeModal('examDetailModal')">✕</button>
+      <button class="modal-close" onclick="closeModal('examDetailModal')">&#10005;</button>
     </div>
     <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:20px;">
       <div id="detailAccessCode" style="background:rgba(108,99,255,0.12); border:1px solid rgba(108,99,255,0.25); border-radius:10px; padding:10px 18px; font-family:monospace; font-size:18px; font-weight:900; color:#a78bfa; letter-spacing:4px;"></div>
-      <button class="btn btn-sm btn-secondary" onclick="copyAccessCode()">📋 Copy Code</button>
-      <button class="btn btn-sm btn-green"  id="publishBtn"  onclick="publishExam()">🚀 Publish Exam</button>
-      <button class="btn btn-sm btn-danger" id="endExamBtn"  onclick="endCurrentExam()" style="display:none;">⏹ End Exam</button>
+      <button class="btn btn-sm btn-secondary" onclick="copyAccessCode()">Copy Code</button>
+      <button class="btn btn-sm btn-green"  id="publishBtn"  onclick="publishExam()">Publish Exam</button>
+      <button class="btn btn-sm btn-danger" id="endExamBtn"  onclick="endCurrentExam()" style="display:none;">End Exam</button>
     </div>
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
       <div style="font-size:15px; font-weight:700; color:#fff;">Questions <span id="qCountBadge" style="font-size:13px; color:var(--muted); font-weight:400;"></span></div>
@@ -401,19 +398,13 @@
   </div>
 </div>
 
-<!-- ============================================
-     ADD QUESTION MODAL
-     ✅ PHASE G: Image preview, audio, table builder,
-     live preview panel
-============================================ -->
+<!-- ===== ADD QUESTION MODAL ===== -->
 <div class="modal-overlay" id="addQuestionModal" style="display:none;">
   <div class="modal-box modal-box-wide" style="max-width:660px;">
     <div class="modal-header">
       <h2>Add Question</h2>
-      <button class="modal-close" onclick="closeModal('addQuestionModal')">✕</button>
+      <button class="modal-close" onclick="closeModal('addQuestionModal')">&#10005;</button>
     </div>
-
-    <!-- Question Type -->
     <div class="field">
       <label>Question Type</label>
       <select id="qType" class="sel" onchange="onQuestionTypeChange()">
@@ -423,30 +414,20 @@
         <option value="fill_in_blank">Fill in the Blank</option>
       </select>
     </div>
-
-    <!-- Question Text -->
     <div class="field">
       <label>Question Text <span>*</span></label>
       <textarea id="qText" class="tex" rows="3" placeholder="Enter your question here... Use $formula$ for math" oninput="updateMathPreview(); updateQPreview();"></textarea>
-      <div class="field-hint">
-        Math: <code style="background:rgba(255,255,255,0.08); padding:1px 5px; border-radius:3px; font-family:monospace; color:#a78bfa;">$x^2$</code> inline &nbsp;·&nbsp;
-        <code style="background:rgba(255,255,255,0.08); padding:1px 5px; border-radius:3px; font-family:monospace; color:#a78bfa;">$$formula$$</code> display block
-      </div>
+      <div class="field-hint">Math: <code style="background:rgba(255,255,255,0.08); padding:1px 5px; border-radius:3px; font-family:monospace; color:#a78bfa;">$x^2$</code> inline &nbsp;&#183;&nbsp; <code style="background:rgba(255,255,255,0.08); padding:1px 5px; border-radius:3px; font-family:monospace; color:#a78bfa;">$$formula$$</code> display block</div>
     </div>
-
-    <!-- Math Preview -->
     <div id="mathPreviewWrap" style="display:none; margin-bottom:16px;">
       <div style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;">Math Preview</div>
       <div class="math-preview" id="mathPreviewEl"></div>
     </div>
-
-    <!-- Math Guide -->
     <div class="math-help-box" style="margin-bottom:16px;">
-      <strong style="color:#fff; font-size:12px;">📐 Math / Science Notation</strong><br/>
-      <code>$x^2$</code> → x² &nbsp;·&nbsp; <code>$H_2SO_4$</code> → H₂SO₄ &nbsp;·&nbsp; <code>$\sqrt{25}$</code> → √25<br/>
-      <code>$\frac{a}{b}$</code> → fraction &nbsp;·&nbsp; <code>$F = ma$</code> → F = ma &nbsp;·&nbsp; <code>$$...$$</code> large equation
+      <strong style="color:#fff; font-size:12px;">Math / Science Notation</strong><br/>
+      <code>$x^2$</code> x² &nbsp;&#183;&nbsp; <code>$H_2SO_4$</code> H2SO4 &nbsp;&#183;&nbsp; <code>$\sqrt{25}$</code> sqrt(25)<br/>
+      <code>$\frac{a}{b}$</code> fraction &nbsp;&#183;&nbsp; <code>$F = ma$</code> F = ma &nbsp;&#183;&nbsp; <code>$$...$$</code> large equation
     </div>
-
     <!-- ✅ PHASE G: Image URL + Live Preview -->
     <div class="field">
       <label>Image URL (optional)</label>
@@ -454,45 +435,38 @@
       <div class="field-hint">Tip: upload to imgur.com or cloudinary.com for free hosting</div>
       <div id="qImagePreview" class="img-preview-wrap" style="display:none;">
         <img id="qImagePreviewImg" src="" alt="Image Preview" onerror="document.getElementById('qImagePreview').style.display='none'" />
-        <button type="button" class="remove-btn" onclick="clearQImage()">✕ Remove image</button>
+        <button type="button" class="remove-btn" onclick="clearQImage()">Remove image</button>
       </div>
     </div>
-
     <!-- ✅ PHASE G: Audio URL -->
     <div class="field">
       <label>Audio URL (optional)</label>
       <input type="url" id="qAudio" class="inp" placeholder="https://... (.mp3, .wav, .ogg)" oninput="onAudioUrlInput(this.value)" />
       <div class="field-hint">Students will see an audio player and must listen before answering</div>
-      <div id="qAudioPreview" class="audio-preview-wrap" style="display:none;">
-        <audio id="qAudioPreviewEl" controls></audio>
-      </div>
+      <div id="qAudioPreview" class="audio-preview-wrap" style="display:none;"><audio id="qAudioPreviewEl" controls></audio></div>
     </div>
-
     <!-- ✅ PHASE G: Table Builder -->
     <div class="field">
       <label>Data Table (optional)</label>
       <div class="tbl-controls">
-        <label>Rows:</label>
-        <input type="number" id="tblRows" class="tbl-num-inp" value="3" min="1" max="10" />
-        <label>Cols:</label>
-        <input type="number" id="tblCols" class="tbl-num-inp" value="3" min="1" max="8" />
-        <button type="button" class="btn btn-secondary btn-sm" onclick="buildQTable()">🔧 Build Table</button>
-        <button type="button" class="btn btn-danger btn-sm" id="clearTblBtn" onclick="clearQTable()" style="display:none;">✕ Remove</button>
+        <label>Rows:</label><input type="number" id="tblRows" class="tbl-num-inp" value="3" min="1" max="10" />
+        <label>Cols:</label><input type="number" id="tblCols" class="tbl-num-inp" value="3" min="1" max="8" />
+        <button type="button" class="btn btn-secondary btn-sm" onclick="buildQTable()">Build Table</button>
+        <button type="button" class="btn btn-danger btn-sm" id="clearTblBtn" onclick="clearQTable()" style="display:none;">Remove</button>
       </div>
       <div id="qTableBuilderWrap" style="display:none;">
-        <div class="field-hint" style="margin-bottom:8px;">Click any cell to edit. First row = column headers (shown in purple).</div>
+        <div class="field-hint" style="margin-bottom:8px;">Click any cell to edit. First row = column headers.</div>
         <div id="qTableGrid" class="tbl-grid-wrap"></div>
       </div>
       <input type="hidden" id="qTableHtml" />
     </div>
-
     <!-- Objective Options -->
     <div id="objectiveSection">
       <div style="font-size:12px; font-weight:700; color:var(--secondary); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:12px;">Answer Options</div>
-      <div class="field"><label>Option A <span>*</span></label><input type="text" id="qOptA" class="inp" placeholder="First option" oninput="updateQPreview()" /></div>
+      <div class="field"><label>Option A <span>*</span></label><input type="text" id="qOptA" class="inp" placeholder="First option"  oninput="updateQPreview()" /></div>
       <div class="field"><label>Option B <span>*</span></label><input type="text" id="qOptB" class="inp" placeholder="Second option" oninput="updateQPreview()" /></div>
-      <div class="field"><label>Option C</label><input type="text" id="qOptC" class="inp" placeholder="Third option (optional)" oninput="updateQPreview()" /></div>
-      <div class="field"><label>Option D</label><input type="text" id="qOptD" class="inp" placeholder="Fourth option (optional)" oninput="updateQPreview()" /></div>
+      <div class="field"><label>Option C</label>              <input type="text" id="qOptC" class="inp" placeholder="Third option (optional)"  oninput="updateQPreview()" /></div>
+      <div class="field"><label>Option D</label>              <input type="text" id="qOptD" class="inp" placeholder="Fourth option (optional)" oninput="updateQPreview()" /></div>
       <div class="field">
         <label>Correct Answer <span>*</span></label>
         <select id="qCorrect" class="sel" onchange="updateQPreview()">
@@ -504,51 +478,38 @@
         </select>
       </div>
     </div>
-
     <!-- True/False -->
     <div id="trueFalseSection" style="display:none;">
-      <div class="field">
-        <label>Correct Answer <span>*</span></label>
-        <select id="qTrueFalse" class="sel"><option value="0">True</option><option value="1">False</option></select>
-      </div>
+      <div class="field"><label>Correct Answer <span>*</span></label><select id="qTrueFalse" class="sel"><option value="0">True</option><option value="1">False</option></select></div>
     </div>
-
     <!-- Theory -->
     <div id="theorySection" style="display:none;">
       <div class="field"><label>Model Answer (teacher reference only)</label><textarea id="qModelAnswer" class="tex" rows="3" placeholder="Expected answer — shown only during grading..."></textarea></div>
       <div class="field"><label>Mark Scheme</label><textarea id="qMarkScheme" class="tex" rows="2" placeholder="e.g. Award 2 marks for mentioning photosynthesis..."></textarea></div>
     </div>
-
     <div class="field-row">
       <div class="field"><label>Marks</label><input type="number" id="qMarks" class="inp" value="1" min="1" max="100" /></div>
       <div class="field"><label>Difficulty</label><select id="qDifficulty" class="sel"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></div>
     </div>
     <div class="field"><label>Topic (optional)</label><input type="text" id="qTopic" class="inp" placeholder="e.g. Algebra, Photosynthesis" /></div>
     <div class="field"><label>Explanation (shown after exam)</label><textarea id="qExplanation" class="tex" rows="2" placeholder="Why is this the correct answer?"></textarea></div>
-
     <!-- ✅ PHASE G: Question Preview Toggle -->
     <div style="margin-bottom:16px;">
-      <button type="button" class="btn btn-secondary btn-sm" onclick="toggleQPreview()" id="previewToggleBtn">👁 Show Preview</button>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="toggleQPreview()" id="previewToggleBtn">Show Preview</button>
       <div id="qPreviewWrap" style="display:none;">
         <div class="q-preview-panel">
-          <div class="q-preview-label">👁 Student View Preview</div>
-          <!-- Audio preview -->
+          <div class="q-preview-label">Student View Preview</div>
           <div id="pvAudio" style="display:none;" class="q-preview-audio-wrap">
-            <div class="q-preview-audio-label">🔊 Listen before answering</div>
+            <div class="q-preview-audio-label">Listen before answering</div>
             <audio id="pvAudioEl" controls style="width:100%;"></audio>
           </div>
-          <!-- Question text -->
           <div class="q-preview-qtext" id="pvText"></div>
-          <!-- Image -->
           <div id="pvImage" style="display:none; margin-bottom:12px;"><img src="" alt="" style="max-width:100%; max-height:200px; border-radius:8px;" /></div>
-          <!-- Table -->
           <div id="pvTable" style="display:none; overflow-x:auto; margin-bottom:12px;"></div>
-          <!-- Options -->
           <div id="pvOptions"></div>
         </div>
       </div>
     </div>
-
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('addQuestionModal')">Cancel</button>
       <button class="btn btn-primary" id="saveQBtn" onclick="saveQuestion()">Add Question</button>
@@ -564,7 +525,7 @@
         <h2 id="gradeModalTitle">Grade Submission</h2>
         <div id="gradeModalMeta" style="font-size:13px; color:var(--muted); margin-top:4px;"></div>
       </div>
-      <button class="modal-close" onclick="closeModal('gradeModal')">✕</button>
+      <button class="modal-close" onclick="closeModal('gradeModal')">&#10005;</button>
     </div>
     <div id="gradeQuestionsContainer"></div>
     <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:10px; padding:16px; margin:16px 0;">
@@ -573,7 +534,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('gradeModal')">Cancel</button>
-      <button class="btn btn-green" id="submitGradeBtn" onclick="submitGrades()">✅ Submit Grades</button>
+      <button class="btn btn-green" id="submitGradeBtn" onclick="submitGrades()">Submit Grades</button>
     </div>
   </div>
 </div>
@@ -585,6 +546,7 @@
    INSTITUTION TEACHER DASHBOARD
    ✅ PHASE G: Image preview, audio, table builder,
                question preview panel
+   ✅ PHASE I: Reports link added to sidebar
 ============================================ */
 
 var _myExams        = [];
@@ -594,11 +556,9 @@ var _activeResultId = null;
 var _gradeAnswers   = [];
 var _schoolUser     = null;
 
-/* ✅ PHASE G: Table builder state */
 var _qTableData     = [];
 var _previewVisible = false;
 
-/* ---- KaTeX ---- */
 var _katexOpts = {
   delimiters: [
     { left:'$$', right:'$$', display:true },
@@ -607,28 +567,24 @@ var _katexOpts = {
   throwOnError: false
 };
 function katexRender(el) {
-  if (!el || !window._katexReady || typeof renderMathInElement === 'undefined') return;
+  if (!el || !window._katexReady || typeof renderMathInElement === 'undefined') { return; }
   try { renderMathInElement(el, _katexOpts); } catch(e) {}
 }
 
-/* ---- Live math preview ---- */
 function updateMathPreview() {
   var text = (document.getElementById('qText')||{}).value || '';
   var wrap = document.getElementById('mathPreviewWrap');
   var prev = document.getElementById('mathPreviewEl');
-  if (!wrap || !prev) return;
+  if (!wrap || !prev) { return; }
   var hasMath = text.indexOf('$') !== -1;
   wrap.style.display = hasMath ? 'block' : 'none';
   if (hasMath) { prev.textContent = text; katexRender(prev); }
 }
 
-/* ============================================
-   ✅ PHASE G: IMAGE PREVIEW
-============================================ */
 function onImageUrlInput(url) {
   var wrap = document.getElementById('qImagePreview');
   var img  = document.getElementById('qImagePreviewImg');
-  if (!wrap || !img) return;
+  if (!wrap || !img) { return; }
   if (url && url.length > 10 && (url.startsWith('http') || url.startsWith('data:'))) {
     img.src = url;
     img.onerror = function() { wrap.style.display='none'; };
@@ -641,34 +597,27 @@ function onImageUrlInput(url) {
 
 function clearQImage() {
   var el = document.getElementById('qImage');
-  if (el) el.value = '';
+  if (el) { el.value = ''; }
   onImageUrlInput('');
 }
 
-/* ============================================
-   ✅ PHASE G: AUDIO PREVIEW
-============================================ */
 function onAudioUrlInput(url) {
   var wrap  = document.getElementById('qAudioPreview');
   var audio = document.getElementById('qAudioPreviewEl');
-  if (!wrap || !audio) return;
+  if (!wrap || !audio) { return; }
   if (url && url.length > 10) {
-    audio.src          = url;
+    audio.src = url;
     wrap.style.display = 'block';
   } else {
     wrap.style.display = 'none';
-    audio.src          = '';
+    audio.src = '';
   }
   updateQPreview();
 }
 
-/* ============================================
-   ✅ PHASE G: TABLE BUILDER
-============================================ */
 function buildQTable() {
   var rows = Math.min(Math.max(parseInt((document.getElementById('tblRows')||{}).value)||3, 1), 10);
   var cols = Math.min(Math.max(parseInt((document.getElementById('tblCols')||{}).value)||3, 1), 8);
-
   _qTableData = [];
   for (var r = 0; r < rows; r++) {
     _qTableData.push([]);
@@ -676,18 +625,17 @@ function buildQTable() {
       _qTableData[r].push(r === 0 ? 'Column ' + (c+1) : '');
     }
   }
-
   renderQTableGrid();
   var wrap = document.getElementById('qTableBuilderWrap');
   var btn  = document.getElementById('clearTblBtn');
-  if (wrap) wrap.style.display = 'block';
-  if (btn)  btn.style.display  = 'inline-flex';
+  if (wrap) { wrap.style.display = 'block'; }
+  if (btn)  { btn.style.display  = 'inline-flex'; }
   saveQTableHtml();
 }
 
 function renderQTableGrid() {
   var grid = document.getElementById('qTableGrid');
-  if (!grid) return;
+  if (!grid) { return; }
   var html = '<table class="tbl-builder-table">';
   for (var r = 0; r < _qTableData.length; r++) {
     html += '<tr>';
@@ -707,13 +655,13 @@ function renderQTableGrid() {
 function onQTableCell(el) {
   var r = parseInt(el.dataset.r);
   var c = parseInt(el.dataset.c);
-  if (_qTableData[r] !== undefined) _qTableData[r][c] = el.innerText || '';
+  if (_qTableData[r] !== undefined) { _qTableData[r][c] = el.innerText || ''; }
 }
 
 function saveQTableHtml() {
   if (!_qTableData || _qTableData.length === 0) {
     var el = document.getElementById('qTableHtml');
-    if (el) el.value = '';
+    if (el) { el.value = ''; }
     updateQPreview(); return;
   }
   var html = '<table class="q-table">';
@@ -727,7 +675,7 @@ function saveQTableHtml() {
   }
   html += '</table>';
   var el = document.getElementById('qTableHtml');
-  if (el) el.value = html;
+  if (el) { el.value = html; }
   updateQPreview();
 }
 
@@ -737,10 +685,10 @@ function clearQTable() {
   var wrap = document.getElementById('qTableBuilderWrap');
   var btn  = document.getElementById('clearTblBtn');
   var grid = document.getElementById('qTableGrid');
-  if (el)   el.value             = '';
-  if (wrap) wrap.style.display   = 'none';
-  if (btn)  btn.style.display    = 'none';
-  if (grid) grid.innerHTML       = '';
+  if (el)   { el.value           = ''; }
+  if (wrap) { wrap.style.display = 'none'; }
+  if (btn)  { btn.style.display  = 'none'; }
+  if (grid) { grid.innerHTML     = ''; }
   updateQPreview();
 }
 
@@ -748,62 +696,51 @@ function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-/* ============================================
-   ✅ PHASE G: QUESTION PREVIEW PANEL
-============================================ */
 function toggleQPreview() {
   _previewVisible = !_previewVisible;
   var wrap = document.getElementById('qPreviewWrap');
   var btn  = document.getElementById('previewToggleBtn');
-  if (wrap) wrap.style.display = _previewVisible ? 'block' : 'none';
-  if (btn)  btn.textContent    = _previewVisible ? '👁 Hide Preview' : '👁 Show Preview';
-  if (_previewVisible) updateQPreview();
+  if (wrap) { wrap.style.display = _previewVisible ? 'block' : 'none'; }
+  if (btn)  { btn.textContent    = _previewVisible ? 'Hide Preview' : 'Show Preview'; }
+  if (_previewVisible) { updateQPreview(); }
 }
 
 function updateQPreview() {
-  if (!_previewVisible) return;
-  var text     = (document.getElementById('qText')      ||{}).value || '';
-  var imageUrl = (document.getElementById('qImage')     ||{}).value || '';
-  var audioUrl = (document.getElementById('qAudio')     ||{}).value || '';
-  var tableHtml= (document.getElementById('qTableHtml') ||{}).value || '';
-  var optA     = (document.getElementById('qOptA')      ||{}).value || '';
-  var optB     = (document.getElementById('qOptB')      ||{}).value || '';
-  var optC     = (document.getElementById('qOptC')      ||{}).value || '';
-  var optD     = (document.getElementById('qOptD')      ||{}).value || '';
-  var correct  = parseInt((document.getElementById('qCorrect')||{}).value);
-  var letters  = ['A','B','C','D'];
-  var options  = [optA,optB,optC,optD].filter(function(o){return o.trim();});
+  if (!_previewVisible) { return; }
+  var text      = (document.getElementById('qText')      ||{}).value || '';
+  var imageUrl  = (document.getElementById('qImage')     ||{}).value || '';
+  var audioUrl  = (document.getElementById('qAudio')     ||{}).value || '';
+  var tableHtml = (document.getElementById('qTableHtml') ||{}).value || '';
+  var optA      = (document.getElementById('qOptA')      ||{}).value || '';
+  var optB      = (document.getElementById('qOptB')      ||{}).value || '';
+  var optC      = (document.getElementById('qOptC')      ||{}).value || '';
+  var optD      = (document.getElementById('qOptD')      ||{}).value || '';
+  var correct   = parseInt((document.getElementById('qCorrect')||{}).value);
+  var letters   = ['A','B','C','D'];
+  var options   = [optA,optB,optC,optD].filter(function(o){return o.trim();});
 
-  /* Audio */
-  var pvAudio = document.getElementById('pvAudio');
+  var pvAudio   = document.getElementById('pvAudio');
   var pvAudioEl = document.getElementById('pvAudioEl');
   if (pvAudio && pvAudioEl) {
     if (audioUrl) { pvAudioEl.src=audioUrl; pvAudio.style.display='block'; }
     else { pvAudio.style.display='none'; pvAudioEl.src=''; }
   }
 
-  /* Text */
   var pvText = document.getElementById('pvText');
   if (pvText) { pvText.textContent = text; katexRender(pvText); }
 
-  /* Image */
   var pvImage = document.getElementById('pvImage');
   if (pvImage) {
-    if (imageUrl) {
-      var img = pvImage.querySelector('img');
-      if (img) img.src = imageUrl;
-      pvImage.style.display = 'block';
-    } else { pvImage.style.display = 'none'; }
+    if (imageUrl) { var img=pvImage.querySelector('img'); if(img)img.src=imageUrl; pvImage.style.display='block'; }
+    else { pvImage.style.display = 'none'; }
   }
 
-  /* Table */
   var pvTable = document.getElementById('pvTable');
   if (pvTable) {
-    if (tableHtml) { pvTable.innerHTML = tableHtml; pvTable.style.display='block'; }
+    if (tableHtml) { pvTable.innerHTML=tableHtml; pvTable.style.display='block'; }
     else { pvTable.innerHTML=''; pvTable.style.display='none'; }
   }
 
-  /* Options */
   var pvOpts = document.getElementById('pvOptions');
   if (pvOpts) {
     pvOpts.innerHTML = options.map(function(opt, i) {
@@ -811,7 +748,7 @@ function updateQPreview() {
       return '<div class="q-preview-option' + (isCorrect ? ' correct' : '') + '">' +
         '<span class="q-preview-opt-letter">' + letters[i] + '</span>' +
         '<span style="font-size:14px; color:#fff; flex:1;">' + opt + '</span>' +
-        (isCorrect ? '<span style="font-size:11px; font-weight:700; color:var(--green); margin-left:auto;">✓ Correct</span>' : '') +
+        (isCorrect ? '<span style="font-size:11px; font-weight:700; color:var(--green); margin-left:auto;">Correct</span>' : '') +
       '</div>';
     }).join('');
   }
@@ -819,62 +756,60 @@ function updateQPreview() {
 
 /* ============================================ INIT */
 document.addEventListener('DOMContentLoaded', async function() {
-  if (!instRequireAuth()) return;
+  if (!instRequireAuth()) { return; }
   _schoolUser = instGetUser();
-  if (!_schoolUser) return;
+  if (!_schoolUser) { return; }
   fillSidebar();
   await loadOverview();
   var yearEl = document.getElementById('exYear');
-  if (yearEl) yearEl.value = new Date().getFullYear();
+  if (yearEl) { yearEl.value = new Date().getFullYear(); }
 });
 
 function fillSidebar() {
-  var u = _schoolUser; if (!u) return;
-  var av=document.getElementById('sbAvatar'); if(av)av.textContent=(u.name||'T').charAt(0).toUpperCase();
-  var nm=document.getElementById('sbName');   if(nm)nm.textContent=u.name||'—';
-  var rl=document.getElementById('sbRole');   if(rl)rl.textContent=u.role==='vice_principal'?'Vice Principal':'Teacher';
-  var sc=document.getElementById('sbSchoolTag'); if(sc)sc.textContent='🏫 My School';
+  var u = _schoolUser; if (!u) { return; }
+  var av=document.getElementById('sbAvatar');    if(av) { av.textContent=(u.name||'T').charAt(0).toUpperCase(); }
+  var nm=document.getElementById('sbName');      if(nm) { nm.textContent=u.name||'—'; }
+  var rl=document.getElementById('sbRole');      if(rl) { rl.textContent=u.role==='vice_principal'?'Vice Principal':'Teacher'; }
+  var sc=document.getElementById('sbSchoolTag'); if(sc) { sc.textContent='My School'; }
 }
 
-/* ============================================ SECTION NAV */
 function showSection(name) {
   document.querySelectorAll('.section').forEach(function(s){s.classList.remove('active');});
   document.querySelectorAll('.nav-item[data-sec]').forEach(function(n){n.classList.remove('active');});
   var sec=document.getElementById('sec-'+name); if(sec)sec.classList.add('active');
   var nav=document.querySelector('.nav-item[data-sec="'+name+'"]'); if(nav)nav.classList.add('active');
-  var ml=document.getElementById('mobileSec'); var labels={overview:'Overview',exams:'Exams',results:'Results',grading:'Grading'};
+  var ml=document.getElementById('mobileSec');
+  var labels={overview:'Overview',exams:'Exams',results:'Results',grading:'Grading'};
   if(ml)ml.textContent=labels[name]||name;
-  if(window.innerWidth<=960)closeSidebar();
-  if(name==='exams')loadExams();
-  if(name==='results')loadResults();
-  if(name==='grading')loadGradingExamList();
+  if(window.innerWidth<=960){closeSidebar();}
+  if(name==='exams'){loadExams();}
+  if(name==='results'){loadResults();}
+  if(name==='grading'){loadGradingExamList();}
 }
 
 function openSidebar()  { document.getElementById('sidebar').classList.add('open');    document.getElementById('sidebarOverlay').classList.add('visible');    document.body.style.overflow='hidden'; }
 function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('visible'); document.body.style.overflow=''; }
 
-/* ============================================ OVERVIEW */
 async function loadOverview() {
   var res = await instApi('/teacher/exams');
   if (!res.ok) { instToast('Failed to load dashboard.', 'error'); return; }
   _myExams = res.data.exams || [];
   var published   = _myExams.filter(function(e){return e.status==='published'||e.status==='active';}).length;
   var submissions = _myExams.reduce(function(s,e){return s+(e.totalAttempts||0);},0);
-  document.getElementById('stTotalExams').textContent   = _myExams.length;
-  document.getElementById('stPublished').textContent    = published;
-  document.getElementById('stSubmissions').textContent  = submissions;
-  document.getElementById('stPendingGrade').textContent = '—';
+  document.getElementById('stTotalExams').textContent  = _myExams.length;
+  document.getElementById('stPublished').textContent   = published;
+  document.getElementById('stSubmissions').textContent = submissions;
+  document.getElementById('stPendingGrade').textContent= '—';
   var wt=document.getElementById('welcomeTitle'); if(wt&&_schoolUser)wt.textContent='Welcome, '+(_schoolUser.name||'Teacher')+'!';
   renderOverviewExams(_myExams.slice(0,5));
 }
 
 function renderOverviewExams(exams) {
-  var tbody=document.getElementById('overviewExamsBody'); if(!tbody)return;
+  var tbody=document.getElementById('overviewExamsBody'); if(!tbody){return;}
   if(!exams||exams.length===0){tbody.innerHTML='<tr><td colspan="7"><div class="empty"><div class="empty-icon">📝</div><div class="empty-title">No exams yet</div><div class="empty-sub">Create your first exam using the button above.</div></div></td></tr>';return;}
-  tbody.innerHTML=exams.map(function(e){return'<tr><td style="font-weight:700; color:#fff;">'+(e.title||'—')+'</td><td>'+(e.subject||'—')+'</td><td style="font-family:monospace; font-weight:700;">'+(e.examYear||'—')+'</td><td><span style="font-family:monospace; background:rgba(108,99,255,0.12); color:#a78bfa; padding:3px 10px; border-radius:6px; font-size:13px; font-weight:700;">'+(e.accessCode||'—')+'</span></td><td>'+statusBadge(e.status)+'</td><td style="font-weight:700;">'+(e.totalAttempts||0)+'</td><td><button class="btn btn-sm btn-secondary" onclick="openExamDetail(\''+e._id+'\')">Manage →</button></td></tr>';}).join('');
+  tbody.innerHTML=exams.map(function(e){return'<tr><td style="font-weight:700; color:#fff;">'+(e.title||'—')+'</td><td>'+(e.subject||'—')+'</td><td style="font-family:monospace; font-weight:700;">'+(e.examYear||'—')+'</td><td><span style="font-family:monospace; background:rgba(108,99,255,0.12); color:#a78bfa; padding:3px 10px; border-radius:6px; font-size:13px; font-weight:700;">'+(e.accessCode||'—')+'</span></td><td>'+statusBadge(e.status)+'</td><td style="font-weight:700;">'+(e.totalAttempts||0)+'</td><td><button class="btn btn-sm btn-secondary" onclick="openExamDetail(\''+e._id+'\')">Manage</button></td></tr>';}).join('');
 }
 
-/* ============================================ EXAMS */
 async function loadExams() {
   var res=await instApi('/teacher/exams'); if(!res.ok){instToast('Failed to load exams.','error');return;}
   _myExams=res.data.exams||[];
@@ -882,8 +817,8 @@ async function loadExams() {
   var filterSel=document.getElementById('resultExamFilter');
   if(filterSel)filterSel.innerHTML='<option value="">All Exams</option>'+_myExams.map(function(e){return'<option value="'+e._id+'">'+e.title+' — '+(e.subject||'')+'</option>';}).join('');
   var gradeSelect=document.getElementById('gradeExamSelect');
-  if(gradeSelect){var theoryExams=_myExams.filter(function(e){return e.examType==='theory'||e.examType==='mixed';});gradeSelect.innerHTML='<option value="">-- Select Exam to Grade --</option>'+theoryExams.map(function(e){return'<option value="'+e._id+'">'+e.title+' ('+( e.subject||'')+')</option>';}).join('');}
-  var tbody=document.getElementById('examsTableBody'); if(!tbody)return;
+  if(gradeSelect){var theoryExams=_myExams.filter(function(e){return e.examType==='theory'||e.examType==='mixed';});gradeSelect.innerHTML='<option value="">-- Select Exam to Grade --</option>'+theoryExams.map(function(e){return'<option value="'+e._id+'">'+e.title+' ('+(e.subject||'')+')</option>';}).join('');}
+  var tbody=document.getElementById('examsTableBody'); if(!tbody){return;}
   if(_myExams.length===0){tbody.innerHTML='<tr><td colspan="10"><div class="empty"><div class="empty-icon">📝</div><div class="empty-title">No exams yet</div></div></td></tr>';return;}
   var typeBadgeMap={objective:'badge-purple',theory:'badge-orange',mixed:'badge-yellow'};
   tbody.innerHTML=_myExams.map(function(e){return'<tr><td style="font-weight:700; color:#fff; max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">'+(e.title||'—')+'</td><td>'+(e.subject||'—')+'</td><td>'+(e.class||'—')+'</td><td><span class="badge '+(typeBadgeMap[e.examType]||'badge-muted')+'">'+(e.examType||'objective')+'</span></td><td style="font-family:monospace; font-weight:700; color:#a0a0c0;">'+(e.examYear||'—')+'</td><td><span style="font-family:monospace; font-weight:900; font-size:13px; color:#a78bfa; background:rgba(108,99,255,0.1); padding:3px 8px; border-radius:6px;">'+(e.accessCode||'—')+'</span></td><td>'+statusBadge(e.status)+'</td><td style="font-weight:700;">'+(e.totalQuestions||0)+'</td><td style="font-weight:700;">'+(e.totalAttempts||0)+'</td><td><div style="display:flex; gap:6px; flex-wrap:wrap;"><button class="btn btn-sm btn-primary" onclick="openExamDetail(\''+e._id+'\')">Manage</button>'+(e.status==='draft'?'<button class="btn btn-sm btn-green" onclick="quickPublish(\''+e._id+'\')">Publish</button>':'')+(e.status==='published'?'<button class="btn btn-sm btn-danger" onclick="quickEnd(\''+e._id+'\')">End</button>':'')+'</div></td></tr>';}).join('');
@@ -894,7 +829,6 @@ function statusBadge(status) {
   return map[status]||'<span class="badge badge-muted">'+(status||'—')+'</span>';
 }
 
-/* ============================================ CREATE/EDIT EXAM */
 function openCreateExamModal() {
   closeAllModals();
   document.getElementById('editExamId').value='';
@@ -945,20 +879,16 @@ async function saveExam() {
     scheduledStart:ssVal?new Date(ssVal).toISOString():null,
     scheduledEnd:seVal?new Date(seVal).toISOString():null
   };
-  if(!payload.title){errEl.textContent='⚠️ Exam title is required.';errEl.style.display='block';return;}
-  if(!payload.subject){errEl.textContent='⚠️ Subject is required.';errEl.style.display='block';return;}
+  if(!payload.title){errEl.textContent='Exam title is required.';errEl.style.display='block';return;}
+  if(!payload.subject){errEl.textContent='Subject is required.';errEl.style.display='block';return;}
   if(btn){btn.innerHTML='<span class="spinner"></span> Saving...';btn.disabled=true;}
   var endpoint=editId?'/teacher/exams/'+editId:'/teacher/exams';
   var res=await instApi(endpoint,editId?'PUT':'POST',payload);
   if(btn){btn.innerHTML=editId?'Save Changes':'Create Exam';btn.disabled=false;}
-  if(res.ok){
-    instToast(editId?'Exam updated!':'✅ Exam created! Now add questions.','success');
-    closeModal('examModal'); await loadExams(); await loadOverview();
-    if(!editId&&res.data.exam)setTimeout(function(){openExamDetail(res.data.exam._id);},400);
-  }else{errEl.textContent=res.data.message||'Failed to save exam.';errEl.style.display='block';}
+  if(res.ok){instToast(editId?'Exam updated!':'Exam created! Now add questions.','success');closeModal('examModal');await loadExams();await loadOverview();if(!editId&&res.data.exam)setTimeout(function(){openExamDetail(res.data.exam._id);},400);}
+  else{errEl.textContent=res.data.message||'Failed to save exam.';errEl.style.display='block';}
 }
 
-/* ============================================ EXAM DETAIL */
 async function openExamDetail(examId) {
   _activeExamId=examId; closeAllModals();
   document.getElementById('examDetailModal').style.display='flex';
@@ -977,74 +907,35 @@ async function openExamDetail(examId) {
 function renderQuestionsList(questions) {
   var container=document.getElementById('questionsList');
   var countBadge=document.getElementById('qCountBadge');
-  if(countBadge)countBadge.textContent='('+questions.length+' question'+(questions.length!==1?'s':'')+ ')';
-  if(!questions||questions.length===0){
-    container.innerHTML='<div class="empty" style="padding:32px;"><div class="empty-icon">📋</div><div class="empty-title">No questions yet</div><div class="empty-sub">Add questions using the "+ Add Question" button above.</div></div>';
-    return;
-  }
+  if(countBadge)countBadge.textContent='('+questions.length+' question'+(questions.length!==1?'s':'')+')';
+  if(!questions||questions.length===0){container.innerHTML='<div class="empty" style="padding:32px;"><div class="empty-icon">📋</div><div class="empty-title">No questions yet</div><div class="empty-sub">Add questions using the button above.</div></div>';return;}
   var letters=['A','B','C','D'];
   container.innerHTML=questions.map(function(q,i){
-    var rowId='qrow_'+i;
-    var opts='';
-    if(q.questionType==='objective'||q.questionType==='fill_in_blank'){
-      opts=(q.options||[]).map(function(opt,idx){var isCorrect=idx===q.correctAnswer;return'<span style="font-size:12px; padding:2px 8px; border-radius:5px; margin-right:4px; background:'+(isCorrect?'rgba(67,233,123,0.15)':'rgba(255,255,255,0.04)')+'; color:'+(isCorrect?'var(--green)':'var(--secondary)')+'; border:1px solid '+(isCorrect?'rgba(67,233,123,0.3)':'var(--border)')+';">'+letters[idx]+': '+opt+(isCorrect?' ✓':'')+'</span>';}).join('');
-    }else if(q.questionType==='true_false'){
-      opts='<span style="font-size:12px; color:var(--green);">Answer: '+(q.correctAnswer===0?'True':'False')+'</span>';
-    }else{
-      opts='<span style="font-size:12px; color:var(--muted); font-style:italic;">Theory — manual grading</span>';
-    }
-
-    /* ✅ PHASE G: Show rich content indicators */
+    var rowId='qrow_'+i; var opts='';
+    if(q.questionType==='objective'||q.questionType==='fill_in_blank'){opts=(q.options||[]).map(function(opt,idx){var isCorrect=idx===q.correctAnswer;return'<span style="font-size:12px; padding:2px 8px; border-radius:5px; margin-right:4px; background:'+(isCorrect?'rgba(67,233,123,0.15)':'rgba(255,255,255,0.04)')+'; color:'+(isCorrect?'var(--green)':'var(--secondary)')+'; border:1px solid '+(isCorrect?'rgba(67,233,123,0.3)':'var(--border)')+';">'+letters[idx]+': '+opt+(isCorrect?' (correct)':'')+'</span>';}).join('');}
+    else if(q.questionType==='true_false'){opts='<span style="font-size:12px; color:var(--green);">Answer: '+(q.correctAnswer===0?'True':'False')+'</span>';}
+    else{opts='<span style="font-size:12px; color:var(--muted); font-style:italic;">Theory — manual grading</span>';}
     var richBadges='';
-    if(q.imageUrl) richBadges+=' <span style="font-size:10px; background:rgba(67,233,123,0.1); color:var(--green); padding:2px 6px; border-radius:4px; font-weight:700;">🖼 IMG</span>';
-    if(q.audioUrl) richBadges+=' <span style="font-size:10px; background:rgba(108,99,255,0.1); color:#a78bfa; padding:2px 6px; border-radius:4px; font-weight:700;">🔊 AUDIO</span>';
-    if(q.tableHtml) richBadges+=' <span style="font-size:10px; background:rgba(255,165,0,0.1); color:var(--orange); padding:2px 6px; border-radius:4px; font-weight:700;">📊 TABLE</span>';
-
-    return '<div style="padding:14px 16px; border-bottom:1px solid var(--border);" id="'+rowId+'">'+
-      '<div style="display:flex; align-items:flex-start; gap:12px;">'+
-        '<span style="width:26px; height:26px; border-radius:6px; background:rgba(108,99,255,0.12); color:#a78bfa; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; flex-shrink:0;">'+(i+1)+'</span>'+
-        '<div style="flex:1; min-width:0;">'+
-          '<div class="q-text-render" data-qtext="'+encodeURIComponent(q.question||'')+'" style="font-size:14px; font-weight:600; color:#fff; margin-bottom:4px; line-height:1.5;">'+(q.question||'')+'</div>'+
-          richBadges+
-          (q.imageUrl?'<img src="'+q.imageUrl+'" style="max-width:100%; max-height:100px; border-radius:6px; margin:6px 0; display:block;" />':'')+
-          (q.tableHtml?'<div style="font-size:12px; color:var(--muted); margin-bottom:4px;">Table: '+((_qTableData&&_qTableData.length?_qTableData.length+' rows':'included'))+'</div>':'')+
-          (q.audioUrl?'<audio controls src="'+q.audioUrl+'" style="width:100%; max-width:240px; margin:6px 0; display:block;"></audio>':'')+
-          '<div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;">'+opts+'</div>'+
-          (q.explanation?'<div style="font-size:11px; color:var(--muted); font-style:italic; margin-top:4px;">💡 '+q.explanation+'</div>':'')+
-          '<div style="font-size:11px; color:var(--muted); margin-top:4px;">'+(q.marks||1)+' mark'+((q.marks||1)!==1?'s':'')+(q.topic?' · '+q.topic:'')+' · '+(q.difficulty||'medium')+'</div>'+
-        '</div>'+
-        '<button onclick="deleteQuestion(\''+q._id+'\')" style="padding:5px 9px; border-radius:6px; font-size:12px; cursor:pointer; font-family:inherit; background:rgba(255,101,132,0.08); border:1px solid rgba(255,101,132,0.25); color:var(--red); flex-shrink:0;">🗑</button>'+
-      '</div>'+
-    '</div>';
+    if(q.imageUrl) richBadges+=' <span style="font-size:10px; background:rgba(67,233,123,0.1); color:var(--green); padding:2px 6px; border-radius:4px; font-weight:700;">IMG</span>';
+    if(q.audioUrl) richBadges+=' <span style="font-size:10px; background:rgba(108,99,255,0.1); color:#a78bfa; padding:2px 6px; border-radius:4px; font-weight:700;">AUDIO</span>';
+    if(q.tableHtml)richBadges+=' <span style="font-size:10px; background:rgba(255,165,0,0.1); color:var(--orange); padding:2px 6px; border-radius:4px; font-weight:700;">TABLE</span>';
+    return'<div style="padding:14px 16px; border-bottom:1px solid var(--border);" id="'+rowId+'"><div style="display:flex; align-items:flex-start; gap:12px;"><span style="width:26px; height:26px; border-radius:6px; background:rgba(108,99,255,0.12); color:#a78bfa; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; flex-shrink:0;">'+(i+1)+'</span><div style="flex:1; min-width:0;"><div class="q-text-render" style="font-size:14px; font-weight:600; color:#fff; margin-bottom:4px; line-height:1.5;">'+(q.question||'')+'</div>'+richBadges+(q.imageUrl?'<img src="'+q.imageUrl+'" style="max-width:100%; max-height:100px; border-radius:6px; margin:6px 0; display:block;" />':'')+(q.audioUrl?'<audio controls src="'+q.audioUrl+'" style="width:100%; max-width:240px; margin:6px 0; display:block;"></audio>':'')+'<div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;">'+opts+'</div>'+(q.explanation?'<div style="font-size:11px; color:var(--muted); font-style:italic; margin-top:4px;">'+q.explanation+'</div>':'')+'<div style="font-size:11px; color:var(--muted); margin-top:4px;">'+(q.marks||1)+' mark'+((q.marks||1)!==1?'s':'')+(q.topic?' · '+q.topic:'')+' · '+(q.difficulty||'medium')+'</div></div><button onclick="deleteQuestion(\''+q._id+'\')" style="padding:5px 9px; border-radius:6px; font-size:12px; cursor:pointer; font-family:inherit; background:rgba(255,101,132,0.08); border:1px solid rgba(255,101,132,0.25); color:var(--red); flex-shrink:0;">Del</button></div></div>';
   }).join('');
-
-  setTimeout(function(){
-    container.querySelectorAll('.q-text-render').forEach(function(el){katexRender(el);});
-  },50);
+  setTimeout(function(){container.querySelectorAll('.q-text-render').forEach(function(el){katexRender(el);});},50);
 }
 
-/* ============================================ ADD QUESTION */
 function openAddQuestionModal() {
   if(!_activeExamId){instToast('Open an exam first.','error');return;}
-
-  /* Reset all fields */
-  ['qText','qImage','qOptA','qOptB','qOptC','qOptD','qExplanation','qModelAnswer','qMarkScheme','qTopic'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
-  ['qAudio'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
-
+  ['qText','qImage','qOptA','qOptB','qOptC','qOptD','qExplanation','qModelAnswer','qMarkScheme','qTopic','qAudio'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
   var mEl=document.getElementById('qMarks');      if(mEl)mEl.value='1';
   var dEl=document.getElementById('qDifficulty'); if(dEl)dEl.value='medium';
   var tEl=document.getElementById('qType');       if(tEl){tEl.value='objective';onQuestionTypeChange();}
   var cEl=document.getElementById('qCorrect');    if(cEl)cEl.value='';
   var pw=document.getElementById('mathPreviewWrap'); if(pw)pw.style.display='none';
-
-  /* ✅ PHASE G: Reset rich content fields */
-  onImageUrlInput('');
-  onAudioUrlInput('');
-  clearQTable();
+  onImageUrlInput(''); onAudioUrlInput(''); clearQTable();
   _previewVisible=false;
   var pvWrap=document.getElementById('qPreviewWrap'); if(pvWrap)pvWrap.style.display='none';
-  var pvBtn=document.getElementById('previewToggleBtn'); if(pvBtn)pvBtn.textContent='👁 Show Preview';
-
+  var pvBtn=document.getElementById('previewToggleBtn'); if(pvBtn)pvBtn.textContent='Show Preview';
   document.getElementById('addQuestionModal').style.display='flex';
   setTimeout(function(){var t=document.getElementById('qText');if(t)t.focus();},120);
 }
@@ -1059,85 +950,51 @@ function onQuestionTypeChange() {
 async function saveQuestion() {
   var btn=document.getElementById('saveQBtn');
   var type=(document.getElementById('qType')||{}).value;
-
   var optA=((document.getElementById('qOptA')||{}).value||'').trim();
   var optB=((document.getElementById('qOptB')||{}).value||'').trim();
   var optC=((document.getElementById('qOptC')||{}).value||'').trim();
   var optD=((document.getElementById('qOptD')||{}).value||'').trim();
-
   var options=[];
-  if(type==='objective'||type==='fill_in_blank'){
-    options=[optA,optB,optC,optD].filter(function(o){return o!=='';});
-    if(options.length<2){instToast('At least 2 options required.','error');return;}
-  }else if(type==='true_false'){
-    options=['True','False'];
-  }
-
+  if(type==='objective'||type==='fill_in_blank'){options=[optA,optB,optC,optD].filter(function(o){return o!=='';});if(options.length<2){instToast('At least 2 options required.','error');return;}}
+  else if(type==='true_false'){options=['True','False'];}
   var correctAnswer=0;
-  if(type==='objective'||type==='fill_in_blank'){
-    var cv=(document.getElementById('qCorrect')||{}).value;
-    if(cv===''||cv===undefined){instToast('Please select the correct answer.','error');return;}
-    correctAnswer=parseInt(cv);
-    if(correctAnswer>=options.length){instToast('Correct answer index out of range.','error');return;}
-  }else if(type==='true_false'){
-    correctAnswer=parseInt((document.getElementById('qTrueFalse')||{}).value)||0;
-  }
-
+  if(type==='objective'||type==='fill_in_blank'){var cv=(document.getElementById('qCorrect')||{}).value;if(cv===''||cv===undefined){instToast('Please select the correct answer.','error');return;}correctAnswer=parseInt(cv);if(correctAnswer>=options.length){instToast('Correct answer index out of range.','error');return;}}
+  else if(type==='true_false'){correctAnswer=parseInt((document.getElementById('qTrueFalse')||{}).value)||0;}
   var qText=((document.getElementById('qText')||{}).value||'').trim();
   if(!qText){instToast('Question text is required.','error');return;}
-
-  /* ✅ PHASE G: Collect rich content */
   var imageUrl  = ((document.getElementById('qImage')    ||{}).value||'').trim();
   var audioUrl  = ((document.getElementById('qAudio')    ||{}).value||'').trim();
   var tableHtml = ((document.getElementById('qTableHtml')||{}).value||'');
-
-  var payload={
-    questionType:  type,
-    question:      qText,
-    options:       options,
-    correctAnswer: correctAnswer,
-    explanation:   ((document.getElementById('qExplanation')||{}).value||'').trim(),
-    modelAnswer:   ((document.getElementById('qModelAnswer')||{}).value||'').trim(),
-    markScheme:    ((document.getElementById('qMarkScheme') ||{}).value||'').trim(),
-    marks:         parseInt((document.getElementById('qMarks')     ||{}).value)||1,
-    difficulty:    (document.getElementById('qDifficulty') ||{}).value||'medium',
-    topic:         ((document.getElementById('qTopic')     ||{}).value||'').trim(),
-    imageUrl:      imageUrl,
-    audioUrl:      audioUrl,   /* ✅ PHASE G */
-    tableHtml:     tableHtml   /* ✅ PHASE G */
-  };
-
+  var payload={questionType:type,question:qText,options:options,correctAnswer:correctAnswer,explanation:((document.getElementById('qExplanation')||{}).value||'').trim(),modelAnswer:((document.getElementById('qModelAnswer')||{}).value||'').trim(),markScheme:((document.getElementById('qMarkScheme')||{}).value||'').trim(),marks:parseInt((document.getElementById('qMarks')||{}).value)||1,difficulty:(document.getElementById('qDifficulty')||{}).value||'medium',topic:((document.getElementById('qTopic')||{}).value||'').trim(),imageUrl:imageUrl,audioUrl:audioUrl,tableHtml:tableHtml};
   if(btn){btn.innerHTML='<span class="spinner"></span>';btn.disabled=true;}
   var res=await instApi('/teacher/exams/'+_activeExamId+'/questions','POST',payload);
   if(btn){btn.innerHTML='Add Question';btn.disabled=false;}
-
-  if(res.ok){instToast('Question added! ✅','success');closeModal('addQuestionModal');openExamDetail(_activeExamId);}
+  if(res.ok){instToast('Question added!','success');closeModal('addQuestionModal');openExamDetail(_activeExamId);}
   else instToast(res.data.message||'Failed to add question.','error');
 }
 
 async function deleteQuestion(qId) {
-  if(!confirm('Delete this question? This cannot be undone.'))return;
+  if(!confirm('Delete this question? This cannot be undone.')){return;}
   var res=await instApi('/teacher/questions/'+qId,'DELETE');
   if(res.ok){instToast('Question deleted.','success');openExamDetail(_activeExamId);}
   else instToast(res.data.message||'Delete failed.','error');
 }
 
-/* ============================================ PUBLISH/END */
 function copyAccessCode() {
   var code=document.getElementById('detailAccessCode').textContent;
   navigator.clipboard.writeText(code).then(function(){instToast('Access code copied: '+code,'success');}).catch(function(){instToast('Code: '+code,'info');});
 }
 
 async function publishExam() {
-  if(!_activeExamId)return;
-  if(!confirm('Publish this exam? Students will be able to join using the access code.'))return;
+  if(!_activeExamId){return;}
+  if(!confirm('Publish this exam? Students will be able to join using the access code.')){return;}
   var res=await instApi('/teacher/exams/'+_activeExamId+'/publish','POST');
-  if(res.ok){instToast('✅ Exam published! Code: '+res.data.accessCode,'success');openExamDetail(_activeExamId);loadExams();}
+  if(res.ok){instToast('Exam published! Code: '+res.data.accessCode,'success');openExamDetail(_activeExamId);loadExams();}
   else instToast(res.data.message||'Publish failed.','error');
 }
 
 async function quickPublish(examId) {
-  if(!confirm('Publish this exam?'))return;
+  if(!confirm('Publish this exam?')){return;}
   _activeExamId=examId;
   var res=await instApi('/teacher/exams/'+examId+'/publish','POST');
   if(res.ok){instToast('Exam published! Code: '+res.data.accessCode,'success');loadExams();loadOverview();}
@@ -1145,22 +1002,21 @@ async function quickPublish(examId) {
 }
 
 async function endCurrentExam() {
-  if(!_activeExamId)return;
-  if(!confirm('End this exam? No new students can join after this.'))return;
+  if(!_activeExamId){return;}
+  if(!confirm('End this exam? No new students can join after this.')){return;}
   var res=await instApi('/teacher/exams/'+_activeExamId+'/end','POST');
   if(res.ok){instToast('Exam ended.','success');openExamDetail(_activeExamId);loadExams();}
   else instToast(res.data.message||'Failed.','error');
 }
 
 async function quickEnd(examId) {
-  if(!confirm('End this exam?'))return;
+  if(!confirm('End this exam?')){return;}
   _activeExamId=examId;
   var res=await instApi('/teacher/exams/'+examId+'/end','POST');
   if(res.ok){instToast('Exam ended.','success');loadExams();}
   else instToast(res.data.message||'Failed.','error');
 }
 
-/* ============================================ RESULTS */
 async function loadResults() {
   var examId=(document.getElementById('resultExamFilter')||{}).value;
   var url='/school/results'+(examId?'?examId='+examId:'');
@@ -1168,25 +1024,24 @@ async function loadResults() {
   _myResults=res.data.results||[];
   var heading=document.getElementById('resultsHeading'); var sumBar=document.getElementById('resultsSummaryBar');
   if(heading)heading.textContent=_myResults.length+' Submission'+(_myResults.length!==1?'s':'');
-  if(sumBar&&_myResults.length>0){var passed=_myResults.filter(function(r){return r.isPassed;}).length;var avgScore=Math.round(_myResults.reduce(function(s,r){return s+(r.scorePercent||0);},0)/_myResults.length);sumBar.innerHTML='<span style="color:var(--green);">✅ Passed: '+passed+'</span><span style="color:var(--red);">❌ Failed: '+(_myResults.length-passed)+'</span><span>📊 Avg: '+avgScore+'%</span>';}else if(sumBar)sumBar.innerHTML='';
-  var tbody=document.getElementById('resultsTableBody'); if(!tbody)return;
+  if(sumBar&&_myResults.length>0){var passed=_myResults.filter(function(r){return r.isPassed;}).length;var avgScore=Math.round(_myResults.reduce(function(s,r){return s+(r.scorePercent||0);},0)/_myResults.length);sumBar.innerHTML='<span style="color:var(--green);">Passed: '+passed+'</span><span style="color:var(--red);">Failed: '+(_myResults.length-passed)+'</span><span>Avg: '+avgScore+'%</span>';}else if(sumBar){sumBar.innerHTML='';}
+  var tbody=document.getElementById('resultsTableBody'); if(!tbody){return;}
   if(_myResults.length===0){tbody.innerHTML='<tr><td colspan="8"><div class="empty"><div class="empty-icon">📊</div><div class="empty-title">No submissions yet</div></div></td></tr>';return;}
   tbody.innerHTML=_myResults.map(function(r){
     var pct=r.scorePercent||0; var barColor=pct>=70?'var(--green)':pct>=50?'var(--orange)':'var(--red)';
     var exam=r.examId||{}; var needsGrading=!r.theoryMarked&&(exam.examType==='theory'||exam.examType==='mixed');
-    return'<tr><td style="font-weight:700; color:#fff;">'+(r.studentName||'—')+'</td><td style="font-size:13px;">'+(exam.title||'—')+'</td><td><div style="font-weight:800; color:'+barColor+';">'+pct+'%</div><div class="result-bar-wrap"><div class="result-bar-fill" style="width:'+pct+'%; background:'+barColor+';"></div></div></td><td>'+(r.isPassed?'<span class="badge badge-green">Passed</span>':'<span class="badge badge-red">Failed</span>')+'</td><td>'+(needsGrading?'<span class="badge badge-orange">Needs Grading</span>':r.theoryMarked?'<span class="badge badge-green">Graded</span>':'<span class="badge badge-muted">N/A</span>')+'</td><td>'+(r.isReleased?'<span class="badge badge-green">Released</span>':'<span class="badge badge-muted">Pending</span>')+'</td><td style="font-size:12px;">'+instFmtDate(r.createdAt)+'</td><td>'+(needsGrading?'<button class="btn btn-sm btn-orange" onclick="openGradeModal(\''+r._id+'\')">✏️ Grade</button>':'—')+'</td></tr>';
+    return'<tr><td style="font-weight:700; color:#fff;">'+(r.studentName||'—')+'</td><td style="font-size:13px;">'+(exam.title||'—')+'</td><td><div style="font-weight:800; color:'+barColor+';">'+pct+'%</div><div class="result-bar-wrap"><div class="result-bar-fill" style="width:'+pct+'%; background:'+barColor+';"></div></div></td><td>'+(r.isPassed?'<span class="badge badge-green">Passed</span>':'<span class="badge badge-red">Failed</span>')+'</td><td>'+(needsGrading?'<span class="badge badge-orange">Needs Grading</span>':r.theoryMarked?'<span class="badge badge-green">Graded</span>':'<span class="badge badge-muted">N/A</span>')+'</td><td>'+(r.isReleased?'<span class="badge badge-green">Released</span>':'<span class="badge badge-muted">Pending</span>')+'</td><td style="font-size:12px;">'+instFmtDate(r.createdAt)+'</td><td>'+(needsGrading?'<button class="btn btn-sm btn-orange" onclick="openGradeModal(\''+r._id+'\')">Grade</button>':'—')+'</td></tr>';
   }).join('');
 }
 
 function filterResults(){loadResults();}
 
-/* ============================================ GRADING */
 async function loadGradingExamList() {
   if(_myExams.length===0){var res=await instApi('/teacher/exams');if(res.ok)_myExams=res.data.exams||[];}
-  var sel=document.getElementById('gradeExamSelect'); if(!sel)return;
+  var sel=document.getElementById('gradeExamSelect'); if(!sel){return;}
   var theoryExams=_myExams.filter(function(e){return e.examType==='theory'||e.examType==='mixed';});
   sel.innerHTML='<option value="">-- Select Exam to Grade --</option>'+theoryExams.map(function(e){return'<option value="'+e._id+'">'+e.title+' — '+(e.subject||'')+'</option>';}).join('');
-  if(theoryExams.length===0)document.getElementById('gradingContent').innerHTML='<div class="empty"><div class="empty-icon">✏️</div><div class="empty-title">No theory exams</div><div class="empty-sub">Create an exam with theory or mixed questions to enable grading here.</div></div>';
+  if(theoryExams.length===0){document.getElementById('gradingContent').innerHTML='<div class="empty"><div class="empty-icon">✏️</div><div class="empty-title">No theory exams</div><div class="empty-sub">Create an exam with theory or mixed questions to enable grading here.</div></div>';}
 }
 
 async function loadGradingQueue() {
@@ -1194,9 +1049,9 @@ async function loadGradingQueue() {
   var content=document.getElementById('gradingContent'); if(content)content.innerHTML='<div style="text-align:center; padding:32px; color:var(--muted);">Loading submissions...</div>';
   var res=await instApi('/teacher/exams/'+examId+'/results'); if(!res.ok){instToast('Failed to load results.','error');return;}
   var results=res.data.results||[]; var ungraded=results.filter(function(r){return!r.theoryMarked;});
-  if(!content)return;
+  if(!content){return;}
   if(ungraded.length===0){content.innerHTML='<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">All submissions graded</div></div>';return;}
-  content.innerHTML='<div class="card"><div class="card-head"><h3>Ungraded Submissions</h3><span style="font-size:13px; color:var(--muted);">'+ungraded.length+' pending</span></div><div style="padding:8px 0;">'+ungraded.map(function(r){return'<div style="display:flex; align-items:center; gap:14px; padding:14px 20px; border-bottom:1px solid var(--border);"><div style="width:40px; height:40px; border-radius:10px; background:rgba(255,165,0,0.12); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">📝</div><div style="flex:1;"><div style="font-size:14px; font-weight:700; color:#fff;">'+(r.studentName||'—')+'</div><div style="font-size:12px; color:var(--muted);">Submitted '+instFmtDate(r.createdAt)+' · Obj: '+(r.objectiveScore||0)+'/'+(r.objectiveTotal||0)+'</div></div><button class="btn btn-sm btn-primary" onclick="openGradeModal(\''+r._id+'\')">✏️ Grade Now</button></div>';}).join('')+'</div></div>';
+  content.innerHTML='<div class="card"><div class="card-head"><h3>Ungraded Submissions</h3><span style="font-size:13px; color:var(--muted);">'+ungraded.length+' pending</span></div><div style="padding:8px 0;">'+ungraded.map(function(r){return'<div style="display:flex; align-items:center; gap:14px; padding:14px 20px; border-bottom:1px solid var(--border);"><div style="width:40px; height:40px; border-radius:10px; background:rgba(255,165,0,0.12); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">📝</div><div style="flex:1;"><div style="font-size:14px; font-weight:700; color:#fff;">'+(r.studentName||'—')+'</div><div style="font-size:12px; color:var(--muted);">Submitted '+instFmtDate(r.createdAt)+' · Obj: '+(r.objectiveScore||0)+'/'+(r.objectiveTotal||0)+'</div></div><button class="btn btn-sm btn-primary" onclick="openGradeModal(\''+r._id+'\')">Grade Now</button></div>';}).join('')+'</div></div>';
 }
 
 async function openGradeModal(resultId) {
@@ -1209,24 +1064,23 @@ async function openGradeModal(resultId) {
   document.getElementById('gradeObjScore').textContent=(result.objectiveScore||0)+' / '+(result.objectiveTotal||0)+' marks';
   var theoryAnswers=(result.answers||[]).filter(function(a){return a.questionType==='theory';});
   _gradeAnswers=theoryAnswers;
-  var container=document.getElementById('gradeQuestionsContainer'); if(!container)return;
+  var container=document.getElementById('gradeQuestionsContainer'); if(!container){return;}
   if(theoryAnswers.length===0){container.innerHTML='<div style="color:var(--muted); text-align:center; padding:24px; font-size:14px;">No theory questions in this submission.</div>';}
-  else{container.innerHTML=theoryAnswers.map(function(a,i){return'<div class="theory-q"><div style="font-size:13px; font-weight:700; color:#fff; margin-bottom:8px;">Q'+(i+1)+'. '+(a.question||a.questionId||'Question')+'</div><div style="font-size:11px; color:var(--muted); margin-bottom:6px;">Student\'s answer:</div><div class="theory-answer-box">'+(a.userAnswer||'<em>No answer provided</em>')+'</div><div style="display:flex; gap:12px; align-items:center; margin-top:10px; flex-wrap:wrap;"><div class="field" style="margin-bottom:0; flex:1; min-width:120px;"><label>Marks Awarded</label><input type="number" id="gradeMarks_'+i+'" class="inp" value="0" min="0" max="'+(a.marksAvailable||10)+'" /><div class="field-hint">Max: '+(a.marksAvailable||10)+' marks</div></div><div class="field" style="margin-bottom:0; flex:2;"><label>Teacher Comment (optional)</label><input type="text" id="gradeComment_'+i+'" class="inp" placeholder="Good attempt, but missing..." /></div></div></div>';}).join('');}
+  else{container.innerHTML=theoryAnswers.map(function(a,i){return'<div class="theory-q"><div style="font-size:13px; font-weight:700; color:#fff; margin-bottom:8px;">Q'+(i+1)+'. '+(a.question||a.questionId||'Question')+'</div><div style="font-size:11px; color:var(--muted); margin-bottom:6px;">Student answer:</div><div class="theory-answer-box">'+(a.userAnswer||'<em>No answer provided</em>')+'</div><div style="display:flex; gap:12px; align-items:center; margin-top:10px; flex-wrap:wrap;"><div class="field" style="margin-bottom:0; flex:1; min-width:120px;"><label>Marks Awarded</label><input type="number" id="gradeMarks_'+i+'" class="inp" value="0" min="0" max="'+(a.marksAvailable||10)+'" /><div class="field-hint">Max: '+(a.marksAvailable||10)+' marks</div></div><div class="field" style="margin-bottom:0; flex:2;"><label>Teacher Comment (optional)</label><input type="text" id="gradeComment_'+i+'" class="inp" placeholder="Good attempt, but missing..." /></div></div></div>';}).join('');}
   document.getElementById('gradeModal').style.display='flex';
 }
 
 async function submitGrades() {
-  if(!_activeResultId)return;
+  if(!_activeResultId){return;}
   var btn=document.getElementById('submitGradeBtn');
   if(btn){btn.innerHTML='<span class="spinner"></span> Submitting...';btn.disabled=true;}
   var grades=_gradeAnswers.map(function(a,i){return{questionId:a.questionId,marksAwarded:parseInt((document.getElementById('gradeMarks_'+i)||{}).value)||0,teacherComment:((document.getElementById('gradeComment_'+i)||{}).value||'').trim()};});
-  var res=await instApi('/teacher/results/'+_activeResultId+'/grade','POST',{grades});
-  if(btn){btn.innerHTML='✅ Submit Grades';btn.disabled=false;}
-  if(res.ok){instToast('Grades submitted successfully!','success');closeModal('gradeModal');loadResults();loadGradingQueue();}
+  var res=await instApi('/teacher/results/'+_activeResultId+'/grade','POST',{grades:grades});
+  if(btn){btn.innerHTML='Submit Grades';btn.disabled=false;}
+  if(res.ok){instToast('Grades submitted!','success');closeModal('gradeModal');loadResults();loadGradingQueue();}
   else instToast(res.data.message||'Grading failed.','error');
 }
 
-/* ============================================ MODAL HELPERS */
 function closeModal(id){var el=document.getElementById(id);if(el)el.style.display='none';}
 function closeAllModals(){document.querySelectorAll('.modal-overlay').forEach(function(m){m.style.display='none';});}
 document.addEventListener('click',function(e){if(e.target.classList.contains('modal-overlay'))closeAllModals();});
