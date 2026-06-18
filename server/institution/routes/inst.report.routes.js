@@ -5,13 +5,22 @@
    Endpoints:
    GET /api/institution/report/exam/:examId
      Full results + analytics for one exam.
-     Auth: instTeacherAuth
+     Auth: instProtect + teacherOrAdmin
      Returns: exam, results[], analytics{}
 
    Analytics computed server-side:
      total, passed, failed, passRate,
      avgScore, highestScore, lowestScore,
      avgTime, distribution[10], topPerformers[5]
+
+   🐛 BUG FIX (crash fix):
+   - Wrong: require('../middleware/inst.auth.middleware')
+   - Fixed: require('../middleware/inst.auth')
+   - Wrong: instTeacherAuth (export does not exist)
+   - Fixed: instProtect + teacherOrAdmin (matches all
+     other institution routes e.g. inst.teacher.routes.js)
+   - Wrong: req.schoolUser.schoolId
+   - Fixed: req.schoolId (set by instProtect middleware)
 ============================================ */
 
 'use strict';
@@ -24,17 +33,20 @@ const SchoolResult = require('../models/SchoolResult.model');
 const SchoolExam   = require('../models/SchoolExam.model');
 const School       = require('../models/School.model');
 
-const { instTeacherAuth } = require('../middleware/inst.auth.middleware');
+const { instProtect, teacherOrAdmin } = require('../middleware/inst.auth');
+const { requireActiveSubscription }   = require('../middleware/inst.tenant');
+
+var guard = [instProtect, teacherOrAdmin, requireActiveSubscription];
 
 /* ============================================
    GET /exam/:examId
    Full report for a single exam.
    Includes all submissions + computed analytics.
 ============================================ */
-router.get('/exam/:examId', instTeacherAuth, async function (req, res) {
+router.get('/exam/:examId', guard, async function (req, res) {
   try {
     var examId   = req.params.examId;
-    var schoolId = req.schoolUser.schoolId;
+    var schoolId = req.schoolId;
 
     if (!mongoose.isValidObjectId(examId)) {
       return res.status(400).json({ success: false, message: 'Invalid exam ID.' });
@@ -57,12 +69,12 @@ router.get('/exam/:examId', instTeacherAuth, async function (req, res) {
     var total = results.length;
 
     /* ---- Compute analytics ---- */
-    var passed      = 0;
-    var scoreSum    = 0;
-    var timeSum     = 0;
+    var passed       = 0;
+    var scoreSum     = 0;
+    var timeSum      = 0;
     var highestScore = 0;
     var lowestScore  = 100;
-    var distribution = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; /* 10 buckets: 0-9%, 10-19%…90-100% */
+    var distribution = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
     for (var i = 0; i < results.length; i++) {
       var r   = results[i];
@@ -79,9 +91,9 @@ router.get('/exam/:examId', instTeacherAuth, async function (req, res) {
       distribution[bucket]++;
     }
 
-    var avgScore   = total > 0 ? Math.round(scoreSum / total)  : 0;
-    var avgTime    = total > 0 ? Math.round(timeSum  / total)  : 0;
-    var passRate   = total > 0 ? Math.round((passed  / total) * 100) : 0;
+    var avgScore = total > 0 ? Math.round(scoreSum / total)         : 0;
+    var avgTime  = total > 0 ? Math.round(timeSum  / total)         : 0;
+    var passRate = total > 0 ? Math.round((passed  / total) * 100)  : 0;
 
     if (total === 0) { lowestScore = 0; }
 
@@ -96,46 +108,46 @@ router.get('/exam/:examId', instTeacherAuth, async function (req, res) {
       };
     });
 
-    /* ---- Sanitise results for response (remove large answer arrays if > 50 results) ---- */
+    /* ---- Sanitise results for response ---- */
     var safeResults = results.map(function (r) {
       return {
-        _id:            r._id,
-        studentName:    r.studentName    || '—',
-        admissionNo:    r.admissionNo    || '—',
-        studentClass:   r.studentClass   || '—',
-        score:          r.score          || 0,
-        totalMarks:     r.totalMarks     || 0,
-        scorePercent:   r.scorePercent   || 0,
-        isPassed:       r.isPassed       || false,
-        objectiveScore: r.objectiveScore || 0,
-        objectiveTotal: r.objectiveTotal || 0,
-        theoryScore:    r.theoryScore    || 0,
-        theoryTotal:    r.theoryTotal    || 0,
-        theoryMarked:   r.theoryMarked   || false,
-        timeTaken:      r.timeTaken      || 0,
-        wasAutoSubmit:  r.wasAutoSubmit  || false,
-        tabSwitchCount: r.tabSwitchCount || 0,
-        flaggedForReview: r.flaggedForReview || false,
-        isReleased:     r.isReleased     || false,
-        createdAt:      r.createdAt
+        _id:              r._id,
+        studentName:      r.studentName      || '—',
+        admissionNo:      r.admissionNo      || '—',
+        studentClass:     r.studentClass     || '—',
+        score:            r.score            || 0,
+        totalMarks:       r.totalMarks       || 0,
+        scorePercent:     r.scorePercent     || 0,
+        isPassed:         r.isPassed         || false,
+        objectiveScore:   r.objectiveScore   || 0,
+        objectiveTotal:   r.objectiveTotal   || 0,
+        theoryScore:      r.theoryScore      || 0,
+        theoryTotal:      r.theoryTotal      || 0,
+        theoryMarked:     r.theoryMarked     || false,
+        timeTaken:        r.timeTaken        || 0,
+        wasAutoSubmit:    r.wasAutoSubmit     || false,
+        tabSwitchCount:   r.tabSwitchCount   || 0,
+        flaggedForReview: r.flaggedForReview  || false,
+        isReleased:       r.isReleased        || false,
+        createdAt:        r.createdAt
       };
     });
 
     return res.json({
-      success: true,
-      school:  { name: (school && school.name) || '—', logo: (school && school.logo) || '' },
-      exam:    exam,
-      results: safeResults,
+      success:  true,
+      school:   { name: (school && school.name) || '—', logo: (school && school.logo) || '' },
+      exam:     exam,
+      results:  safeResults,
       analytics: {
-        total:        total,
-        passed:       passed,
-        failed:       total - passed,
-        passRate:     passRate,
-        avgScore:     avgScore,
-        highestScore: highestScore,
-        lowestScore:  lowestScore,
-        avgTime:      avgTime,
-        distribution: distribution,
+        total:         total,
+        passed:        passed,
+        failed:        total - passed,
+        passRate:      passRate,
+        avgScore:      avgScore,
+        highestScore:  highestScore,
+        lowestScore:   lowestScore,
+        avgTime:       avgTime,
+        distribution:  distribution,
         topPerformers: topPerformers
       }
     });
