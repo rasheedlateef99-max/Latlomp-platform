@@ -210,6 +210,8 @@
     <div class="sb-sep">Main</div>
     <button class="nav-item active" data-sec="overview"     onclick="showSection('overview')">     <span class="nav-icon">📊</span> Overview</button>
     <button class="nav-item"        data-sec="teachers"     onclick="showSection('teachers')">     <span class="nav-icon">👩‍🏫</span> Teachers</button>
+    <!-- ✅ PHASE J: Students link — navigates to dedicated students page -->
+    <button class="nav-item" onclick="window.location='/institution/school/students.html'">       <span class="nav-icon">🧑‍🎓</span> Students</button>
     <button class="nav-item"        data-sec="structure"    onclick="showSection('structure')">    <span class="nav-icon">🏗️</span>  Structure</button>
     <button class="nav-item"        data-sec="exams"        onclick="showSection('exams')">        <span class="nav-icon">📝</span> Exams</button>
     <button class="nav-item"        data-sec="results"      onclick="showSection('results')">      <span class="nav-icon">📊</span> Results</button>
@@ -261,6 +263,8 @@
         <div class="card-body" style="display:flex; flex-wrap:wrap; gap:12px;">
           <button class="btn btn-primary"   onclick="openInviteModal()">+ Invite Teacher</button>
           <button class="btn btn-green"     onclick="showSection('exams')">+ Create Exam</button>
+          <!-- ✅ PHASE J: Students quick action -->
+          <button class="btn btn-secondary" onclick="window.location='/institution/school/students.html'">🧑‍🎓 Manage Students</button>
           <button class="btn btn-secondary" onclick="showSection('structure')">🏗️ Structure</button>
           <button class="btn btn-secondary" onclick="showSection('results')">📊 Results</button>
         </div>
@@ -602,6 +606,7 @@
    SCHOOL DASHBOARD
    ✅ PHASE D: Academic Structure management
    ✅ PHASE E: Slug-based access link management
+   ✅ PHASE J: Students nav link + quick action
 ============================================ */
 
 if (typeof instLogout !== 'function') {

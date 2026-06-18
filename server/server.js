@@ -67,8 +67,9 @@ app.use("/api/institution/student",    require("./institution/routes/inst.studen
 app.use("/api/institution/superadmin", require("./institution/routes/inst.superadmin.routes"));
 app.use("/api/institution/payment",    require("./institution/routes/inst.payment.routes"));
 app.use("/api/institution/structure",  require("./institution/routes/inst.structure.routes"));
-/* ✅ PHASE I: Results + Reporting */
 app.use("/api/institution/report",     require("./institution/routes/inst.report.routes"));
+/* ✅ PHASE J: Student Identity Management (separate from CBT student routes above) */
+app.use("/api/institution/students",   require("./institution/routes/inst.student.mgmt.routes"));
 
 /* ============================================
    HEALTH CHECK
@@ -84,8 +85,6 @@ app.get("/api/health", function (req, res) {
 
 /* ============================================
    PHASE E — SLUG RESOLVER ROUTE
-   /i/:slug serves the branded landing page.
-   Must come BEFORE the SPA catch-all below.
 ============================================ */
 app.get("/i/:slug", function (req, res) {
   res.sendFile(path.join(__dirname, "../public/i/index.html"));
