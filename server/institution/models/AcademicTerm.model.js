@@ -1,18 +1,18 @@
 /* ============================================
    LATLOMP INSTITUTION — ACADEMIC TERM MODEL
-   
-   Tracks academic sessions and terms.
-   
-   Examples:
-     Secondary: First Term 2024/2025
-     University: First Semester 2024/2025
-   
-   Only ONE term can be marked as current per school.
-   The pre-save hook enforces this automatically.
-   
-   Exams, results, and reports will reference termId
-   for grouping and filtering by academic period.
+
+   Represents one academic term/semester within
+   a school. Used to group exams, scores, and
+   results by time period.
+
+   FUTURE INTEGRATION:
+   - Score Entry (Phase L): termId on SchoolScore
+   - Report Cards (Phase M): term context
+   - Promotions (Phase S): end-of-term trigger
+   - Phase A structure routes already reference this
 ============================================ */
+'use strict';
+
 const mongoose = require('mongoose');
 
 const academicTermSchema = new mongoose.Schema(
@@ -29,49 +29,46 @@ const academicTermSchema = new mongoose.Schema(
       type:     String,
       required: true,
       trim:     true
-      /* e.g. "First Term", "Second Semester" */
+      /* e.g. "First Term", "Second Semester", "Session 1" */
     },
 
-    session: {
-      type:     String,
-      required: true,
-      trim:     true
-      /* e.g. "2024/2025", "2025" */
-    },
-
+    /* ---- Term code — machine-readable type ---- */
     term: {
-      type:    String,
-      enum:    ['first', 'second', 'third', 'semester_1', 'semester_2', 'trimester_1', 'trimester_2', 'trimester_3', 'other'],
+      type: String,
+      enum: ['first', 'second', 'third', 'semester_1', 'semester_2'],
       default: 'first'
     },
 
-    /* ---- Schedule ---- */
+    /* ---- Academic session ---- */
+    session: {
+      type:    String,
+      default: ''
+      /* e.g. "2024/2025" */
+    },
+
+    /* ---- Dates (optional) ---- */
     startDate: { type: Date, default: null },
     endDate:   { type: Date, default: null },
 
+    /* ---- Current term flag ---- */
+    isCurrent: {
+      type:    Boolean,
+      default: false
+      /* Only one term per school should be current at a time.
+         Enforced in inst.structure.routes.js set-current endpoint */
+    },
+
     /* ---- Status ---- */
-    isCurrent: { type: Boolean, default: false },
-    isActive:  { type: Boolean, default: true }
+    isActive: {
+      type:    Boolean,
+      default: true
+    }
   },
   { timestamps: true }
 );
 
+academicTermSchema.index({ schoolId: 1 });
 academicTermSchema.index({ schoolId: 1, isCurrent: 1 });
-academicTermSchema.index({ schoolId: 1, session: 1, term: 1 });
-
-/*
-  Enforce single current term per school.
-  When a term is set as current, all others for
-  that school are automatically unset.
-*/
-academicTermSchema.pre('save', async function(next) {
-  if (this.isCurrent && this.isModified('isCurrent')) {
-    await this.constructor.updateMany(
-      { schoolId: this.schoolId, _id: { $ne: this._id } },
-      { $set: { isCurrent: false } }
-    );
-  }
-  next();
-});
+academicTermSchema.index({ schoolId: 1, session: 1 });
 
 module.exports = mongoose.model('AcademicTerm', academicTermSchema);
