@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Paper Exams — LatLomp Institution</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" crossorigin="anonymous" />
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js" crossorigin="anonymous"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"
+    crossorigin="anonymous" onload="window._katexReady = true;"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --primary:#6c63ff; --pd:#574fd6; --green:#43e97b; --red:#ff6584;
+      --orange:#ffa500;  --yellow:#ffd600;
+      --dark:#0f0f1a;    --dark-2:#1a1a2e;
+      --border:rgba(255,255,255,0.08);
+      --text:#fff;       --muted:#6b6b8a; --secondary:#a0a0c0;
+    }
+    html, body { margin:0; padding:0; background:var(--dark); color:var(--text); font-family:'Inter',sans-serif; }
+    @keyframes spin   { to { transform:rotate(360deg); } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+
+    .topbar { position:sticky; top:0; z-index:300; background:var(--dark-2); border-bottom:1px solid var(--border); height:60px; display:flex; align-items:center; padding:0 24px; gap:16px; }
+    .topbar-brand { font-size:15px; font-weight:800; color:#fff; white-space:nowrap; }
+    .topbar-back  { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:8px; background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--secondary); font-size:13px; font-weight:600; text-decoration:none; transition:all 0.2s; margin-left:auto; white-space:nowrap; }
+    .topbar-back:hover { color:#fff; background:rgba(255,255,255,0.1); }
+
+    .main { max-width:1100px; margin:0 auto; padding:28px 24px 60px; }
+    @media (max-width:700px) { .main { padding:18px 14px 48px; } }
+
+    .page-header { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-bottom:22px; animation:fadeUp 0.3s ease; }
+    .page-header h1 { font-size:22px; font-weight:800; color:#fff; margin:0 0 4px; }
+    .page-header p  { font-size:13px; color:var(--muted); margin:0; }
+
+    .card { background:var(--dark-2); border:1px solid var(--border); border-radius:16px; overflow:hidden; margin-bottom:20px; animation:fadeUp 0.3s ease; }
+    .card-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:10px; }
+    .card-head h3 { font-size:15px; font-weight:700; color:#fff; margin:0; }
+    .card-body { padding:20px; }
+
+    .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    table { width:100%; border-collapse:collapse; min-width:640px; }
+    th { padding:11px 14px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); background:rgba(255,255,255,0.02); border-bottom:1px solid var(--border); white-space:nowrap; }
+    td { padding:12px 14px; font-size:14px; color:var(--secondary); border-bottom:1px solid var(--border); vertical-align:middle; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:rgba(255,255,255,0.02); }
+
+    .btn { display:inline-flex; align-items:center; gap:7px; padding:9px 16px; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; border:none; transition:all 0.2s; text-decoration:none; white-space:nowrap; }
+    .btn-primary   { background:linear-gradient(135deg,var(--primary),var(--pd)); color:#fff; }
+    .btn-primary:hover  { transform:translateY(-1px); box-shadow:0 4px 16px rgba(108,99,255,0.4); }
+    .btn-green     { background:linear-gradient(135deg,var(--green),#38f9d7); color:#0f0f1a; }
+    .btn-green:hover    { transform:translateY(-1px); box-shadow:0 4px 16px rgba(67,233,123,0.35); }
+    .btn-secondary { background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--secondary); }
+    .btn-secondary:hover { color:#fff; background:rgba(255,255,255,0.1); }
+    .btn-danger    { background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); }
+    .btn-danger:hover { background:rgba(255,101,132,0.2); }
+    .btn-orange    { background:rgba(255,165,0,0.1); border:1px solid rgba(255,165,0,0.3); color:var(--orange); }
+    .btn-sm { padding:6px 12px; font-size:12px; border-radius:7px; }
+    .btn:disabled { opacity:0.5; cursor:not-allowed; transform:none !important; }
+
+    .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+    .badge-green  { background:rgba(67,233,123,0.12);  color:var(--green); }
+    .badge-red    { background:rgba(255,101,132,0.12); color:var(--red); }
+    .badge-orange { background:rgba(255,165,0,0.12);   color:var(--orange); }
+    .badge-purple { background:rgba(108,99,255,0.12);  color:#a78bfa; }
+    .badge-muted  { background:rgba(255,255,255,0.06); color:var(--secondary); }
+    .badge-yellow { background:rgba(255,214,0,0.12);   color:var(--yellow); }
+
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.78); z-index:600; display:flex; align-items:center; justify-content:center; padding:20px; overflow-y:auto; }
+    .modal-box { background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:28px; width:100%; max-width:540px; max-height:92vh; overflow-y:auto; }
+    .modal-box-wide { max-width:740px; }
+    .modal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:22px; }
+    .modal-header h2 { font-size:18px; font-weight:800; color:#fff; margin:0; }
+    .modal-close { width:32px; height:32px; border-radius:8px; background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--muted); cursor:pointer; font-size:15px; display:flex; align-items:center; justify-content:center; font-family:inherit; }
+    .modal-close:hover { background:rgba(255,101,132,0.15); color:var(--red); }
+    .modal-footer { display:flex; justify-content:flex-end; gap:10px; margin-top:22px; padding-top:16px; border-top:1px solid var(--border); flex-wrap:wrap; }
+    @media (max-width:600px) { .modal-overlay { align-items:flex-end; padding:0; } .modal-box { border-radius:20px 20px 0 0; max-width:100%; max-height:90vh; } }
+
+    .field { display:flex; flex-direction:column; gap:6px; margin-bottom:16px; }
+    .field label { font-size:12px; font-weight:700; color:var(--secondary); text-transform:uppercase; letter-spacing:0.4px; }
+    .field label span { color:var(--red); }
+    .inp, .sel, .tex { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:9px; padding:11px 13px; color:#fff; font-size:14px; font-family:inherit; outline:none; width:100%; transition:border-color 0.2s; }
+    .inp:focus, .sel:focus, .tex:focus { border-color:var(--primary); }
+    .inp::placeholder, .tex::placeholder { color:var(--muted); }
+    .sel option { background:var(--dark-2); }
+    .tex { resize:vertical; min-height:70px; }
+    .field-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    @media (max-width:480px) { .field-row { grid-template-columns:1fr; } }
+    .field-hint { font-size:11px; color:var(--muted); margin-top:2px; line-height:1.5; }
+
+    .math-help-box { background:rgba(108,99,255,0.06); border:1px solid rgba(108,99,255,0.2); border-radius:8px; padding:12px 14px; font-size:12px; color:var(--secondary); line-height:2; }
+    .math-help-box code { background:rgba(255,255,255,0.08); padding:1px 5px; border-radius:3px; font-family:monospace; color:#a78bfa; }
+    .math-preview { background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:8px; padding:12px 14px; min-height:40px; font-size:15px; color:#fff; line-height:1.7; }
+    .q-text-render .katex-display { margin:8px 0; }
+
+    .img-preview-wrap { margin-top:8px; }
+    .img-preview-wrap img { max-width:100%; max-height:180px; border-radius:8px; border:1px solid var(--border); display:block; }
+    .img-preview-wrap .remove-btn { margin-top:5px; font-size:12px; color:var(--red); background:none; border:none; cursor:pointer; font-family:inherit; padding:0; }
+
+    .tbl-controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+    .tbl-controls label { font-size:13px; color:var(--secondary); white-space:nowrap; }
+    .tbl-num-inp { width:68px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; padding:8px 10px; color:#fff; font-size:13px; font-family:inherit; outline:none; }
+    .tbl-num-inp:focus { border-color:var(--primary); }
+    .tbl-grid-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:8px; margin-bottom:8px; }
+    .tbl-builder-table { border-collapse:collapse; min-width:max-content; }
+    .tbl-builder-table td { border:1px solid rgba(255,255,255,0.15); padding:7px 10px; min-width:90px; max-width:180px; outline:none; font-size:13px; color:#fff; white-space:nowrap; overflow:hidden; }
+    .tbl-builder-table td:focus { background:rgba(108,99,255,0.1); outline:2px solid var(--primary); outline-offset:-2px; }
+    .tbl-builder-table td[data-header="true"] { background:rgba(108,99,255,0.2); color:#a78bfa; font-weight:700; }
+    .q-table { width:100%; border-collapse:collapse; margin:10px 0; font-size:13px; }
+    .q-table th { background:rgba(108,99,255,0.15); color:#a78bfa; font-weight:700; padding:9px 12px; border:1px solid rgba(108,99,255,0.3); text-align:left; }
+    .q-table td { padding:8px 12px; border:1px solid rgba(255,255,255,0.1); color:#fff; vertical-align:top; }
+    .q-table tr:nth-child(even) td { background:rgba(255,255,255,0.03); }
+
+    .empty { text-align:center; padding:40px 20px; }
+    .empty-icon  { font-size:44px; margin-bottom:12px; }
+    .empty-title { font-size:15px; font-weight:700; color:var(--secondary); margin-bottom:6px; }
+    .empty-sub   { font-size:13px; color:var(--muted); line-height:1.6; }
+    .spinner { width:18px; height:18px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block; }
+
+    .finalized-notice { background:rgba(67,233,123,0.08); border:1px solid rgba(67,233,123,0.25); border-radius:10px; padding:14px 16px; font-size:13px; color:var(--green); margin-bottom:16px; line-height:1.6; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand">📄 Paper Exams</div>
+  <a class="topbar-back" href="/institution/teacher/dashboard.html">&larr; Dashboard</a>
+</div>
+
+<div class="main">
+
+  <div class="page-header">
+    <div><h1>Paper Exams</h1><p>Create exams to be printed and answered on physical paper</p></div>
+    <button class="btn btn-green" onclick="openCreateExamModal()">+ New Paper Exam</button>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h3>All Paper Exams</h3><span id="examsTotalBadge" style="font-size:12px; color:var(--muted);"></span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Title</th><th>Subject</th><th>Class</th><th>Type</th><th>Year</th><th>Status</th><th>Questions</th><th>Actions</th></tr></thead>
+        <tbody id="examsTableBody"><tr><td colspan="8" style="text-align:center; padding:28px; color:var(--muted);">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+
+<!-- ===== CREATE/EDIT PAPER EXAM MODAL ===== -->
+<div class="modal-overlay" id="examModal" style="display:none;">
+  <div class="modal-box modal-box-wide">
+    <div class="modal-header">
+      <h2 id="examModalTitle">Create Paper Exam</h2>
+      <button class="modal-close" onclick="closeModal('examModal')">&#10005;</button>
+    </div>
+    <div id="examModalErr" style="display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); padding:12px; border-radius:8px; font-size:13px; margin-bottom:16px;"></div>
+    <input type="hidden" id="editExamId" />
+    <div class="field-row">
+      <div class="field"><label>Exam Title <span>*</span></label><input type="text" id="exTitle" class="inp" placeholder="e.g. SS3 Mathematics First Term Exam" /></div>
+      <div class="field"><label>Subject <span>*</span></label><input type="text" id="exSubject" class="inp" placeholder="e.g. Mathematics" /></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Class / Level</label><input type="text" id="exClass" class="inp" placeholder="e.g. SS3, JSS2A" /></div>
+      <div class="field"><label>Paper Type <span>*</span></label><select id="exPaperType" class="sel"><option value="objective">Objective Only</option><option value="theory">Theory Only</option><option value="mixed" selected>Mixed (Objective + Theory)</option></select></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Duration (minutes)</label><input type="number" id="exDuration" class="inp" value="60" min="5" max="300" /><div class="field-hint">Shown on printed paper as exam time</div></div>
+      <div class="field"><label>Total Marks</label><input type="number" id="exTotalMarks" class="inp" value="100" min="1" /></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Term</label><select id="exTerm" class="sel"><option value="">-- Select Term --</option><option value="first">First Term</option><option value="second">Second Term</option><option value="third">Third Term</option></select></div>
+      <div class="field"><label>Exam Year</label><input type="number" id="exYear" class="inp" value="2025" min="2020" max="2035" /></div>
+    </div>
+    <div class="field"><label>Session</label><input type="text" id="exSession" class="inp" placeholder="e.g. 2024/2025" /></div>
+    <div class="field"><label>Instructions (printed on paper)</label><textarea id="exInstructions" class="tex" rows="2" placeholder="e.g. Answer all questions in Section A and any three in Section B."></textarea></div>
+    <div class="field"><label>Marking Scheme Notes (teacher reference only — not printed)</label><textarea id="exMarkingScheme" class="tex" rows="2" placeholder="General marking notes for yourself or other markers..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('examModal')">Cancel</button>
+      <button class="btn btn-primary" id="saveExamBtn" onclick="saveExam()">Create Exam</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== EXAM DETAIL MODAL ===== -->
+<div class="modal-overlay" id="examDetailModal" style="display:none;">
+  <div class="modal-box modal-box-wide" style="max-width:820px;">
+    <div class="modal-header">
+      <div>
+        <h2 id="detailExamTitle">Exam Questions</h2>
+        <div id="detailExamMeta" style="font-size:13px; color:var(--muted); margin-top:4px;"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('examDetailModal')">&#10005;</button>
+    </div>
+
+    <div id="finalizedNotice" class="finalized-notice" style="display:none;">
+      ✅ This exam is finalized and locked. Revert to draft to make changes.
+    </div>
+
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px;">
+      <button class="btn btn-sm btn-green"     id="finalizeBtn"    onclick="finalizeExam()">🔒 Finalize Exam</button>
+      <button class="btn btn-sm btn-secondary" id="revertBtn"      onclick="revertDraft()" style="display:none;">↩ Revert to Draft</button>
+      <button class="btn btn-sm btn-danger"    id="deleteExamBtn"  onclick="deleteCurrentExam()">🗑 Delete Exam</button>
+    </div>
+
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+      <div style="font-size:15px; font-weight:700; color:#fff;">Questions <span id="qCountBadge" style="font-size:13px; color:var(--muted); font-weight:400;"></span></div>
+      <button class="btn btn-primary btn-sm" id="addQBtn" onclick="openAddQuestionModal()">+ Add Question</button>
+    </div>
+    <div id="questionsList" style="max-height:380px; overflow-y:auto; border:1px solid var(--border); border-radius:10px;">
+      <div style="color:var(--muted); font-size:14px; text-align:center; padding:28px;">Loading questions...</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('examDetailModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ADD/EDIT QUESTION MODAL ===== -->
+<div class="modal-overlay" id="addQuestionModal" style="display:none;">
+  <div class="modal-box modal-box-wide" style="max-width:660px;">
+    <div class="modal-header">
+      <h2 id="qModalTitle">Add Question</h2>
+      <button class="modal-close" onclick="closeModal('addQuestionModal')">&#10005;</button>
+    </div>
+    <input type="hidden" id="editQuestionId" />
+
+    <div class="field-row">
+      <div class="field">
+        <label>Question Type</label>
+        <select id="qType" class="sel" onchange="onQuestionTypeChange()">
+          <option value="objective">Objective (Multiple Choice)</option>
+          <option value="theory">Theory (Written Answer)</option>
+          <option value="true_false">True / False</option>
+          <option value="fill_in_blank">Fill in the Blank</option>
+        </select>
+      </div>
+      <div class="field"><label>Section (optional)</label><input type="text" id="qSection" class="inp" placeholder="e.g. Section A" /></div>
+    </div>
+
+    <div class="field">
+      <label>Question Text <span>*</span></label>
+      <textarea id="qText" class="tex" rows="3" placeholder="Enter your question here... Use $formula$ for math" oninput="updateMathPreview()"></textarea>
+      <div class="field-hint">Math: <code>$x^2$</code> inline &nbsp;&#183;&nbsp; <code>$$formula$$</code> display block</div>
+    </div>
+
+    <div id="mathPreviewWrap" style="display:none; margin-bottom:16px;">
+      <div style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;">Math Preview</div>
+      <div class="math-preview" id="mathPreviewEl"></div>
+    </div>
+
+    <div class="field">
+      <label>Image URL (optional)</label>
+      <input type="url" id="qImage" class="inp" placeholder="https://... (paste any image URL)" oninput="onImageUrlInput(this.value)" />
+      <div id="qImagePreview" class="img-preview-wrap" style="display:none;">
+        <img id="qImagePreviewImg" src="" alt="Image Preview" onerror="document.getElementById('qImagePreview').style.display='none'" />
+        <button type="button" class="remove-btn" onclick="clearQImage()">Remove image</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Data Table (optional)</label>
+      <div class="tbl-controls">
+        <label>Rows:</label><input type="number" id="tblRows" class="tbl-num-inp" value="3" min="1" max="10" />
+        <label>Cols:</label><input type="number" id="tblCols" class="tbl-num-inp" value="3" min="1" max="8" />
+        <button type="button" class="btn btn-secondary btn-sm" onclick="buildQTable()">Build Table</button>
+        <button type="button" class="btn btn-danger btn-sm" id="clearTblBtn" onclick="clearQTable()" style="display:none;">Remove</button>
+      </div>
+      <div id="qTableBuilderWrap" style="display:none;">
+        <div class="field-hint" style="margin-bottom:8px;">Click any cell to edit. First row = column headers.</div>
+        <div id="qTableGrid" class="tbl-grid-wrap"></div>
+      </div>
+      <input type="hidden" id="qTableHtml" />
+    </div>
+
+    <div id="objectiveSection">
+      <div style="font-size:12px; font-weight:700; color:var(--secondary); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:12px;">Answer Options</div>
+      <div class="field"><label>Option A <span>*</span></label><input type="text" id="qOptA" class="inp" placeholder="First option" /></div>
+      <div class="field"><label>Option B <span>*</span></label><input type="text" id="qOptB" class="inp" placeholder="Second option" /></div>
+      <div class="field"><label>Option C</label><input type="text" id="qOptC" class="inp" placeholder="Third option (optional)" /></div>
+      <div class="field"><label>Option D</label><input type="text" id="qOptD" class="inp" placeholder="Fourth option (optional)" /></div>
+      <div class="field">
+        <label>Correct Answer <span>*</span></label>
+        <select id="qCorrect" class="sel">
+          <option value="">-- Select correct option (marking key only) --</option>
+          <option value="0">A — First option</option>
+          <option value="1">B — Second option</option>
+          <option value="2">C — Third option</option>
+          <option value="3">D — Fourth option</option>
+        </select>
+        <div class="field-hint">Used only for your marking key — never printed on the student paper.</div>
+      </div>
+    </div>
+
+    <div id="trueFalseSection" style="display:none;">
+      <div class="field"><label>Correct Answer <span>*</span></label><select id="qTrueFalse" class="sel"><option value="0">True</option><option value="1">False</option></select></div>
+    </div>
+
+    <div id="theorySection" style="display:none;">
+      <div class="field"><label>Model Answer (your reference only)</label><textarea id="qModelAnswer" class="tex" rows="3" placeholder="Expected answer for marking..."></textarea></div>
+      <div class="field"><label>Mark Scheme</label><textarea id="qMarkScheme" class="tex" rows="2" placeholder="e.g. Award 2 marks for mentioning photosynthesis..."></textarea></div>
+      <div class="field"><label>Answer Space (lines on printed paper)</label><input type="number" id="qAnswerLines" class="inp" value="4" min="1" max="30" /></div>
+    </div>
+
+    <div class="field-row">
+      <div class="field"><label>Marks</label><input type="number" id="qMarks" class="inp" value="1" min="1" max="100" /></div>
+      <div class="field"><label>Difficulty</label><select id="qDifficulty" class="sel"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></div>
+    </div>
+    <div class="field"><label>Topic (optional)</label><input type="text" id="qTopic" class="inp" placeholder="e.g. Algebra, Photosynthesis" /></div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('addQuestionModal')">Cancel</button>
+      <button class="btn btn-primary" id="saveQBtn" onclick="saveQuestion()">Add Question</button>
+    </div>
+  </div>
+</div>
+
+
+<script src="/institution/js/inst.api.js"></script>
+<script>
+/* ============================================
+   ✅ PHASE K.3: PAPER EXAM MANAGEMENT
+   Mirrors teacher/dashboard.html CBT exam patterns
+   (math preview, image preview, table builder) but
+   targets PaperExam/PaperQuestion via /paper/* routes.
+
+   No access code, no shuffle, no publish/end —
+   instead: Finalize (lock) / Revert to draft.
+   PDF export arrives in K.4.
+============================================ */
+
+var _myExams      = [];
+var _activeExamId = null;
+var _activeExam   = null;
+var _qTableData   = [];
+
+/* ---- KaTeX ---- */
+var _katexOpts = {
+  delimiters: [
+    { left:'$$', right:'$$', display:true },
+    { left:'$',  right:'$',  display:false }
+  ],
+  throwOnError: false
+};
+function katexRender(el) {
+  if (!el || !window._katexReady || typeof renderMathInElement === 'undefined') { return; }
+  try { renderMathInElement(el, _katexOpts); } catch(e) {}
+}
+
+function updateMathPreview() {
+  var text = (document.getElementById('qText')||{}).value || '';
+  var wrap = document.getElementById('mathPreviewWrap');
+  var prev = document.getElementById('mathPreviewEl');
+  if (!wrap || !prev) { return; }
+  var hasMath = text.indexOf('$') !== -1;
+  wrap.style.display = hasMath ? 'block' : 'none';
+  if (hasMath) { prev.textContent = text; katexRender(prev); }
+}
+
+function onImageUrlInput(url) {
+  var wrap = document.getElementById('qImagePreview');
+  var img  = document.getElementById('qImagePreviewImg');
+  if (!wrap || !img) { return; }
+  if (url && url.length > 10 && (url.indexOf('http') === 0 || url.indexOf('data:') === 0)) {
+    img.src = url;
+    img.onerror = function() { wrap.style.display='none'; };
+    wrap.style.display = 'block';
+  } else {
+    wrap.style.display = 'none';
+  }
+}
+
+function clearQImage() {
+  var el = document.getElementById('qImage');
+  if (el) { el.value = ''; }
+  onImageUrlInput('');
+}
+
+/* ---- Table builder (same pattern as Phase G) ---- */
+function buildQTable() {
+  var rows = Math.min(Math.max(parseInt((document.getElementById('tblRows')||{}).value)||3, 1), 10);
+  var cols = Math.min(Math.max(parseInt((document.getElementById('tblCols')||{}).value)||3, 1), 8);
+  _qTableData = [];
+  for (var r = 0; r < rows; r++) {
+    _qTableData.push([]);
+    for (var c = 0; c < cols; c++) {
+      _qTableData[r].push(r === 0 ? 'Column ' + (c+1) : '');
+    }
+  }
+  renderQTableGrid();
+  var wrap = document.getElementById('qTableBuilderWrap');
+  var btn  = document.getElementById('clearTblBtn');
+  if (wrap) { wrap.style.display = 'block'; }
+  if (btn)  { btn.style.display  = 'inline-flex'; }
+  saveQTableHtml();
+}
+
+function renderQTableGrid() {
+  var grid = document.getElementById('qTableGrid');
+  if (!grid) { return; }
+  var html = '<table class="tbl-builder-table">';
+  for (var r = 0; r < _qTableData.length; r++) {
+    html += '<tr>';
+    for (var c = 0; c < _qTableData[r].length; c++) {
+      var isHeader = r === 0;
+      html += '<td contenteditable="true" data-r="' + r + '" data-c="' + c + '"' +
+        (isHeader ? ' data-header="true"' : '') +
+        ' oninput="onQTableCell(this)" onblur="saveQTableHtml()">' +
+        escHtml(_qTableData[r][c]) + '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</table>';
+  grid.innerHTML = html;
+}
+
+function onQTableCell(el) {
+  var r = parseInt(el.dataset.r);
+  var c = parseInt(el.dataset.c);
+  if (_qTableData[r] !== undefined) { _qTableData[r][c] = el.innerText || ''; }
+}
+
+function saveQTableHtml() {
+  if (!_qTableData || _qTableData.length === 0) {
+    var el = document.getElementById('qTableHtml');
+    if (el) { el.value = ''; }
+    return;
+  }
+  var html = '<table class="q-table">';
+  for (var r = 0; r < _qTableData.length; r++) {
+    html += '<tr>';
+    for (var c = 0; c < _qTableData[r].length; c++) {
+      var cell = escHtml(_qTableData[r][c] || '');
+      html += r === 0 ? '<th>' + cell + '</th>' : '<td>' + cell + '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</table>';
+  var el = document.getElementById('qTableHtml');
+  if (el) { el.value = html; }
+}
+
+function clearQTable() {
+  _qTableData = [];
+  var el   = document.getElementById('qTableHtml');
+  var wrap = document.getElementById('qTableBuilderWrap');
+  var btn  = document.getElementById('clearTblBtn');
+  var grid = document.getElementById('qTableGrid');
+  if (el)   { el.value           = ''; }
+  if (wrap) { wrap.style.display = 'none'; }
+  if (btn)  { btn.style.display  = 'none'; }
+  if (grid) { grid.innerHTML     = ''; }
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ============================================ INIT */
+document.addEventListener('DOMContentLoaded', async function() {
+  if (!instRequireAuth()) { return; }
+  await loadExams();
+  var yearEl = document.getElementById('exYear');
+  if (yearEl) { yearEl.value = new Date().getFullYear(); }
+});
+
+/* ============================================ EXAMS LIST */
+async function loadExams() {
+  var res = await instApi('/paper/exams');
+  if (!res.ok) { instToast('Failed to load paper exams.', 'error'); return; }
+  _myExams = res.data.exams || [];
+
+  var countEl = document.getElementById('examsTotalBadge');
+  if (countEl) { countEl.textContent = _myExams.length + ' total'; }
+
+  var tbody = document.getElementById('examsTableBody');
+  if (!tbody) { return; }
+
+  if (_myExams.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty"><div class="empty-icon">📄</div><div class="empty-title">No paper exams yet</div><div class="empty-sub">Click "+ New Paper Exam" to create your first one.</div></div></td></tr>';
+    return;
+  }
+
+  var typeBadgeMap   = { objective:'badge-purple', theory:'badge-orange', mixed:'badge-yellow' };
+  var statusBadgeMap = { draft:'badge-muted', finalized:'badge-green', archived:'badge-muted' };
+
+  tbody.innerHTML = _myExams.map(function(e) {
+    return '<tr>' +
+      '<td style="font-weight:700; color:#fff; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + esc(e.title||'—') + '</td>' +
+      '<td>' + esc(e.subject||'—') + '</td>' +
+      '<td>' + esc(e.class||'—') + '</td>' +
+      '<td><span class="badge ' + (typeBadgeMap[e.paperType]||'badge-muted') + '">' + esc(e.paperType||'mixed') + '</span></td>' +
+      '<td style="font-family:monospace; font-weight:700;">' + (e.examYear||'—') + '</td>' +
+      '<td><span class="badge ' + (statusBadgeMap[e.status]||'badge-muted') + '">' + esc(e.status||'draft') + '</span></td>' +
+      '<td style="font-weight:700;">' + (e.totalQuestions||0) + '</td>' +
+      '<td><button class="btn btn-sm btn-primary" onclick="openExamDetail(\'' + e._id + '\')">Manage</button></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function esc(str) { return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ============================================ CREATE/EDIT EXAM */
+function openCreateExamModal() {
+  closeAllModals();
+  document.getElementById('editExamId').value = '';
+  document.getElementById('examModalTitle').textContent = 'Create Paper Exam';
+  document.getElementById('saveExamBtn').textContent = 'Create Exam';
+  document.getElementById('examModalErr').style.display = 'none';
+  ['exTitle','exSubject','exClass','exSession','exInstructions','exMarkingScheme'].forEach(function(id) {
+    var el = document.getElementById(id); if (el) { el.value = ''; }
+  });
+  document.getElementById('exPaperType').value  = 'mixed';
+  document.getElementById('exDuration').value   = '60';
+  document.getElementById('exTotalMarks').value = '100';
+  document.getElementById('exYear').value       = new Date().getFullYear();
+  document.getElementById('exTerm').value       = '';
+  document.getElementById('examModal').style.display = 'flex';
+}
+
+async function saveExam() {
+  var btn   = document.getElementById('saveExamBtn');
+  var errEl = document.getElementById('examModalErr');
+  errEl.style.display = 'none';
+
+  var payload = {
+    title:         (document.getElementById('exTitle')||{}).value.trim(),
+    subject:       (document.getElementById('exSubject')||{}).value.trim(),
+    class:         (document.getElementById('exClass')||{}).value.trim(),
+    paperType:     (document.getElementById('exPaperType')||{}).value,
+    duration:      parseInt((document.getElementById('exDuration')||{}).value) || 60,
+    totalMarks:    parseInt((document.getElementById('exTotalMarks')||{}).value) || 100,
+    term:          (document.getElementById('exTerm')||{}).value,
+    examYear:      parseInt((document.getElementById('exYear')||{}).value) || new Date().getFullYear(),
+    session:       (document.getElementById('exSession')||{}).value.trim(),
+    instructions:  (document.getElementById('exInstructions')||{}).value.trim(),
+    markingScheme: (document.getElementById('exMarkingScheme')||{}).value.trim()
+  };
+
+  if (!payload.title)   { errEl.textContent = 'Exam title is required.';   errEl.style.display = 'block'; return; }
+  if (!payload.subject) { errEl.textContent = 'Subject is required.';      errEl.style.display = 'block'; return; }
+
+  if (btn) { btn.innerHTML = '<span class="spinner"></span> Saving...'; btn.disabled = true; }
+  var res = await instApi('/paper/exams', 'POST', payload);
+  if (btn) { btn.innerHTML = 'Create Exam'; btn.disabled = false; }
+
+  if (res.ok) {
+    instToast('Paper exam created! Now add questions.', 'success');
+    closeModal('examModal');
+    await loadExams();
+    if (res.data.exam) { setTimeout(function() { openExamDetail(res.data.exam._id); }, 300); }
+  } else {
+    errEl.textContent = res.data.message || 'Failed to create exam.';
+    errEl.style.display = 'block';
+  }
+}
+
+/* ============================================ EXAM DETAIL */
+async function openExamDetail(examId) {
+  _activeExamId = examId;
+  closeAllModals();
+  document.getElementById('examDetailModal').style.display = 'flex';
+  document.getElementById('questionsList').innerHTML = '<div style="color:var(--muted); text-align:center; padding:28px;">Loading...</div>';
+
+  var res = await instApi('/paper/exams/' + examId);
+  if (!res.ok) { instToast('Failed to load exam.', 'error'); return; }
+
+  _activeExam = res.data.exam;
+  var questions = res.data.questions || [];
+
+  document.getElementById('detailExamTitle').textContent = _activeExam.title || 'Exam';
+  document.getElementById('detailExamMeta').textContent =
+    (_activeExam.subject||'') + (_activeExam.class ? ' · ' + _activeExam.class : '') +
+    (_activeExam.examYear ? ' · ' + _activeExam.examYear : '') + ' · ' +
+    (_activeExam.duration||60) + ' mins · ' + (_activeExam.paperType||'mixed');
+
+  var isFinalized = _activeExam.status === 'finalized';
+  document.getElementById('finalizedNotice').style.display = isFinalized ? 'block' : 'none';
+  document.getElementById('finalizeBtn').style.display      = isFinalized ? 'none' : 'inline-flex';
+  document.getElementById('revertBtn').style.display        = isFinalized ? 'inline-flex' : 'none';
+  document.getElementById('addQBtn').disabled                = isFinalized;
+  document.getElementById('deleteExamBtn').disabled           = isFinalized;
+
+  renderQuestionsList(questions, isFinalized);
+}
+
+function renderQuestionsList(questions, isFinalized) {
+  var container   = document.getElementById('questionsList');
+  var countBadge  = document.getElementById('qCountBadge');
+  if (countBadge) { countBadge.textContent = '(' + questions.length + ' question' + (questions.length!==1?'s':'') + ')'; }
+
+  if (!questions || questions.length === 0) {
+    container.innerHTML = '<div class="empty" style="padding:32px;"><div class="empty-icon">📋</div><div class="empty-title">No questions yet</div><div class="empty-sub">Add questions using the button above.</div></div>';
+    return;
+  }
+
+  var letters = ['A','B','C','D'];
+
+  container.innerHTML = questions.map(function(q, i) {
+    var opts = '';
+    if (q.questionType === 'objective' || q.questionType === 'fill_in_blank') {
+      opts = (q.options||[]).map(function(opt, idx) {
+        var isCorrect = idx === q.correctAnswer;
+        return '<span style="font-size:12px; padding:2px 8px; border-radius:5px; margin-right:4px; background:' + (isCorrect?'rgba(67,233,123,0.15)':'rgba(255,255,255,0.04)') + '; color:' + (isCorrect?'var(--green)':'var(--secondary)') + '; border:1px solid ' + (isCorrect?'rgba(67,233,123,0.3)':'var(--border)') + ';">' + letters[idx] + ': ' + esc(opt) + (isCorrect?' (key)':'') + '</span>';
+      }).join('');
+    } else if (q.questionType === 'true_false') {
+      opts = '<span style="font-size:12px; color:var(--green);">Key: ' + (q.correctAnswer===0?'True':'False') + '</span>';
+    } else {
+      opts = '<span style="font-size:12px; color:var(--muted); font-style:italic;">Theory — ' + (q.answerSpaceLines||4) + ' answer lines</span>';
+    }
+
+    var badges = '';
+    if (q.section)   { badges += ' <span class="badge badge-purple">' + esc(q.section) + '</span>'; }
+    if (q.imageUrl)  { badges += ' <span style="font-size:10px; background:rgba(67,233,123,0.1); color:var(--green); padding:2px 6px; border-radius:4px; font-weight:700;">IMG</span>'; }
+    if (q.tableHtml) { badges += ' <span style="font-size:10px; background:rgba(255,165,0,0.1); color:var(--orange); padding:2px 6px; border-radius:4px; font-weight:700;">TABLE</span>'; }
+
+    var actionBtns = isFinalized ? '' :
+      '<button onclick="openEditQuestionModal(\'' + q._id + '\')" style="padding:5px 9px; border-radius:6px; font-size:12px; cursor:pointer; font-family:inherit; background:rgba(108,99,255,0.08); border:1px solid rgba(108,99,255,0.25); color:#a78bfa; flex-shrink:0; margin-right:4px;">Edit</button>' +
+      '<button onclick="deleteQuestion(\'' + q._id + '\')" style="padding:5px 9px; border-radius:6px; font-size:12px; cursor:pointer; font-family:inherit; background:rgba(255,101,132,0.08); border:1px solid rgba(255,101,132,0.25); color:var(--red); flex-shrink:0;">Del</button>';
+
+    return '<div style="padding:14px 16px; border-bottom:1px solid var(--border);">' +
+      '<div style="display:flex; align-items:flex-start; gap:12px;">' +
+        '<span style="width:26px; height:26px; border-radius:6px; background:rgba(108,99,255,0.12); color:#a78bfa; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; flex-shrink:0;">' + (i+1) + '</span>' +
+        '<div style="flex:1; min-width:0;">' +
+          '<div class="q-text-render" style="font-size:14px; font-weight:600; color:#fff; margin-bottom:4px; line-height:1.5;">' + esc(q.question||'') + '</div>' +
+          badges +
+          (q.imageUrl ? '<img src="' + q.imageUrl + '" style="max-width:100%; max-height:100px; border-radius:6px; margin:6px 0; display:block;" />' : '') +
+          '<div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;">' + opts + '</div>' +
+          '<div style="font-size:11px; color:var(--muted); margin-top:4px;">' + (q.marks||1) + ' mark' + ((q.marks||1)!==1?'s':'') + (q.topic ? ' · ' + esc(q.topic) : '') + ' · ' + (q.difficulty||'medium') + '</div>' +
+        '</div>' +
+        '<div style="flex-shrink:0;">' + actionBtns + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  setTimeout(function() {
+    container.querySelectorAll('.q-text-render').forEach(function(el) { katexRender(el); });
+  }, 50);
+}
+
+/* ============================================ FINALIZE / REVERT / DELETE EXAM */
+async function finalizeExam() {
+  if (!_activeExamId) { return; }
+  if (!confirm('Finalize this exam? Once finalized you cannot edit questions until you revert to draft.')) { return; }
+  var res = await instApi('/paper/exams/' + _activeExamId + '/finalize', 'POST');
+  if (res.ok) { instToast('Exam finalized!', 'success'); openExamDetail(_activeExamId); loadExams(); }
+  else { instToast(res.data.message || 'Failed.', 'error'); }
+}
+
+async function revertDraft() {
+  if (!_activeExamId) { return; }
+  if (!confirm('Revert this exam to draft? You can then edit questions again.')) { return; }
+  var res = await instApi('/paper/exams/' + _activeExamId + '/revert-draft', 'POST');
+  if (res.ok) { instToast('Reverted to draft.', 'success'); openExamDetail(_activeExamId); loadExams(); }
+  else { instToast(res.data.message || 'Failed.', 'error'); }
+}
+
+async function deleteCurrentExam() {
+  if (!_activeExamId) { return; }
+  if (!confirm('Permanently delete this exam and all its questions? This cannot be undone.')) { return; }
+  var res = await instApi('/paper/exams/' + _activeExamId, 'DELETE');
+  if (res.ok) { instToast('Exam deleted.', 'success'); closeModal('examDetailModal'); loadExams(); }
+  else { instToast(res.data.message || 'Failed.', 'error'); }
+}
+
+/* ============================================ ADD/EDIT QUESTION */
+function openAddQuestionModal() {
+  if (!_activeExamId) { instToast('Open an exam first.', 'error'); return; }
+  document.getElementById('editQuestionId').value = '';
+  document.getElementById('qModalTitle').textContent = 'Add Question';
+  document.getElementById('saveQBtn').textContent = 'Add Question';
+  resetQuestionForm();
+  document.getElementById('addQuestionModal').style.display = 'flex';
+  setTimeout(function() { var t = document.getElementById('qText'); if (t) { t.focus(); } }, 120);
+}
+
+function openEditQuestionModal(qId) {
+  var q = (window._lastLoadedQuestions || []).find(function(x) { return x._id === qId; });
+  /* Fallback: re-fetch if cache missing */
+  if (!q) { fetchAndEditQuestion(qId); return; }
+  fillQuestionForm(q);
+}
+
+async function fetchAndEditQuestion(qId) {
+  var res = await instApi('/paper/exams/' + _activeExamId);
+  if (!res.ok) { instToast('Failed to load question.', 'error'); return; }
+  window._lastLoadedQuestions = res.data.questions || [];
+  var q = window._lastLoadedQuestions.find(function(x) { return x._id === qId; });
+  if (q) { fillQuestionForm(q); }
+}
+
+function fillQuestionForm(q) {
+  resetQuestionForm();
+  document.getElementById('editQuestionId').value = q._id;
+  document.getElementById('qModalTitle').textContent = 'Edit Question';
+  document.getElementById('saveQBtn').textContent = 'Save Changes';
+
+  document.getElementById('qType').value    = q.questionType || 'objective';
+  document.getElementById('qSection').value = q.section || '';
+  document.getElementById('qText').value    = q.question || '';
+  document.getElementById('qImage').value   = q.imageUrl || '';
+  document.getElementById('qMarks').value   = q.marks || 1;
+  document.getElementById('qDifficulty').value = q.difficulty || 'medium';
+  document.getElementById('qTopic').value   = q.topic || '';
+
+  onQuestionTypeChange();
+  onImageUrlInput(q.imageUrl || '');
+  updateMathPreview();
+
+  if (q.questionType === 'objective' || q.questionType === 'fill_in_blank') {
+    var opts = q.options || [];
+    document.getElementById('qOptA').value = opts[0] || '';
+    document.getElementById('qOptB').value = opts[1] || '';
+    document.getElementById('qOptC').value = opts[2] || '';
+    document.getElementById('qOptD').value = opts[3] || '';
+    document.getElementById('qCorrect').value = q.correctAnswer !== undefined ? q.correctAnswer : '';
+  } else if (q.questionType === 'true_false') {
+    document.getElementById('qTrueFalse').value = q.correctAnswer || 0;
+  } else if (q.questionType === 'theory') {
+    document.getElementById('qModelAnswer').value = q.modelAnswer || '';
+    document.getElementById('qMarkScheme').value  = q.markScheme || '';
+    document.getElementById('qAnswerLines').value = q.answerSpaceLines || 4;
+  }
+
+  if (q.tableHtml) {
+    document.getElementById('qTableHtml').value = q.tableHtml;
+    var wrap = document.getElementById('qTableBuilderWrap');
+    var btn  = document.getElementById('clearTblBtn');
+    if (wrap) { wrap.style.display = 'block'; }
+    if (btn)  { btn.style.display  = 'inline-flex'; }
+    var grid = document.getElementById('qTableGrid');
+    if (grid) { grid.innerHTML = '<div style="padding:10px; font-size:12px; color:var(--muted);">Existing table loaded — rebuild with Rows/Cols above to edit cells.</div>'; }
+  }
+
+  document.getElementById('addQuestionModal').style.display = 'flex';
+}
+
+function resetQuestionForm() {
+  ['qText','qImage','qOptA','qOptB','qOptC','qOptD','qModelAnswer','qMarkScheme','qTopic','qSection'].forEach(function(id) {
+    var el = document.getElementById(id); if (el) { el.value = ''; }
+  });
+  document.getElementById('qMarks').value = '1';
+  document.getElementById('qDifficulty').value = 'medium';
+  document.getElementById('qType').value = 'objective';
+  document.getElementById('qCorrect').value = '';
+  document.getElementById('qAnswerLines').value = '4';
+  document.getElementById('mathPreviewWrap').style.display = 'none';
+  onQuestionTypeChange();
+  onImageUrlInput('');
+  clearQTable();
+}
+
+function onQuestionTypeChange() {
+  var type = (document.getElementById('qType')||{}).value;
+  document.getElementById('objectiveSection').style.display = (type==='objective'||type==='fill_in_blank') ? 'block' : 'none';
+  document.getElementById('trueFalseSection').style.display = type==='true_false' ? 'block' : 'none';
+  document.getElementById('theorySection').style.display    = type==='theory' ? 'block' : 'none';
+}
+
+async function saveQuestion() {
+  var btn = document.getElementById('saveQBtn');
+  var editId = document.getElementById('editQuestionId').value.trim();
+  var type = (document.getElementById('qType')||{}).value;
+
+  var optA = ((document.getElementById('qOptA')||{}).value||'').trim();
+  var optB = ((document.getElementById('qOptB')||{}).value||'').trim();
+  var optC = ((document.getElementById('qOptC')||{}).value||'').trim();
+  var optD = ((document.getElementById('qOptD')||{}).value||'').trim();
+
+  var options = [];
+  if (type === 'objective' || type === 'fill_in_blank') {
+    options = [optA,optB,optC,optD].filter(function(o) { return o !== ''; });
+    if (options.length < 2) { instToast('At least 2 options required.', 'error'); return; }
+  } else if (type === 'true_false') {
+    options = ['True','False'];
+  }
+
+  var correctAnswer = 0;
+  if (type === 'objective' || type === 'fill_in_blank') {
+    var cv = (document.getElementById('qCorrect')||{}).value;
+    if (cv === '' || cv === undefined) { instToast('Please select the correct answer.', 'error'); return; }
+    correctAnswer = parseInt(cv);
+  } else if (type === 'true_false') {
+    correctAnswer = parseInt((document.getElementById('qTrueFalse')||{}).value) || 0;
+  }
+
+  var qText = ((document.getElementById('qText')||{}).value||'').trim();
+  if (!qText) { instToast('Question text is required.', 'error'); return; }
+
+  var payload = {
+    questionType: type,
+    question:     qText,
+    section:      ((document.getElementById('qSection')||{}).value||'').trim(),
+    options:      options,
+    correctAnswer: correctAnswer,
+    modelAnswer:  ((document.getElementById('qModelAnswer')||{}).value||'').trim(),
+    markScheme:   ((document.getElementById('qMarkScheme')||{}).value||'').trim(),
+    imageUrl:     ((document.getElementById('qImage')||{}).value||'').trim(),
+    tableHtml:    ((document.getElementById('qTableHtml')||{}).value||''),
+    marks:        parseInt((document.getElementById('qMarks')||{}).value) || 1,
+    difficulty:   (document.getElementById('qDifficulty')||{}).value || 'medium',
+    topic:        ((document.getElementById('qTopic')||{}).value||'').trim(),
+    answerSpaceLines: parseInt((document.getElementById('qAnswerLines')||{}).value) || 4
+  };
+
+  if (btn) { btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true; }
+  var res = editId
+    ? await instApi('/paper/questions/' + editId, 'PUT', payload)
+    : await instApi('/paper/exams/' + _activeExamId + '/questions', 'POST', payload);
+  if (btn) { btn.innerHTML = editId ? 'Save Changes' : 'Add Question'; btn.disabled = false; }
+
+  if (res.ok) {
+    instToast(editId ? 'Question updated!' : 'Question added!', 'success');
+    closeModal('addQuestionModal');
+    openExamDetail(_activeExamId);
+  } else {
+    instToast(res.data.message || 'Failed to save question.', 'error');
+  }
+}
+
+async function deleteQuestion(qId) {
+  if (!confirm('Delete this question? This cannot be undone.')) { return; }
+  var res = await instApi('/paper/questions/' + qId, 'DELETE');
+  if (res.ok) { instToast('Question deleted.', 'success'); openExamDetail(_activeExamId); }
+  else { instToast(res.data.message || 'Delete failed.', 'error'); }
+}
+
+/* ============================================ MODAL HELPERS */
+function closeModal(id) { var el = document.getElementById(id); if (el) { el.style.display = 'none'; } }
+function closeAllModals() { document.querySelectorAll('.modal-overlay').forEach(function(m) { m.style.display = 'none'; }); }
+document.addEventListener('click', function(e) { if (e.target.classList.contains('modal-overlay')) { closeAllModals(); } });
+</script>
+</body>
+</html>
