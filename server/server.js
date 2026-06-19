@@ -68,8 +68,9 @@ app.use("/api/institution/superadmin", require("./institution/routes/inst.supera
 app.use("/api/institution/payment",    require("./institution/routes/inst.payment.routes"));
 app.use("/api/institution/structure",  require("./institution/routes/inst.structure.routes"));
 app.use("/api/institution/report",     require("./institution/routes/inst.report.routes"));
-/* ✅ PHASE J: Student Identity Management (separate from CBT student routes above) */
 app.use("/api/institution/students",   require("./institution/routes/inst.student.mgmt.routes"));
+/* ✅ PHASE K.2: Paper Exam System */
+app.use("/api/institution/paper",      require("./institution/routes/inst.paper.routes"));
 
 /* ============================================
    HEALTH CHECK
