@@ -69,8 +69,9 @@ app.use("/api/institution/payment",    require("./institution/routes/inst.paymen
 app.use("/api/institution/structure",  require("./institution/routes/inst.structure.routes"));
 app.use("/api/institution/report",     require("./institution/routes/inst.report.routes"));
 app.use("/api/institution/students",   require("./institution/routes/inst.student.mgmt.routes"));
-/* ✅ PHASE K.2: Paper Exam System */
 app.use("/api/institution/paper",      require("./institution/routes/inst.paper.routes"));
+/* ✅ PHASE L.3: Score Entry System */
+app.use("/api/institution/score",      require("./institution/routes/inst.score.routes"));
 
 /* ============================================
    HEALTH CHECK
