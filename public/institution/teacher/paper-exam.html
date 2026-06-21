@@ -10,6 +10,9 @@
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"
     crossorigin="anonymous" onload="window._katexReady = true;"></script>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js" crossorigin="anonymous"></script>
+
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     :root {
@@ -41,7 +44,7 @@
     .card-body { padding:20px; }
 
     .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
-    table { width:100%; border-collapse:collapse; min-width:640px; }
+    table { width:100%; border-collapse:collapse; min-width:720px; }
     th { padding:11px 14px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); background:rgba(255,255,255,0.02); border-bottom:1px solid var(--border); white-space:nowrap; }
     td { padding:12px 14px; font-size:14px; color:var(--secondary); border-bottom:1px solid var(--border); vertical-align:middle; }
     tr:last-child td { border-bottom:none; }
@@ -57,6 +60,9 @@
     .btn-danger    { background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); }
     .btn-danger:hover { background:rgba(255,101,132,0.2); }
     .btn-orange    { background:rgba(255,165,0,0.1); border:1px solid rgba(255,165,0,0.3); color:var(--orange); }
+    .btn-orange:hover { background:rgba(255,165,0,0.2); }
+    .btn-purple    { background:rgba(108,99,255,0.1); border:1px solid rgba(108,99,255,0.3); color:#a78bfa; }
+    .btn-purple:hover { background:rgba(108,99,255,0.2); }
     .btn-sm { padding:6px 12px; font-size:12px; border-radius:7px; }
     .btn:disabled { opacity:0.5; cursor:not-allowed; transform:none !important; }
 
@@ -120,6 +126,56 @@
     .spinner { width:18px; height:18px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block; }
 
     .finalized-notice { background:rgba(67,233,123,0.08); border:1px solid rgba(67,233,123,0.25); border-radius:10px; padding:14px 16px; font-size:13px; color:var(--green); margin-bottom:16px; line-height:1.6; }
+
+    /* ============================================
+       ✅ PHASE K.5: PRINT VIEW
+       Hidden on screen, fully styled for paper output.
+       Everything else on the page is hidden during
+       print via the @media print rule at the bottom.
+    ============================================ */
+    #printArea { display:none; }
+
+    .pp-header { display:flex; align-items:flex-start; gap:14px; border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:14px; }
+    .pp-logo { width:60px; height:60px; object-fit:contain; flex-shrink:0; }
+    .pp-school-name { font-size:18px; font-weight:800; color:#000; margin:0 0 2px; }
+    .pp-school-addr { font-size:11px; color:#333; margin:0 0 2px; }
+    .pp-school-motto { font-size:11px; color:#333; font-style:italic; margin:0; }
+
+    .pp-title-block { text-align:center; margin-bottom:14px; }
+    .pp-exam-title { font-size:15px; font-weight:800; color:#000; margin:0 0 4px; }
+    .pp-exam-meta  { font-size:11px; color:#000; margin:0 0 3px; }
+    .pp-exam-info  { font-size:11px; color:#000; margin:0; }
+
+    .pp-instructions { font-size:11px; color:#000; border:1px solid #999; border-radius:4px; padding:8px 10px; margin-bottom:14px; line-height:1.6; }
+    .pp-instructions strong { display:block; margin-bottom:3px; }
+
+    .pp-section-title { font-size:13px; font-weight:800; color:#000; margin:16px 0 8px; border-bottom:1px solid #000; padding-bottom:3px; }
+
+    .pp-question { margin-bottom:14px; page-break-inside:avoid; }
+    .pp-q-row { display:flex; gap:6px; align-items:flex-start; }
+    .pp-q-num { font-weight:800; font-size:12px; color:#000; flex-shrink:0; min-width:18px; }
+    .pp-q-text { font-size:12px; color:#000; line-height:1.6; flex:1; }
+    .pp-q-marks { font-size:10px; color:#444; font-style:italic; white-space:nowrap; flex-shrink:0; }
+
+    .pp-q-image { max-width:140px; max-height:100px; display:block; margin:6px 0 6px 24px; border:1px solid #ccc; }
+    .pp-q-table { margin:6px 0 6px 24px; border-collapse:collapse; font-size:10px; }
+    .pp-q-table th, .pp-q-table td { border:1px solid #666; padding:4px 8px; color:#000; }
+    .pp-q-table th { background:#eee; font-weight:700; }
+
+    .pp-options { margin:6px 0 0 24px; }
+    .pp-option { font-size:11px; color:#000; margin-bottom:3px; }
+
+    .pp-answer-lines { margin:6px 0 0 24px; }
+    .pp-answer-line { border-bottom:1px solid #888; height:18px; }
+
+    .pp-footer { text-align:center; font-size:9px; color:#555; margin-top:20px; border-top:1px solid #ccc; padding-top:6px; }
+
+    @media print {
+      body * { visibility: hidden; }
+      #printArea, #printArea * { visibility: visible; }
+      #printArea { display:block !important; position:absolute; left:0; top:0; width:100%; padding:14mm; background:#fff; }
+      @page { size: A4; margin: 10mm; }
+    }
   </style>
 </head>
 <body>
@@ -202,6 +258,9 @@
     <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:20px;">
       <button class="btn btn-sm btn-green"     id="finalizeBtn"    onclick="finalizeExam()">🔒 Finalize Exam</button>
       <button class="btn btn-sm btn-secondary" id="revertBtn"      onclick="revertDraft()" style="display:none;">↩ Revert to Draft</button>
+      <button class="btn btn-sm btn-orange"    id="exportPdfBtn"   onclick="exportPaperPDF(_activeExamId)">📄 Export PDF</button>
+      <!-- ✅ PHASE K.5: Print button -->
+      <button class="btn btn-sm btn-purple"    id="printBtn"       onclick="printPaper(_activeExamId)">🖨 Print</button>
       <button class="btn btn-sm btn-danger"    id="deleteExamBtn"  onclick="deleteCurrentExam()">🗑 Delete Exam</button>
     </div>
 
@@ -317,24 +376,27 @@
   </div>
 </div>
 
+<!-- ============================================
+     ✅ PHASE K.5: PRINT TEMPLATE
+     Hidden on screen. Populated by printPaper().
+     Only this block is visible during window.print().
+============================================ -->
+<div id="printArea"></div>
+
 
 <script src="/institution/js/inst.api.js"></script>
 <script>
 /* ============================================
    ✅ PHASE K.3: PAPER EXAM MANAGEMENT
-   Mirrors teacher/dashboard.html CBT exam patterns
-   (math preview, image preview, table builder) but
-   targets PaperExam/PaperQuestion via /paper/* routes.
-
-   No access code, no shuffle, no publish/end —
-   instead: Finalize (lock) / Revert to draft.
-   PDF export arrives in K.4.
+   ✅ PHASE K.4: PDF QUESTION PAPER EXPORT
+   ✅ PHASE K.5: PRINT VIEW
 ============================================ */
 
 var _myExams      = [];
 var _activeExamId = null;
 var _activeExam   = null;
 var _qTableData   = [];
+var _schoolCache  = null;
 
 /* ---- KaTeX ---- */
 var _katexOpts = {
@@ -378,7 +440,7 @@ function clearQImage() {
   onImageUrlInput('');
 }
 
-/* ---- Table builder (same pattern as Phase G) ---- */
+/* ---- Table builder ---- */
 function buildQTable() {
   var rows = Math.min(Math.max(parseInt((document.getElementById('tblRows')||{}).value)||3, 1), 10);
   var cols = Math.min(Math.max(parseInt((document.getElementById('tblCols')||{}).value)||3, 1), 8);
@@ -495,7 +557,11 @@ async function loadExams() {
       '<td style="font-family:monospace; font-weight:700;">' + (e.examYear||'—') + '</td>' +
       '<td><span class="badge ' + (statusBadgeMap[e.status]||'badge-muted') + '">' + esc(e.status||'draft') + '</span></td>' +
       '<td style="font-weight:700;">' + (e.totalQuestions||0) + '</td>' +
-      '<td><button class="btn btn-sm btn-primary" onclick="openExamDetail(\'' + e._id + '\')">Manage</button></td>' +
+      '<td><div style="display:flex; gap:6px; flex-wrap:wrap;">' +
+        '<button class="btn btn-sm btn-primary" onclick="openExamDetail(\'' + e._id + '\')">Manage</button>' +
+        '<button class="btn btn-sm btn-orange" onclick="exportPaperPDF(\'' + e._id + '\')">📄 PDF</button>' +
+        '<button class="btn btn-sm btn-purple" onclick="printPaper(\'' + e._id + '\')">🖨 Print</button>' +
+      '</div></td>' +
     '</tr>';
   }).join('');
 }
@@ -569,6 +635,7 @@ async function openExamDetail(examId) {
 
   _activeExam = res.data.exam;
   var questions = res.data.questions || [];
+  window._lastLoadedQuestions = questions;
 
   document.getElementById('detailExamTitle').textContent = _activeExam.title || 'Exam';
   document.getElementById('detailExamMeta').textContent =
@@ -582,6 +649,8 @@ async function openExamDetail(examId) {
   document.getElementById('revertBtn').style.display        = isFinalized ? 'inline-flex' : 'none';
   document.getElementById('addQBtn').disabled                = isFinalized;
   document.getElementById('deleteExamBtn').disabled           = isFinalized;
+  document.getElementById('exportPdfBtn').disabled            = questions.length === 0;
+  document.getElementById('printBtn').disabled                = questions.length === 0;
 
   renderQuestionsList(questions, isFinalized);
 }
@@ -678,7 +747,6 @@ function openAddQuestionModal() {
 
 function openEditQuestionModal(qId) {
   var q = (window._lastLoadedQuestions || []).find(function(x) { return x._id === qId; });
-  /* Fallback: re-fetch if cache missing */
   if (!q) { fetchAndEditQuestion(qId); return; }
   fillQuestionForm(q);
 }
@@ -825,6 +893,413 @@ async function deleteQuestion(qId) {
   var res = await instApi('/paper/questions/' + qId, 'DELETE');
   if (res.ok) { instToast('Question deleted.', 'success'); openExamDetail(_activeExamId); }
   else { instToast(res.data.message || 'Delete failed.', 'error'); }
+}
+
+/* ============================================
+   ✅ PHASE K.4: PDF QUESTION PAPER EXPORT
+============================================ */
+
+function loadImageAsDataURL(url) {
+  return new Promise(function(resolve) {
+    if (!url) { resolve(null); return; }
+    fetch(url, { mode: 'cors' })
+      .then(function(res) { if (!res.ok) { throw new Error('fetch failed'); } return res.blob(); })
+      .then(function(blob) {
+        var reader = new FileReader();
+        reader.onloadend = function() { resolve(reader.result); };
+        reader.onerror   = function() { resolve(null); };
+        reader.readAsDataURL(blob);
+      })
+      .catch(function() { resolve(null); });
+  });
+}
+
+function getImageDimensions(dataUrl) {
+  return new Promise(function(resolve) {
+    if (!dataUrl) { resolve(null); return; }
+    var img = new Image();
+    img.onload  = function() { resolve({ width: img.naturalWidth, height: img.naturalHeight }); };
+    img.onerror = function() { resolve(null); };
+    img.src = dataUrl;
+  });
+}
+
+function parseHtmlTableToRows(html) {
+  if (!html) { return null; }
+  try {
+    var parser = new DOMParser();
+    var doc    = parser.parseFromString(html, 'text/html');
+    var table  = doc.querySelector('table');
+    if (!table) { return null; }
+    var rows = [];
+    table.querySelectorAll('tr').forEach(function(tr) {
+      var row = [];
+      tr.querySelectorAll('th,td').forEach(function(cell) { row.push(cell.textContent.trim()); });
+      if (row.length) { rows.push(row); }
+    });
+    return rows.length ? rows : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function getSchoolInfo() {
+  if (_schoolCache) { return _schoolCache; }
+  var res = await instApi('/auth/me');
+  _schoolCache = (res.ok && res.data.school) ? res.data.school : {};
+  return _schoolCache;
+}
+
+async function exportPaperPDF(examId) {
+  if (!examId) { instToast('No exam selected.', 'error'); return; }
+
+  var btnEls = document.querySelectorAll('[onclick*="exportPaperPDF"]');
+  btnEls.forEach(function(b) { b.disabled = true; });
+  instToast('Generating PDF...', 'info');
+
+  try {
+    var examRes = await instApi('/paper/exams/' + examId);
+    if (!examRes.ok) { instToast('Failed to load exam.', 'error'); return; }
+
+    var exam      = examRes.data.exam;
+    var questions = examRes.data.questions || [];
+
+    if (questions.length === 0) {
+      instToast('Add at least one question before exporting.', 'error');
+      return;
+    }
+
+    var school = await getSchoolInfo();
+
+    var jsPDFConstructor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+    if (!jsPDFConstructor) { instToast('PDF library not loaded. Refresh and try again.', 'error'); return; }
+
+    var doc     = new jsPDFConstructor({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    var pageW   = doc.internal.pageSize.getWidth();
+    var pageH   = doc.internal.pageSize.getHeight();
+    var margin  = 16;
+    var contentW = pageW - margin * 2;
+    var y = margin;
+
+    function checkPageBreak(neededHeight) {
+      if (y + neededHeight > pageH - 18) {
+        doc.addPage();
+        y = margin;
+      }
+    }
+
+    var logoDataUrl = school.logo ? await loadImageAsDataURL(school.logo) : null;
+    var headerX = margin;
+
+    if (logoDataUrl) {
+      try {
+        var fmt = logoDataUrl.indexOf('image/png') !== -1 ? 'PNG' : 'JPEG';
+        doc.addImage(logoDataUrl, fmt, margin, y, 18, 18);
+        headerX = margin + 24;
+      } catch (e) { headerX = margin; }
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(20, 20, 20);
+    doc.text(school.name || 'School Name', headerX, y + 7);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(80, 80, 80);
+    var addrLine = [school.address, school.state].filter(Boolean).join(', ');
+    if (addrLine) { doc.text(addrLine, headerX, y + 13); }
+    if (school.motto) {
+      doc.setFont('helvetica', 'italic');
+      doc.text('"' + school.motto + '"', headerX, y + 18);
+    }
+
+    y += 24;
+    doc.setDrawColor(180, 180, 180);
+    doc.line(margin, y, pageW - margin, y);
+    y += 8;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(0, 0, 0);
+    doc.text(exam.title || 'Examination', pageW / 2, y, { align: 'center' });
+    y += 7;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    var metaLine = [exam.subject, exam.class, exam.session, exam.examYear ? String(exam.examYear) : '']
+      .filter(Boolean).join('   |   ');
+    doc.text(metaLine, pageW / 2, y, { align: 'center' });
+    y += 6;
+
+    var infoLine = 'Time: ' + (exam.duration || 60) + ' mins      Total Marks: ' + (exam.totalMarks || 100);
+    doc.text(infoLine, pageW / 2, y, { align: 'center' });
+    y += 8;
+
+    if (exam.instructions) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text('Instructions:', margin, y);
+      y += 5;
+      doc.setFont('helvetica', 'normal');
+      var instrLines = doc.splitTextToSize(exam.instructions, contentW);
+      doc.text(instrLines, margin, y);
+      y += instrLines.length * 4.5 + 4;
+    }
+
+    doc.setDrawColor(0, 0, 0);
+    doc.line(margin, y, pageW - margin, y);
+    y += 8;
+
+    var lastSection = null;
+    var qNum = 0;
+    var letters = ['A', 'B', 'C', 'D'];
+
+    for (var i = 0; i < questions.length; i++) {
+      var q = questions[i];
+      qNum++;
+
+      if (q.section && q.section !== lastSection) {
+        checkPageBreak(12);
+        lastSection = q.section;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.text(q.section, margin, y);
+        y += 7;
+      }
+
+      checkPageBreak(14);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+
+      var qTextLines = doc.splitTextToSize(q.question || '', contentW - 8);
+      doc.text(qNum + '.', margin, y);
+      doc.setFont('helvetica', 'normal');
+      doc.text(qTextLines, margin + 7, y);
+
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(9);
+      doc.setTextColor(90, 90, 90);
+      doc.text('[' + (q.marks || 1) + ' mark' + ((q.marks || 1) !== 1 ? 's' : '') + ']', pageW - margin, y, { align: 'right' });
+      doc.setTextColor(0, 0, 0);
+
+      y += qTextLines.length * 5 + 2;
+
+      if (q.imageUrl) {
+        var imgData = await loadImageAsDataURL(q.imageUrl);
+        if (imgData) {
+          var dims  = await getImageDimensions(imgData);
+          var imgW  = 70;
+          var imgH  = dims ? (imgW * dims.height / dims.width) : 40;
+          checkPageBreak(imgH + 6);
+          try {
+            var imgFmt = imgData.indexOf('image/png') !== -1 ? 'PNG' : 'JPEG';
+            doc.addImage(imgData, imgFmt, margin + 7, y, imgW, imgH);
+            y += imgH + 6;
+          } catch (e) { /* skip silently */ }
+        }
+      }
+
+      if (q.tableHtml) {
+        var tableRows = parseHtmlTableToRows(q.tableHtml);
+        if (tableRows && tableRows.length > 0) {
+          checkPageBreak(14);
+          doc.autoTable({
+            startY: y,
+            margin: { left: margin + 7, right: margin },
+            head: [tableRows[0]],
+            body: tableRows.slice(1),
+            styles: { fontSize: 8, cellPadding: 2 },
+            headStyles: { fillColor: [230, 230, 230], textColor: [0, 0, 0] },
+            theme: 'grid'
+          });
+          y = doc.lastAutoTable.finalY + 6;
+        }
+      }
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+
+      if (q.questionType === 'objective' || q.questionType === 'fill_in_blank') {
+        (q.options || []).forEach(function(opt, idx) {
+          checkPageBreak(6);
+          var optLines = doc.splitTextToSize(letters[idx] + '.  ' + opt, contentW - 14);
+          doc.text(optLines, margin + 12, y);
+          y += optLines.length * 5;
+        });
+        y += 3;
+      } else if (q.questionType === 'true_false') {
+        checkPageBreak(10);
+        doc.text('A.  True', margin + 12, y); y += 5;
+        doc.text('B.  False', margin + 12, y); y += 8;
+      } else {
+        var lines = q.answerSpaceLines || 4;
+        checkPageBreak(lines * 6 + 4);
+        for (var l = 0; l < lines; l++) {
+          doc.setDrawColor(150, 150, 150);
+          doc.line(margin + 7, y, pageW - margin, y);
+          y += 7;
+        }
+        y += 2;
+      }
+
+      y += 4;
+    }
+
+    var pageCount = doc.internal.getNumberOfPages();
+    for (var p = 1; p <= pageCount; p++) {
+      doc.setPage(p);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(120, 120, 120);
+      doc.text(
+        (school.name || '') + '  —  ' + (exam.title || '') + '   |   Page ' + p + ' of ' + pageCount,
+        pageW / 2, pageH - 10, { align: 'center' }
+      );
+    }
+
+    var fileName = (exam.title || 'Question_Paper').replace(/[^a-zA-Z0-9]/g, '_') + '_' + (exam.examYear || '') + '.pdf';
+    doc.save(fileName);
+    instToast('PDF exported!', 'success');
+
+  } catch (err) {
+    console.error('PDF export error:', err);
+    instToast('PDF export failed: ' + err.message, 'error');
+  } finally {
+    btnEls.forEach(function(b) { b.disabled = false; });
+  }
+}
+
+/* ============================================
+   ✅ PHASE K.5: PRINT VIEW
+   Builds a clean HTML version of the question paper
+   into #printArea, then triggers the browser's native
+   print dialog. Reuses parseHtmlTableToRows() for
+   rendering saved tables as real HTML tables (not
+   PDF autoTable) and uses the SAME data source as
+   the PDF export (GET /paper/exams/:id + /auth/me).
+============================================ */
+
+function buildPrintTableHtml(savedHtml) {
+  /* The saved tableHtml already IS a <table>, just re-style its class for print */
+  if (!savedHtml) { return ''; }
+  return savedHtml.replace('class="q-table"', 'class="pp-q-table"');
+}
+
+async function printPaper(examId) {
+  if (!examId) { instToast('No exam selected.', 'error'); return; }
+
+  var btnEls = document.querySelectorAll('[onclick*="printPaper"]');
+  btnEls.forEach(function(b) { b.disabled = true; });
+  instToast('Preparing print view...', 'info');
+
+  try {
+    var examRes = await instApi('/paper/exams/' + examId);
+    if (!examRes.ok) { instToast('Failed to load exam.', 'error'); return; }
+
+    var exam      = examRes.data.exam;
+    var questions = examRes.data.questions || [];
+
+    if (questions.length === 0) {
+      instToast('Add at least one question before printing.', 'error');
+      return;
+    }
+
+    var school = await getSchoolInfo();
+    var letters = ['A', 'B', 'C', 'D'];
+
+    var html = '';
+
+    /* Header */
+    html += '<div class="pp-header">';
+    if (school.logo) {
+      html += '<img class="pp-logo" src="' + esc(school.logo) + '" onerror="this.style.display=\'none\'" />';
+    }
+    html += '<div>';
+    html += '<p class="pp-school-name">' + esc(school.name || 'School Name') + '</p>';
+    var addrLine = [school.address, school.state].filter(Boolean).join(', ');
+    if (addrLine) { html += '<p class="pp-school-addr">' + esc(addrLine) + '</p>'; }
+    if (school.motto) { html += '<p class="pp-school-motto">"' + esc(school.motto) + '"</p>'; }
+    html += '</div>';
+    html += '</div>';
+
+    /* Title block */
+    html += '<div class="pp-title-block">';
+    html += '<p class="pp-exam-title">' + esc(exam.title || 'Examination') + '</p>';
+    var metaLine = [exam.subject, exam.class, exam.session, exam.examYear ? String(exam.examYear) : ''].filter(Boolean).join(' &nbsp;|&nbsp; ');
+    html += '<p class="pp-exam-meta">' + metaLine + '</p>';
+    html += '<p class="pp-exam-info">Time: ' + (exam.duration || 60) + ' mins &nbsp;&nbsp; Total Marks: ' + (exam.totalMarks || 100) + '</p>';
+    html += '</div>';
+
+    /* Instructions */
+    if (exam.instructions) {
+      html += '<div class="pp-instructions"><strong>Instructions:</strong>' + esc(exam.instructions) + '</div>';
+    }
+
+    /* Questions */
+    var lastSection = null;
+    questions.forEach(function(q, i) {
+      if (q.section && q.section !== lastSection) {
+        lastSection = q.section;
+        html += '<div class="pp-section-title">' + esc(q.section) + '</div>';
+      }
+
+      html += '<div class="pp-question">';
+      html += '<div class="pp-q-row">';
+      html += '<div class="pp-q-num">' + (i + 1) + '.</div>';
+      html += '<div class="pp-q-text">' + esc(q.question || '') + '</div>';
+      html += '<div class="pp-q-marks">[' + (q.marks || 1) + ' mark' + ((q.marks || 1) !== 1 ? 's' : '') + ']</div>';
+      html += '</div>';
+
+      if (q.imageUrl) {
+        html += '<img class="pp-q-image" src="' + esc(q.imageUrl) + '" onerror="this.style.display=\'none\'" />';
+      }
+
+      if (q.tableHtml) {
+        html += buildPrintTableHtml(q.tableHtml);
+      }
+
+      if (q.questionType === 'objective' || q.questionType === 'fill_in_blank') {
+        html += '<div class="pp-options">';
+        (q.options || []).forEach(function(opt, idx) {
+          html += '<div class="pp-option">' + letters[idx] + '. &nbsp; ' + esc(opt) + '</div>';
+        });
+        html += '</div>';
+      } else if (q.questionType === 'true_false') {
+        html += '<div class="pp-options">';
+        html += '<div class="pp-option">A. &nbsp; True</div>';
+        html += '<div class="pp-option">B. &nbsp; False</div>';
+        html += '</div>';
+      } else {
+        var lines = q.answerSpaceLines || 4;
+        html += '<div class="pp-answer-lines">';
+        for (var l = 0; l < lines; l++) {
+          html += '<div class="pp-answer-line"></div>';
+        }
+        html += '</div>';
+      }
+
+      html += '</div>'; /* .pp-question */
+    });
+
+    /* Footer */
+    html += '<div class="pp-footer">' + esc(school.name || '') + ' — ' + esc(exam.title || '') + '</div>';
+
+    document.getElementById('printArea').innerHTML = html;
+
+    /* Give images a moment to start loading before print dialog opens */
+    setTimeout(function() {
+      window.print();
+    }, 200);
+
+  } catch (err) {
+    console.error('Print error:', err);
+    instToast('Failed to prepare print view: ' + err.message, 'error');
+  } finally {
+    btnEls.forEach(function(b) { b.disabled = false; });
+  }
 }
 
 /* ============================================ MODAL HELPERS */
