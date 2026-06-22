@@ -1,16 +1,7 @@
 /* ============================================
    LATLOMP INSTITUTION — SCORE ENTRY ROUTES
    ✅ PHASE L.3: Score Entry + Auto-Calculation
-
-   Reads each school's own ScoreConfig (Phase L.1) to
-   determine which components exist and how grading
-   works, so the same routes serve every school
-   regardless of how they structure their assessments.
-
-   Position (Phase L.4) is intentionally NOT calculated
-   here — it requires comparing every student in a
-   class+subject+term together, which is a separate
-   batch operation.
+   ✅ PHASE L.4: Position Ranking Engine
 ============================================ */
 'use strict';
 
@@ -101,7 +92,7 @@ router.get('/config', guard, async function (req, res) {
 ============================================ */
 router.post('/entry', guard, async function (req, res) {
   try {
-    var body = req.body || {};
+    var body     = req.body || {};
     var schoolId = req.schoolId;
 
     if (!body.studentId || !body.classId || !body.subjectId || !body.termId) {
@@ -126,18 +117,18 @@ router.post('/entry', guard, async function (req, res) {
       { schoolId: schoolId, studentId: body.studentId, subjectId: body.subjectId, termId: body.termId },
       {
         $set: {
-          classId:       body.classId,
-          academicYear:  body.academicYear || '',
-          configId:      config._id,
-          scores:        calc.scoresObj,
-          total:         calc.total,
-          maxPossible:   calc.maxPossible,
-          percentage:    calc.percentage,
-          grade:         calc.grade,
-          remark:        calc.remark,
+          classId:        body.classId,
+          academicYear:   body.academicYear || '',
+          configId:       config._id,
+          scores:         calc.scoresObj,
+          total:          calc.total,
+          maxPossible:    calc.maxPossible,
+          percentage:     calc.percentage,
+          grade:          calc.grade,
+          remark:         calc.remark,
           teacherComment: body.teacherComment || '',
-          lastEditedBy:  req.schoolUser._id,
-          lastEditedAt:  now
+          lastEditedBy:   req.schoolUser._id,
+          lastEditedAt:   now
         },
         $setOnInsert: {
           enteredBy: req.schoolUser._id,
@@ -165,7 +156,7 @@ router.post('/entry', guard, async function (req, res) {
 ============================================ */
 router.post('/bulk', guard, async function (req, res) {
   try {
-    var body = req.body || {};
+    var body     = req.body || {};
     var schoolId = req.schoolId;
 
     if (!body.classId || !body.subjectId || !body.termId) {
@@ -255,14 +246,14 @@ router.post('/bulk', guard, async function (req, res) {
 
 /* ============================================
    GET /class/:classId/subject/:subjectId/term/:termId
-   Returns: the active config, the full active class
+   Returns the active config, the full active class
    roster, and any existing scores for this group —
-   everything the L.5 spreadsheet entry page needs in
-   one call.
+   everything the L.5 spreadsheet entry page needs
+   in one call.
 ============================================ */
 router.get('/class/:classId/subject/:subjectId/term/:termId', guard, async function (req, res) {
   try {
-    var schoolId = req.schoolId;
+    var schoolId  = req.schoolId;
     var classId   = req.params.classId;
     var subjectId = req.params.subjectId;
     var termId    = req.params.termId;
@@ -337,6 +328,142 @@ router.delete('/:id', guard, async function (req, res) {
   } catch (err) {
     console.error('[inst.score] DELETE /:id:', err.message);
     return res.status(500).json({ success: false, message: 'Failed to delete score record.' });
+  }
+});
+
+/* ============================================
+   ✅ PHASE L.4: POSITION RANKING ENGINE
+
+   POST /rank/:classId/:subjectId/:termId
+
+   Fetches all SchoolScore records for the group,
+   ranks by total score using competition ranking
+   (ties share the same position; next position
+   skips accordingly — e.g. 1st, 2nd, 2nd, 4th),
+   then writes position + positionOutOf +
+   positionCalculatedAt back onto every record
+   in the group in parallel.
+
+   This is a batch operation. It is:
+   - Safe to call multiple times (idempotent — each
+     call recalculates from scratch, so adding a new
+     student's score and re-ranking always produces
+     correct results)
+   - Called automatically by L.5's "Save All" button
+     after a bulk save so teachers never need to
+     trigger it manually
+   - Also available as a standalone endpoint so the
+     school admin can trigger a rerank from the
+     admin dashboard if needed (e.g. after a score
+     correction)
+============================================ */
+router.post('/rank/:classId/:subjectId/:termId', guard, async function (req, res) {
+  try {
+    var schoolId  = req.schoolId;
+    var classId   = req.params.classId;
+    var subjectId = req.params.subjectId;
+    var termId    = req.params.termId;
+
+    /* ---- Load all score records for this group ---- */
+    var scores = await SchoolScore.find({
+      schoolId:  schoolId,
+      classId:   classId,
+      subjectId: subjectId,
+      termId:    termId
+    }).lean();
+
+    if (scores.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No score records found for this group — nothing to rank.',
+        ranked:  0
+      });
+    }
+
+    /* ---- Sort by total descending ---- */
+    scores.sort(function (a, b) {
+      return (b.total || 0) - (a.total || 0);
+    });
+
+    var total = scores.length;
+    var now   = new Date();
+
+    /* ---- Assign competition ranking ----
+       Walk through the sorted array. Each student
+       gets the position equal to (number of students
+       ahead of them + 1). Ties get the same position;
+       the next different score picks up the count.
+
+       Example with 4 students [85, 80, 80, 75]:
+         Index 0: total=85, position=1
+         Index 1: total=80, position=2
+         Index 2: total=80, position=2 (tie)
+         Index 3: total=75, position=4 (2 students ahead
+                                       who scored 80, so
+                                       position = 3+1 = 4)
+    ---- */
+    var updates = scores.map(function (scoreDoc, idx) {
+      /* Position = how many students have a strictly
+         higher total than this student, plus 1.
+         Since the array is sorted, this is simply idx
+         UNLESS the previous student had the same total. */
+      var position = 1;
+      for (var j = 0; j < idx; j++) {
+        if ((scores[j].total || 0) > (scoreDoc.total || 0)) {
+          position++;
+        }
+      }
+      /* Simplification: since sorted, count how many
+         students before idx have a DIFFERENT (higher)
+         total — each unique score group contributes 1
+         to the rank count. */
+      position = 1;
+      var higherCount = 0;
+      for (var k = 0; k < idx; k++) {
+        if ((scores[k].total || 0) > (scoreDoc.total || 0)) {
+          higherCount++;
+        }
+      }
+      position = higherCount + 1;
+
+      return {
+        _id:      scoreDoc._id,
+        position: position
+      };
+    });
+
+    /* ---- Write positions back to DB in parallel ---- */
+    await Promise.all(updates.map(function (u) {
+      return SchoolScore.findByIdAndUpdate(
+        u._id,
+        { $set: {
+          position:              u.position,
+          positionOutOf:         total,
+          positionCalculatedAt:  now
+        }}
+      );
+    }));
+
+    /* ---- Build a summary for the response ---- */
+    var summary = updates.map(function (u, i) {
+      return {
+        studentId: scores[i].studentId,
+        total:     scores[i].total || 0,
+        position:  u.position,
+        outOf:     total
+      };
+    });
+
+    return res.json({
+      success:  true,
+      message:  total + ' student' + (total !== 1 ? 's' : '') + ' ranked successfully.',
+      ranked:   total,
+      summary:  summary
+    });
+
+  } catch (err) {
+    console.error('[inst.score] POST /rank:', err.message);
+    return res.status(500).json({ success: false, message: 'Ranking failed.' });
   }
 });
 
