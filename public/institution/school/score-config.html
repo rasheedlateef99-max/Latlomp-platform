@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Score Configuration — LatLomp Institution</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --primary:#6c63ff; --pd:#574fd6; --green:#43e97b; --red:#ff6584;
+      --orange:#ffa500;  --yellow:#ffd600;
+      --dark:#0f0f1a;    --dark-2:#1a1a2e;
+      --border:rgba(255,255,255,0.08);
+      --text:#fff;       --muted:#6b6b8a; --secondary:#a0a0c0;
+    }
+    html, body { margin:0; padding:0; background:var(--dark); color:var(--text); font-family:'Inter',sans-serif; }
+    @keyframes spin   { to { transform:rotate(360deg); } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+
+    .topbar { position:sticky; top:0; z-index:300; background:var(--dark-2); border-bottom:1px solid var(--border); height:60px; display:flex; align-items:center; padding:0 24px; gap:16px; }
+    .topbar-brand { font-size:15px; font-weight:800; color:#fff; }
+    .topbar-back  { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:8px; background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--secondary); font-size:13px; font-weight:600; text-decoration:none; transition:all 0.2s; margin-left:auto; white-space:nowrap; }
+    .topbar-back:hover { color:#fff; background:rgba(255,255,255,0.1); }
+
+    .main { max-width:900px; margin:0 auto; padding:28px 24px 60px; }
+    @media (max-width:700px) { .main { padding:18px 14px 48px; } }
+
+    .page-header { margin-bottom:24px; animation:fadeUp 0.3s ease; }
+    .page-header h1 { font-size:22px; font-weight:800; color:#fff; margin:0 0 4px; }
+    .page-header p  { font-size:13px; color:var(--muted); margin:0; }
+
+    .card { background:var(--dark-2); border:1px solid var(--border); border-radius:16px; overflow:hidden; margin-bottom:20px; animation:fadeUp 0.3s ease; }
+    .card-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:10px; }
+    .card-head h3 { font-size:15px; font-weight:700; color:#fff; margin:0; }
+    .card-body { padding:20px; }
+
+    .btn { display:inline-flex; align-items:center; gap:7px; padding:9px 16px; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; border:none; transition:all 0.2s; text-decoration:none; white-space:nowrap; }
+    .btn-primary   { background:linear-gradient(135deg,var(--primary),var(--pd)); color:#fff; }
+    .btn-primary:hover  { transform:translateY(-1px); box-shadow:0 4px 16px rgba(108,99,255,0.4); }
+    .btn-green     { background:linear-gradient(135deg,var(--green),#38f9d7); color:#0f0f1a; }
+    .btn-green:hover    { transform:translateY(-1px); box-shadow:0 4px 16px rgba(67,233,123,0.35); }
+    .btn-secondary { background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--secondary); }
+    .btn-secondary:hover { color:#fff; background:rgba(255,255,255,0.1); }
+    .btn-danger    { background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); }
+    .btn-danger:hover { background:rgba(255,101,132,0.2); }
+    .btn-sm { padding:6px 12px; font-size:12px; border-radius:7px; }
+    .btn:disabled { opacity:0.5; cursor:not-allowed; transform:none !important; }
+
+    .field { display:flex; flex-direction:column; gap:6px; margin-bottom:0; }
+    .field label { font-size:11px; font-weight:700; color:var(--secondary); text-transform:uppercase; letter-spacing:0.4px; }
+    .inp { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:#fff; font-size:13px; font-family:inherit; outline:none; width:100%; transition:border-color 0.2s; }
+    .inp:focus { border-color:var(--primary); }
+    .inp::placeholder { color:var(--muted); }
+    .inp-num { width:80px; text-align:center; }
+
+    /* ---- COMPONENT TABLE ---- */
+    .comp-table { width:100%; border-collapse:collapse; }
+    .comp-table th { padding:9px 12px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; color:var(--muted); border-bottom:1px solid var(--border); }
+    .comp-table td { padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
+    .comp-table tr:last-child td { border-bottom:none; }
+    .drag-handle { color:var(--muted); cursor:grab; font-size:16px; padding:0 6px; user-select:none; }
+
+    /* ---- GRADE TABLE ---- */
+    .grade-table { width:100%; border-collapse:collapse; }
+    .grade-table th { padding:9px 12px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; color:var(--muted); border-bottom:1px solid var(--border); }
+    .grade-table td { padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
+    .grade-table tr:last-child td { border-bottom:none; }
+
+    .total-preview { background:rgba(108,99,255,0.08); border:1px solid rgba(108,99,255,0.2); border-radius:10px; padding:14px 18px; font-size:14px; color:#a78bfa; margin-top:16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .total-preview strong { font-size:22px; font-weight:900; color:#fff; }
+
+    .info-banner { background:rgba(108,99,255,0.06); border:1px solid rgba(108,99,255,0.18); border-radius:10px; padding:14px 18px; font-size:13px; color:#a78bfa; line-height:1.6; margin-bottom:20px; }
+    .info-banner strong { color:#fff; }
+
+    .success-banner { background:rgba(67,233,123,0.08); border:1px solid rgba(67,233,123,0.25); border-radius:10px; padding:14px 18px; font-size:13px; color:var(--green); margin-bottom:16px; display:none; }
+    .error-banner   { background:rgba(255,101,132,0.08); border:1px solid rgba(255,101,132,0.25); border-radius:10px; padding:14px 18px; font-size:13px; color:var(--red);   margin-bottom:16px; display:none; }
+
+    .spinner { width:18px; height:18px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block; }
+
+    .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+    .badge-green  { background:rgba(67,233,123,0.12); color:var(--green); }
+    .badge-purple { background:rgba(108,99,255,0.12); color:#a78bfa; }
+
+    .empty { text-align:center; padding:32px 20px; }
+    .empty-icon  { font-size:40px; margin-bottom:10px; }
+    .empty-title { font-size:14px; font-weight:700; color:var(--secondary); }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand">🎯 Score Configuration</div>
+  <a class="topbar-back" href="/institution/school/dashboard.html">&larr; Dashboard</a>
+</div>
+
+<div class="main">
+
+  <div class="page-header">
+    <h1>Score Configuration</h1>
+    <p>Define how your school calculates scores, grades and remarks. Teachers will see these components in the Score Entry page.</p>
+  </div>
+
+  <div class="info-banner">
+    <strong>How this works:</strong> Each component (e.g. First Test, Examination) has a maximum mark. The system adds them up, converts to a percentage, then applies your grade boundaries. Changes here take effect immediately for all new score entries. Existing saved scores keep their original grade until re-saved.
+  </div>
+
+  <div id="successBanner" class="success-banner"></div>
+  <div id="errorBanner"   class="error-banner"></div>
+
+  <!-- SCORE COMPONENTS -->
+  <div class="card">
+    <div class="card-head">
+      <h3>Score Components</h3>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <span id="totalPreviewBadge" class="badge badge-purple">Total: — marks</span>
+        <button class="btn btn-primary btn-sm" onclick="addComponentRow()">+ Add Component</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="comp-table">
+        <thead>
+          <tr>
+            <th style="width:36px;"></th>
+            <th>Label</th>
+            <th>Key (system name)</th>
+            <th>Max Marks</th>
+            <th style="width:60px;"></th>
+          </tr>
+        </thead>
+        <tbody id="compTableBody">
+          <tr><td colspan="5"><div class="empty"><div class="empty-icon">⏳</div><div class="empty-title">Loading...</div></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card-body" style="padding-top:0;">
+      <div class="total-preview">
+        <span>Total marks out of:</span>
+        <strong id="totalPreviewNum">—</strong>
+        <span style="font-size:12px; color:var(--muted);">Grades are calculated as a percentage of this total.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- GRADE BOUNDARIES -->
+  <div class="card">
+    <div class="card-head">
+      <h3>Grade Boundaries</h3>
+      <button class="btn btn-primary btn-sm" onclick="addGradeRow()">+ Add Grade</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="grade-table">
+        <thead>
+          <tr>
+            <th>Grade</th>
+            <th>Remark</th>
+            <th>Min %</th>
+            <th>Max %</th>
+            <th style="width:60px;"></th>
+          </tr>
+        </thead>
+        <tbody id="gradeTableBody">
+          <tr><td colspan="5"><div class="empty"><div class="empty-icon">⏳</div><div class="empty-title">Loading...</div></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card-body" style="padding-top:12px;">
+      <div id="gradeValidationMsg" style="font-size:12px; color:var(--muted); line-height:1.6;"></div>
+    </div>
+  </div>
+
+  <!-- ACTIONS -->
+  <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+    <button class="btn btn-danger" onclick="resetToDefault()">🔄 Reset to Default</button>
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-secondary" onclick="loadConfig()">↩ Discard Changes</button>
+      <button class="btn btn-green" id="saveBtn" onclick="saveConfig()">💾 Save Configuration</button>
+    </div>
+  </div>
+
+</div>
+
+<script src="/institution/js/inst.api.js"></script>
+<script>
+/* ============================================
+   ✅ PHASE L.6: SCORE CONFIGURATION PAGE
+   School admin can:
+   - Add/remove/rename score components
+   - Adjust max marks per component
+   - Edit grade boundaries (percentage-based)
+   - Reset everything to the 10/10/10/10/60 default
+   - Save to the school's ScoreConfig via the API
+============================================ */
+
+var _config     = null;
+var _components = [];  /* working copy */
+var _grades     = [];  /* working copy */
+var _compIdSeq  = 0;   /* local row IDs for DOM management */
+var _gradeIdSeq = 0;
+
+/* ============================================ INIT */
+document.addEventListener('DOMContentLoaded', async function () {
+  if (!instRequireAuth('school_admin')) { return; }
+  await loadConfig();
+});
+
+/* ============================================ LOAD */
+async function loadConfig() {
+  var res = await instApi('/score/config');
+  if (!res.ok) {
+    showError('Failed to load score configuration. Please refresh.');
+    return;
+  }
+  _config = res.data.config;
+
+  /* Deep copy so we can discard without refetching */
+  _components = (_config.components || []).slice().sort(function (a, b) {
+    return (a.sortOrder || 0) - (b.sortOrder || 0);
+  }).map(function (c) {
+    return { _rid: ++_compIdSeq, key: c.key, label: c.label, maxScore: c.maxScore };
+  });
+
+  _grades = (_config.gradeBoundaries || []).slice().map(function (g) {
+    return { _rid: ++_gradeIdSeq, grade: g.grade, remark: g.remark, minScore: g.minScore, maxScore: g.maxScore };
+  });
+
+  renderComponents();
+  renderGrades();
+  hideBanners();
+}
+
+/* ============================================ RENDER COMPONENTS */
+function renderComponents() {
+  var tbody = document.getElementById('compTableBody');
+  if (!tbody) { return; }
+
+  if (_components.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty"><div class="empty-icon">📋</div><div class="empty-title">No components yet — click "+ Add Component"</div></div></td></tr>';
+    updateTotalPreview();
+    return;
+  }
+
+  tbody.innerHTML = _components.map(function (c) {
+    return '<tr id="crow_' + c._rid + '">' +
+      '<td><span class="drag-handle" title="Drag to reorder">⠿</span></td>' +
+      '<td><input type="text" class="inp" id="clabel_' + c._rid + '" value="' + esc(c.label) + '" placeholder="e.g. First Test" oninput="onLabelChange(' + c._rid + ')" /></td>' +
+      '<td><input type="text" class="inp" id="ckey_' + c._rid + '" value="' + esc(c.key) + '" placeholder="e.g. firstTest" style="font-family:monospace; font-size:12px;" /></td>' +
+      '<td><input type="number" class="inp inp-num" id="cmax_' + c._rid + '" value="' + c.maxScore + '" min="1" max="1000" oninput="updateTotalPreview()" /></td>' +
+      '<td><button class="btn btn-danger btn-sm" onclick="removeComponent(' + c._rid + ')" title="Remove">✕</button></td>' +
+    '</tr>';
+  }).join('');
+
+  updateTotalPreview();
+}
+
+/* Auto-generate key from label as admin types */
+function onLabelChange(rid) {
+  var labelEl = document.getElementById('clabel_' + rid);
+  var keyEl   = document.getElementById('ckey_' + rid);
+  if (!labelEl || !keyEl) { return; }
+  /* Only auto-generate if key is empty or was previously auto-generated */
+  var label = labelEl.value;
+  var autoKey = label.toLowerCase()
+    .replace(/[^a-z0-9 ]/g, '')
+    .trim()
+    .replace(/\s+(.)/g, function (_, c) { return c.toUpperCase(); }) /* camelCase */
+    .replace(/\s/g, '');
+  keyEl.value = autoKey;
+}
+
+function addComponentRow() {
+  var rid = ++_compIdSeq;
+  _components.push({ _rid: rid, key: '', label: '', maxScore: 10 });
+  renderComponents();
+  /* Focus the new label input */
+  setTimeout(function () {
+    var el = document.getElementById('clabel_' + rid);
+    if (el) { el.focus(); }
+  }, 50);
+}
+
+function removeComponent(rid) {
+  _components = _components.filter(function (c) { return c._rid !== rid; });
+  renderComponents();
+}
+
+function updateTotalPreview() {
+  var total = 0;
+  _components.forEach(function (c) {
+    var el = document.getElementById('cmax_' + c._rid);
+    var val = el ? (parseInt(el.value) || 0) : (c.maxScore || 0);
+    total += val;
+  });
+  var numEl   = document.getElementById('totalPreviewNum');
+  var badgeEl = document.getElementById('totalPreviewBadge');
+  if (numEl)   { numEl.textContent   = total; }
+  if (badgeEl) { badgeEl.textContent = 'Total: ' + total + ' marks'; }
+}
+
+/* ============================================ RENDER GRADES */
+function renderGrades() {
+  var tbody = document.getElementById('gradeTableBody');
+  if (!tbody) { return; }
+
+  if (_grades.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty"><div class="empty-icon">📊</div><div class="empty-title">No grade boundaries — click "+ Add Grade"</div></div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = _grades.map(function (g) {
+    return '<tr id="grow_' + g._rid + '">' +
+      '<td><input type="text" class="inp" id="ggrade_' + g._rid + '" value="' + esc(g.grade) + '" placeholder="A1" style="width:70px;" /></td>' +
+      '<td><input type="text" class="inp" id="gremark_' + g._rid + '" value="' + esc(g.remark) + '" placeholder="Excellent" /></td>' +
+      '<td><input type="number" class="inp inp-num" id="gmin_' + g._rid + '" value="' + g.minScore + '" min="0" max="100" oninput="validateGrades()" /></td>' +
+      '<td><input type="number" class="inp inp-num" id="gmax_' + g._rid + '" value="' + g.maxScore + '" min="0" max="100" oninput="validateGrades()" /></td>' +
+      '<td><button class="btn btn-danger btn-sm" onclick="removeGrade(' + g._rid + ')" title="Remove">✕</button></td>' +
+    '</tr>';
+  }).join('');
+
+  validateGrades();
+}
+
+function addGradeRow() {
+  var rid = ++_gradeIdSeq;
+  _grades.push({ _rid: rid, grade: '', remark: '', minScore: 0, maxScore: 0 });
+  renderGrades();
+  setTimeout(function () {
+    var el = document.getElementById('ggrade_' + rid);
+    if (el) { el.focus(); }
+  }, 50);
+}
+
+function removeGrade(rid) {
+  _grades = _grades.filter(function (g) { return g._rid !== rid; });
+  renderGrades();
+}
+
+/* Basic validation: flag overlapping or out-of-order boundaries */
+function validateGrades() {
+  var msgEl = document.getElementById('gradeValidationMsg');
+  if (!msgEl) { return; }
+
+  var boundaries = _grades.map(function (g) {
+    var min = parseInt((document.getElementById('gmin_' + g._rid) || {}).value) || 0;
+    var max = parseInt((document.getElementById('gmax_' + g._rid) || {}).value) || 0;
+    return { min: min, max: max };
+  });
+
+  var issues = [];
+  boundaries.forEach(function (b, i) {
+    if (b.min > b.max) {
+      issues.push('Row ' + (i + 1) + ': Min % cannot be greater than Max %.');
+    }
+  });
+
+  /* Check coverage: does 0-100 get fully covered? */
+  var covered = new Array(101).fill(false);
+  boundaries.forEach(function (b) {
+    for (var p = Math.max(0, b.min); p <= Math.min(100, b.max); p++) {
+      covered[p] = true;
+    }
+  });
+  var uncovered = [];
+  for (var p = 0; p <= 100; p++) { if (!covered[p]) { uncovered.push(p); } }
+  if (uncovered.length > 0 && uncovered.length <= 10) {
+    issues.push('⚠️ These percentages have no grade assigned: ' + uncovered.join(', ') + '. Students scoring these values will show "Ungraded".');
+  } else if (uncovered.length > 10) {
+    issues.push('⚠️ ' + uncovered.length + ' percentage points have no grade assigned. Make sure boundaries cover 0–100.');
+  }
+
+  if (issues.length === 0) {
+    msgEl.innerHTML = '✅ Grade boundaries look good — all percentages 0–100 are covered.';
+    msgEl.style.color = 'var(--green)';
+  } else {
+    msgEl.innerHTML = issues.map(function (i) { return '⚠️ ' + i; }).join('<br>');
+    msgEl.style.color = 'var(--orange)';
+  }
+}
+
+/* ============================================ SAVE */
+async function saveConfig() {
+  hideBanners();
+
+  /* Collect components from DOM */
+  var components = [];
+  var compErrors = [];
+  _components.forEach(function (c, idx) {
+    var label = ((document.getElementById('clabel_' + c._rid) || {}).value || '').trim();
+    var key   = ((document.getElementById('ckey_' + c._rid)   || {}).value || '').trim();
+    var max   = parseInt((document.getElementById('cmax_' + c._rid) || {}).value) || 0;
+
+    if (!label) { compErrors.push('Row ' + (idx + 1) + ': Component label is required.'); return; }
+    if (!key)   { compErrors.push('Row ' + (idx + 1) + ' (' + label + '): System key is required.'); return; }
+    if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(key)) { compErrors.push('Row ' + (idx + 1) + ': Key "' + key + '" must start with a letter and contain only letters, numbers, underscores.'); return; }
+    if (max < 1) { compErrors.push('Row ' + (idx + 1) + ' (' + label + '): Max marks must be at least 1.'); return; }
+
+    components.push({ key: key, label: label, maxScore: max, sortOrder: idx + 1 });
+  });
+
+  /* Check for duplicate keys */
+  var keys = components.map(function (c) { return c.key; });
+  var dupes = keys.filter(function (k, i) { return keys.indexOf(k) !== i; });
+  if (dupes.length > 0) {
+    compErrors.push('Duplicate component keys: ' + [...new Set(dupes)].join(', ') + '. Each key must be unique.');
+  }
+
+  if (compErrors.length > 0) {
+    showError(compErrors.join('<br>'));
+    return;
+  }
+
+  /* Collect grade boundaries from DOM */
+  var gradeBoundaries = [];
+  var gradeErrors = [];
+  _grades.forEach(function (g, idx) {
+    var grade  = ((document.getElementById('ggrade_'  + g._rid) || {}).value || '').trim();
+    var remark = ((document.getElementById('gremark_' + g._rid) || {}).value || '').trim();
+    var min    = parseInt((document.getElementById('gmin_' + g._rid) || {}).value);
+    var max    = parseInt((document.getElementById('gmax_' + g._rid) || {}).value);
+
+    if (!grade)          { gradeErrors.push('Grade row ' + (idx + 1) + ': Grade label is required.'); return; }
+    if (!remark)         { gradeErrors.push('Grade row ' + (idx + 1) + ': Remark is required.'); return; }
+    if (isNaN(min) || isNaN(max)) { gradeErrors.push('Grade row ' + (idx + 1) + ': Min and Max % must be numbers.'); return; }
+    if (min > max)       { gradeErrors.push('Grade row ' + (idx + 1) + ' (' + grade + '): Min % cannot exceed Max %.'); return; }
+
+    gradeBoundaries.push({ grade: grade, remark: remark, minScore: min, maxScore: max });
+  });
+
+  if (gradeErrors.length > 0) {
+    showError(gradeErrors.join('<br>'));
+    return;
+  }
+
+  if (components.length === 0) {
+    showError('You must have at least one score component.');
+    return;
+  }
+
+  var btn = document.getElementById('saveBtn');
+  if (btn) { btn.innerHTML = '<span class="spinner"></span> Saving...'; btn.disabled = true; }
+
+  var configId = _config && _config._id;
+  var res;
+
+  if (configId) {
+    res = await instApi('/score/config/' + configId, 'PUT', {
+      components:      components,
+      gradeBoundaries: gradeBoundaries
+    });
+  } else {
+    /* Fallback: create via a POST if config doesn't exist yet */
+    res = await instApi('/score/config', 'POST', {
+      components:      components,
+      gradeBoundaries: gradeBoundaries
+    });
+  }
+
+  if (btn) { btn.innerHTML = '💾 Save Configuration'; btn.disabled = false; }
+
+  if (res.ok) {
+    showSuccess('✅ Score configuration saved successfully! Teachers will see the updated components immediately.');
+    _config = res.data.config || _config;
+    /* Reload to reflect saved state */
+    await loadConfig();
+  } else {
+    showError((res.data && res.data.message) || 'Failed to save configuration.');
+  }
+}
+
+/* ============================================ RESET TO DEFAULT */
+async function resetToDefault() {
+  if (!confirm(
+    'Reset to the default Nigerian secondary school score structure?\n\n' +
+    'Components: First Test (10) + Second Test (10) + Assignment (10) + Practical (10) + Examination (60)\n' +
+    'Grades: A1 (75-100) through F9 (0-39)\n\n' +
+    'This will overwrite your current configuration. Continue?'
+  )) { return; }
+
+  hideBanners();
+  var btn = document.getElementById('saveBtn');
+  if (btn) { btn.innerHTML = '<span class="spinner"></span> Resetting...'; btn.disabled = true; }
+
+  var defaultComponents = [
+    { key: 'firstTest',   label: 'First Test',   maxScore: 10, sortOrder: 1 },
+    { key: 'secondTest',  label: 'Second Test',  maxScore: 10, sortOrder: 2 },
+    { key: 'assignment',  label: 'Assignment',   maxScore: 10, sortOrder: 3 },
+    { key: 'practical',   label: 'Practical',    maxScore: 10, sortOrder: 4 },
+    { key: 'examination', label: 'Examination',  maxScore: 60, sortOrder: 5 }
+  ];
+  var defaultGrades = [
+    { grade: 'A1', remark: 'Excellent', minScore: 75, maxScore: 100 },
+    { grade: 'B2', remark: 'Very Good', minScore: 70, maxScore: 74  },
+    { grade: 'B3', remark: 'Good',      minScore: 65, maxScore: 69  },
+    { grade: 'C4', remark: 'Credit',    minScore: 60, maxScore: 64  },
+    { grade: 'C5', remark: 'Credit',    minScore: 55, maxScore: 59  },
+    { grade: 'C6', remark: 'Credit',    minScore: 50, maxScore: 54  },
+    { grade: 'D7', remark: 'Pass',      minScore: 45, maxScore: 49  },
+    { grade: 'E8', remark: 'Pass',      minScore: 40, maxScore: 44  },
+    { grade: 'F9', remark: 'Fail',      minScore: 0,  maxScore: 39  }
+  ];
+
+  var configId = _config && _config._id;
+  var res = configId
+    ? await instApi('/score/config/' + configId, 'PUT', { components: defaultComponents, gradeBoundaries: defaultGrades })
+    : await instApi('/score/config', 'POST', { components: defaultComponents, gradeBoundaries: defaultGrades });
+
+  if (btn) { btn.innerHTML = '💾 Save Configuration'; btn.disabled = false; }
+
+  if (res.ok) {
+    showSuccess('✅ Configuration reset to default Nigerian secondary school structure.');
+    _config = res.data.config || _config;
+    await loadConfig();
+  } else {
+    showError((res.data && res.data.message) || 'Reset failed.');
+  }
+}
+
+/* ============================================ BANNERS */
+function showSuccess(msg) {
+  var el = document.getElementById('successBanner');
+  if (el) { el.innerHTML = msg; el.style.display = 'block'; }
+  var er = document.getElementById('errorBanner');
+  if (er) { er.style.display = 'none'; }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showError(msg) {
+  var el = document.getElementById('errorBanner');
+  if (el) { el.innerHTML = msg; el.style.display = 'block'; }
+  var su = document.getElementById('successBanner');
+  if (su) { su.style.display = 'none'; }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function hideBanners() {
+  var s = document.getElementById('successBanner'); if (s) { s.style.display = 'none'; }
+  var e = document.getElementById('errorBanner');   if (e) { e.style.display = 'none'; }
+}
+
+/* ============================================ HELPERS */
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

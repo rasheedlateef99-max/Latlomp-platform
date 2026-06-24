@@ -2,6 +2,7 @@
    LATLOMP INSTITUTION — SCORE ENTRY ROUTES
    ✅ PHASE L.3: Score Entry + Auto-Calculation
    ✅ PHASE L.4: Position Ranking Engine
+   ✅ PHASE L.6: Score Config Update Endpoints
 ============================================ */
 'use strict';
 
@@ -12,18 +13,14 @@ const SchoolScore   = require('../models/SchoolScore.model');
 const ScoreConfig   = require('../models/ScoreConfig.model');
 const SchoolStudent = require('../models/SchoolStudent.model');
 
-const { instProtect, teacherOrAdmin } = require('../middleware/inst.auth');
-const { requireActiveSubscription }   = require('../middleware/inst.tenant');
+const { instProtect, teacherOrAdmin, schoolAdminOnly } = require('../middleware/inst.auth');
+const { requireActiveSubscription }                    = require('../middleware/inst.tenant');
 
-var guard = [instProtect, teacherOrAdmin, requireActiveSubscription];
+var guard      = [instProtect, teacherOrAdmin,  requireActiveSubscription];
+var adminGuard = [instProtect, schoolAdminOnly, requireActiveSubscription];
 
 /* ============================================
    Shared calculation helper.
-   Validates supplied scores against the config's
-   components and computes total/percentage/grade.
-   Does NOT throw — returns an errors[] array so
-   callers (single vs bulk) can decide how strict
-   to be.
 ============================================ */
 function calcScoreFromConfig(config, suppliedScores) {
   var components = (config && config.components) || [];
@@ -71,8 +68,7 @@ function calcScoreFromConfig(config, suppliedScores) {
 /* ============================================
    GET /config
    Fetch (or auto-create) this school's active
-   ScoreConfig. Frontend uses this to render the
-   correct columns dynamically.
+   ScoreConfig.
 ============================================ */
 router.get('/config', guard, async function (req, res) {
   try {
@@ -85,10 +81,121 @@ router.get('/config', guard, async function (req, res) {
 });
 
 /* ============================================
+   ✅ PHASE L.6: PUT /config/:id
+   School admin updates the score config —
+   components and/or grade boundaries.
+   Restricted to schoolAdminOnly.
+============================================ */
+router.put('/config/:id', adminGuard, async function (req, res) {
+  try {
+    var schoolId = req.schoolId;
+    var body     = req.body || {};
+
+    var config = await ScoreConfig.findOne({ _id: req.params.id, schoolId: schoolId });
+    if (!config) {
+      return res.status(404).json({ success: false, message: 'Score configuration not found.' });
+    }
+
+    /* ---- Validate components if provided ---- */
+    if (body.components !== undefined) {
+      if (!Array.isArray(body.components) || body.components.length === 0) {
+        return res.status(400).json({ success: false, message: 'At least one score component is required.' });
+      }
+
+      var keys = body.components.map(function (c) { return c.key; });
+      var dupes = keys.filter(function (k, i) { return keys.indexOf(k) !== i; });
+      if (dupes.length > 0) {
+        return res.status(400).json({ success: false, message: 'Duplicate component keys: ' + [...new Set(dupes)].join(', ') });
+      }
+
+      for (var i = 0; i < body.components.length; i++) {
+        var c = body.components[i];
+        if (!c.key || !c.label || !c.maxScore) {
+          return res.status(400).json({ success: false, message: 'Each component requires key, label, and maxScore.' });
+        }
+        if (c.maxScore < 1) {
+          return res.status(400).json({ success: false, message: 'Component "' + c.label + '" maxScore must be at least 1.' });
+        }
+      }
+
+      config.components = body.components;
+    }
+
+    /* ---- Validate grade boundaries if provided ---- */
+    if (body.gradeBoundaries !== undefined) {
+      if (!Array.isArray(body.gradeBoundaries)) {
+        return res.status(400).json({ success: false, message: 'gradeBoundaries must be an array.' });
+      }
+
+      for (var j = 0; j < body.gradeBoundaries.length; j++) {
+        var g = body.gradeBoundaries[j];
+        if (!g.grade || !g.remark) {
+          return res.status(400).json({ success: false, message: 'Each grade boundary requires grade and remark.' });
+        }
+        if (g.minScore > g.maxScore) {
+          return res.status(400).json({ success: false, message: 'Grade "' + g.grade + '": minScore cannot exceed maxScore.' });
+        }
+      }
+
+      config.gradeBoundaries = body.gradeBoundaries;
+    }
+
+    /* ---- Optional name update ---- */
+    if (body.name) { config.name = body.name.trim(); }
+
+    await config.save();
+
+    return res.json({
+      success: true,
+      message: 'Score configuration updated successfully.',
+      config:  config
+    });
+  } catch (err) {
+    console.error('[inst.score] PUT /config/:id:', err.message);
+    return res.status(500).json({ success: false, message: 'Failed to update score configuration.' });
+  }
+});
+
+/* ============================================
+   ✅ PHASE L.6: POST /config
+   Creates a new config if none exists.
+   Fallback used by the UI's reset flow.
+   Also restricted to schoolAdminOnly.
+============================================ */
+router.post('/config', adminGuard, async function (req, res) {
+  try {
+    var schoolId = req.schoolId;
+    var body     = req.body || {};
+
+    /* Deactivate any existing default config first */
+    await ScoreConfig.updateMany(
+      { schoolId: schoolId, isDefault: true },
+      { $set: { isDefault: false, isActive: false } }
+    );
+
+    var config = await ScoreConfig.create({
+      schoolId:        schoolId,
+      name:            body.name || 'Default Score Structure',
+      isDefault:       true,
+      isActive:        true,
+      components:      body.components      || ScoreConfig.getDefaultComponents(),
+      gradeBoundaries: body.gradeBoundaries || ScoreConfig.getDefaultGradeBoundaries(),
+      createdBy:       req.schoolUser._id
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Score configuration created.',
+      config:  config
+    });
+  } catch (err) {
+    console.error('[inst.score] POST /config:', err.message);
+    return res.status(500).json({ success: false, message: 'Failed to create score configuration.' });
+  }
+});
+
+/* ============================================
    POST /entry
-   Save or update ONE student's score for one
-   subject/term. Strict — rejects invalid input
-   rather than silently clamping.
 ============================================ */
 router.post('/entry', guard, async function (req, res) {
   try {
@@ -141,7 +248,7 @@ router.post('/entry', guard, async function (req, res) {
     return res.status(200).json({ success: true, message: 'Score saved.', score: saved });
   } catch (err) {
     if (err.code === 11000) {
-      return res.status(409).json({ success: false, message: 'A score record for this student already exists. Please refresh and try again.' });
+      return res.status(409).json({ success: false, message: 'A score record already exists. Please refresh and try again.' });
     }
     console.error('[inst.score] POST /entry:', err.message);
     return res.status(500).json({ success: false, message: 'Failed to save score.' });
@@ -150,9 +257,6 @@ router.post('/entry', guard, async function (req, res) {
 
 /* ============================================
    POST /bulk
-   Save MANY students at once (spreadsheet save).
-   Per-row error handling — one bad row does not
-   block the rest of the class.
 ============================================ */
 router.post('/bulk', guard, async function (req, res) {
   try {
@@ -171,7 +275,6 @@ router.post('/bulk', guard, async function (req, res) {
 
     var config = await ScoreConfig.getOrCreateDefault(schoolId, req.schoolUser._id);
     var now    = new Date();
-
     var saved  = 0;
     var failed = 0;
     var errors = [];
@@ -188,7 +291,7 @@ router.post('/bulk', guard, async function (req, res) {
       var student = await SchoolStudent.findOne({ _id: entry.studentId, schoolId: schoolId }).select('_id name').lean();
       if (!student) {
         failed++;
-        errors.push('Row ' + (i + 1) + ' (' + entry.studentId + '): student not found in this school.');
+        errors.push('Row ' + (i + 1) + ' (' + entry.studentId + '): student not found.');
         continue;
       }
 
@@ -246,10 +349,6 @@ router.post('/bulk', guard, async function (req, res) {
 
 /* ============================================
    GET /class/:classId/subject/:subjectId/term/:termId
-   Returns the active config, the full active class
-   roster, and any existing scores for this group —
-   everything the L.5 spreadsheet entry page needs
-   in one call.
 ============================================ */
 router.get('/class/:classId/subject/:subjectId/term/:termId', guard, async function (req, res) {
   try {
@@ -258,56 +357,44 @@ router.get('/class/:classId/subject/:subjectId/term/:termId', guard, async funct
     var subjectId = req.params.subjectId;
     var termId    = req.params.termId;
 
-    var config = await ScoreConfig.getOrCreateDefault(schoolId, req.schoolUser._id);
-
+    var config   = await ScoreConfig.getOrCreateDefault(schoolId, req.schoolUser._id);
     var students = await SchoolStudent.find({ schoolId: schoolId, classId: classId, status: 'active' })
       .select('name studentId admissionNo')
       .sort({ name: 1 })
       .lean();
 
-    var scores = await SchoolScore.find({ schoolId: schoolId, classId: classId, subjectId: subjectId, termId: termId })
-      .lean();
+    var scores = await SchoolScore.find({ schoolId: schoolId, classId: classId, subjectId: subjectId, termId: termId }).lean();
 
     var scoreByStudent = {};
     scores.forEach(function (s) { scoreByStudent[s.studentId.toString()] = s; });
 
     var roster = students.map(function (st) {
-      var existing = scoreByStudent[st._id.toString()] || null;
       return {
         studentId:   st._id,
         name:        st.name,
         studentCode: st.studentId || '',
         admissionNo: st.admissionNo || '',
-        score:       existing
+        score:       scoreByStudent[st._id.toString()] || null
       };
     });
 
-    return res.json({
-      success: true,
-      config:  config,
-      roster:  roster,
-      total:   roster.length
-    });
+    return res.json({ success: true, config: config, roster: roster, total: roster.length });
   } catch (err) {
-    console.error('[inst.score] GET /class/.../subject/.../term/...:', err.message);
+    console.error('[inst.score] GET /class/...:', err.message);
     return res.status(500).json({ success: false, message: 'Failed to load class scores.' });
   }
 });
 
 /* ============================================
    GET /student/:studentId
-   All score records for one student — used later
-   by Phase M (report cards).
 ============================================ */
 router.get('/student/:studentId', guard, async function (req, res) {
   try {
-    var schoolId = req.schoolId;
-    var scores = await SchoolScore.find({ schoolId: schoolId, studentId: req.params.studentId })
+    var scores = await SchoolScore.find({ schoolId: req.schoolId, studentId: req.params.studentId })
       .populate('subjectId', 'name code')
       .populate('termId', 'name session term')
       .sort({ createdAt: -1 })
       .lean();
-
     return res.json({ success: true, scores: scores });
   } catch (err) {
     console.error('[inst.score] GET /student/:studentId:', err.message);
@@ -332,30 +419,7 @@ router.delete('/:id', guard, async function (req, res) {
 });
 
 /* ============================================
-   ✅ PHASE L.4: POSITION RANKING ENGINE
-
-   POST /rank/:classId/:subjectId/:termId
-
-   Fetches all SchoolScore records for the group,
-   ranks by total score using competition ranking
-   (ties share the same position; next position
-   skips accordingly — e.g. 1st, 2nd, 2nd, 4th),
-   then writes position + positionOutOf +
-   positionCalculatedAt back onto every record
-   in the group in parallel.
-
-   This is a batch operation. It is:
-   - Safe to call multiple times (idempotent — each
-     call recalculates from scratch, so adding a new
-     student's score and re-ranking always produces
-     correct results)
-   - Called automatically by L.5's "Save All" button
-     after a bulk save so teachers never need to
-     trigger it manually
-   - Also available as a standalone endpoint so the
-     school admin can trigger a rerank from the
-     admin dashboard if needed (e.g. after a score
-     correction)
+   ✅ PHASE L.4: POST /rank/:classId/:subjectId/:termId
 ============================================ */
 router.post('/rank/:classId/:subjectId/:termId', guard, async function (req, res) {
   try {
@@ -364,7 +428,6 @@ router.post('/rank/:classId/:subjectId/:termId', guard, async function (req, res
     var subjectId = req.params.subjectId;
     var termId    = req.params.termId;
 
-    /* ---- Load all score records for this group ---- */
     var scores = await SchoolScore.find({
       schoolId:  schoolId,
       classId:   classId,
@@ -373,94 +436,33 @@ router.post('/rank/:classId/:subjectId/:termId', guard, async function (req, res
     }).lean();
 
     if (scores.length === 0) {
-      return res.json({
-        success: true,
-        message: 'No score records found for this group — nothing to rank.',
-        ranked:  0
-      });
+      return res.json({ success: true, message: 'No score records found — nothing to rank.', ranked: 0 });
     }
 
-    /* ---- Sort by total descending ---- */
-    scores.sort(function (a, b) {
-      return (b.total || 0) - (a.total || 0);
-    });
+    scores.sort(function (a, b) { return (b.total || 0) - (a.total || 0); });
 
-    var total = scores.length;
-    var now   = new Date();
+    var total   = scores.length;
+    var now     = new Date();
 
-    /* ---- Assign competition ranking ----
-       Walk through the sorted array. Each student
-       gets the position equal to (number of students
-       ahead of them + 1). Ties get the same position;
-       the next different score picks up the count.
-
-       Example with 4 students [85, 80, 80, 75]:
-         Index 0: total=85, position=1
-         Index 1: total=80, position=2
-         Index 2: total=80, position=2 (tie)
-         Index 3: total=75, position=4 (2 students ahead
-                                       who scored 80, so
-                                       position = 3+1 = 4)
-    ---- */
     var updates = scores.map(function (scoreDoc, idx) {
-      /* Position = how many students have a strictly
-         higher total than this student, plus 1.
-         Since the array is sorted, this is simply idx
-         UNLESS the previous student had the same total. */
-      var position = 1;
-      for (var j = 0; j < idx; j++) {
-        if ((scores[j].total || 0) > (scoreDoc.total || 0)) {
-          position++;
-        }
-      }
-      /* Simplification: since sorted, count how many
-         students before idx have a DIFFERENT (higher)
-         total — each unique score group contributes 1
-         to the rank count. */
-      position = 1;
       var higherCount = 0;
       for (var k = 0; k < idx; k++) {
-        if ((scores[k].total || 0) > (scoreDoc.total || 0)) {
-          higherCount++;
-        }
+        if ((scores[k].total || 0) > (scoreDoc.total || 0)) { higherCount++; }
       }
-      position = higherCount + 1;
-
-      return {
-        _id:      scoreDoc._id,
-        position: position
-      };
+      return { _id: scoreDoc._id, position: higherCount + 1 };
     });
 
-    /* ---- Write positions back to DB in parallel ---- */
     await Promise.all(updates.map(function (u) {
-      return SchoolScore.findByIdAndUpdate(
-        u._id,
-        { $set: {
-          position:              u.position,
-          positionOutOf:         total,
-          positionCalculatedAt:  now
-        }}
-      );
+      return SchoolScore.findByIdAndUpdate(u._id, {
+        $set: { position: u.position, positionOutOf: total, positionCalculatedAt: now }
+      });
     }));
 
-    /* ---- Build a summary for the response ---- */
     var summary = updates.map(function (u, i) {
-      return {
-        studentId: scores[i].studentId,
-        total:     scores[i].total || 0,
-        position:  u.position,
-        outOf:     total
-      };
+      return { studentId: scores[i].studentId, total: scores[i].total || 0, position: u.position, outOf: total };
     });
 
-    return res.json({
-      success:  true,
-      message:  total + ' student' + (total !== 1 ? 's' : '') + ' ranked successfully.',
-      ranked:   total,
-      summary:  summary
-    });
-
+    return res.json({ success: true, message: total + ' students ranked.', ranked: total, summary: summary });
   } catch (err) {
     console.error('[inst.score] POST /rank:', err.message);
     return res.status(500).json({ success: false, message: 'Ranking failed.' });
