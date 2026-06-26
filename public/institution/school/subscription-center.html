@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Subscription Center — LatLomp Institution</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --primary:#6c63ff; --pd:#574fd6;
+      --green:#43e97b;   --red:#ff6584;
+      --orange:#ffa500;  --yellow:#ffd600;
+      --dark:#0f0f1a;    --dark-2:#1a1a2e;
+      --border:rgba(255,255,255,0.08);
+      --text:#fff;       --muted:#6b6b8a; --secondary:#a0a0c0;
+    }
+    html, body { margin:0; padding:0; background:var(--dark); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+    @keyframes spin   { to { transform:rotate(360deg); } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+
+    .topbar { background:var(--dark-2); border-bottom:1px solid var(--border); height:60px; display:flex; align-items:center; padding:0 24px; gap:16px; }
+    .topbar-brand { font-size:15px; font-weight:800; color:#fff; }
+    .topbar-logout { margin-left:auto; display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:8px; background:rgba(255,101,132,0.08); border:1px solid rgba(255,101,132,0.25); color:var(--red); font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; transition:all 0.2s; }
+    .topbar-logout:hover { background:rgba(255,101,132,0.15); }
+
+    .main { max-width:860px; margin:0 auto; padding:40px 24px 60px; animation:fadeUp 0.3s ease; }
+
+    /* Status banner */
+    .status-banner { border-radius:16px; padding:28px 32px; margin-bottom:32px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:20px; }
+    .status-banner.expired  { background:rgba(255,101,132,0.08); border:1px solid rgba(255,101,132,0.3); }
+    .status-banner.trial    { background:rgba(255,165,0,0.08);   border:1px solid rgba(255,165,0,0.3); }
+    .status-banner.active   { background:rgba(67,233,123,0.08);  border:1px solid rgba(67,233,123,0.25); }
+
+    .status-school-name { font-size:13px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px; }
+    .status-title { font-size:22px; font-weight:900; color:#fff; margin:0 0 6px; }
+    .status-detail { font-size:14px; line-height:1.6; }
+    .status-detail.expired { color:var(--red); }
+    .status-detail.trial   { color:var(--orange); }
+    .status-detail.active  { color:var(--green); }
+
+    .status-days { text-align:right; }
+    .status-days-num { font-size:52px; font-weight:900; line-height:1; }
+    .status-days-num.expired { color:var(--red); }
+    .status-days-num.trial   { color:var(--orange); }
+    .status-days-num.active  { color:var(--green); }
+    .status-days-lbl { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; margin-top:4px; }
+
+    /* What happens to your data notice */
+    .data-notice { background:rgba(108,99,255,0.06); border:1px solid rgba(108,99,255,0.2); border-radius:12px; padding:16px 20px; font-size:13px; color:#a78bfa; line-height:1.7; margin-bottom:32px; }
+    .data-notice strong { color:#fff; }
+
+    /* Plans grid */
+    .plans-title { font-size:18px; font-weight:800; color:#fff; margin:0 0 6px; }
+    .plans-sub   { font-size:13px; color:var(--muted); margin:0 0 20px; }
+    .plans-grid  { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:16px; margin-bottom:32px; }
+
+    .plan-card { background:var(--dark-2); border:2px solid var(--border); border-radius:16px; padding:24px 20px; position:relative; transition:border-color 0.2s, transform 0.2s; cursor:pointer; }
+    .plan-card:hover { border-color:rgba(108,99,255,0.4); transform:translateY(-3px); }
+    .plan-card.selected { border-color:var(--primary); background:rgba(108,99,255,0.08); }
+    .plan-popular { position:absolute; top:-10px; left:50%; transform:translateX(-50%); background:linear-gradient(135deg,var(--primary),var(--pd)); color:#fff; font-size:10px; font-weight:700; padding:2px 14px; border-radius:20px; white-space:nowrap; }
+    .plan-name  { font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin:0 0 8px; }
+    .plan-price { font-size:32px; font-weight:900; color:#fff; line-height:1; margin:0 0 4px; }
+    .plan-price small { font-size:13px; color:var(--muted); font-weight:400; }
+    .plan-days  { font-size:12px; color:var(--secondary); margin:0 0 14px; }
+    .plan-features { list-style:none; padding:0; margin:0; }
+    .plan-features li { font-size:12px; color:var(--secondary); padding:5px 0; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:7px; }
+    .plan-features li:last-child { border-bottom:none; }
+    .plan-features li::before { content:'✓'; color:var(--green); font-weight:800; font-size:11px; flex-shrink:0; }
+
+    /* Subscribe button */
+    .subscribe-bar { background:var(--dark-2); border:1px solid var(--border); border-radius:14px; padding:20px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+    .subscribe-bar-info { font-size:14px; color:var(--secondary); }
+    .subscribe-bar-info strong { color:#fff; }
+
+    .btn { display:inline-flex; align-items:center; gap:8px; padding:12px 24px; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; border:none; transition:all 0.2s; white-space:nowrap; text-decoration:none; }
+    .btn-primary { background:linear-gradient(135deg,var(--primary),var(--pd)); color:#fff; }
+    .btn-primary:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(108,99,255,0.4); }
+    .btn-primary:disabled { opacity:0.5; cursor:not-allowed; transform:none !important; }
+    .btn-secondary { background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--secondary); }
+    .btn-secondary:hover { color:#fff; background:rgba(255,255,255,0.1); }
+    .btn-green { background:linear-gradient(135deg,var(--green),#38f9d7); color:#0f0f1a; }
+    .btn-green:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(67,233,123,0.35); }
+    .btn-green:disabled { opacity:0.5; cursor:not-allowed; transform:none !important; }
+
+    .spinner { width:18px; height:18px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block; }
+    .spinner-dark { border:2px solid rgba(0,0,0,0.2); border-top-color:#0f0f1a; }
+
+    .error-box { background:rgba(255,101,132,0.08); border:1px solid rgba(255,101,132,0.3); border-radius:10px; padding:14px 18px; font-size:13px; color:var(--red); margin-bottom:16px; display:none; }
+
+    /* Payment success banner */
+    .success-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:900; display:none; align-items:center; justify-content:center; padding:24px; }
+    .success-overlay.active { display:flex; }
+    .success-card { background:var(--dark-2); border:1px solid rgba(67,233,123,0.3); border-radius:20px; padding:40px 32px; max-width:420px; width:100%; text-align:center; animation:fadeUp 0.3s ease; }
+    .success-icon  { font-size:64px; margin-bottom:16px; }
+    .success-title { font-size:22px; font-weight:900; color:#fff; margin:0 0 8px; }
+    .success-sub   { font-size:14px; color:var(--secondary); margin:0 0 24px; line-height:1.6; }
+
+    .loading-state { text-align:center; padding:60px 20px; color:var(--muted); }
+    .loading-state .spinner { width:32px; height:32px; border-width:3px; margin:0 auto 16px; }
+
+    @media (max-width:600px) {
+      .main { padding:24px 16px 48px; }
+      .status-banner { flex-direction:column; align-items:flex-start; }
+      .status-days { text-align:left; }
+      .subscribe-bar { flex-direction:column; align-items:flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand">💳 Subscription Center</div>
+  <button class="topbar-logout" onclick="instLogout()">🚪 Sign Out</button>
+</div>
+
+<div class="main">
+
+  <div id="loadingState" class="loading-state">
+    <div class="spinner"></div>
+    <div>Loading your subscription details...</div>
+  </div>
+
+  <div id="mainContent" style="display:none;">
+
+    <!-- STATUS BANNER -->
+    <div class="status-banner" id="statusBanner">
+      <div>
+        <div class="status-school-name" id="statusSchoolName">Your School</div>
+        <div class="status-title"  id="statusTitle">Subscription Status</div>
+        <div class="status-detail" id="statusDetail">Loading...</div>
+      </div>
+      <div class="status-days">
+        <div class="status-days-num" id="statusDaysNum">—</div>
+        <div class="status-days-lbl" id="statusDaysLbl">days</div>
+      </div>
+    </div>
+
+    <!-- DATA PROTECTION NOTICE -->
+    <div class="data-notice">
+      <strong>🔒 Your data is safe.</strong> All teachers, students, exams, scores and results are fully preserved during the subscription pause. Renewing your subscription immediately restores full access — no data is lost.
+    </div>
+
+    <!-- ERROR BOX -->
+    <div id="errorBox" class="error-box"></div>
+
+    <!-- PLANS -->
+    <div class="plans-title">Choose a Plan</div>
+    <div class="plans-sub">All plans include full access to every feature. Prices are in Nigerian Naira (₦).</div>
+    <div class="plans-grid" id="plansGrid">
+      <div style="grid-column:1/-1; text-align:center; padding:32px; color:var(--muted);">
+        <div class="spinner" style="margin:0 auto 12px;"></div>
+        Loading available plans...
+      </div>
+    </div>
+
+    <!-- SUBSCRIBE BAR -->
+    <div class="subscribe-bar" id="subscribeBar">
+      <div class="subscribe-bar-info" id="subscribeSummary">
+        Select a plan above to continue.
+      </div>
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <a href="/institution/school/dashboard.html" class="btn btn-secondary" id="dashboardLink" style="display:none;">← Back to Dashboard</a>
+        <button class="btn btn-green" id="subscribeBtn" onclick="startPayment()" disabled>
+          Renew Subscription →
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- PAYMENT SUCCESS OVERLAY -->
+<div class="success-overlay" id="successOverlay">
+  <div class="success-card">
+    <div class="success-icon">🎉</div>
+    <div class="success-title">Payment Successful!</div>
+    <div class="success-sub" id="successMsg">Your subscription has been activated. You will be redirected to your dashboard shortly.</div>
+    <button class="btn btn-green" onclick="window.location.replace('/institution/school/dashboard.html')" style="width:100%; justify-content:center;">
+      Go to Dashboard →
+    </button>
+  </div>
+</div>
+
+
+<script src="/institution/js/inst.api.js"></script>
+<script>
+/* ============================================
+   SUBSCRIPTION CENTER
+   Shown when a school's subscription has expired.
+   Works even when the subscription is expired
+   because /auth/me and /school/plans do not
+   require an active subscription.
+============================================ */
+
+var _school        = null;
+var _selectedPlan  = null;
+var _plans         = [];
+
+/* ============================================ INIT */
+document.addEventListener('DOMContentLoaded', async function () {
+  var token = instGetToken();
+  if (!token) {
+    window.location.href = '/institution/index.html';
+    return;
+  }
+
+  /* Check if arriving from a successful Paystack payment */
+  var params = new URLSearchParams(window.location.search);
+  var payRef  = params.get('ref');
+  var payStatus = params.get('payment');
+
+  if (payRef && payStatus === 'success') {
+    await verifyPayment(payRef);
+    return;
+  }
+
+  await loadPage();
+});
+
+/* ============================================ LOAD PAGE */
+async function loadPage() {
+  var [meRes, plansRes] = await Promise.all([
+    instApi('/auth/me'),
+    fetch('/api/institution/school/plans').then(function(r) { return r.json(); })
+  ]);
+
+  var loadingEl = document.getElementById('loadingState');
+  var mainEl    = document.getElementById('mainContent');
+
+  if (!meRes.ok) {
+    if (loadingEl) { loadingEl.innerHTML = '<div style="color:var(--red);">Failed to load account. Please <a href="/institution/index.html" style="color:var(--primary);">sign in again</a>.</div>'; }
+    return;
+  }
+
+  _school = meRes.data.school;
+  _plans  = (plansRes.success && plansRes.plans) ? plansRes.plans.filter(function(p) { return p.code !== 'trial'; }) : [];
+
+  if (loadingEl) { loadingEl.style.display = 'none'; }
+  if (mainEl)    { mainEl.style.display = 'block'; }
+
+  renderStatus();
+  renderPlans();
+}
+
+/* ============================================ STATUS BANNER */
+function renderStatus() {
+  if (!_school) { return; }
+
+  var banner    = document.getElementById('statusBanner');
+  var nameEl    = document.getElementById('statusSchoolName');
+  var titleEl   = document.getElementById('statusTitle');
+  var detailEl  = document.getElementById('statusDetail');
+  var daysNumEl = document.getElementById('statusDaysNum');
+  var daysLblEl = document.getElementById('statusDaysLbl');
+  var dashLink  = document.getElementById('dashboardLink');
+
+  if (nameEl) { nameEl.textContent = _school.name || 'Your School'; }
+
+  var expiry   = _school.subscriptionExpiry ? new Date(_school.subscriptionExpiry) : null;
+  var now      = new Date();
+  var daysLeft = expiry ? Math.ceil((expiry - now) / 86400000) : 0;
+  var isActive = _school.status === 'active' || _school.status === 'trial';
+  var isExpired = !isActive || daysLeft <= 0;
+
+  if (isExpired) {
+    var daysOver = expiry ? Math.ceil((now - expiry) / 86400000) : 0;
+    if (banner)    { banner.className = 'status-banner expired'; }
+    if (titleEl)   { titleEl.textContent = 'Subscription Expired'; }
+    if (detailEl)  {
+      detailEl.className = 'status-detail expired';
+      detailEl.textContent = expiry
+        ? 'Expired on ' + expiry.toLocaleDateString('en-NG', { day:'numeric', month:'long', year:'numeric' }) + ' (' + daysOver + ' day' + (daysOver !== 1 ? 's' : '') + ' ago)'
+        : 'Your subscription has expired.';
+    }
+    if (daysNumEl) { daysNumEl.className = 'status-days-num expired'; daysNumEl.textContent = daysOver || '0'; }
+    if (daysLblEl) { daysLblEl.textContent = 'days overdue'; }
+  } else if (_school.status === 'trial') {
+    if (banner)    { banner.className = 'status-banner trial'; }
+    if (titleEl)   { titleEl.textContent = 'Free Trial Active'; }
+    if (detailEl)  {
+      detailEl.className = 'status-detail trial';
+      detailEl.textContent = 'Your trial expires on ' + (expiry ? expiry.toLocaleDateString('en-NG', { day:'numeric', month:'long', year:'numeric' }) : '—') + '. Upgrade now to avoid interruption.';
+    }
+    if (daysNumEl) { daysNumEl.className = 'status-days-num trial'; daysNumEl.textContent = Math.max(0, daysLeft); }
+    if (daysLblEl) { daysLblEl.textContent = 'days remaining'; }
+    if (dashLink)  { dashLink.style.display = 'inline-flex'; }
+  } else {
+    if (banner)    { banner.className = 'status-banner active'; }
+    if (titleEl)   { titleEl.textContent = 'Subscription Active'; }
+    if (detailEl)  {
+      detailEl.className = 'status-detail active';
+      detailEl.textContent = 'Active until ' + (expiry ? expiry.toLocaleDateString('en-NG', { day:'numeric', month:'long', year:'numeric' }) : '—') + '. Renew early to extend.';
+    }
+    if (daysNumEl) { daysNumEl.className = 'status-days-num active'; daysNumEl.textContent = Math.max(0, daysLeft); }
+    if (daysLblEl) { daysLblEl.textContent = 'days remaining'; }
+    if (dashLink)  { dashLink.style.display = 'inline-flex'; }
+  }
+}
+
+/* ============================================ PLANS */
+function renderPlans() {
+  var grid = document.getElementById('plansGrid');
+  if (!grid) { return; }
+
+  if (!_plans || _plans.length === 0) {
+    grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:32px; color:var(--muted); font-size:14px;">No plans available. Please contact support.</div>';
+    return;
+  }
+
+  grid.innerHTML = _plans.map(function (plan) {
+    var features = (plan.features || []).map(function (f) {
+      return '<li>' + esc(f) + '</li>';
+    }).join('');
+
+    return '<div class="plan-card" id="plancard_' + plan.code + '" onclick="selectPlan(\'' + plan.code + '\')">' +
+      (plan.isPopular ? '<div class="plan-popular">⭐ Most Popular</div>' : '') +
+      '<div class="plan-name">' + esc(plan.name) + '</div>' +
+      '<div class="plan-price">₦' + (plan.price || 0).toLocaleString() + '<small>/plan</small></div>' +
+      '<div class="plan-days">' + plan.durationDays + ' days access</div>' +
+      '<ul class="plan-features">' + features + '</ul>' +
+    '</div>';
+  }).join('');
+}
+
+function selectPlan(code) {
+  _selectedPlan = _plans.find(function (p) { return p.code === code; });
+  if (!_selectedPlan) { return; }
+
+  /* Highlight selected card */
+  document.querySelectorAll('.plan-card').forEach(function (c) { c.classList.remove('selected'); });
+  var card = document.getElementById('plancard_' + code);
+  if (card) { card.classList.add('selected'); }
+
+  /* Update subscribe bar */
+  var summaryEl = document.getElementById('subscribeSummary');
+  var subscribeBtn = document.getElementById('subscribeBtn');
+  if (summaryEl) {
+    summaryEl.innerHTML = 'Selected: <strong>' + esc(_selectedPlan.name) + '</strong> — ₦' +
+      (_selectedPlan.price || 0).toLocaleString() + ' for ' + _selectedPlan.durationDays + ' days';
+  }
+  if (subscribeBtn) { subscribeBtn.disabled = false; }
+}
+
+/* ============================================ PAYMENT */
+async function startPayment() {
+  if (!_selectedPlan) { return; }
+
+  var btn = document.getElementById('subscribeBtn');
+  var errEl = document.getElementById('errorBox');
+  if (errEl) { errEl.style.display = 'none'; }
+  if (btn)   { btn.innerHTML = '<span class="spinner spinner-dark"></span> Preparing payment...'; btn.disabled = true; }
+
+  var res = await instApi('/school/subscribe', 'POST', { planCode: _selectedPlan.code });
+
+  if (btn)   { btn.innerHTML = 'Renew Subscription →'; btn.disabled = false; }
+
+  if (res.ok && res.data.paymentUrl) {
+    /* Redirect to Paystack */
+    window.location.href = res.data.paymentUrl;
+  } else {
+    if (errEl) {
+      errEl.textContent   = (res.data && res.data.message) || 'Could not start payment. Please try again.';
+      errEl.style.display = 'block';
+    }
+  }
+}
+
+/* ============================================ VERIFY AFTER RETURN */
+async function verifyPayment(ref) {
+  var loadingEl = document.getElementById('loadingState');
+  if (loadingEl) {
+    loadingEl.innerHTML = '<div class="spinner" style="margin:0 auto 12px; width:32px; height:32px; border-width:3px;"></div><div>Verifying your payment...</div>';
+  }
+
+  try {
+    var res = await instApi('/payment/verify/' + ref);
+
+    if (res.ok && res.data.status === 'active') {
+      /* Payment confirmed — show success overlay */
+      var loadingEl2 = document.getElementById('loadingState');
+      var mainEl = document.getElementById('mainContent');
+      if (loadingEl2) { loadingEl2.style.display = 'none'; }
+      if (mainEl) { mainEl.style.display = 'block'; }
+
+      var msgEl = document.getElementById('successMsg');
+      if (msgEl && res.data.planName) {
+        msgEl.textContent = 'Your ' + res.data.planName + ' has been activated. You now have full access to your dashboard.';
+      }
+
+      var overlay = document.getElementById('successOverlay');
+      if (overlay) { overlay.classList.add('active'); }
+
+      /* Auto-redirect after 4 seconds */
+      setTimeout(function () {
+        window.location.replace('/institution/school/dashboard.html');
+      }, 4000);
+
+    } else if (res.data && res.data.status === 'pending') {
+      /* Webhook hasn't fired yet — wait and retry */
+      setTimeout(function () { verifyPayment(ref); }, 3000);
+    } else {
+      /* Payment failed or not found */
+      if (loadingEl) {
+        loadingEl.innerHTML = '<div style="color:var(--red); text-align:center;">Payment could not be confirmed. Please <a href="/institution/school/subscription-center.html" style="color:var(--primary);">try again</a> or contact support with reference: <strong>' + ref + '</strong></div>';
+      }
+    }
+  } catch (err) {
+    if (loadingEl) {
+      loadingEl.innerHTML = '<div style="color:var(--red);">Verification failed. Please contact support with reference: <strong>' + ref + '</strong></div>';
+    }
+  }
+}
+
+/* ============================================ HELPERS */
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>

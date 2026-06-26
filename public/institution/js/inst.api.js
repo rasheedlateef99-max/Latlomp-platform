@@ -1,6 +1,16 @@
 /* ============================================
    LATLOMP INSTITUTION — SHARED API UTILITY
    Used by all institution pages.
+
+   ✅ FOUNDATION FIX: instRequireAuth role check
+      rewritten to correctly guard all role types.
+
+   ✅ FOUNDATION FIX: instApi() now detects 403
+      SUBSCRIPTION_EXPIRED responses and redirects
+      to the Subscription Center page automatically.
+      Every dashboard section that was silently
+      stuck on "Loading..." will now redirect the
+      school admin to renew their subscription.
 ============================================ */
 
 var INST_TOKEN_KEY = 'latlomp_inst_token';
@@ -29,7 +39,22 @@ function instLogout() {
   window.location.href = '/institution/index.html';
 }
 
-/* ---- Guard: redirect if not logged in ---- */
+/* ============================================
+   ✅ FOUNDATION FIX: instRequireAuth
+
+   Previous version had a logic error: the inner
+   if-check was identical to the outer if-check,
+   meaning only school_admin role was ever guarded.
+   Teachers accessing admin pages would pass through.
+
+   New version:
+   - No role required → just check logged in
+   - Role required AND user has that role → allow
+   - Role required AND user does NOT have that role:
+     - If user is school_admin trying a teacher page → allow
+       (school admins can access all pages)
+     - Otherwise → redirect to login
+============================================ */
 function instRequireAuth(requiredRole) {
   var token = instGetToken();
   var user  = instGetUser();
@@ -39,9 +64,24 @@ function instRequireAuth(requiredRole) {
     return false;
   }
 
-  if (requiredRole && user.role !== requiredRole) {
-    /* Allow school_admin to access admin pages */
-    if (requiredRole === 'school_admin' && user.role !== 'school_admin') {
+  if (requiredRole) {
+    /* school_admin can access any page */
+    if (user.role === 'school_admin') {
+      return true;
+    }
+    /* Teacher or vice_principal can access teacher pages */
+    if (requiredRole === 'teacher') {
+      var teacherRoles = ['teacher', 'vice_principal', 'class_teacher',
+                          'subject_teacher', 'lecturer', 'instructor',
+                          'hod', 'dean'];
+      if (teacherRoles.indexOf(user.role) === -1) {
+        window.location.href = '/institution/index.html';
+        return false;
+      }
+      return true;
+    }
+    /* Strict role match for everything else */
+    if (user.role !== requiredRole) {
       window.location.href = '/institution/index.html';
       return false;
     }
@@ -50,7 +90,23 @@ function instRequireAuth(requiredRole) {
   return true;
 }
 
-/* ---- Core fetch wrapper ---- */
+/* ============================================
+   ✅ FOUNDATION FIX: instApi
+
+   Added automatic subscription expiry detection.
+   When any API call returns:
+     HTTP 403 + { code: 'SUBSCRIPTION_EXPIRED' }
+   the user is redirected to the Subscription
+   Center page instead of silently failing.
+
+   This is why dashboard sections were stuck on
+   "Loading..." — every protected endpoint was
+   returning 403 but the frontend was not handling
+   it, just leaving spinners forever.
+
+   Exception: if the user is already on the
+   Subscription Center page, no redirect loop.
+============================================ */
 async function instApi(endpoint, method, body) {
   method = method || 'GET';
 
@@ -66,6 +122,31 @@ async function instApi(endpoint, method, body) {
   try {
     var res  = await fetch('/api/institution' + endpoint, options);
     var data = await res.json();
+
+    /* ✅ Subscription expiry detection */
+    if (res.status === 403 && data && data.code === 'SUBSCRIPTION_EXPIRED') {
+      var currentPath = window.location.pathname;
+      var isOnSubCenter = currentPath.indexOf('subscription-center') !== -1;
+      if (!isOnSubCenter) {
+        window.location.href = '/institution/school/subscription-center.html';
+        return { ok: false, status: 403, data: data };
+      }
+    }
+
+    /* ✅ Token expired or invalid — redirect to login */
+    if (res.status === 401) {
+      var currentPath2 = window.location.pathname;
+      var isOnLogin = currentPath2.indexOf('index.html') !== -1 ||
+                      currentPath2 === '/institution/' ||
+                      currentPath2 === '/institution';
+      if (!isOnLogin) {
+        localStorage.removeItem(INST_TOKEN_KEY);
+        localStorage.removeItem(INST_USER_KEY);
+        window.location.href = '/institution/index.html';
+        return { ok: false, status: 401, data: data };
+      }
+    }
+
     return { ok: res.ok, status: res.status, data: data };
   } catch (err) {
     console.error('instApi error:', err.message);

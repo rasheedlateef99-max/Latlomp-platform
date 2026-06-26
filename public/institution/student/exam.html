@@ -23,7 +23,9 @@
       --border:  rgba(255,255,255,0.08);
     }
 
-    html, body { margin:0; padding:0; height:100%; background:var(--dark); font-family:'Inter',sans-serif; color:#fff; overflow:hidden; }
+    /* ✅ FOUNDATION FIX: overflow:hidden removed from global rule.
+       Scroll is locked/unlocked via JavaScript only when exam is active. */
+    html, body { margin:0; padding:0; background:var(--dark); font-family:'Inter',sans-serif; color:#fff; }
 
     @keyframes spin     { to { transform:rotate(360deg); } }
     @keyframes fadeUp   { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
@@ -49,16 +51,10 @@
     .btn-start:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
     .err-box { display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); padding:12px 16px; border-radius:8px; font-size:13px; margin-bottom:16px; line-height:1.5; }
 
-    /* ✅ PHASE H: Language selector */
     .lang-selector-wrap { margin-bottom:20px; }
     .lang-selector-label { font-size:12px; font-weight:700; color:#6b6b8a; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:8px; }
     .lang-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
-    .lang-btn {
-      padding:10px 6px; border-radius:10px; border:2px solid var(--border);
-      background:rgba(255,255,255,0.03); color:#a0a0c0;
-      font-size:12px; font-weight:700; cursor:pointer; font-family:inherit;
-      text-align:center; transition:all 0.15s; line-height:1.4;
-    }
+    .lang-btn { padding:10px 6px; border-radius:10px; border:2px solid var(--border); background:rgba(255,255,255,0.03); color:#a0a0c0; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; text-align:center; transition:all 0.15s; line-height:1.4; }
     .lang-btn:hover { border-color:rgba(108,99,255,0.4); background:rgba(108,99,255,0.07); color:#fff; }
     .lang-btn.active { border-color:var(--primary); background:rgba(108,99,255,0.18); color:#a78bfa; }
     .lang-btn .lang-native { font-size:13px; font-weight:800; display:block; }
@@ -101,12 +97,10 @@
     .q-text .katex-display { margin:12px 0; }
     .q-image { max-width:100%; border-radius:10px; margin-bottom:16px; }
 
-    /* ✅ PHASE G: Audio */
     .q-audio-wrap  { background:rgba(108,99,255,0.06); border:1px solid rgba(108,99,255,0.2); border-radius:10px; padding:13px 15px; margin-bottom:14px; }
     .q-audio-label { font-size:12px; font-weight:700; color:#a78bfa; margin-bottom:8px; }
     .q-audio-player { width:100%; }
 
-    /* ✅ PHASE G: Table */
     .q-table-wrap { overflow-x:auto; margin-bottom:14px; border-radius:8px; border:1px solid var(--border); }
     .q-table { width:100%; border-collapse:collapse; font-size:14px; }
     .q-table th { background:rgba(108,99,255,0.15); color:#a78bfa; font-weight:700; padding:10px 13px; border:1px solid rgba(108,99,255,0.25); text-align:left; white-space:nowrap; }
@@ -168,7 +162,6 @@
     .sec-dismiss-btn.ready:hover { transform:translateY(-1px); }
     .sec-auto-submit-msg { background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); border-radius:10px; padding:12px 14px; font-size:13px; color:var(--red); margin-top:14px; line-height:1.6; }
 
-    /* ✅ PHASE H: Styled confirm modal (replaces browser confirm()) */
     .confirm-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:1000; display:none; align-items:center; justify-content:center; padding:20px; }
     .confirm-modal-overlay.active { display:flex; }
     .confirm-modal-box { background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:32px 26px; max-width:380px; width:100%; text-align:center; animation:fadeUp 0.2s ease; }
@@ -196,7 +189,6 @@
     .btn-home { width:100%; padding:14px; background:linear-gradient(135deg,var(--primary),#574fd6); color:#fff; border:none; border-radius:12px; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; }
     .spinner { width:20px; height:20px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block; }
 
-    /* ✅ PHASE H: RTL layout overrides */
     [dir="rtl"] .exam-topbar    { flex-direction:row-reverse; }
     [dir="rtl"] .exam-footer    { flex-direction:row-reverse; }
     [dir="rtl"] .option-btn     { flex-direction:row-reverse; text-align:right; }
@@ -215,46 +207,22 @@
 </head>
 <body>
 
-<!-- ============================================
-     ENTRY SCREEN
-============================================ -->
 <div class="screen active" id="entryScreen">
   <div class="entry-card">
     <div class="entry-logo">&#127891;</div>
     <div class="entry-title" id="entryTitle">Student Exam Portal</div>
     <div class="entry-sub"   id="entrySub">Enter your name and the exam access code provided by your teacher.</div>
-
-    <!-- ✅ PHASE H: Language selector -->
     <div class="lang-selector-wrap">
       <div class="lang-selector-label" id="langSelectorLabel">Select Language</div>
       <div class="lang-grid" id="langGrid">
-        <button class="lang-btn active" onclick="selectLang('en')">
-          <span class="lang-native">English</span>
-          <span class="lang-english">English</span>
-        </button>
-        <button class="lang-btn" onclick="selectLang('ha')">
-          <span class="lang-native">Hausa</span>
-          <span class="lang-english">Hausa</span>
-        </button>
-        <button class="lang-btn" onclick="selectLang('yo')">
-          <span class="lang-native">Yoruba</span>
-          <span class="lang-english">Yoruba</span>
-        </button>
-        <button class="lang-btn" onclick="selectLang('ig')">
-          <span class="lang-native">Igbo</span>
-          <span class="lang-english">Igbo</span>
-        </button>
-        <button class="lang-btn" onclick="selectLang('fr')">
-          <span class="lang-native">Francais</span>
-          <span class="lang-english">French</span>
-        </button>
-        <button class="lang-btn" onclick="selectLang('ar')">
-          <span class="lang-native">&#1593;&#1585;&#1576;&#1610;</span>
-          <span class="lang-english">Arabic</span>
-        </button>
+        <button class="lang-btn active" onclick="selectLang('en')"><span class="lang-native">English</span><span class="lang-english">English</span></button>
+        <button class="lang-btn" onclick="selectLang('ha')"><span class="lang-native">Hausa</span><span class="lang-english">Hausa</span></button>
+        <button class="lang-btn" onclick="selectLang('yo')"><span class="lang-native">Yoruba</span><span class="lang-english">Yoruba</span></button>
+        <button class="lang-btn" onclick="selectLang('ig')"><span class="lang-native">Igbo</span><span class="lang-english">Igbo</span></button>
+        <button class="lang-btn" onclick="selectLang('fr')"><span class="lang-native">Francais</span><span class="lang-english">French</span></button>
+        <button class="lang-btn" onclick="selectLang('ar')"><span class="lang-native">&#1593;&#1585;&#1576;&#1610;</span><span class="lang-english">Arabic</span></button>
       </div>
     </div>
-
     <div id="entryErr" class="err-box"></div>
     <input type="text" id="studentName" class="inp" autocomplete="name" />
     <input type="text" id="admissionNo" class="inp" />
@@ -265,9 +233,6 @@
   </div>
 </div>
 
-<!-- ============================================
-     BRIEFING SCREEN
-============================================ -->
 <div class="screen" id="briefingScreen">
   <div class="briefing-card">
     <div class="school-logo-wrap">
@@ -277,20 +242,15 @@
         <div id="briefSystemLabel" style="font-size:12px; color:#6b6b8a;">CBT Examination System</div>
       </div>
     </div>
-
     <div id="briefDetailsLabel" style="font-size:11px; font-weight:700; color:#6b6b8a; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px;"></div>
-
     <div class="exam-info-grid">
       <div class="exam-info-item"><div class="exam-info-label" id="lbTitle"></div>    <div class="exam-info-value" id="briefTitle"></div></div>
       <div class="exam-info-item"><div class="exam-info-label" id="lbSubject"></div>  <div class="exam-info-value" id="briefSubject"></div></div>
       <div class="exam-info-item"><div class="exam-info-label" id="lbDuration"></div> <div class="exam-info-value" id="briefDuration"></div></div>
       <div class="exam-info-item"><div class="exam-info-label" id="lbQuestions"></div><div class="exam-info-value" id="briefQCount"></div></div>
     </div>
-
     <div id="briefInstructions" class="instructions-box" style="display:none;"></div>
-
     <div class="security-rules-box" id="secRulesBox"></div>
-
     <button class="btn-start" id="beginBtn" onclick="beginExam()">Begin Exam</button>
     <div style="text-align:center; margin-top:12px;">
       <button id="backBtn" style="background:none; border:none; color:#6b6b8a; font-size:13px; cursor:pointer; font-family:inherit;" onclick="showScreen('entry')">Back</button>
@@ -298,9 +258,6 @@
   </div>
 </div>
 
-<!-- ============================================
-     EXAM SCREEN
-============================================ -->
 <div id="examScreen">
   <div class="exam-topbar">
     <span class="exam-title-tag" id="examTitleTag">Exam</span>
@@ -309,7 +266,6 @@
     <button class="quit-btn" id="quitBtn" onclick="triggerQuit()">Quit</button>
   </div>
   <div class="exam-progress"><div class="exam-progress-fill" id="progressFill" style="width:0%;"></div></div>
-
   <div class="exam-body" id="examBody">
     <div id="qAudioWrap" class="q-audio-wrap" style="display:none;">
       <div class="q-audio-label" id="qAudioLabel">Listen to audio before answering</div>
@@ -322,7 +278,6 @@
     <div class="options-list" id="optionsList"></div>
     <textarea id="theoryInput" class="theory-input" style="display:none;" oninput="saveTheoryAnswer()"></textarea>
   </div>
-
   <div class="exam-footer">
     <button class="nav-btn nav-btn-prev" id="prevBtn" onclick="prevQuestion()" disabled>Prev</button>
     <button class="q-grid-btn" onclick="toggleQGrid()">&#128203;</button>
@@ -331,7 +286,6 @@
   </div>
 </div>
 
-<!-- Q NAVIGATOR -->
 <div class="q-overlay" id="qOverlay" onclick="handleOverlayClick(event)">
   <div class="q-panel">
     <div class="q-panel-head">
@@ -346,7 +300,6 @@
   </div>
 </div>
 
-<!-- SECURITY OVERLAY -->
 <div class="sec-overlay" id="secOverlay">
   <div class="sec-overlay-card" id="secOverlayCard">
     <div class="sec-overlay-icon"  id="secOverlayIcon">!</div>
@@ -365,7 +318,6 @@
   </div>
 </div>
 
-<!-- ✅ PHASE H: Styled confirm modal (replaces browser confirm() for translation) -->
 <div class="confirm-modal-overlay" id="confirmModal">
   <div class="confirm-modal-box">
     <div class="confirm-modal-icon"  id="confirmModalIcon">?</div>
@@ -378,7 +330,6 @@
   </div>
 </div>
 
-<!-- RESULT SCREEN -->
 <div class="screen" id="resultScreen">
   <div class="result-card">
     <div class="result-emoji"  id="resultEmoji">&#127942;</div>
@@ -408,9 +359,9 @@
    ✅ PHASE H: Multi-Language (EN/HA/YO/IG/FR/AR)
               RTL support for Arabic
               Styled confirm modal (translatable)
+   ✅ FOUNDATION FIX: Scroll lock/unlock via JS only
 ============================================ */
 
-/* ---- Core State ---- */
 var _session    = null;
 var _questions  = [];
 var _answers    = {};
@@ -420,7 +371,6 @@ var _timeLeft   = 0;
 var _startTime  = Date.now();
 var _submitted  = false;
 
-/* ✅ PHASE F: Security state */
 var _security = {
   isActive:        false,
   fullscreenExits: 0,
@@ -435,15 +385,8 @@ var _security = {
   log:             []
 };
 
-/* ✅ PHASE H: Active language code */
 var _lang = 'en';
 
-/* ============================================
-   ✅ PHASE H: TRANSLATION STRINGS
-   All UI strings for all 6 languages.
-   Question content is NOT translated here —
-   that comes from the teacher.
-============================================ */
 var _T = {
   en: {
     langLabel:         'Select Language',
@@ -517,486 +460,76 @@ var _T = {
     pendingRelease:    'Your results will be released by your teacher or school admin.',
     btnHome:           'Back to Exam Portal'
   },
-
   ha: {
-    langLabel:         'Zabar Harshe',
-    entryTitle:        'Portal na Jarrabawar Dalibai',
-    entrySub:          'Shigar da sunanka da lambar sirri na jarrabawa da malaminku ya baku.',
-    entryNote:         'An adana amsoshinku kai tsaye. Kar ka rufe wannan shafin yayin jarrabawa.',
-    namePlaceholder:   'Cikakken Sunanka',
-    admNoPlaceholder:  'Lambar Shiga (zaɓi)',
-    codePlaceholder:   'LAMBA TA JARRABAWA',
-    startBtn:          'Fara Jarrabawa',
-    errName:           'Don Allah shigar da cikakken sunanka.',
-    errCode:           'Don Allah shigar da ingantacciyar lamba ta jarrabawa.',
-    verifying:         'Ana tabbatarwa...',
-    briefSystem:       'Tsarin Jarrabawar CBT',
-    briefDetails:      'BAYANAN JARRABAWA',
-    lbTitle:           'Taken',
-    lbSubject:         'Darasin',
-    lbDuration:        'Tsawon Lokaci',
-    lbQuestions:       'Tambayoyi',
-    mins:              'minti',
-    secRules:          '<strong>Dokoki na Tsaro na Jarrabawa</strong><br>&#8226; Wannan jarrabawa tana gudana a cikakken allo &#8212; kar ka fita<br>&#8226; Ana gano canjin tab da taga kuma ana rubuta su<br>&#8226; An hana danna dama da makullin gajeriyar hanya<br>&#8226; An hana kwafin abun ciki na jarrabawa<br>&#8226; Cin zarafi akai-akai zai tura jarrabawar kai tsaye',
-    beginBtn:          'Fara Jarrabawa',
-    backBtn:           'Koma Baya',
-    secureLabel:       'Lafiya',
-    quitBtn:           'Fita',
-    audioLabel:        'Saurari sauti kafin amsa',
-    theoryPlaceholder: 'Rubuta amsar ka anan...',
-    prevBtn:           'Baya',
-    nextBtn:           'Gaba',
-    submitBtn:         'Tura',
-    qNavTitle:         'Tambayoyi',
-    legendAnswered:    'An Amsa',
-    legendCurrent:     'Na Yanzu',
-    qCounter:          'Tambaya {n} daga {total}',
-    secViolation:      'Cin Zarafi {n} daga {max}',
-    secWait:           'Jira Daƙiƙa 5...',
-    secDismissFs:      'Koma Cikakken Allo',
-    secDismissOk:      'Na Fahimta - Ci Gaba da Jarrabawa',
-    secSubmitting:     'Ana Tura...',
-    secAutoMsg:        'Za a tura jarrabawar ka lokacin da ƙidaya ta kai sifili.',
-    secTitleFs:        'An Fita daga Cikakken Allo',
-    secMsgFs:          'Don Allah kasance a cikakken allo. Fita {n} da ya rage kafin a tura kai tsaye.',
-    secTitleFsMax:     'Mafi Girman Fita daga Allo Ya Kai',
-    secMsgFsMax:       'Ka fita daga cikakken allo sau {n}. Ana tura jarrabawar ka.',
-    secTitleTab:       'An Gano Canjin Tab',
-    secMsgTab:         'Ba a barin canjin tab yayin jarrabawa. Cin zarafi {n} da ya rage.',
-    secTitleMax:       'Mafi Girman Cin Zarafi Ya Kai',
-    secMsgMax:         'Ana tura jarrabawar ka saboda cin zarafi akai-akai.',
-    submitConfirmTitle:'Tura Jarrabawa?',
-    submitConfirmMsg:  'An Amsa: {answered} / {total}. Ba a Amsa: {unanswered}. Ba za a iya canza hakan ba.',
-    submitConfirmOk:   'Tura Yanzu',
-    submitConfirmCancel:'Ci Gaba da Jarrabawa',
-    quitConfirmTitle:  'Fita daga Jarrabawa?',
-    quitConfirmMsg:    'Za a RASA ci gaban ka kuma za ka buƙaci fara daga farko.',
-    quitConfirmOk:     'Fita',
-    quitConfirmCancel: 'Kasance',
-    timeUp:            'Lokaci ya ƙare! Ana tura jarrabawar ka.',
-    submitFail:        'Turawa ta kasa. An adana amsoshinku. Don Allah sake gwadawa.',
-    retrying:          'Ana sake gwadawa...',
-    scoreLbl:          'Maki',
-    rsCorrectLbl:      'Daidai',
-    rsTotalQLbl:       'Tambayoyi',
-    rsTimeLbl:         'Lokaci',
-    resultExcellent:   'Kyau Sosai!',
-    resultGreat:       'Aikin Kyau!',
-    resultPass:        'Ka Wuce!',
-    resultFail:        'Ci Gaba da Ƙoƙari!',
-    resultPassSub:     'Barka da cin jarrabawa!',
-    resultFailSub:     'Ci gaba da ƙoƙari kuma sake gwadawa.',
-    pendingTheory:     'Malaminku yana duba amsoshin ka na rubutu.',
-    pendingRelease:    'Malaminku ko mai kula da makaranta zai sakar da sakamakon ka.',
-    btnHome:           'Koma Portal na Jarrabawa'
+    langLabel:'Zabar Harshe',entryTitle:'Portal na Jarrabawar Dalibai',entrySub:'Shigar da sunanka da lambar sirri na jarrabawa da malaminku ya baku.',entryNote:'An adana amsoshinku kai tsaye. Kar ka rufe wannan shafin yayin jarrabawa.',namePlaceholder:'Cikakken Sunanka',admNoPlaceholder:'Lambar Shiga (zaɓi)',codePlaceholder:'LAMBA TA JARRABAWA',startBtn:'Fara Jarrabawa',errName:'Don Allah shigar da cikakken sunanka.',errCode:'Don Allah shigar da ingantacciyar lamba ta jarrabawa.',verifying:'Ana tabbatarwa...',briefSystem:'Tsarin Jarrabawar CBT',briefDetails:'BAYANAN JARRABAWA',lbTitle:'Taken',lbSubject:'Darasin',lbDuration:'Tsawon Lokaci',lbQuestions:'Tambayoyi',mins:'minti',secRules:'<strong>Dokoki na Tsaro na Jarrabawa</strong><br>&#8226; Wannan jarrabawa tana gudana a cikakken allo &#8212; kar ka fita<br>&#8226; Ana gano canjin tab da taga kuma ana rubuta su<br>&#8226; An hana danna dama da makullin gajeriyar hanya<br>&#8226; An hana kwafin abun ciki na jarrabawa<br>&#8226; Cin zarafi akai-akai zai tura jarrabawar kai tsaye',beginBtn:'Fara Jarrabawa',backBtn:'Koma Baya',secureLabel:'Lafiya',quitBtn:'Fita',audioLabel:'Saurari sauti kafin amsa',theoryPlaceholder:'Rubuta amsar ka anan...',prevBtn:'Baya',nextBtn:'Gaba',submitBtn:'Tura',qNavTitle:'Tambayoyi',legendAnswered:'An Amsa',legendCurrent:'Na Yanzu',qCounter:'Tambaya {n} daga {total}',secViolation:'Cin Zarafi {n} daga {max}',secWait:'Jira Daƙiƙa 5...',secDismissFs:'Koma Cikakken Allo',secDismissOk:'Na Fahimta - Ci Gaba da Jarrabawa',secSubmitting:'Ana Tura...',secAutoMsg:'Za a tura jarrabawar ka lokacin da ƙidaya ta kai sifili.',secTitleFs:'An Fita daga Cikakken Allo',secMsgFs:'Don Allah kasance a cikakken allo. Fita {n} da ya rage kafin a tura kai tsaye.',secTitleFsMax:'Mafi Girman Fita daga Allo Ya Kai',secMsgFsMax:'Ka fita daga cikakken allo sau {n}. Ana tura jarrabawar ka.',secTitleTab:'An Gano Canjin Tab',secMsgTab:'Ba a barin canjin tab yayin jarrabawa. Cin zarafi {n} da ya rage.',secTitleMax:'Mafi Girman Cin Zarafi Ya Kai',secMsgMax:'Ana tura jarrabawar ka saboda cin zarafi akai-akai.',submitConfirmTitle:'Tura Jarrabawa?',submitConfirmMsg:'An Amsa: {answered} / {total}. Ba a Amsa: {unanswered}. Ba za a iya canza hakan ba.',submitConfirmOk:'Tura Yanzu',submitConfirmCancel:'Ci Gaba da Jarrabawa',quitConfirmTitle:'Fita daga Jarrabawa?',quitConfirmMsg:'Za a RASA ci gaban ka kuma za ka buƙaci fara daga farko.',quitConfirmOk:'Fita',quitConfirmCancel:'Kasance',timeUp:'Lokaci ya ƙare! Ana tura jarrabawar ka.',submitFail:'Turawa ta kasa. An adana amsoshinku. Don Allah sake gwadawa.',retrying:'Ana sake gwadawa...',scoreLbl:'Maki',rsCorrectLbl:'Daidai',rsTotalQLbl:'Tambayoyi',rsTimeLbl:'Lokaci',resultExcellent:'Kyau Sosai!',resultGreat:'Aikin Kyau!',resultPass:'Ka Wuce!',resultFail:'Ci Gaba da Ƙoƙari!',resultPassSub:'Barka da cin jarrabawa!',resultFailSub:'Ci gaba da ƙoƙari kuma sake gwadawa.',pendingTheory:'Malaminku yana duba amsoshin ka na rubutu.',pendingRelease:'Malaminku ko mai kula da makaranta zai sakar da sakamakon ka.',btnHome:'Koma Portal na Jarrabawa'
   },
-
   yo: {
-    langLabel:         'Yan Ede',
-    entryTitle:        'Oju-opo Idanwo Akeko',
-    entrySub:          'Tẹ orukọ rẹ ati koodu wiwọle idanwo ti olukọ rẹ fun ọ.',
-    entryNote:         'A tọju awọn idahun rẹ lai da duro. Ma pa taabu yii lakoko idanwo.',
-    namePlaceholder:   'Orukọ Pipe Rẹ',
-    admNoPlaceholder:  'Nọmba Gbigba (aṣayan)',
-    codePlaceholder:   'KOODU IDANWO',
-    startBtn:          'Bẹrẹ Idanwo',
-    errName:           'Jọwọ tẹ orukọ pipe rẹ.',
-    errCode:           'Jọwọ tẹ koodu wiwọle to tọ.',
-    verifying:         'N ṣayẹwo...',
-    briefSystem:       'Eto Idanwo CBT',
-    briefDetails:      'ALAYE IDANWO',
-    lbTitle:           'Akọle',
-    lbSubject:         'Ero-eko',
-    lbDuration:        'Iye Akoko',
-    lbQuestions:       'Awọn Ibeere',
-    mins:              'iseju',
-    secRules:          '<strong>Awọn Ofin Aabo Idanwo</strong><br>&#8226; Idanwo yii n ṣiṣẹ ni ipo iboju kikun &#8212; maṣe jade<br>&#8226; Yipada taabu ati awọn ayipada window ni a ṣayẹwo<br>&#8226; A ti dina titẹ ọtun ati awọn bọtini kekere<br>&#8226; Didi akoonu idanwo jẹ dina<br>&#8226; Ẹ̀tọ́ ti a tun ṣe yoo fi idanwo silẹ lai da duro',
-    beginBtn:          'Bẹrẹ Idanwo',
-    backBtn:           'Pada Sẹhin',
-    secureLabel:       'Aabo',
-    quitBtn:           'Jade',
-    audioLabel:        'Gbọ ohun ṣaaju ki o to dahun',
-    theoryPlaceholder: 'Tẹ idahun rẹ nibi...',
-    prevBtn:           'Sẹhin',
-    nextBtn:           'Siwaju',
-    submitBtn:         'Fi silẹ',
-    qNavTitle:         'Awọn Ibeere',
-    legendAnswered:    'Ti dahun',
-    legendCurrent:     'Lọwọlọwọ',
-    qCounter:          'Ibeere {n} lati {total}',
-    secViolation:      'Ẹ̀tọ́ {n} lati {max}',
-    secWait:           'Duro Iṣẹju 5...',
-    secDismissFs:      'Pada si Iboju Kikun',
-    secDismissOk:      'Mo Gbọye - Tẹsiwaju Idanwo',
-    secSubmitting:     'N fi silẹ...',
-    secAutoMsg:        'A o fi idanwo rẹ silẹ nigba ti ikawe de odo.',
-    secTitleFs:        'Ti Jade kuro ni Iboju Kikun',
-    secMsgFs:          'Jọwọ wa ni ipo iboju kikun. Jade {n} to ku ṣaaju ki a to fi silẹ.',
-    secTitleFsMax:     'Iye Jade ti Pọ si Ipele Giga',
-    secMsgFsMax:       'O ti jade kuro ni iboju kikun {n} igba. A n fi idanwo rẹ silẹ.',
-    secTitleTab:       'A Ṣayẹwo Yipada Taabu',
-    secMsgTab:         'Yiyipada awọn taabu ko gba laaye. Ẹ̀tọ́ {n} to ku.',
-    secTitleMax:       'Iye Ẹ̀tọ́ Ti Pọ si Ipele Giga',
-    secMsgMax:         'A n fi idanwo rẹ silẹ nitori awọn ẹ̀tọ́ leralera.',
-    submitConfirmTitle:'Fi Idanwo Silẹ?',
-    submitConfirmMsg:  'Ti dahun: {answered} / {total}. Ko dahun: {unanswered}. A ko le yi eyi pada.',
-    submitConfirmOk:   'Fi Silẹ Bayi',
-    submitConfirmCancel:'Tẹsiwaju Idanwo',
-    quitConfirmTitle:  'Jade kuro ni Idanwo?',
-    quitConfirmMsg:    'Ilọsiwaju rẹ yoo SONU ati pe iwọ yoo nilo lati bẹrẹ lẹẹkansi.',
-    quitConfirmOk:     'Jade',
-    quitConfirmCancel: 'Wa',
-    timeUp:            'Akoko ti pari! A n fi idanwo rẹ silẹ.',
-    submitFail:        'Fifẹ silẹ kuna. Awọn idahun rẹ ti fipamọ. Jọwọ gbiyanju lẹẹkansi.',
-    retrying:          'N tun gbiyanju...',
-    scoreLbl:          'Ikun',
-    rsCorrectLbl:      'To',
-    rsTotalQLbl:       'Awọn Ibeere',
-    rsTimeLbl:         'Akoko',
-    resultExcellent:   'Dara Ju!',
-    resultGreat:       'Iṣẹ Dara!',
-    resultPass:        'O Ti Kọja!',
-    resultFail:        'Tẹsiwaju Igbiyanju!',
-    resultPassSub:     'Oriire! O ti kọja idanwo yii.',
-    resultFailSub:     'Tẹsiwaju iṣe ati gbiyanju lẹẹkansi.',
-    pendingTheory:     'Olukọ rẹ n ṣayẹwo awọn idahun imọ-ọrọ rẹ.',
-    pendingRelease:    'Olukọ rẹ tabi olori ile-iwe yoo tu awọn abajade rẹ silẹ.',
-    btnHome:           'Pada si Oju-opo Idanwo'
+    langLabel:'Yan Ede',entryTitle:'Oju-opo Idanwo Akeko',entrySub:'Tẹ orukọ rẹ ati koodu wiwọle idanwo ti olukọ rẹ fun ọ.',entryNote:'A tọju awọn idahun rẹ lai da duro. Ma pa taabu yii lakoko idanwo.',namePlaceholder:'Orukọ Pipe Rẹ',admNoPlaceholder:'Nọmba Gbigba (aṣayan)',codePlaceholder:'KOODU IDANWO',startBtn:'Bẹrẹ Idanwo',errName:'Jọwọ tẹ orukọ pipe rẹ.',errCode:'Jọwọ tẹ koodu wiwọle to tọ.',verifying:'N ṣayẹwo...',briefSystem:'Eto Idanwo CBT',briefDetails:'ALAYE IDANWO',lbTitle:'Akọle',lbSubject:'Ero-eko',lbDuration:'Iye Akoko',lbQuestions:'Awọn Ibeere',mins:'iseju',secRules:'<strong>Awọn Ofin Aabo Idanwo</strong><br>&#8226; Idanwo yii n ṣiṣẹ ni ipo iboju kikun &#8212; maṣe jade<br>&#8226; Yipada taabu ati awọn ayipada window ni a ṣayẹwo<br>&#8226; A ti dina titẹ ọtun ati awọn bọtini kekere<br>&#8226; Didi akoonu idanwo jẹ dina<br>&#8226; Ẹ̀tọ́ ti a tun ṣe yoo fi idanwo silẹ lai da duro',beginBtn:'Bẹrẹ Idanwo',backBtn:'Pada Sẹhin',secureLabel:'Aabo',quitBtn:'Jade',audioLabel:'Gbọ ohun ṣaaju ki o to dahun',theoryPlaceholder:'Tẹ idahun rẹ nibi...',prevBtn:'Sẹhin',nextBtn:'Siwaju',submitBtn:'Fi silẹ',qNavTitle:'Awọn Ibeere',legendAnswered:'Ti dahun',legendCurrent:'Lọwọlọwọ',qCounter:'Ibeere {n} lati {total}',secViolation:'Ẹ̀tọ́ {n} lati {max}',secWait:'Duro Iṣẹju 5...',secDismissFs:'Pada si Iboju Kikun',secDismissOk:'Mo Gbọye - Tẹsiwaju Idanwo',secSubmitting:'N fi silẹ...',secAutoMsg:'A o fi idanwo rẹ silẹ nigba ti ikawe de odo.',secTitleFs:'Ti Jade kuro ni Iboju Kikun',secMsgFs:'Jọwọ wa ni ipo iboju kikun. Jade {n} to ku ṣaaju ki a to fi silẹ.',secTitleFsMax:'Iye Jade ti Pọ si Ipele Giga',secMsgFsMax:'O ti jade kuro ni iboju kikun {n} igba. A n fi idanwo rẹ silẹ.',secTitleTab:'A Ṣayẹwo Yipada Taabu',secMsgTab:'Yiyipada awọn taabu ko gba laaye. Ẹ̀tọ́ {n} to ku.',secTitleMax:'Iye Ẹ̀tọ́ Ti Pọ si Ipele Giga',secMsgMax:'A n fi idanwo rẹ silẹ nitori awọn ẹ̀tọ́ leralera.',submitConfirmTitle:'Fi Idanwo Silẹ?',submitConfirmMsg:'Ti dahun: {answered} / {total}. Ko dahun: {unanswered}. A ko le yi eyi pada.',submitConfirmOk:'Fi Silẹ Bayi',submitConfirmCancel:'Tẹsiwaju Idanwo',quitConfirmTitle:'Jade kuro ni Idanwo?',quitConfirmMsg:'Ilọsiwaju rẹ yoo SONU ati pe iwọ yoo nilo lati bẹrẹ lẹẹkansi.',quitConfirmOk:'Jade',quitConfirmCancel:'Wa',timeUp:'Akoko ti pari! A n fi idanwo rẹ silẹ.',submitFail:'Fifẹ silẹ kuna. Awọn idahun rẹ ti fipamọ. Jọwọ gbiyanju lẹẹkansi.',retrying:'N tun gbiyanju...',scoreLbl:'Ikun',rsCorrectLbl:'To',rsTotalQLbl:'Awọn Ibeere',rsTimeLbl:'Akoko',resultExcellent:'Dara Ju!',resultGreat:'Iṣẹ Dara!',resultPass:'O Ti Kọja!',resultFail:'Tẹsiwaju Igbiyanju!',resultPassSub:'Oriire! O ti kọja idanwo yii.',resultFailSub:'Tẹsiwaju iṣe ati gbiyanju lẹẹkansi.',pendingTheory:'Olukọ rẹ n ṣayẹwo awọn idahun imọ-ọrọ rẹ.',pendingRelease:'Olukọ rẹ tabi olori ile-iwe yoo tu awọn abajade rẹ silẹ.',btnHome:'Pada si Oju-opo Idanwo'
   },
-
   ig: {
-    langLabel:         'Họrọ Asụsụ',
-    entryTitle:        'Ọnụ ụzọ Ule Ụmụakwụkwọ',
-    entrySub:          'Tinye aha gị na koodu nnabata ule nke onye nkụzi gị nyere gị.',
-    entryNote:         'A na-echekwa azịza gị na-akpaghị aka. Emechakwa tab a n\'oge ule.',
-    namePlaceholder:   'Aha Gị Zuru Ezu',
-    admNoPlaceholder:  'Nọmba Nnabata (nhọrọ)',
-    codePlaceholder:   'KOODU ULE',
-    startBtn:          'Malite Ule',
-    errName:           'Biko tinye aha gị zuru ezu.',
-    errCode:           'Biko tinye koodu nnabata ziri ezi.',
-    verifying:         'Na-enyocha...',
-    briefSystem:       'Usoro Ule CBT',
-    briefDetails:      'NKỌWA ULE',
-    lbTitle:           'Aha',
-    lbSubject:         'Ọmụmụ ihe',
-    lbDuration:        'Ogologo Oge',
-    lbQuestions:       'Ajụjụ',
-    mins:              'nkeji',
-    secRules:          '<strong>Iwu Nchekwa Ule</strong><br>&#8226; Ule a na-aga n\'ụzọ ihuenyo zuru ezu &#8212; emerọla<br>&#8226; A na-achọpụta mgbanwe tab na windo ma dee ya<br>&#8226; Ebiela isi ikpe nri na mmalite dị mkpụmkpụ<br>&#8226; Ichere ihe ule ebiela<br>&#8226; Mmegbu ugboro ugboro ga-ezipu ule ná mmalite',
-    beginBtn:          'Malite Ule',
-    backBtn:           'Laghachi',
-    secureLabel:       'Nchekwa',
-    quitBtn:           'Pụọ',
-    audioLabel:        'Nụ ụda tupu ị zaaa',
-    theoryPlaceholder: 'Dee azịza gị ebe a...',
-    prevBtn:           'Azụ',
-    nextBtn:           'Ihu',
-    submitBtn:         'Zipu',
-    qNavTitle:         'Ajụjụ',
-    legendAnswered:    'Azaala',
-    legendCurrent:     'Ugbu a',
-    qCounter:          'Ajụjụ {n} n\'ime {total}',
-    secViolation:      'Mmegbu {n} n\'ime {max}',
-    secWait:           'Chere Sekọnd 5...',
-    secDismissFs:      'Laghachi na Ihuenyo Zuru Ezu',
-    secDismissOk:      'Aghọtara m - Gaa n\'ihu na Ule',
-    secSubmitting:     'Na-ezipu...',
-    secAutoMsg:        'A ga-ezipu ule gị mgbe ọnụọgụ eru ala.',
-    secTitleFs:        'Apụọla na Ihuenyo Zuru Ezu',
-    secMsgFs:          'Biko nọdụ na ihuenyo zuru ezu. Ị nwere {n} ọpụpụ tupu ezipu ná mmalite.',
-    secTitleFsMax:     'Ọnụ Ọgụgụ Ọpụpụ Eruola',
-    secMsgFsMax:       'Apụọla na ihuenyo zuru ezu ugboro {n}. A na-ezipu ule gị.',
-    secTitleTab:       'Achọpụtara mgbanwe Tab',
-    secMsgTab:         'Agba igbanwe tab n\'oge ule amaghị. Mmegbu {n} fọdụrụ.',
-    secTitleMax:       'Ọnụ Ọgụgụ Mmegbu Eruola',
-    secMsgMax:         'A na-ezipu ule gị n\'ihi mmegbu ugboro ugboro.',
-    submitConfirmTitle:'Zipu Ule?',
-    submitConfirmMsg:  'Azaala: {answered} / {total}. Azaghịghị: {unanswered}. Enweghị ike mgbanwe.',
-    submitConfirmOk:   'Zipu Ugbu a',
-    submitConfirmCancel:'Gaa n\'ihu na Ule',
-    quitConfirmTitle:  'Pụọ na Ule?',
-    quitConfirmMsg:    'A ga-EFU ọganiihu gị ma ị ga-adị mkpa ịmalite ọzọ.',
-    quitConfirmOk:     'Pụọ',
-    quitConfirmCancel: 'Nọdụ',
-    timeUp:            'Oge agwụla! A na-ezipu ule gị.',
-    submitFail:        'Izipụ dapụtara. Echekwara azịza gị. Biko nwaa ọzọ.',
-    retrying:          'Na-anwale ọzọ...',
-    scoreLbl:          'Nha',
-    rsCorrectLbl:      'Ziri Ezi',
-    rsTotalQLbl:       'Ajụjụ',
-    rsTimeLbl:         'Oge',
-    resultExcellent:   'Ọ dị mma Nke Ukwuu!',
-    resultGreat:       'Ọrụ Dị Mma!',
-    resultPass:        'Gafere!',
-    resultFail:        'Nọgide na Nnwale!',
-    resultPassSub:     'Congratulations! I gafere ule a.',
-    resultFailSub:     'Nọgide na mmemme ma nwaa ọzọ.',
-    pendingTheory:     'Onye nkụzi gị na-elele azịza edemede gị.',
-    pendingRelease:    'Onye nkụzi gị ma ọ bụ onye nlekọta ụlọ akwụkwọ ga-ahapụ nsonaazụ gị.',
-    btnHome:           'Laghachi na Ụzọ Ule'
+    langLabel:'Họrọ Asụsụ',entryTitle:'Ọnụ ụzọ Ule Ụmụakwụkwọ',entrySub:'Tinye aha gị na koodu nnabata ule nke onye nkụzi gị nyere gị.',entryNote:'A na-echekwa azịza gị na-akpaghị aka. Emechakwa tab a n\'oge ule.',namePlaceholder:'Aha Gị Zuru Ezu',admNoPlaceholder:'Nọmba Nnabata (nhọrọ)',codePlaceholder:'KOODU ULE',startBtn:'Malite Ule',errName:'Biko tinye aha gị zuru ezu.',errCode:'Biko tinye koodu nnabata ziri ezi.',verifying:'Na-enyocha...',briefSystem:'Usoro Ule CBT',briefDetails:'NKỌWA ULE',lbTitle:'Aha',lbSubject:'Ọmụmụ ihe',lbDuration:'Ogologo Oge',lbQuestions:'Ajụjụ',mins:'nkeji',secRules:'<strong>Iwu Nchekwa Ule</strong><br>&#8226; Ule a na-aga n\'ụzọ ihuenyo zuru ezu &#8212; emerọla<br>&#8226; A na-achọpụta mgbanwe tab na windo ma dee ya<br>&#8226; Ebiela isi ikpe nri na mmalite dị mkpụmkpụ<br>&#8226; Ichere ihe ule ebiela<br>&#8226; Mmegbu ugboro ugboro ga-ezipu ule ná mmalite',beginBtn:'Malite Ule',backBtn:'Laghachi',secureLabel:'Nchekwa',quitBtn:'Pụọ',audioLabel:'Nụ ụda tupu ị zaaa',theoryPlaceholder:'Dee azịza gị ebe a...',prevBtn:'Azụ',nextBtn:'Ihu',submitBtn:'Zipu',qNavTitle:'Ajụjụ',legendAnswered:'Azaala',legendCurrent:'Ugbu a',qCounter:'Ajụjụ {n} n\'ime {total}',secViolation:'Mmegbu {n} n\'ime {max}',secWait:'Chere Sekọnd 5...',secDismissFs:'Laghachi na Ihuenyo Zuru Ezu',secDismissOk:'Aghọtara m - Gaa n\'ihu na Ule',secSubmitting:'Na-ezipu...',secAutoMsg:'A ga-ezipu ule gị mgbe ọnụọgụ eru ala.',secTitleFs:'Apụọla na Ihuenyo Zuru Ezu',secMsgFs:'Biko nọdụ na ihuenyo zuru ezu. Ị nwere {n} ọpụpụ tupu ezipu ná mmalite.',secTitleFsMax:'Ọnụ Ọgụgụ Ọpụpụ Eruola',secMsgFsMax:'Apụọla na ihuenyo zuru ezu ugboro {n}. A na-ezipu ule gị.',secTitleTab:'Achọpụtara mgbanwe Tab',secMsgTab:'Agba igbanwe tab n\'oge ule amaghị. Mmegbu {n} fọdụrụ.',secTitleMax:'Ọnụ Ọgụgụ Mmegbu Eruola',secMsgMax:'A na-ezipu ule gị n\'ihi mmegbu ugboro ugboro.',submitConfirmTitle:'Zipu Ule?',submitConfirmMsg:'Azaala: {answered} / {total}. Azaghịghị: {unanswered}. Enweghị ike mgbanwe.',submitConfirmOk:'Zipu Ugbu a',submitConfirmCancel:'Gaa n\'ihu na Ule',quitConfirmTitle:'Pụọ na Ule?',quitConfirmMsg:'A ga-EFU ọganiihu gị ma ị ga-adị mkpa ịmalite ọzọ.',quitConfirmOk:'Pụọ',quitConfirmCancel:'Nọdụ',timeUp:'Oge agwụla! A na-ezipu ule gị.',submitFail:'Izipụ dapụtara. Echekwara azịza gị. Biko nwaa ọzọ.',retrying:'Na-anwale ọzọ...',scoreLbl:'Nha',rsCorrectLbl:'Ziri Ezi',rsTotalQLbl:'Ajụjụ',rsTimeLbl:'Oge',resultExcellent:'Ọ dị mma Nke Ukwuu!',resultGreat:'Ọrụ Dị Mma!',resultPass:'Gafere!',resultFail:'Nọgide na Nnwale!',resultPassSub:'Congratulations! I gafere ule a.',resultFailSub:'Nọgide na mmemme ma nwaa ọzọ.',pendingTheory:'Onye nkụzi gị na-elele azịza edemede gị.',pendingRelease:'Onye nkụzi gị ma ọ bụ onye nlekọta ụlọ akwụkwọ ga-ahapụ nsonaazụ gị.',btnHome:'Laghachi na Ụzọ Ule'
   },
-
   fr: {
-    langLabel:         'Choisir la Langue',
-    entryTitle:        'Portail d\'Examen Etudiant',
-    entrySub:          'Entrez votre nom et le code d\'acces a l\'examen fourni par votre professeur.',
-    entryNote:         'Vos reponses sont sauvegardees automatiquement. Ne fermez pas cet onglet pendant l\'examen.',
-    namePlaceholder:   'Votre Nom Complet',
-    admNoPlaceholder:  'Numero d\'immatriculation (optionnel)',
-    codePlaceholder:   'CODE D\'EXAMEN',
-    startBtn:          'Commencer l\'Examen',
-    errName:           'Veuillez entrer votre nom complet.',
-    errCode:           'Veuillez entrer un code d\'acces valide.',
-    verifying:         'Verification...',
-    briefSystem:       'Systeme d\'Examen CBT',
-    briefDetails:      'DETAILS DE L\'EXAMEN',
-    lbTitle:           'Titre',
-    lbSubject:         'Matiere',
-    lbDuration:        'Duree',
-    lbQuestions:       'Questions',
-    mins:              'min',
-    secRules:          '<strong>Regles de Securite</strong><br>&#8226; Cet examen fonctionne en mode plein ecran &#8212; ne quittez pas<br>&#8226; Le changement d\'onglets et de fenetres est detecte et enregistre<br>&#8226; Le clic droit et les raccourcis clavier sont desactives<br>&#8226; La copie du contenu de l\'examen est bloquee<br>&#8226; Les violations repetees soumettront automatiquement votre examen',
-    beginBtn:          'Commencer l\'Examen',
-    backBtn:           'Retour',
-    secureLabel:       'Securise',
-    quitBtn:           'Quitter',
-    audioLabel:        'Ecoutez l\'audio avant de repondre',
-    theoryPlaceholder: 'Tapez votre reponse ici...',
-    prevBtn:           'Precedent',
-    nextBtn:           'Suivant',
-    submitBtn:         'Soumettre',
-    qNavTitle:         'Questions',
-    legendAnswered:    'Repondu',
-    legendCurrent:     'Actuel',
-    qCounter:          'Question {n} sur {total}',
-    secViolation:      'Violation {n} sur {max}',
-    secWait:           'Attendez 5 secondes...',
-    secDismissFs:      'Retourner en Plein Ecran',
-    secDismissOk:      'Je Comprends - Continuer l\'Examen',
-    secSubmitting:     'Soumission...',
-    secAutoMsg:        'Votre examen sera soumis quand le compte a rebours atteint zero.',
-    secTitleFs:        'Plein Ecran Quitte',
-    secMsgFs:          'Restez en plein ecran. {n} sortie(s) restante(s) avant la soumission automatique.',
-    secTitleFsMax:     'Plein Ecran - Maximum Atteint',
-    secMsgFsMax:       'Vous avez quitte le plein ecran {n} fois. Votre examen est en cours de soumission.',
-    secTitleTab:       'Changement d\'Onglet Detecte',
-    secMsgTab:         'Changer d\'onglet n\'est pas autorise. {n} violation(s) restante(s).',
-    secTitleMax:       'Maximum de Violations Atteint',
-    secMsgMax:         'Votre examen est soumis en raison de violations repetees.',
-    submitConfirmTitle:'Soumettre l\'Examen?',
-    submitConfirmMsg:  'Repondu: {answered} / {total}. Sans reponse: {unanswered}. Cela ne peut pas etre annule.',
-    submitConfirmOk:   'Soumettre Maintenant',
-    submitConfirmCancel:'Continuer l\'Examen',
-    quitConfirmTitle:  'Quitter l\'Examen?',
-    quitConfirmMsg:    'Votre progression sera PERDUE et vous devrez recommencer.',
-    quitConfirmOk:     'Quitter',
-    quitConfirmCancel: 'Rester',
-    timeUp:            'Le temps est ecoule! Votre examen est en cours de soumission.',
-    submitFail:        'La soumission a echoue. Vos reponses sont sauvegardees. Veuillez reessayer.',
-    retrying:          'Nouvelle tentative...',
-    scoreLbl:          'Score',
-    rsCorrectLbl:      'Correct',
-    rsTotalQLbl:       'Questions',
-    rsTimeLbl:         'Temps',
-    resultExcellent:   'Excellent!',
-    resultGreat:       'Tres Bien!',
-    resultPass:        'Recu!',
-    resultFail:        'Continuez a Pratiquer!',
-    resultPassSub:     'Felicitations! Vous avez reussi cet examen.',
-    resultFailSub:     'Continuez a pratiquer et reessayez.',
-    pendingTheory:     'Votre professeur examine vos reponses theoriques.',
-    pendingRelease:    'Votre professeur ou l\'administrateur publiera vos resultats.',
-    btnHome:           'Retour au Portail d\'Examen'
+    langLabel:'Choisir la Langue',entryTitle:'Portail d\'Examen Etudiant',entrySub:'Entrez votre nom et le code d\'acces a l\'examen fourni par votre professeur.',entryNote:'Vos reponses sont sauvegardees automatiquement. Ne fermez pas cet onglet pendant l\'examen.',namePlaceholder:'Votre Nom Complet',admNoPlaceholder:'Numero d\'immatriculation (optionnel)',codePlaceholder:'CODE D\'EXAMEN',startBtn:'Commencer l\'Examen',errName:'Veuillez entrer votre nom complet.',errCode:'Veuillez entrer un code d\'acces valide.',verifying:'Verification...',briefSystem:'Systeme d\'Examen CBT',briefDetails:'DETAILS DE L\'EXAMEN',lbTitle:'Titre',lbSubject:'Matiere',lbDuration:'Duree',lbQuestions:'Questions',mins:'min',secRules:'<strong>Regles de Securite</strong><br>&#8226; Cet examen fonctionne en mode plein ecran &#8212; ne quittez pas<br>&#8226; Le changement d\'onglets et de fenetres est detecte et enregistre<br>&#8226; Le clic droit et les raccourcis clavier sont desactives<br>&#8226; La copie du contenu de l\'examen est bloquee<br>&#8226; Les violations repetees soumettront automatiquement votre examen',beginBtn:'Commencer l\'Examen',backBtn:'Retour',secureLabel:'Securise',quitBtn:'Quitter',audioLabel:'Ecoutez l\'audio avant de repondre',theoryPlaceholder:'Tapez votre reponse ici...',prevBtn:'Precedent',nextBtn:'Suivant',submitBtn:'Soumettre',qNavTitle:'Questions',legendAnswered:'Repondu',legendCurrent:'Actuel',qCounter:'Question {n} sur {total}',secViolation:'Violation {n} sur {max}',secWait:'Attendez 5 secondes...',secDismissFs:'Retourner en Plein Ecran',secDismissOk:'Je Comprends - Continuer l\'Examen',secSubmitting:'Soumission...',secAutoMsg:'Votre examen sera soumis quand le compte a rebours atteint zero.',secTitleFs:'Plein Ecran Quitte',secMsgFs:'Restez en plein ecran. {n} sortie(s) restante(s) avant la soumission automatique.',secTitleFsMax:'Plein Ecran - Maximum Atteint',secMsgFsMax:'Vous avez quitte le plein ecran {n} fois. Votre examen est en cours de soumission.',secTitleTab:'Changement d\'Onglet Detecte',secMsgTab:'Changer d\'onglet n\'est pas autorise. {n} violation(s) restante(s).',secTitleMax:'Maximum de Violations Atteint',secMsgMax:'Votre examen est soumis en raison de violations repetees.',submitConfirmTitle:'Soumettre l\'Examen?',submitConfirmMsg:'Repondu: {answered} / {total}. Sans reponse: {unanswered}. Cela ne peut pas etre annule.',submitConfirmOk:'Soumettre Maintenant',submitConfirmCancel:'Continuer l\'Examen',quitConfirmTitle:'Quitter l\'Examen?',quitConfirmMsg:'Votre progression sera PERDUE et vous devrez recommencer.',quitConfirmOk:'Quitter',quitConfirmCancel:'Rester',timeUp:'Le temps est ecoule! Votre examen est en cours de soumission.',submitFail:'La soumission a echoue. Vos reponses sont sauvegardees. Veuillez reessayer.',retrying:'Nouvelle tentative...',scoreLbl:'Score',rsCorrectLbl:'Correct',rsTotalQLbl:'Questions',rsTimeLbl:'Temps',resultExcellent:'Excellent!',resultGreat:'Tres Bien!',resultPass:'Recu!',resultFail:'Continuez a Pratiquer!',resultPassSub:'Felicitations! Vous avez reussi cet examen.',resultFailSub:'Continuez a pratiquer et reessayez.',pendingTheory:'Votre professeur examine vos reponses theoriques.',pendingRelease:'Votre professeur ou l\'administrateur publiera vos resultats.',btnHome:'Retour au Portail d\'Examen'
   },
-
   ar: {
-    langLabel:         'اختر اللغة',
-    entryTitle:        'بوابة امتحان الطالب',
-    entrySub:          'أدخل اسمك ورمز الوصول للامتحان الذي أعطاك إياه معلمك.',
-    entryNote:         'يتم حفظ إجاباتك تلقائياً. لا تغلق هذه النافذة أثناء الامتحان.',
-    namePlaceholder:   'اسمك الكامل',
-    admNoPlaceholder:  'رقم القيد (اختياري)',
-    codePlaceholder:   'رمز الامتحان',
-    startBtn:          'بدء الامتحان',
-    errName:           'الرجاء إدخال اسمك الكامل.',
-    errCode:           'الرجاء إدخال رمز وصول صحيح.',
-    verifying:         'جار التحقق...',
-    briefSystem:       'نظام الامتحان الإلكتروني',
-    briefDetails:      'تفاصيل الامتحان',
-    lbTitle:           'العنوان',
-    lbSubject:         'المادة',
-    lbDuration:        'المدة',
-    lbQuestions:       'الأسئلة',
-    mins:              'دقيقة',
-    secRules:          '<strong>قواعد أمان الامتحان</strong><br>&#8226; يعمل هذا الامتحان في وضع الشاشة الكاملة &#8212; لا تخرج<br>&#8226; يتم اكتشاف تبديل التبويبات وتسجيلها<br>&#8226; النقر بزر الماوس الأيمن والاختصارات معطلة<br>&#8226; نسخ محتوى الامتحان محظور<br>&#8226; المخالفات المتكررة ستُرسل الامتحان تلقائياً',
-    beginBtn:          'ابدأ الامتحان',
-    backBtn:           'رجوع',
-    secureLabel:       'آمن',
-    quitBtn:           'خروج',
-    audioLabel:        'استمع للصوت قبل الإجابة',
-    theoryPlaceholder: 'اكتب إجابتك هنا...',
-    prevBtn:           'السابق',
-    nextBtn:           'التالي',
-    submitBtn:         'إرسال',
-    qNavTitle:         'الأسئلة',
-    legendAnswered:    'تمت الإجابة',
-    legendCurrent:     'الحالي',
-    qCounter:          'السؤال {n} من {total}',
-    secViolation:      'مخالفة {n} من {max}',
-    secWait:           'انتظر 5 ثوانٍ...',
-    secDismissFs:      'العودة إلى الشاشة الكاملة',
-    secDismissOk:      'فهمت - متابعة الامتحان',
-    secSubmitting:     'جار الإرسال...',
-    secAutoMsg:        'سيتم إرسال امتحانك عندما يصل العد التنازلي إلى الصفر.',
-    secTitleFs:        'تم الخروج من الشاشة الكاملة',
-    secMsgFs:          'يرجى البقاء في وضع الشاشة الكاملة. {n} محاولة متبقية قبل الإرسال التلقائي.',
-    secTitleFsMax:     'تم الوصول إلى الحد الأقصى للخروج',
-    secMsgFsMax:       'لقد خرجت من الشاشة الكاملة {n} مرات. جار إرسال امتحانك.',
-    secTitleTab:       'تم اكتشاف تبديل التبويب',
-    secMsgTab:         'لا يُسمح بتبديل التبويبات أثناء الامتحان. {n} مخالفة متبقية.',
-    secTitleMax:       'تم الوصول إلى الحد الأقصى للمخالفات',
-    secMsgMax:         'جار إرسال امتحانك بسبب المخالفات المتكررة.',
-    submitConfirmTitle:'إرسال الامتحان؟',
-    submitConfirmMsg:  'تمت الإجابة: {answered} / {total}. لم يُجَب: {unanswered}. لا يمكن التراجع.',
-    submitConfirmOk:   'إرسال الآن',
-    submitConfirmCancel:'متابعة الامتحان',
-    quitConfirmTitle:  'الخروج من الامتحان؟',
-    quitConfirmMsg:    'ستُفقد كل التقدم وستحتاج إلى البدء من جديد.',
-    quitConfirmOk:     'خروج',
-    quitConfirmCancel: 'بقاء',
-    timeUp:            'انتهى الوقت! جار إرسال امتحانك.',
-    submitFail:        'فشل الإرسال. تم حفظ إجاباتك. الرجاء المحاولة مرة أخرى.',
-    retrying:          'إعادة المحاولة...',
-    scoreLbl:          'النتيجة',
-    rsCorrectLbl:      'صحيح',
-    rsTotalQLbl:       'الأسئلة',
-    rsTimeLbl:         'الوقت',
-    resultExcellent:   'ممتاز!',
-    resultGreat:       'عمل رائع!',
-    resultPass:        'نجحت!',
-    resultFail:        'استمر في المحاولة!',
-    resultPassSub:     'تهانينا! لقد نجحت في هذا الامتحان.',
-    resultFailSub:     'استمر في التدرب وحاول مرة أخرى.',
-    pendingTheory:     'معلمك يراجع إجاباتك النظرية.',
-    pendingRelease:    'سيُصدر معلمك أو مدير المدرسة نتائجك.',
-    btnHome:           'العودة إلى بوابة الامتحان'
+    langLabel:'اختر اللغة',entryTitle:'بوابة امتحان الطالب',entrySub:'أدخل اسمك ورمز الوصول للامتحان الذي أعطاك إياه معلمك.',entryNote:'يتم حفظ إجاباتك تلقائياً. لا تغلق هذه النافذة أثناء الامتحان.',namePlaceholder:'اسمك الكامل',admNoPlaceholder:'رقم القيد (اختياري)',codePlaceholder:'رمز الامتحان',startBtn:'بدء الامتحان',errName:'الرجاء إدخال اسمك الكامل.',errCode:'الرجاء إدخال رمز وصول صحيح.',verifying:'جار التحقق...',briefSystem:'نظام الامتحان الإلكتروني',briefDetails:'تفاصيل الامتحان',lbTitle:'العنوان',lbSubject:'المادة',lbDuration:'المدة',lbQuestions:'الأسئلة',mins:'دقيقة',secRules:'<strong>قواعد أمان الامتحان</strong><br>&#8226; يعمل هذا الامتحان في وضع الشاشة الكاملة &#8212; لا تخرج<br>&#8226; يتم اكتشاف تبديل التبويبات وتسجيلها<br>&#8226; النقر بزر الماوس الأيمن والاختصارات معطلة<br>&#8226; نسخ محتوى الامتحان محظور<br>&#8226; المخالفات المتكررة ستُرسل الامتحان تلقائياً',beginBtn:'ابدأ الامتحان',backBtn:'رجوع',secureLabel:'آمن',quitBtn:'خروج',audioLabel:'استمع للصوت قبل الإجابة',theoryPlaceholder:'اكتب إجابتك هنا...',prevBtn:'السابق',nextBtn:'التالي',submitBtn:'إرسال',qNavTitle:'الأسئلة',legendAnswered:'تمت الإجابة',legendCurrent:'الحالي',qCounter:'السؤال {n} من {total}',secViolation:'مخالفة {n} من {max}',secWait:'انتظر 5 ثوانٍ...',secDismissFs:'العودة إلى الشاشة الكاملة',secDismissOk:'فهمت - متابعة الامتحان',secSubmitting:'جار الإرسال...',secAutoMsg:'سيتم إرسال امتحانك عندما يصل العد التنازلي إلى الصفر.',secTitleFs:'تم الخروج من الشاشة الكاملة',secMsgFs:'يرجى البقاء في وضع الشاشة الكاملة. {n} محاولة متبقية قبل الإرسال التلقائي.',secTitleFsMax:'تم الوصول إلى الحد الأقصى للخروج',secMsgFsMax:'لقد خرجت من الشاشة الكاملة {n} مرات. جار إرسال امتحانك.',secTitleTab:'تم اكتشاف تبديل التبويب',secMsgTab:'لا يُسمح بتبديل التبويبات أثناء الامتحان. {n} مخالفة متبقية.',secTitleMax:'تم الوصول إلى الحد الأقصى للمخالفات',secMsgMax:'جار إرسال امتحانك بسبب المخالفات المتكررة.',submitConfirmTitle:'إرسال الامتحان؟',submitConfirmMsg:'تمت الإجابة: {answered} / {total}. لم يُجَب: {unanswered}. لا يمكن التراجع.',submitConfirmOk:'إرسال الآن',submitConfirmCancel:'متابعة الامتحان',quitConfirmTitle:'الخروج من الامتحان؟',quitConfirmMsg:'ستُفقد كل التقدم وستحتاج إلى البدء من جديد.',quitConfirmOk:'خروج',quitConfirmCancel:'بقاء',timeUp:'انتهى الوقت! جار إرسال امتحانك.',submitFail:'فشل الإرسال. تم حفظ إجاباتك. الرجاء المحاولة مرة أخرى.',retrying:'إعادة المحاولة...',scoreLbl:'النتيجة',rsCorrectLbl:'صحيح',rsTotalQLbl:'الأسئلة',rsTimeLbl:'الوقت',resultExcellent:'ممتاز!',resultGreat:'عمل رائع!',resultPass:'نجحت!',resultFail:'استمر في المحاولة!',resultPassSub:'تهانينا! لقد نجحت في هذا الامتحان.',resultFailSub:'استمر في التدرب وحاول مرة أخرى.',pendingTheory:'معلمك يراجع إجاباتك النظرية.',pendingRelease:'سيُصدر معلمك أو مدير المدرسة نتائجك.',btnHome:'العودة إلى بوابة الامتحان'
   }
 };
 
-/* ============================================
-   ✅ PHASE H: Translation helpers
-============================================ */
 function t(key) {
   var strings = _T[_lang] || _T['en'];
   return strings[key] !== undefined ? strings[key] : (_T['en'][key] || key);
 }
 
 function tFmt(key, vars) {
-  var str = t(key);
-  var k;
-  for (k in vars) {
-    if (vars.hasOwnProperty(k)) {
-      str = str.replace(new RegExp('\\{' + k + '\\}', 'g'), vars[k]);
-    }
-  }
+  var str = t(key); var k;
+  for (k in vars) { if (vars.hasOwnProperty(k)) { str = str.replace(new RegExp('\\{' + k + '\\}', 'g'), vars[k]); } }
   return str;
 }
 
-function setText(id, val) {
-  var el = document.getElementById(id);
-  if (el) { el.textContent = val; }
-}
+function setText(id, val) { var el = document.getElementById(id); if (el) { el.textContent = val; } }
+function setHtml(id, val) { var el = document.getElementById(id); if (el) { el.innerHTML = val; } }
+function setAttr(id, attr, val) { var el = document.getElementById(id); if (el) { el[attr] = val; } }
 
-function setHtml(id, val) {
-  var el = document.getElementById(id);
-  if (el) { el.innerHTML = val; }
-}
-
-function setAttr(id, attr, val) {
-  var el = document.getElementById(id);
-  if (el) { el[attr] = val; }
-}
-
-/* ============================================
-   ✅ PHASE H: Apply language to all UI elements
-============================================ */
 function applyLang(code) {
   _lang = code;
   try { sessionStorage.setItem('latlomp_lang', code); } catch(e) {}
-
-  /* RTL toggle */
   var htmlEl = document.getElementById('htmlRoot');
   if (htmlEl) {
-    if (code === 'ar') {
-      htmlEl.setAttribute('dir', 'rtl');
-      htmlEl.setAttribute('lang', 'ar');
-    } else {
-      htmlEl.setAttribute('dir', 'ltr');
-      htmlEl.setAttribute('lang', code);
-    }
+    if (code === 'ar') { htmlEl.setAttribute('dir', 'rtl'); htmlEl.setAttribute('lang', 'ar'); }
+    else { htmlEl.setAttribute('dir', 'ltr'); htmlEl.setAttribute('lang', code); }
   }
-
-  /* Lang button highlight */
   var btns = document.querySelectorAll('.lang-btn');
   for (var i = 0; i < btns.length; i++) {
-    btns[i].className = btns[i].onclick && btns[i].getAttribute('onclick') === ("selectLang('" + code + "')")
-      ? 'lang-btn active'
-      : 'lang-btn';
+    btns[i].className = btns[i].getAttribute('onclick') === ("selectLang('" + code + "')") ? 'lang-btn active' : 'lang-btn';
   }
-
-  /* Entry screen */
   setText('langSelectorLabel', t('langLabel'));
-  setText('entryTitle',        t('entryTitle'));
-  setText('entrySub',          t('entrySub'));
-  setText('entryNote',         t('entryNote'));
+  setText('entryTitle', t('entryTitle')); setText('entrySub', t('entrySub')); setText('entryNote', t('entryNote'));
   setAttr('studentName', 'placeholder', t('namePlaceholder'));
   setAttr('admissionNo', 'placeholder', t('admNoPlaceholder'));
   setAttr('accessCode',  'placeholder', t('codePlaceholder'));
-  setText('startBtn',          t('startBtn'));
-
-  /* Briefing screen */
-  setText('briefSystemLabel',  t('briefSystem'));
-  setText('briefDetailsLabel', t('briefDetails'));
-  setText('lbTitle',           t('lbTitle'));
-  setText('lbSubject',         t('lbSubject'));
-  setText('lbDuration',        t('lbDuration'));
-  setText('lbQuestions',       t('lbQuestions'));
-  setHtml('secRulesBox',       t('secRules'));
-  setText('beginBtn',          t('beginBtn'));
-  setText('backBtn',           t('backBtn'));
-
-  /* Exam screen */
-  setText('quitBtn',           t('quitBtn'));
-  setText('prevBtn',           t('prevBtn'));
-  setText('nextBtn',           t('nextBtn'));
-  setText('submitBtn',         t('submitBtn'));
-  setText('qNavTitle',         t('qNavTitle'));
-  setText('legendAnswered',    t('legendAnswered'));
-  setText('legendCurrent',     t('legendCurrent'));
-  setText('qAudioLabel',       t('audioLabel'));
+  setText('startBtn', t('startBtn'));
+  setText('briefSystemLabel', t('briefSystem')); setText('briefDetailsLabel', t('briefDetails'));
+  setText('lbTitle', t('lbTitle')); setText('lbSubject', t('lbSubject'));
+  setText('lbDuration', t('lbDuration')); setText('lbQuestions', t('lbQuestions'));
+  setHtml('secRulesBox', t('secRules'));
+  setText('beginBtn', t('beginBtn')); setText('backBtn', t('backBtn'));
+  setText('quitBtn', t('quitBtn')); setText('prevBtn', t('prevBtn'));
+  setText('nextBtn', t('nextBtn')); setText('submitBtn', t('submitBtn'));
+  setText('qNavTitle', t('qNavTitle')); setText('legendAnswered', t('legendAnswered'));
+  setText('legendCurrent', t('legendCurrent')); setText('qAudioLabel', t('audioLabel'));
   setAttr('theoryInput', 'placeholder', t('theoryPlaceholder'));
-
-  /* Result screen */
-  setText('scoreLbl',          t('scoreLbl'));
-  setText('rsCorrectLbl',      t('rsCorrectLbl'));
-  setText('rsTotalQLbl',       t('rsTotalQLbl'));
-  setText('rsTimeLbl',         t('rsTimeLbl'));
-  setText('btnHome',           t('btnHome'));
+  setText('scoreLbl', t('scoreLbl')); setText('rsCorrectLbl', t('rsCorrectLbl'));
+  setText('rsTotalQLbl', t('rsTotalQLbl')); setText('rsTimeLbl', t('rsTimeLbl'));
+  setText('btnHome', t('btnHome'));
 }
 
-function selectLang(code) {
-  applyLang(code);
-}
+function selectLang(code) { applyLang(code); }
 
-/* KaTeX */
 var _katexOpts = {
-  delimiters: [
-    { left: '$$', right: '$$', display: true  },
-    { left: '$',  right: '$',  display: false }
-  ],
-  throwOnError: false,
-  output: 'html'
+  delimiters: [{ left:'$$', right:'$$', display:true }, { left:'$', right:'$', display:false }],
+  throwOnError: false, output: 'html'
 };
 
 function setTextWithMath(element, text) {
@@ -1007,30 +540,22 @@ function setTextWithMath(element, text) {
   }
 }
 
-/* ============================================
-   ✅ PHASE H: Styled confirm modal
-   Replaces browser confirm() so dialogs
-   can display translated text
-============================================ */
 var _confirmResolve = null;
 
 function showConfirm(icon, title, msg, okText, cancelText, okDanger) {
   return new Promise(function(resolve) {
     _confirmResolve = resolve;
-    var overlay   = document.getElementById('confirmModal');
-    var iconEl    = document.getElementById('confirmModalIcon');
-    var titleEl   = document.getElementById('confirmModalTitle');
-    var msgEl     = document.getElementById('confirmModalMsg');
-    var okBtn     = document.getElementById('confirmModalOk');
+    var overlay = document.getElementById('confirmModal');
+    var iconEl  = document.getElementById('confirmModalIcon');
+    var titleEl = document.getElementById('confirmModalTitle');
+    var msgEl   = document.getElementById('confirmModalMsg');
+    var okBtn   = document.getElementById('confirmModalOk');
     var cancelBtn = document.getElementById('confirmModalCancel');
     if (!overlay) { resolve(true); return; }
-    if (iconEl)    { iconEl.textContent    = icon || '?'; }
-    if (titleEl)   { titleEl.textContent   = title || ''; }
-    if (msgEl)     { msgEl.textContent     = msg || ''; }
-    if (okBtn)     {
-      okBtn.textContent = okText || t('submitConfirmOk');
-      okBtn.className   = 'confirm-modal-ok' + (okDanger ? ' danger' : '');
-    }
+    if (iconEl)    { iconEl.textContent  = icon || '?'; }
+    if (titleEl)   { titleEl.textContent = title || ''; }
+    if (msgEl)     { msgEl.textContent   = msg || ''; }
+    if (okBtn)     { okBtn.textContent   = okText || t('submitConfirmOk'); okBtn.className = 'confirm-modal-ok' + (okDanger ? ' danger' : ''); }
     if (cancelBtn) { cancelBtn.textContent = cancelText || t('submitConfirmCancel'); }
     overlay.classList.add('active');
   });
@@ -1044,6 +569,11 @@ function resolveConfirm(val) {
 
 /* ============================================
    SCREEN NAVIGATION
+   ✅ FOUNDATION FIX: Scroll is restored when
+   transitioning to non-exam screens (entry,
+   briefing, result). The exam screen manages
+   its own scroll via beginExam() and
+   deactivateSecurity().
 ============================================ */
 function showScreen(name) {
   var screens = document.querySelectorAll('.screen');
@@ -1053,48 +583,29 @@ function showScreen(name) {
   if (name === 'exam') {
     examEl.classList.add('active');
   } else {
+    /* ✅ FOUNDATION FIX: Restore scroll for entry/briefing/result screens */
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
     var el = document.getElementById(name + 'Screen');
     if (el) { el.classList.add('active'); }
   }
 }
 
-/* ============================================
-   VERIFY CODE
-============================================ */
 async function verifyCode() {
   var btn   = document.getElementById('startBtn');
   var errEl = document.getElementById('entryErr');
   errEl.style.display = 'none';
-
   var nameEl = document.getElementById('studentName');
   var admEl  = document.getElementById('admissionNo');
   var codeEl = document.getElementById('accessCode');
-
-  var name  = nameEl  ? nameEl.value.trim()             : '';
-  var admNo = admEl   ? admEl.value.trim()              : '';
+  var name  = nameEl  ? nameEl.value.trim()              : '';
+  var admNo = admEl   ? admEl.value.trim()               : '';
   var code  = codeEl  ? codeEl.value.trim().toUpperCase() : '';
-
-  if (!name) {
-    errEl.textContent   = t('errName');
-    errEl.style.display = 'block';
-    return;
-  }
-  if (!code || code.length < 4) {
-    errEl.textContent   = t('errCode');
-    errEl.style.display = 'block';
-    return;
-  }
-
+  if (!name) { errEl.textContent = t('errName'); errEl.style.display = 'block'; return; }
+  if (!code || code.length < 4) { errEl.textContent = t('errCode'); errEl.style.display = 'block'; return; }
   if (btn) { btn.innerHTML = '<span class="spinner"></span> ' + t('verifying'); btn.disabled = true; }
-
-  var res = await instApi('/student/verify-code', 'POST', {
-    accessCode:  code,
-    studentName: name,
-    admissionNo: admNo
-  });
-
+  var res = await instApi('/student/verify-code', 'POST', { accessCode: code, studentName: name, admissionNo: admNo });
   if (btn) { btn.textContent = t('startBtn'); btn.disabled = false; }
-
   if (res.ok) {
     _session   = res.data;
     _questions = res.data.questions || [];
@@ -1108,121 +619,82 @@ async function verifyCode() {
   }
 }
 
-/* ============================================
-   BRIEFING
-============================================ */
 function fillBriefing(data) {
   var exam   = data.exam   || {};
   var school = data.school || {};
-
   var logoWrap = document.getElementById('briefSchoolLogo');
   if (logoWrap) {
-    if (school.logo) {
-      logoWrap.innerHTML = '<img src="' + school.logo + '" class="school-logo-img" alt="Logo" />';
-    } else {
-      logoWrap.textContent = (school.name || 'S').charAt(0).toUpperCase();
-    }
+    if (school.logo) { logoWrap.innerHTML = '<img src="' + school.logo + '" class="school-logo-img" alt="Logo" />'; }
+    else { logoWrap.textContent = (school.name || 'S').charAt(0).toUpperCase(); }
   }
-
   setText('briefSchoolName', school.name  || '');
   setText('briefTitle',      exam.title   || '');
   setText('briefSubject',    exam.subject || '');
   setText('briefDuration',   (exam.duration || 60) + ' ' + t('mins'));
   setText('briefQCount',     String(exam.totalQuestions || _questions.length));
-
   var instrEl = document.getElementById('briefInstructions');
-  if (instrEl && exam.instructions) {
-    instrEl.textContent   = exam.instructions;
-    instrEl.style.display = 'block';
-  }
+  if (instrEl && exam.instructions) { instrEl.textContent = exam.instructions; instrEl.style.display = 'block'; }
 }
 
 /* ============================================
    BEGIN EXAM
+   ✅ FOUNDATION FIX: Lock scroll here only,
+   when the exam screen becomes active.
 ============================================ */
 function beginExam() {
+  /* Lock scroll for exam screen */
+  document.body.style.overflow = 'hidden';
+  document.documentElement.style.overflow = 'hidden';
+
   showScreen('exam');
   var titleEl = document.getElementById('examTitleTag');
   if (titleEl) { titleEl.textContent = (_session.exam || {}).title || 'Exam'; }
-
   initSecurity();
-
   window.addEventListener('beforeunload', function(e) {
     if (!_submitted) { e.preventDefault(); e.returnValue = ''; }
   });
-
   window.history.pushState({ exam: true }, '');
   window.addEventListener('popstate', function() {
     if (!_submitted) { window.history.pushState({ exam: true }, ''); triggerQuit(); }
   });
-
   buildQGrid();
   renderQuestion(0);
   startTimer();
 }
 
-/* ============================================
-   RENDER QUESTION (Phase F + G + H)
-============================================ */
 function renderQuestion(idx) {
   if (idx < 0 || idx >= _questions.length) { return; }
   _currentIdx = idx;
-
-  var q       = _questions[idx];
+  var q = _questions[idx];
   var letters = ['A', 'B', 'C', 'D', 'E'];
   var i, el;
-
-  /* ✅ PHASE H: Translated question counter */
   var counterEl = document.getElementById('qCounter');
-  if (counterEl) {
-    counterEl.textContent = tFmt('qCounter', { n: idx + 1, total: _questions.length });
-  }
-
+  if (counterEl) { counterEl.textContent = tFmt('qCounter', { n: idx + 1, total: _questions.length }); }
   setTextWithMath(document.getElementById('qText'), q.question || '');
-
-  /* ✅ PHASE G: Audio */
   var audioWrap = document.getElementById('qAudioWrap');
   var audioEl   = document.getElementById('qAudioEl');
   if (audioWrap && audioEl) {
-    if (q.audioUrl) {
-      audioEl.src = q.audioUrl;
-      audioEl.load();
-      audioWrap.style.display = 'block';
-    } else {
-      audioWrap.style.display = 'none';
-      audioEl.src = '';
-    }
+    if (q.audioUrl) { audioEl.src = q.audioUrl; audioEl.load(); audioWrap.style.display = 'block'; }
+    else { audioWrap.style.display = 'none'; audioEl.src = ''; }
   }
-
-  /* Image */
   var imgWrap = document.getElementById('qImageWrap');
   var imgEl   = document.getElementById('qImage');
   if (imgWrap && imgEl) {
     if (q.imageUrl) { imgEl.src = q.imageUrl; imgWrap.style.display = 'block'; }
     else { imgWrap.style.display = 'none'; }
   }
-
-  /* ✅ PHASE G: Table */
   var tableWrap = document.getElementById('qTableDisplayWrap');
   if (tableWrap) {
     if (q.tableHtml) { tableWrap.innerHTML = q.tableHtml; tableWrap.style.display = 'block'; }
     else { tableWrap.innerHTML = ''; tableWrap.style.display = 'none'; }
   }
-
-  /* Options / Theory */
   var optList   = document.getElementById('optionsList');
   var theoryInp = document.getElementById('theoryInput');
   var qId       = q._id.toString();
   var savedAnswer = _answers[qId];
-
   if (q.questionType === 'theory') {
-    if (optList)   { optList.style.display   = 'none'; }
-    if (theoryInp) {
-      theoryInp.style.display = 'block';
-      theoryInp.dataset.qid   = qId;
-      theoryInp.value         = (savedAnswer !== undefined) ? savedAnswer : '';
-      theoryInp.placeholder   = t('theoryPlaceholder');
-    }
+    if (optList)   { optList.style.display = 'none'; }
+    if (theoryInp) { theoryInp.style.display = 'block'; theoryInp.dataset.qid = qId; theoryInp.value = (savedAnswer !== undefined) ? savedAnswer : ''; theoryInp.placeholder = t('theoryPlaceholder'); }
   } else {
     if (theoryInp) { theoryInp.style.display = 'none'; }
     if (optList) {
@@ -1241,29 +713,21 @@ function renderQuestion(idx) {
       }
     }
   }
-
   var pct    = ((idx + 1) / _questions.length) * 100;
   var fillEl = document.getElementById('progressFill');
   if (fillEl) { fillEl.style.width = pct + '%'; }
-
   var prevBtn   = document.getElementById('prevBtn');
   var nextBtn   = document.getElementById('nextBtn');
   var submitBtn = document.getElementById('submitBtn');
   var isLast    = (idx === _questions.length - 1);
-
   if (prevBtn)   { prevBtn.disabled        = (idx === 0); }
   if (nextBtn)   { nextBtn.style.display   = isLast ? 'none'        : 'inline-flex'; }
   if (submitBtn) { submitBtn.style.display = isLast ? 'inline-flex' : 'none'; }
-
   var body = document.getElementById('examBody');
   if (body) { body.scrollTop = 0; }
-
   updateQDot(idx);
 }
 
-/* ============================================
-   ANSWERS
-============================================ */
 function selectAnswer(optIdx) {
   var q   = _questions[_currentIdx];
   var qId = q._id.toString();
@@ -1283,16 +747,10 @@ function saveTheoryAnswer() {
   _answers[inp.dataset.qid] = inp.value;
 }
 
-/* ============================================
-   NAVIGATION
-============================================ */
 function prevQuestion() { if (_currentIdx > 0) { renderQuestion(_currentIdx - 1); } }
 function nextQuestion() { if (_currentIdx < _questions.length - 1) { renderQuestion(_currentIdx + 1); } }
 function goToQuestion(idx) { renderQuestion(idx); toggleQGrid(); }
 
-/* ============================================
-   QUESTION GRID
-============================================ */
 function buildQGrid() {
   var container = document.getElementById('qDots');
   if (!container) { return; }
@@ -1318,9 +776,6 @@ function updateQDot(currentIdx) {
 function toggleQGrid() { var ov = document.getElementById('qOverlay'); if (ov) { ov.classList.toggle('open'); } }
 function handleOverlayClick(e) { if (e.target.id === 'qOverlay') { toggleQGrid(); } }
 
-/* ============================================
-   TIMER
-============================================ */
 function startTimer() {
   updateTimerDisplay();
   _timerInt = setInterval(function() {
@@ -1343,32 +798,18 @@ function updateTimerDisplay() {
 
 function pad(n) { return n < 10 ? '0' + n : String(n); }
 
-/* ============================================
-   ✅ PHASE H: Submit / Quit with translated modals
-============================================ */
 async function triggerSubmit() {
   var answered   = Object.keys(_answers).length;
   var unanswered = _questions.length - answered;
-  var confirmed  = await showConfirm(
-    '?',
-    t('submitConfirmTitle'),
+  var confirmed  = await showConfirm('?', t('submitConfirmTitle'),
     tFmt('submitConfirmMsg', { answered: answered, total: _questions.length, unanswered: unanswered }),
-    t('submitConfirmOk'),
-    t('submitConfirmCancel'),
-    false
-  );
+    t('submitConfirmOk'), t('submitConfirmCancel'), false);
   if (confirmed) { submitExam(false); }
 }
 
 async function triggerQuit() {
-  var confirmed = await showConfirm(
-    'X',
-    t('quitConfirmTitle'),
-    t('quitConfirmMsg'),
-    t('quitConfirmOk'),
-    t('quitConfirmCancel'),
-    true
-  );
+  var confirmed = await showConfirm('X', t('quitConfirmTitle'), t('quitConfirmMsg'),
+    t('quitConfirmOk'), t('quitConfirmCancel'), true);
   if (confirmed) {
     _submitted = true;
     clearInterval(_timerInt);
@@ -1383,24 +824,18 @@ function autoSubmit() {
   msgEl.textContent = t('timeUp');
   msgEl.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--red);color:#fff;padding:14px 24px;border-radius:30px;font-weight:700;font-size:14px;z-index:9999;';
   document.body.appendChild(msgEl);
-  setTimeout(function() {
-    if (!_submitted) { submitExam(true); }
-  }, 500);
+  setTimeout(function() { if (!_submitted) { submitExam(true); } }, 500);
 }
 
 async function submitExam(wasAuto, retryCount) {
   if (_submitted) { return; }
   _submitted = true;
   retryCount = retryCount || 0;
-
   clearInterval(_timerInt);
   deactivateSecurity();
-
   var submitBtn = document.getElementById('submitBtn');
   if (submitBtn) { submitBtn.innerHTML = '<span class="spinner"></span>'; submitBtn.disabled = true; }
-
   var timeTaken = Math.round((Date.now() - _startTime) / 1000);
-
   var res = await instApi('/student/submit', 'POST', {
     sessionToken:       _session.sessionToken,
     answers:            _answers,
@@ -1414,7 +849,6 @@ async function submitExam(wasAuto, retryCount) {
     devtoolAttempts:    _security.devtoolAttempts,
     violationLog:       _security.log.slice(-20)
   });
-
   if (res.ok) {
     showResult(res.data.result, timeTaken);
   } else if (res.status >= 500 && retryCount < 2) {
@@ -1434,24 +868,19 @@ function showResult(result, timeTaken) {
   var emoji  = pct >= 80 ? '&#127942;' : pct >= 60 ? '&#127945;' : pct >= 50 ? '&#9989;' : '&#128218;';
   var title  = pct >= 80 ? t('resultExcellent') : pct >= 60 ? t('resultGreat') : pct >= 50 ? t('resultPass') : t('resultFail');
   var color  = passed ? 'var(--green)' : 'var(--red)';
-
   setHtml('resultEmoji', emoji);
-  setText('resultTitle',  title);
-  setText('resultSub',    passed ? t('resultPassSub') : t('resultFailSub'));
-  setText('scorePct',     pct + '%');
-
+  setText('resultTitle', title);
+  setText('resultSub',   passed ? t('resultPassSub') : t('resultFailSub'));
+  setText('scorePct',    pct + '%');
   var pctEl = document.getElementById('scorePct');
   if (pctEl) { pctEl.style.color = color; }
-
   var circle = document.getElementById('scoreCircle');
   if (circle) { circle.style.borderColor = color + '33'; }
-
   var mins = Math.floor(timeTaken / 60);
   var secs = timeTaken % 60;
   setText('rsCorrect', String(result.score || 0));
   setText('rsTotalQ',  String(result.totalQuestions || _questions.length));
   setText('rsTime',    mins + 'm ' + secs + 's');
-
   var pendEl = document.getElementById('pendingNotice');
   if (pendEl) {
     if (result.hasTheory || !result.isReleased) {
@@ -1466,9 +895,7 @@ function showResult(result, timeTaken) {
   }
 }
 
-/* ============================================
-   ✅ PHASE F: SECURITY ENGINE (unchanged)
-============================================ */
+/* ============================================ SECURITY ENGINE */
 function initSecurity() {
   _security.isActive = true;
   requestExamFullscreen();
@@ -1618,45 +1045,31 @@ function showSecurityWarning(type, title, message, autoSubmit) {
   var btn       = document.getElementById('secDismissBtn');
   var autoMsgEl = document.getElementById('secAutoSubmitMsg');
   if (!overlay) { return; }
-
   var isDanger = (type === 'danger');
   iconEl.textContent  = isDanger ? '!' : '!';
   titleEl.textContent = title   || t('secOverlayTitle');
   msgEl.textContent   = message || '';
-
   var total = _security.totalViolations;
   countEl.textContent = tFmt('secViolation', { n: total, max: _security.maxViolations });
   countEl.className   = 'sec-violation-count' + (isDanger ? '' : ' warning-type');
   card.className      = 'sec-overlay-card'    + (isDanger ? '' : ' warning-type');
   ring.className      = 'sec-countdown-ring'  + (isDanger ? '' : ' warning-type');
-
   if (autoSubmit) {
-    autoMsgEl.textContent   = t('secAutoMsg');
-    autoMsgEl.style.display = 'block';
-    btn.textContent         = t('secSubmitting');
-    btn.disabled            = true;
-    btn.className           = 'sec-dismiss-btn';
+    autoMsgEl.textContent = t('secAutoMsg'); autoMsgEl.style.display = 'block';
+    btn.textContent = t('secSubmitting'); btn.disabled = true; btn.className = 'sec-dismiss-btn';
   } else {
     autoMsgEl.style.display = 'none';
-    btn.textContent         = t('secWait');
-    btn.disabled            = true;
-    btn.className           = 'sec-dismiss-btn';
+    btn.textContent = t('secWait'); btn.disabled = true; btn.className = 'sec-dismiss-btn';
   }
-
   overlay.classList.add('active');
-
-  var seconds = 5;
-  var elapsed = 0;
-  numEl.textContent           = seconds;
+  var seconds = 5; var elapsed = 0;
+  numEl.textContent = seconds;
   ring.style.strokeDashoffset = '0';
-
   if (_security.dismissCountdown) { clearInterval(_security.dismissCountdown); _security.dismissCountdown = null; }
-
   _security.dismissCountdown = setInterval(function() {
     elapsed++;
-    numEl.textContent           = seconds - elapsed;
+    numEl.textContent = seconds - elapsed;
     ring.style.strokeDashoffset = String((elapsed / seconds) * 126);
-
     if (elapsed >= seconds) {
       clearInterval(_security.dismissCountdown);
       _security.dismissCountdown = null;
@@ -1679,6 +1092,11 @@ function dismissSecurityWarning() {
   if (_security.isActive && !_submitted) { setTimeout(requestExamFullscreen, 300); }
 }
 
+/* ============================================
+   deactivateSecurity
+   ✅ FOUNDATION FIX: Restore scroll when exam
+   ends (submit, auto-submit, or quit).
+============================================ */
 function deactivateSecurity() {
   _security.isActive = false;
   document.removeEventListener('fullscreenchange',       onFullscreenChange);
@@ -1695,11 +1113,11 @@ function deactivateSecurity() {
     else if (document.webkitExitFullscreen) { document.webkitExitFullscreen(); }
     else if (document.mozCancelFullScreen)  { document.mozCancelFullScreen(); }
   } catch(e) {}
+  /* ✅ FOUNDATION FIX: Restore scroll */
+  document.body.style.overflow = '';
+  document.documentElement.style.overflow = '';
 }
 
-/* ============================================
-   ✅ PHASE H: INIT — apply saved language on load
-============================================ */
 (function() {
   var saved = '';
   try { saved = sessionStorage.getItem('latlomp_lang') || 'en'; } catch(e) { saved = 'en'; }
