@@ -57,6 +57,12 @@ app.use("/api/cbt",     require("./routes/cbt.routes"));
 app.use("/api/exams",   require("./routes/exam.routes"));
 app.use("/api/admin",   require("./routes/admin.routes"));
 
+/* ✅ INSTITUTION ADMIN — mounted at /api/admin so admin.html
+   can reach /api/admin/institutions/... directly.
+   No path conflicts: admin.routes handles /products /cbt etc,
+   inst.superadmin handles /institutions /subscription-plans. */
+app.use("/api/admin",   require("./institution/routes/inst.superadmin.routes"));
+
 /* ============================================
    INSTITUTION ROUTES
 ============================================ */
@@ -70,7 +76,6 @@ app.use("/api/institution/structure",  require("./institution/routes/inst.struct
 app.use("/api/institution/report",     require("./institution/routes/inst.report.routes"));
 app.use("/api/institution/students",   require("./institution/routes/inst.student.mgmt.routes"));
 app.use("/api/institution/paper",      require("./institution/routes/inst.paper.routes"));
-/* ✅ PHASE L.3: Score Entry System */
 app.use("/api/institution/score",      require("./institution/routes/inst.score.routes"));
 
 /* ============================================
