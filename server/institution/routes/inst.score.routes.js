@@ -3,15 +3,30 @@
    ✅ PHASE L.3: Score Entry + Auto-Calculation
    ✅ PHASE L.4: Position Ranking Engine
    ✅ PHASE L.6: Score Config Update Endpoints
+   ✅ PHASE L.7: Approval Workflow + Visibility
+
+   NEW ENDPOINTS (L.7):
+     GET  /submission-status/:classId/:subjectId/:termId
+     POST /submit
+     GET  /submissions
+     GET  /submissions/pending-count
+     PUT  /submissions/:id/approve
+     PUT  /submissions/:id/reject
+     PUT  /submissions/:id/release
+
+   EXISTING ENDPOINTS: unchanged.
+   LOCK CHECK: /entry and /bulk now reject saves
+   when an approved submission exists.
 ============================================ */
 'use strict';
 
 const express = require('express');
 const router  = express.Router();
 
-const SchoolScore   = require('../models/SchoolScore.model');
-const ScoreConfig   = require('../models/ScoreConfig.model');
-const SchoolStudent = require('../models/SchoolStudent.model');
+const SchoolScore        = require('../models/SchoolScore.model');
+const ScoreConfig        = require('../models/ScoreConfig.model');
+const SchoolStudent      = require('../models/SchoolStudent.model');
+const ScoreSubmission    = require('../models/ScoreSubmission.model');
 
 const { instProtect, teacherOrAdmin, schoolAdminOnly } = require('../middleware/inst.auth');
 const { requireActiveSubscription }                    = require('../middleware/inst.tenant');
@@ -20,11 +35,11 @@ var guard      = [instProtect, teacherOrAdmin,  requireActiveSubscription];
 var adminGuard = [instProtect, schoolAdminOnly, requireActiveSubscription];
 
 /* ============================================
-   Shared calculation helper.
+   Shared calculation helper (unchanged).
 ============================================ */
 function calcScoreFromConfig(config, suppliedScores) {
-  var components = (config && config.components) || [];
-  var scoresObj  = {};
+  var components  = (config && config.components) || [];
+  var scoresObj   = {};
   var total       = 0;
   var maxPossible = 0;
   var errors      = [];
@@ -67,8 +82,6 @@ function calcScoreFromConfig(config, suppliedScores) {
 
 /* ============================================
    GET /config
-   Fetch (or auto-create) this school's active
-   ScoreConfig.
 ============================================ */
 router.get('/config', guard, async function (req, res) {
   try {
@@ -81,10 +94,7 @@ router.get('/config', guard, async function (req, res) {
 });
 
 /* ============================================
-   ✅ PHASE L.6: PUT /config/:id
-   School admin updates the score config —
-   components and/or grade boundaries.
-   Restricted to schoolAdminOnly.
+   PUT /config/:id  (L.6)
 ============================================ */
 router.put('/config/:id', adminGuard, async function (req, res) {
   try {
@@ -96,18 +106,15 @@ router.put('/config/:id', adminGuard, async function (req, res) {
       return res.status(404).json({ success: false, message: 'Score configuration not found.' });
     }
 
-    /* ---- Validate components if provided ---- */
     if (body.components !== undefined) {
       if (!Array.isArray(body.components) || body.components.length === 0) {
         return res.status(400).json({ success: false, message: 'At least one score component is required.' });
       }
-
-      var keys = body.components.map(function (c) { return c.key; });
+      var keys  = body.components.map(function (c) { return c.key; });
       var dupes = keys.filter(function (k, i) { return keys.indexOf(k) !== i; });
       if (dupes.length > 0) {
         return res.status(400).json({ success: false, message: 'Duplicate component keys: ' + [...new Set(dupes)].join(', ') });
       }
-
       for (var i = 0; i < body.components.length; i++) {
         var c = body.components[i];
         if (!c.key || !c.label || !c.maxScore) {
@@ -117,16 +124,13 @@ router.put('/config/:id', adminGuard, async function (req, res) {
           return res.status(400).json({ success: false, message: 'Component "' + c.label + '" maxScore must be at least 1.' });
         }
       }
-
       config.components = body.components;
     }
 
-    /* ---- Validate grade boundaries if provided ---- */
     if (body.gradeBoundaries !== undefined) {
       if (!Array.isArray(body.gradeBoundaries)) {
         return res.status(400).json({ success: false, message: 'gradeBoundaries must be an array.' });
       }
-
       for (var j = 0; j < body.gradeBoundaries.length; j++) {
         var g = body.gradeBoundaries[j];
         if (!g.grade || !g.remark) {
@@ -136,20 +140,13 @@ router.put('/config/:id', adminGuard, async function (req, res) {
           return res.status(400).json({ success: false, message: 'Grade "' + g.grade + '": minScore cannot exceed maxScore.' });
         }
       }
-
       config.gradeBoundaries = body.gradeBoundaries;
     }
 
-    /* ---- Optional name update ---- */
     if (body.name) { config.name = body.name.trim(); }
-
     await config.save();
 
-    return res.json({
-      success: true,
-      message: 'Score configuration updated successfully.',
-      config:  config
-    });
+    return res.json({ success: true, message: 'Score configuration updated successfully.', config: config });
   } catch (err) {
     console.error('[inst.score] PUT /config/:id:', err.message);
     return res.status(500).json({ success: false, message: 'Failed to update score configuration.' });
@@ -157,17 +154,13 @@ router.put('/config/:id', adminGuard, async function (req, res) {
 });
 
 /* ============================================
-   ✅ PHASE L.6: POST /config
-   Creates a new config if none exists.
-   Fallback used by the UI's reset flow.
-   Also restricted to schoolAdminOnly.
+   POST /config  (L.6)
 ============================================ */
 router.post('/config', adminGuard, async function (req, res) {
   try {
     var schoolId = req.schoolId;
     var body     = req.body || {};
 
-    /* Deactivate any existing default config first */
     await ScoreConfig.updateMany(
       { schoolId: schoolId, isDefault: true },
       { $set: { isDefault: false, isActive: false } }
@@ -183,11 +176,7 @@ router.post('/config', adminGuard, async function (req, res) {
       createdBy:       req.schoolUser._id
     });
 
-    return res.status(201).json({
-      success: true,
-      message: 'Score configuration created.',
-      config:  config
-    });
+    return res.status(201).json({ success: true, message: 'Score configuration created.', config: config });
   } catch (err) {
     console.error('[inst.score] POST /config:', err.message);
     return res.status(500).json({ success: false, message: 'Failed to create score configuration.' });
@@ -195,7 +184,306 @@ router.post('/config', adminGuard, async function (req, res) {
 });
 
 /* ============================================
+   ✅ PHASE L.7: GET /submission-status/:c/:s/:t
+   Returns the current submission record for a
+   class/subject/term combination.
+   Used by score-entry.html on every roster load.
+   ⚠ Defined before /submit to avoid path conflict.
+============================================ */
+router.get('/submission-status/:classId/:subjectId/:termId', guard, async function (req, res) {
+  try {
+    var submission = await ScoreSubmission.findOne({
+      schoolId:  req.schoolId,
+      classId:   req.params.classId,
+      subjectId: req.params.subjectId,
+      termId:    req.params.termId
+    })
+      .populate('submittedBy', 'name')
+      .populate('approvedBy',  'name')
+      .populate('rejectedBy',  'name')
+      .lean();
+
+    return res.json({ success: true, submission: submission || null });
+  } catch (err) {
+    console.error('[inst.score] GET /submission-status:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ PHASE L.7: GET /submissions/pending-count
+   Returns count of pending submissions for this
+   school. Used by dashboard for notification badge.
+   ⚠ Must be before /submissions/:id
+============================================ */
+router.get('/submissions/pending-count', adminGuard, async function (req, res) {
+  try {
+    var count = await ScoreSubmission.countDocuments({
+      schoolId: req.schoolId,
+      status:   'pending'
+    });
+    return res.json({ success: true, count: count });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ PHASE L.7: GET /submissions
+   Admin lists all submissions for this school
+   with optional status filter and pagination.
+   Populates class/subject/term/teacher names.
+============================================ */
+router.get('/submissions', adminGuard, async function (req, res) {
+  try {
+    var { status, page, limit } = req.query;
+    var filter = { schoolId: req.schoolId };
+    if (status && status !== 'all') { filter.status = status; }
+
+    var pageNum  = parseInt(page)  || 1;
+    var limitNum = parseInt(limit) || 20;
+    var skip     = (pageNum - 1) * limitNum;
+
+    var [submissions, total] = await Promise.all([
+      ScoreSubmission.find(filter)
+        .populate('classId',   'name')
+        .populate('subjectId', 'name')
+        .populate('termId',    'name session')
+        .populate('submittedBy', 'name email')
+        .populate('approvedBy',  'name')
+        .populate('rejectedBy',  'name')
+        .sort({ submittedAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      ScoreSubmission.countDocuments(filter)
+    ]);
+
+    return res.json({
+      success:     true,
+      submissions: submissions,
+      total:       total,
+      pages:       Math.ceil(total / limitNum),
+      page:        pageNum
+    });
+  } catch (err) {
+    console.error('[inst.score] GET /submissions:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ PHASE L.7: PUT /submissions/:id/approve
+   Admin approves a submission.
+   Scores for this class/subject/term become
+   locked — /entry and /bulk will reject edits.
+============================================ */
+router.put('/submissions/:id/approve', adminGuard, async function (req, res) {
+  try {
+    var sub = await ScoreSubmission.findOne({ _id: req.params.id, schoolId: req.schoolId });
+    if (!sub) {
+      return res.status(404).json({ success: false, message: 'Submission not found.' });
+    }
+    if (sub.status === 'approved') {
+      return res.status(400).json({ success: false, message: 'Already approved.' });
+    }
+
+    sub.status     = 'approved';
+    sub.approvedBy = req.schoolUser._id;
+    sub.approvedAt = new Date();
+    sub.rejectionReason = '';
+    await sub.save();
+
+    await sub.populate([
+      { path: 'classId',     select: 'name' },
+      { path: 'subjectId',   select: 'name' },
+      { path: 'termId',      select: 'name session' },
+      { path: 'submittedBy', select: 'name' },
+      { path: 'approvedBy',  select: 'name' }
+    ]);
+
+    return res.json({
+      success:    true,
+      message:    'Submission approved. Scores are now locked.',
+      submission: sub
+    });
+  } catch (err) {
+    console.error('[inst.score] PUT /submissions/:id/approve:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ PHASE L.7: PUT /submissions/:id/reject
+   Admin rejects with a reason.
+   Teacher can edit scores and resubmit.
+   Body: { reason: string }
+============================================ */
+router.put('/submissions/:id/reject', adminGuard, async function (req, res) {
+  try {
+    var { reason } = req.body || {};
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ success: false, message: 'A rejection reason is required.' });
+    }
+
+    var sub = await ScoreSubmission.findOne({ _id: req.params.id, schoolId: req.schoolId });
+    if (!sub) {
+      return res.status(404).json({ success: false, message: 'Submission not found.' });
+    }
+    if (sub.status === 'rejected') {
+      return res.status(400).json({ success: false, message: 'Already rejected.' });
+    }
+
+    sub.status          = 'rejected';
+    sub.rejectedBy      = req.schoolUser._id;
+    sub.rejectedAt      = new Date();
+    sub.rejectionReason = reason.trim();
+    sub.approvedBy      = null;
+    sub.approvedAt      = null;
+    await sub.save();
+
+    await sub.populate([
+      { path: 'classId',   select: 'name' },
+      { path: 'subjectId', select: 'name' },
+      { path: 'termId',    select: 'name session' },
+      { path: 'submittedBy', select: 'name' },
+      { path: 'rejectedBy',  select: 'name' }
+    ]);
+
+    return res.json({
+      success:    true,
+      message:    'Submission rejected. Teacher can revise and resubmit.',
+      submission: sub
+    });
+  } catch (err) {
+    console.error('[inst.score] PUT /submissions/:id/reject:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ PHASE L.7: PUT /submissions/:id/release
+   Toggles visibility of approved scores to
+   students. Only works on approved submissions.
+============================================ */
+router.put('/submissions/:id/release', adminGuard, async function (req, res) {
+  try {
+    var sub = await ScoreSubmission.findOne({ _id: req.params.id, schoolId: req.schoolId });
+    if (!sub) {
+      return res.status(404).json({ success: false, message: 'Submission not found.' });
+    }
+    if (sub.status !== 'approved') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only approved submissions can be released. Approve this submission first.'
+      });
+    }
+
+    sub.releasedToStudents = !sub.releasedToStudents;
+    if (sub.releasedToStudents) {
+      sub.releasedAt = new Date();
+      sub.releasedBy = req.schoolUser._id;
+    } else {
+      sub.releasedAt = null;
+      sub.releasedBy = null;
+    }
+    await sub.save();
+
+    return res.json({
+      success:           true,
+      message:           sub.releasedToStudents
+        ? 'Scores released to students.'
+        : 'Score visibility revoked.',
+      releasedToStudents: sub.releasedToStudents,
+      submission:         sub
+    });
+  } catch (err) {
+    console.error('[inst.score] PUT /submissions/:id/release:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ PHASE L.7: POST /submit
+   Teacher submits saved scores for approval.
+   Creates a new submission or updates a
+   previously rejected one back to pending.
+   Cannot submit if already approved.
+============================================ */
+router.post('/submit', guard, async function (req, res) {
+  try {
+    var { classId, subjectId, termId, academicYear } = req.body || {};
+
+    if (!classId || !subjectId || !termId) {
+      return res.status(400).json({
+        success: false,
+        message: 'classId, subjectId, and termId are required.'
+      });
+    }
+
+    /* Check if already approved — cannot resubmit approved work */
+    var existing = await ScoreSubmission.findOne({
+      schoolId: req.schoolId, classId: classId,
+      subjectId: subjectId, termId: termId
+    });
+
+    if (existing && existing.status === 'approved') {
+      return res.status(400).json({
+        success: false,
+        message: 'These scores are already approved and cannot be resubmitted. Contact your school admin.'
+      });
+    }
+
+    /* Count how many scores have been saved for this combination */
+    var scoreCount = await SchoolScore.countDocuments({
+      schoolId: req.schoolId, classId: classId,
+      subjectId: subjectId,   termId: termId
+    });
+
+    if (scoreCount === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No scores have been saved yet. Use "Save & Rank" first, then submit for approval.'
+      });
+    }
+
+    var now = new Date();
+    var submission = await ScoreSubmission.findOneAndUpdate(
+      { schoolId: req.schoolId, classId: classId, subjectId: subjectId, termId: termId },
+      {
+        $set: {
+          status:          'pending',
+          submittedBy:     req.schoolUser._id,
+          submittedAt:     now,
+          academicYear:    academicYear || '',
+          scoreCount:      scoreCount,
+          rejectionReason: '',
+          rejectedBy:      null,
+          rejectedAt:      null,
+          approvedBy:      null,
+          approvedAt:      null
+        }
+      },
+      { upsert: true, new: true }
+    );
+
+    await submission.populate('submittedBy', 'name');
+
+    return res.status(201).json({
+      success:    true,
+      message:    scoreCount + ' scores submitted for approval.',
+      submission: submission
+    });
+  } catch (err) {
+    console.error('[inst.score] POST /submit:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
    POST /entry
+   ✅ L.7: Lock check added — approved scores
+   cannot be overwritten.
 ============================================ */
 router.post('/entry', guard, async function (req, res) {
   try {
@@ -204,6 +492,20 @@ router.post('/entry', guard, async function (req, res) {
 
     if (!body.studentId || !body.classId || !body.subjectId || !body.termId) {
       return res.status(400).json({ success: false, message: 'studentId, classId, subjectId, and termId are all required.' });
+    }
+
+    /* ✅ L.7: Reject if an approved submission exists */
+    var approvedSub = await ScoreSubmission.findOne({
+      schoolId: schoolId, classId: body.classId,
+      subjectId: body.subjectId, termId: body.termId,
+      status: 'approved'
+    });
+    if (approvedSub) {
+      return res.status(403).json({
+        success: false,
+        code:    'SCORES_LOCKED',
+        message: 'These scores have been approved and are locked. Contact your school admin to make changes.'
+      });
     }
 
     var student = await SchoolStudent.findOne({ _id: body.studentId, schoolId: schoolId }).lean();
@@ -218,8 +520,7 @@ router.post('/entry', guard, async function (req, res) {
       return res.status(400).json({ success: false, message: calc.errors.join(' '), errors: calc.errors });
     }
 
-    var now = new Date();
-
+    var now   = new Date();
     var saved = await SchoolScore.findOneAndUpdate(
       { schoolId: schoolId, studentId: body.studentId, subjectId: body.subjectId, termId: body.termId },
       {
@@ -237,10 +538,7 @@ router.post('/entry', guard, async function (req, res) {
           lastEditedBy:   req.schoolUser._id,
           lastEditedAt:   now
         },
-        $setOnInsert: {
-          enteredBy: req.schoolUser._id,
-          enteredAt: now
-        }
+        $setOnInsert: { enteredBy: req.schoolUser._id, enteredAt: now }
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     ).lean();
@@ -257,6 +555,7 @@ router.post('/entry', guard, async function (req, res) {
 
 /* ============================================
    POST /bulk
+   ✅ L.7: Lock check added.
 ============================================ */
 router.post('/bulk', guard, async function (req, res) {
   try {
@@ -271,6 +570,20 @@ router.post('/bulk', guard, async function (req, res) {
     }
     if (body.entries.length > 500) {
       return res.status(400).json({ success: false, message: 'Maximum 500 entries per bulk save.' });
+    }
+
+    /* ✅ L.7: Reject if an approved submission exists */
+    var approvedSub = await ScoreSubmission.findOne({
+      schoolId: schoolId, classId: body.classId,
+      subjectId: body.subjectId, termId: body.termId,
+      status: 'approved'
+    });
+    if (approvedSub) {
+      return res.status(403).json({
+        success: false,
+        code:    'SCORES_LOCKED',
+        message: 'These scores have been approved and are locked. Contact your school admin to make changes.'
+      });
     }
 
     var config = await ScoreConfig.getOrCreateDefault(schoolId, req.schoolUser._id);
@@ -320,10 +633,7 @@ router.post('/bulk', guard, async function (req, res) {
               lastEditedBy:   req.schoolUser._id,
               lastEditedAt:   now
             },
-            $setOnInsert: {
-              enteredBy: req.schoolUser._id,
-              enteredAt: now
-            }
+            $setOnInsert: { enteredBy: req.schoolUser._id, enteredAt: now }
           },
           { upsert: true, new: true, setDefaultsOnInsert: true }
         );
@@ -359,9 +669,7 @@ router.get('/class/:classId/subject/:subjectId/term/:termId', guard, async funct
 
     var config   = await ScoreConfig.getOrCreateDefault(schoolId, req.schoolUser._id);
     var students = await SchoolStudent.find({ schoolId: schoolId, classId: classId, status: 'active' })
-      .select('name studentId admissionNo')
-      .sort({ name: 1 })
-      .lean();
+      .select('name studentId admissionNo').sort({ name: 1 }).lean();
 
     var scores = await SchoolScore.find({ schoolId: schoolId, classId: classId, subjectId: subjectId, termId: termId }).lean();
 
@@ -393,8 +701,7 @@ router.get('/student/:studentId', guard, async function (req, res) {
     var scores = await SchoolScore.find({ schoolId: req.schoolId, studentId: req.params.studentId })
       .populate('subjectId', 'name code')
       .populate('termId', 'name session term')
-      .sort({ createdAt: -1 })
-      .lean();
+      .sort({ createdAt: -1 }).lean();
     return res.json({ success: true, scores: scores });
   } catch (err) {
     console.error('[inst.score] GET /student/:studentId:', err.message);
@@ -419,7 +726,7 @@ router.delete('/:id', guard, async function (req, res) {
 });
 
 /* ============================================
-   ✅ PHASE L.4: POST /rank/:classId/:subjectId/:termId
+   POST /rank/:classId/:subjectId/:termId  (L.4)
 ============================================ */
 router.post('/rank/:classId/:subjectId/:termId', guard, async function (req, res) {
   try {
@@ -429,10 +736,8 @@ router.post('/rank/:classId/:subjectId/:termId', guard, async function (req, res
     var termId    = req.params.termId;
 
     var scores = await SchoolScore.find({
-      schoolId:  schoolId,
-      classId:   classId,
-      subjectId: subjectId,
-      termId:    termId
+      schoolId: schoolId, classId: classId,
+      subjectId: subjectId, termId: termId
     }).lean();
 
     if (scores.length === 0) {
@@ -443,7 +748,6 @@ router.post('/rank/:classId/:subjectId/:termId', guard, async function (req, res
 
     var total   = scores.length;
     var now     = new Date();
-
     var updates = scores.map(function (scoreDoc, idx) {
       var higherCount = 0;
       for (var k = 0; k < idx; k++) {

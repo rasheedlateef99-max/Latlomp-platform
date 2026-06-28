@@ -39,7 +39,7 @@
     @media (max-width:800px) { .selector-grid { grid-template-columns:1fr 1fr; } }
     @media (max-width:500px) { .selector-grid { grid-template-columns:1fr; } }
 
-    .field { display:flex; flex-direction:column; gap:6px; margin-bottom:0; }
+    .field { display:flex; flex-direction:column; gap:6px; }
     .field label { font-size:12px; font-weight:700; color:var(--secondary); text-transform:uppercase; letter-spacing:0.4px; }
     .sel { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:9px; padding:11px 13px; color:#fff; font-size:14px; font-family:inherit; outline:none; width:100%; transition:border-color 0.2s; }
     .sel:focus { border-color:var(--primary); }
@@ -51,6 +51,8 @@
     .btn-primary:hover  { transform:translateY(-1px); box-shadow:0 4px 16px rgba(108,99,255,0.4); }
     .btn-green     { background:linear-gradient(135deg,var(--green),#38f9d7); color:#0f0f1a; }
     .btn-green:hover    { transform:translateY(-1px); box-shadow:0 4px 16px rgba(67,233,123,0.35); }
+    .btn-danger    { background:rgba(255,101,132,0.12); border:1px solid rgba(255,101,132,0.35); color:var(--red); }
+    .btn-danger:hover   { background:rgba(255,101,132,0.22); }
     .btn-secondary { background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--secondary); }
     .btn-secondary:hover { color:#fff; background:rgba(255,255,255,0.1); }
     .btn-sm { padding:6px 12px; font-size:12px; border-radius:7px; }
@@ -62,6 +64,14 @@
     .badge-orange { background:rgba(255,165,0,0.12);   color:var(--orange); }
     .badge-purple { background:rgba(108,99,255,0.12);  color:#a78bfa; }
     .badge-muted  { background:rgba(255,255,255,0.06); color:var(--secondary); }
+
+    /* ---- SUBMISSION STATUS BANNER ---- */
+    .sub-banner { border-radius:10px; padding:13px 18px; font-size:13px; line-height:1.6; margin-bottom:16px; border:1px solid; }
+    .sub-draft    { background:rgba(255,255,255,0.03); border-color:var(--border);                    color:var(--secondary); }
+    .sub-pending  { background:rgba(255,165,0,0.07);   border-color:rgba(255,165,0,0.3);              color:var(--orange); }
+    .sub-approved { background:rgba(67,233,123,0.07);  border-color:rgba(67,233,123,0.25);            color:var(--green); }
+    .sub-rejected { background:rgba(255,101,132,0.07); border-color:rgba(255,101,132,0.3);            color:var(--red); }
+    .sub-banner strong { color:#fff; }
 
     /* ---- SCORE TABLE ---- */
     .score-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
@@ -75,15 +85,14 @@
     .score-input { width:64px; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:7px; padding:6px 8px; color:#fff; font-size:13px; font-family:inherit; outline:none; text-align:center; transition:border-color 0.2s; }
     .score-input:focus { border-color:var(--primary); background:rgba(108,99,255,0.08); }
     .score-input.over-max { border-color:var(--red) !important; background:rgba(255,101,132,0.08); }
+    .score-input:disabled { opacity:0.55; cursor:not-allowed; background:rgba(255,255,255,0.02); border-color:var(--border); }
 
     .total-cell { font-weight:800; font-size:14px; color:#fff; text-align:center; }
     .pct-cell   { font-size:12px; text-align:center; }
     .grade-cell { text-align:center; }
     .pos-cell   { font-weight:700; font-size:13px; color:#a78bfa; text-align:center; }
-
     .student-name { font-weight:700; color:#fff; }
     .student-code { font-size:11px; color:var(--muted); }
-
     .max-hint { font-size:10px; color:var(--muted); display:block; text-align:center; margin-top:2px; }
 
     .empty { text-align:center; padding:48px 20px; }
@@ -95,7 +104,7 @@
 
     .spinner { width:18px; height:18px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block; }
 
-    .info-banner { background:rgba(108,99,255,0.08); border:1px solid rgba(108,99,255,0.2); border-radius:10px; padding:14px 18px; font-size:13px; color:#a78bfa; line-height:1.6; margin-bottom:20px; }
+    .info-banner { background:rgba(108,99,255,0.08); border:1px solid rgba(108,99,255,0.2); border-radius:10px; padding:14px 18px; font-size:13px; color:#a78bfa; line-height:1.6; margin-bottom:16px; }
     .info-banner strong { color:#fff; }
 
     .save-bar { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; padding:16px 20px; border-top:1px solid var(--border); background:var(--dark-2); }
@@ -114,14 +123,12 @@
 </div>
 
 <div class="main">
-
   <div class="page-header">
     <div><h1>Score Entry</h1><p>Enter and manage student scores for a class, subject and term</p></div>
   </div>
 
-  <!-- SELECTOR CARD -->
   <div class="card">
-    <div class="card-head"><h3>Select Class, Subject & Term</h3></div>
+    <div class="card-head"><h3>Select Class, Subject &amp; Term</h3></div>
     <div class="card-body">
       <div class="selector-grid">
         <div class="field">
@@ -149,38 +156,33 @@
     </div>
   </div>
 
-  <!-- SCORE TABLE AREA -->
   <div id="scoreArea"></div>
-
 </div>
 
 <script src="/institution/js/inst.api.js"></script>
 <script>
 /* ============================================
-   ✅ PHASE L.5: SCORE ENTRY PAGE
-   - Loads classes, subjects, terms from structure
-   - Loads class roster + existing scores + config
-     in one call via GET /score/class/:c/:s/:t
-   - Columns rendered dynamically from ScoreConfig
-   - Live total/percentage/grade calculated as
-     teacher types (before saving)
-   - "Save & Rank" = bulk save then rank in sequence
+   ✅ PHASE L.5: Score Entry Page
+   ✅ PHASE L.7: Approval Workflow added
+   - Submission status loaded on roster load
+   - Submit for Approval button
+   - Inputs locked when approved
+   - Rejection reason shown when rejected
 ============================================ */
 
-var _classes  = [];
-var _subjects = [];
-var _terms    = [];
-var _config   = null;
-var _roster   = [];
+var _classes      = [];
+var _subjects     = [];
+var _terms        = [];
+var _config       = null;
+var _roster       = [];
+var _submission   = null;  /* ✅ L.7 */
 var _academicYear = '';
 
-/* ============================================ INIT */
 document.addEventListener('DOMContentLoaded', async function () {
   if (!instRequireAuth()) { return; }
   await loadStructure();
 });
 
-/* ============================================ LOAD STRUCTURE */
 async function loadStructure() {
   var area = document.getElementById('scoreArea');
 
@@ -201,18 +203,17 @@ async function loadStructure() {
 
   fillSelect('selClass',   _classes,  'name', '_id');
   fillSelect('selSubject', _subjects, 'name', '_id');
-  fillSelect('selTerm',    _terms,    function(t) {
+  fillSelect('selTerm',    _terms, function(t) {
     return (t.name || '') + (t.session ? ' — ' + t.session : '');
   }, '_id');
 
-  /* Auto-select current term if one is marked isCurrent */
   var currentTerm = _terms.find(function (t) { return t.isCurrent; });
   if (currentTerm) {
     document.getElementById('selTerm').value = currentTerm._id;
     _academicYear = currentTerm.session || '';
   }
 
-  document.getElementById('scoreArea').innerHTML = buildPromptState();
+  area.innerHTML = buildPromptState();
   onSelectorChange();
 }
 
@@ -234,8 +235,6 @@ function onSelectorChange() {
   var s = document.getElementById('selSubject').value;
   var t = document.getElementById('selTerm').value;
   document.getElementById('loadBtn').disabled = !(c && s && t);
-
-  /* Update academic year from selected term */
   if (t) {
     var term = _terms.find(function (x) { return x._id === t; });
     _academicYear = term ? (term.session || '') : '';
@@ -254,18 +253,23 @@ async function loadRoster() {
   loadBtn.innerHTML = '<span class="spinner"></span> Loading...';
   loadBtn.disabled  = true;
 
-  var res = await instApi('/score/class/' + classId + '/subject/' + subjectId + '/term/' + termId);
+  /* ✅ L.7: Load roster AND submission status in parallel */
+  var [rosterRes, subRes] = await Promise.all([
+    instApi('/score/class/' + classId + '/subject/' + subjectId + '/term/' + termId),
+    instApi('/score/submission-status/' + classId + '/' + subjectId + '/' + termId)
+  ]);
 
   loadBtn.innerHTML = 'Load Class Roster';
   loadBtn.disabled  = false;
 
-  if (!res.ok) {
-    area.innerHTML = '<div class="card"><div class="card-body"><div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Failed to load roster</div><div class="empty-sub">' + ((res.data && res.data.message) || 'Unknown error') + '</div></div></div></div>';
+  if (!rosterRes.ok) {
+    area.innerHTML = '<div class="card"><div class="card-body"><div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Failed to load roster</div><div class="empty-sub">' + esc((rosterRes.data && rosterRes.data.message) || 'Unknown error') + '</div></div></div></div>';
     return;
   }
 
-  _config = res.data.config;
-  _roster = res.data.roster || [];
+  _config     = rosterRes.data.config;
+  _roster     = rosterRes.data.roster || [];
+  _submission = subRes.ok ? (subRes.data.submission || null) : null;  /* ✅ L.7 */
 
   if (_roster.length === 0) {
     area.innerHTML = '<div class="card"><div class="card-body"><div class="empty"><div class="empty-icon">🧑‍🎓</div><div class="empty-title">No students in this class</div><div class="empty-sub">Go to <a href="/institution/school/students.html">Students</a> and assign students to this class first.</div></div></div></div>';
@@ -275,15 +279,55 @@ async function loadRoster() {
   renderScoreTable(classId, subjectId, termId);
 }
 
+/* ============================================
+   ✅ L.7: BUILD SUBMISSION STATUS BANNER
+============================================ */
+function buildSubmissionBanner(classId, subjectId, termId) {
+  if (!_submission) {
+    return '<div class="sub-banner sub-draft">' +
+      '<strong>📝 Draft</strong> — Scores have not been submitted for approval yet. ' +
+      'Save scores first, then click <strong>Submit for Approval</strong>.' +
+    '</div>';
+  }
+
+  var sub = _submission;
+  var who = (sub.submittedBy && sub.submittedBy.name) ? sub.submittedBy.name : 'you';
+  var when = sub.submittedAt ? new Date(sub.submittedAt).toDateString() : '';
+
+  if (sub.status === 'pending') {
+    return '<div class="sub-banner sub-pending">' +
+      '<strong>⏳ Awaiting Approval</strong> — ' +
+      sub.scoreCount + ' scores submitted by <strong>' + esc(who) + '</strong> on ' + esc(when) + '. ' +
+      'Waiting for school admin review. You can still save changes and resubmit.' +
+    '</div>';
+  }
+
+  if (sub.status === 'approved') {
+    var releasedBadge = sub.releasedToStudents
+      ? ' <span class="badge badge-green" style="vertical-align:middle; margin-left:6px;">👁 Released to Students</span>'
+      : ' <span class="badge badge-muted" style="vertical-align:middle; margin-left:6px;">🔒 Not Yet Released</span>';
+    return '<div class="sub-banner sub-approved">' +
+      '<strong>✅ Approved</strong> — Scores are locked. Changes are not permitted. ' +
+      'Contact your school admin if corrections are needed.' + releasedBadge +
+    '</div>';
+  }
+
+  if (sub.status === 'rejected') {
+    return '<div class="sub-banner sub-rejected">' +
+      '<strong>❌ Rejected</strong> — Reason: <em>' + esc(sub.rejectionReason || 'No reason provided') + '</em>. ' +
+      'Please revise the scores and click <strong>Resubmit for Approval</strong>.' +
+    '</div>';
+  }
+
+  return '';
+}
+
 /* ============================================ RENDER TABLE */
 function renderScoreTable(classId, subjectId, termId) {
   var area       = document.getElementById('scoreArea');
   var components = _config ? _config.components : [];
-
-  /* Sort components by sortOrder */
   components = components.slice().sort(function (a, b) { return (a.sortOrder||0) - (b.sortOrder||0); });
 
-  /* Build class/subject/term labels for display */
   var cls  = _classes.find(function(x)  { return x._id === classId;   });
   var subj = _subjects.find(function(x) { return x._id === subjectId; });
   var term = _terms.find(function(x)    { return x._id === termId;    });
@@ -294,39 +338,42 @@ function renderScoreTable(classId, subjectId, termId) {
     term ? (term.name + (term.session ? ' — ' + term.session : '')) : ''
   ].filter(Boolean).join(' / ');
 
-  /* Table header */
+  /* ✅ L.7: Determine locked state */
+  var isApproved = _submission && _submission.status === 'approved';
+  var isPending  = _submission && _submission.status === 'pending';
+  var isRejected = _submission && _submission.status === 'rejected';
+
   var headerCols = '<th>Student</th>';
   components.forEach(function (comp) {
     headerCols += '<th class="comp-header">' + esc(comp.label) + '<span class="max-hint">/ ' + comp.maxScore + '</span></th>';
   });
   headerCols += '<th class="comp-header">Total</th><th class="comp-header">%</th><th class="comp-header">Grade</th><th class="comp-header">Position</th>';
 
-  /* Table rows */
   var rows = _roster.map(function (row, idx) {
-    var existing = row.score;
+    var existing       = row.score;
     var existingScores = {};
     if (existing && existing.scores) {
-      /* Mongoose Map serialises as a plain object in .lean() */
       var scoresObj = existing.scores;
       if (typeof scoresObj === 'object') {
         Object.keys(scoresObj).forEach(function (k) { existingScores[k] = scoresObj[k]; });
       }
     }
 
+    /* ✅ L.7: Disabled when approved */
     var inputs = components.map(function (comp) {
       var val = existingScores[comp.key] !== undefined ? existingScores[comp.key] : '';
       return '<td class="comp-header"><input type="number" class="score-input" ' +
         'data-idx="' + idx + '" data-key="' + esc(comp.key) + '" data-max="' + comp.maxScore + '" ' +
         'value="' + val + '" min="0" max="' + comp.maxScore + '" ' +
-        'oninput="onScoreInput(this)" /></td>';
+        (isApproved ? 'disabled ' : 'oninput="onScoreInput(this)" ') +
+        '/></td>';
     }).join('');
 
-    /* Pre-compute display values if existing score */
     var totalDisplay = existing ? (existing.total || 0)      : '—';
     var pctDisplay   = existing ? (existing.percentage || 0) + '%' : '—';
     var gradeDisplay = existing ? (existing.grade || '—')    : '—';
     var posDisplay   = existing && existing.position ? (existing.position + ' / ' + existing.positionOutOf) : '—';
-    var pctColor     = ''; 
+    var pctColor     = '';
     if (existing) {
       var pct = existing.percentage || 0;
       pctColor = pct >= 75 ? 'color:var(--green);' : pct >= 50 ? 'color:var(--orange);' : 'color:var(--red);';
@@ -343,9 +390,20 @@ function renderScoreTable(classId, subjectId, termId) {
     '</tr>';
   }).join('');
 
+  /* ✅ L.7: Save bar adapts to submission state */
+  var submitBtnLabel = isPending ? '↻ Resubmit' : (isRejected ? '📤 Resubmit for Approval' : '📤 Submit for Approval');
+  var submitBtnClass = isRejected ? 'btn btn-danger' : 'btn btn-primary';
+
+  var saveBtns = isApproved
+    ? '<span class="badge badge-green" style="font-size:13px; padding:8px 16px;">✅ Scores Approved &amp; Locked</span>'
+    : '<button class="btn btn-secondary btn-sm" onclick="clearAllScores()">Clear All</button>' +
+      '<button class="btn btn-green" id="saveRankBtn" onclick="saveAndRank(\'' + classId + '\',\'' + subjectId + '\',\'' + termId + '\')">💾 Save &amp; Rank</button>' +
+      '<button class="' + submitBtnClass + '" id="submitApprovalBtn" onclick="submitForApproval(\'' + classId + '\',\'' + subjectId + '\',\'' + termId + '\')">' + submitBtnLabel + '</button>';
+
   area.innerHTML =
     '<div class="info-banner">Editing scores for <strong>' + esc(contextLabel) + '</strong>. ' +
-    'Totals and grades update live as you type. Click <strong>Save &amp; Rank</strong> to save all scores and calculate positions.</div>' +
+    'Totals and grades update live as you type.</div>' +
+    buildSubmissionBanner(classId, subjectId, termId) +
     '<div id="resultSummary" class="result-summary"></div>' +
     '<div id="errorSummary"  class="error-summary"></div>' +
     '<div class="card">' +
@@ -360,36 +418,25 @@ function renderScoreTable(classId, subjectId, termId) {
       '</div>' +
       '<div class="save-bar">' +
         '<div class="save-bar-left">Academic Year: <strong>' + esc(_academicYear || '—') + '</strong></div>' +
-        '<div style="display:flex; gap:10px; flex-wrap:wrap;">' +
-          '<button class="btn btn-secondary btn-sm" onclick="clearAllScores()">Clear All</button>' +
-          '<button class="btn btn-green" id="saveRankBtn" onclick="saveAndRank(\'' + classId + '\',\'' + subjectId + '\',\'' + termId + '\')">💾 Save &amp; Rank</button>' +
-        '</div>' +
+        '<div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">' + saveBtns + '</div>' +
       '</div>' +
     '</div>';
 }
 
 /* ============================================ LIVE CALCULATION */
 function onScoreInput(input) {
-  var idx     = parseInt(input.dataset.idx);
-  var max     = parseFloat(input.dataset.max);
-  var val     = parseFloat(input.value);
-
-  /* Validate against max */
-  if (!isNaN(val) && val > max) {
-    input.classList.add('over-max');
-  } else {
-    input.classList.remove('over-max');
-  }
-
-  /* Recalculate total for this row */
-  recalcRow(idx);
+  var max = parseFloat(input.dataset.max);
+  var val = parseFloat(input.value);
+  if (!isNaN(val) && val > max) { input.classList.add('over-max'); }
+  else { input.classList.remove('over-max'); }
+  recalcRow(parseInt(input.dataset.idx));
 }
 
 function recalcRow(idx) {
-  var components = (_config ? _config.components : []).slice().sort(function (a,b) { return (a.sortOrder||0)-(b.sortOrder||0); });
-  var total = 0;
+  var components  = (_config ? _config.components : []).slice().sort(function (a,b) { return (a.sortOrder||0)-(b.sortOrder||0); });
+  var total       = 0;
   var maxPossible = 0;
-  var valid = true;
+  var valid       = true;
 
   components.forEach(function (comp) {
     var input = document.querySelector('[data-idx="' + idx + '"][data-key="' + comp.key + '"]');
@@ -430,14 +477,10 @@ function resolveGradeClient(pct) {
   var boundaries = _config ? _config.gradeBoundaries : [];
   if (!boundaries || !boundaries.length) {
     boundaries = [
-      { grade:'A1', minScore:75, maxScore:100 },
-      { grade:'B2', minScore:70, maxScore:74  },
-      { grade:'B3', minScore:65, maxScore:69  },
-      { grade:'C4', minScore:60, maxScore:64  },
-      { grade:'C5', minScore:55, maxScore:59  },
-      { grade:'C6', minScore:50, maxScore:54  },
-      { grade:'D7', minScore:45, maxScore:49  },
-      { grade:'E8', minScore:40, maxScore:44  },
+      { grade:'A1', minScore:75, maxScore:100 }, { grade:'B2', minScore:70, maxScore:74 },
+      { grade:'B3', minScore:65, maxScore:69  }, { grade:'C4', minScore:60, maxScore:64 },
+      { grade:'C5', minScore:55, maxScore:59  }, { grade:'C6', minScore:50, maxScore:54 },
+      { grade:'D7', minScore:45, maxScore:49  }, { grade:'E8', minScore:40, maxScore:44 },
       { grade:'F9', minScore:0,  maxScore:39  }
     ];
   }
@@ -453,14 +496,13 @@ function resolveGradeClient(pct) {
 
 /* ============================================ SAVE & RANK */
 async function saveAndRank(classId, subjectId, termId) {
-  var btn = document.getElementById('saveRankBtn');
+  var btn      = document.getElementById('saveRankBtn');
   var resultEl = document.getElementById('resultSummary');
   var errorEl  = document.getElementById('errorSummary');
 
   if (resultEl) { resultEl.style.display = 'none'; }
   if (errorEl)  { errorEl.style.display  = 'none'; }
 
-  /* Validate — check for any over-max inputs */
   var overMax = document.querySelectorAll('.score-input.over-max');
   if (overMax.length > 0) {
     if (errorEl) {
@@ -472,7 +514,6 @@ async function saveAndRank(classId, subjectId, termId) {
 
   if (btn) { btn.innerHTML = '<span class="spinner"></span> Saving...'; btn.disabled = true; }
 
-  /* Build entries array */
   var components = (_config ? _config.components : []).slice().sort(function (a,b) { return (a.sortOrder||0)-(b.sortOrder||0); });
   var entries = _roster.map(function (row, idx) {
     var scores = {};
@@ -483,7 +524,6 @@ async function saveAndRank(classId, subjectId, termId) {
     return { studentId: row.studentId, scores: scores };
   });
 
-  /* STEP 1 — Bulk save */
   var saveRes = await instApi('/score/bulk', 'POST', {
     classId:      classId,
     subjectId:    subjectId,
@@ -495,7 +535,10 @@ async function saveAndRank(classId, subjectId, termId) {
   if (!saveRes.ok) {
     if (btn) { btn.innerHTML = '💾 Save &amp; Rank'; btn.disabled = false; }
     if (errorEl) {
-      errorEl.textContent = '❌ Save failed: ' + ((saveRes.data && saveRes.data.message) || 'Unknown error');
+      errorEl.textContent = '❌ ' + ((saveRes.data && saveRes.data.message) || 'Save failed.');
+      if (saveRes.data && saveRes.data.code === 'SCORES_LOCKED') {
+        errorEl.textContent = '🔒 These scores are approved and locked. Contact your school admin.';
+      }
       errorEl.style.display = 'block';
     }
     return;
@@ -503,15 +546,12 @@ async function saveAndRank(classId, subjectId, termId) {
 
   if (btn) { btn.innerHTML = '<span class="spinner"></span> Ranking...'; }
 
-  /* STEP 2 — Rank */
   var rankRes = await instApi('/score/rank/' + classId + '/' + subjectId + '/' + termId, 'POST');
 
   if (btn) { btn.innerHTML = '💾 Save &amp; Rank'; btn.disabled = false; }
 
-  /* Update position cells from rank response */
   if (rankRes.ok && rankRes.data.summary) {
-    var summary = rankRes.data.summary;
-    summary.forEach(function (s) {
+    rankRes.data.summary.forEach(function (s) {
       var rowIdx = _roster.findIndex(function (r) { return r.studentId.toString() === s.studentId.toString(); });
       if (rowIdx !== -1) {
         var posEl = document.getElementById('pos_' + rowIdx);
@@ -520,14 +560,14 @@ async function saveAndRank(classId, subjectId, termId) {
     });
   }
 
-  /* Show summary */
   var saved  = saveRes.data.saved  || 0;
   var failed = saveRes.data.failed || 0;
   var ranked = rankRes.ok ? (rankRes.data.ranked || 0) : 0;
 
   if (resultEl) {
     resultEl.innerHTML = '✅ <strong>' + saved + ' score' + (saved !== 1 ? 's' : '') + ' saved</strong>' +
-      (ranked ? ', <strong>' + ranked + ' student' + (ranked !== 1 ? 's' : '') + ' ranked</strong>' : '') + '.';
+      (ranked ? ', <strong>' + ranked + ' student' + (ranked !== 1 ? 's' : '') + ' ranked</strong>' : '') +
+      '. Ready to submit for approval.';
     resultEl.style.display = 'block';
   }
 
@@ -537,13 +577,53 @@ async function saveAndRank(classId, subjectId, termId) {
     errorEl.style.display = 'block';
   }
 
-  /* Reload to get fresh computed values */
   setTimeout(function () { loadRoster(); }, 800);
+}
+
+/* ============================================
+   ✅ L.7: SUBMIT FOR APPROVAL
+============================================ */
+async function submitForApproval(classId, subjectId, termId) {
+  var btn     = document.getElementById('submitApprovalBtn');
+  var errorEl = document.getElementById('errorSummary');
+  var resEl   = document.getElementById('resultSummary');
+
+  if (errorEl) { errorEl.style.display = 'none'; }
+  if (resEl)   { resEl.style.display   = 'none'; }
+
+  var isPending = _submission && _submission.status === 'pending';
+  var confirmMsg = isPending
+    ? 'Resubmit these scores for admin approval? This will reset the current pending submission.'
+    : 'Submit these scores for admin approval? The admin will review and approve or reject them.';
+
+  if (!confirm(confirmMsg)) { return; }
+
+  if (btn) { btn.innerHTML = '<span class="spinner"></span> Submitting...'; btn.disabled = true; }
+
+  var res = await instApi('/score/submit', 'POST', {
+    classId:      classId,
+    subjectId:    subjectId,
+    termId:       termId,
+    academicYear: _academicYear
+  });
+
+  if (btn) { btn.innerHTML = isPending ? '↻ Resubmit' : '📤 Submit for Approval'; btn.disabled = false; }
+
+  if (res.ok) {
+    _submission = res.data.submission;
+    /* Reload to show updated status banner */
+    setTimeout(function () { loadRoster(); }, 400);
+  } else {
+    if (errorEl) {
+      errorEl.textContent = '❌ ' + ((res.data && res.data.message) || 'Submission failed.');
+      errorEl.style.display = 'block';
+    }
+  }
 }
 
 /* ============================================ CLEAR ALL */
 function clearAllScores() {
-  if (!confirm('Clear all score inputs? This only clears the form — saved scores are not deleted until you Save & Rank.')) { return; }
+  if (!confirm('Clear all score inputs? Saved scores are not deleted until you Save & Rank again.')) { return; }
   document.querySelectorAll('.score-input').forEach(function (inp) {
     inp.value = '';
     inp.classList.remove('over-max');
@@ -556,21 +636,16 @@ function clearAllScores() {
   }
 }
 
-/* ============================================ EMPTY STATES */
 function buildEmptyState() {
   var missing = [];
   if (_classes.length  === 0) { missing.push('classes'); }
   if (_subjects.length === 0) { missing.push('subjects'); }
   if (_terms.length    === 0) { missing.push('terms'); }
-
   return '<div class="card"><div class="card-body"><div class="empty">' +
     '<div class="empty-icon">🏗️</div>' +
     '<div class="empty-title">Academic structure not set up yet</div>' +
-    '<div class="empty-sub">' +
-      'Your school needs <strong>' + missing.join(', ') + '</strong> before scores can be entered.<br/><br/>' +
-      'Ask the <a href="/institution/school/dashboard.html">School Admin</a> to go to ' +
-      '<strong>Academic Structure</strong> and add ' + missing.join(', ') + ' first.' +
-    '</div>' +
+    '<div class="empty-sub">Your school needs <strong>' + missing.join(', ') + '</strong> before scores can be entered.<br/><br/>' +
+    'Ask the <a href="/institution/school/dashboard.html">School Admin</a> to go to <strong>Academic Structure</strong> and add ' + missing.join(', ') + ' first.</div>' +
   '</div></div></div>';
 }
 
@@ -582,7 +657,6 @@ function buildPromptState() {
   '</div></div></div>';
 }
 
-/* ============================================ HELPERS */
 function esc(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
