@@ -1,37 +1,98 @@
 /* ============================================
    LATLOMP PLATFORM — SECURITY MIDDLEWARE
-   
+
    Exports: applySecurityMiddleware(app)
    Called once from server.js before routes.
-   
+
    Includes:
    1. Helmet — HTTP security headers
    2. Rate limiting — per IP, per route group
    3. MongoDB injection sanitisation
-   4. XSS input sanitisation
+   4. XSS input sanitisation (inline, no package)
    5. Suspicious request detector
    6. Brute-force protection
+
+   ✅ FIX: xss-clean removed.
+   It used internal Node.js APIs removed in
+   Node.js 17+. Replaced with an inline
+   sanitizer that strips <script>, javascript:,
+   and HTML tags from req.body, req.query,
+   and req.params without any npm dependency.
 ============================================ */
 
-let helmet, rateLimit, mongoSanitize, xssClean;
+'use strict';
 
-try { helmet        = require('helmet');                   } catch (e) { console.warn('[Security] helmet not installed.'); }
-try { rateLimit     = require('express-rate-limit');       } catch (e) { console.warn('[Security] express-rate-limit not installed.'); }
-try { mongoSanitize = require('express-mongo-sanitize');   } catch (e) { console.warn('[Security] express-mongo-sanitize not installed.'); }
-try { xssClean      = require('xss-clean');                } catch (e) { console.warn('[Security] xss-clean not installed.'); }
+var helmet, rateLimit, mongoSanitize;
+
+try {
+  helmet = require('helmet');
+} catch (e) {
+  console.warn('[Security] helmet not installed — run npm install helmet');
+}
+
+try {
+  rateLimit = require('express-rate-limit');
+} catch (e) {
+  console.warn('[Security] express-rate-limit not installed — run npm install express-rate-limit');
+}
+
+try {
+  mongoSanitize = require('express-mongo-sanitize');
+} catch (e) {
+  console.warn('[Security] express-mongo-sanitize not installed — run npm install express-mongo-sanitize');
+}
+
+/* ============================================
+   INLINE XSS SANITIZER
+   Replaces xss-clean (abandoned, Node 22 broken).
+   Recursively walks req.body, req.query, and
+   req.params and strips dangerous HTML patterns
+   from every string value.
+============================================ */
+function sanitizeValue(val) {
+  if (typeof val !== 'string') { return val; }
+  return val
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/javascript\s*:/gi, '')
+    .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
+    .replace(/on\w+\s*=/gi, '');
+}
+
+function sanitizeObject(obj) {
+  if (!obj || typeof obj !== 'object') { return obj; }
+  Object.keys(obj).forEach(function (key) {
+    var val = obj[key];
+    if (typeof val === 'string') {
+      obj[key] = sanitizeValue(val);
+    } else if (typeof val === 'object' && val !== null) {
+      sanitizeObject(val);
+    }
+  });
+  return obj;
+}
+
+function xssSanitizer(req, res, next) {
+  try {
+    if (req.body)   { sanitizeObject(req.body);   }
+    if (req.query)  { sanitizeObject(req.query);  }
+    if (req.params) { sanitizeObject(req.params); }
+  } catch (e) {
+    /* Never block a request due to sanitizer error */
+  }
+  next();
+}
 
 /* ============================================
    RATE LIMIT FACTORY
-   
-   ✅ FIX: No custom keyGenerator.
-   express-rate-limit v7 requires the ipKeyGenerator()
-   helper if you manually access req.ip in keyGenerator.
-   With app.set('trust proxy', 1) set in server.js, the
-   default behaviour already handles IPv4/IPv6 correctly
-   and extracts the real IP from x-forwarded-for.
+
+   ✅ No custom keyGenerator.
+   express-rate-limit v7 with app.set('trust proxy', 1)
+   extracts the real IP from x-forwarded-for
+   automatically. No manual key needed.
 ============================================ */
 function makeLimit(windowMinutes, maxRequests, message) {
-  if (!rateLimit) return function(req, res, next) { next(); };
+  if (!rateLimit) { return function (req, res, next) { next(); }; }
 
   return rateLimit({
     windowMs:        windowMinutes * 60 * 1000,
@@ -43,23 +104,24 @@ function makeLimit(windowMinutes, maxRequests, message) {
       message: message || 'Too many requests. Please slow down and try again.',
       code:    'RATE_LIMITED'
     },
-    skip: function(req) {
-      /* Never rate-limit health checks */
+    skip: function (req) {
       return req.path === '/api/health';
     }
-    /* No custom keyGenerator — default uses req.ip correctly */
   });
 }
 
 /* ============================================
    SUSPICIOUS REQUEST DETECTOR
+   Blocks path traversal, NoSQL injection probes,
+   script injection, and common scanner patterns.
 ============================================ */
 function suspiciousRequestGuard(req, res, next) {
-  var path  = req.path  || '';
-  var query = JSON.stringify(req.query) || '';
+  var path  = req.path || '';
+  var query = '';
   var body  = '';
 
-  try { body = JSON.stringify(req.body) || ''; } catch (e) {}
+  try { query = JSON.stringify(req.query)  || ''; } catch (e) {}
+  try { body  = JSON.stringify(req.body)   || ''; } catch (e) {}
 
   var badPatterns = [
     /\$where/i,
@@ -93,7 +155,6 @@ function suspiciousRequestGuard(req, res, next) {
         '| Path:', path.slice(0, 80)
       );
 
-      /* Log to audit (non-blocking) */
       try {
         var AuditLog = require('../models/AuditLog.model');
         AuditLog.create({
@@ -105,7 +166,7 @@ function suspiciousRequestGuard(req, res, next) {
           path:      path.slice(0, 200),
           success:   false,
           message:   'Pattern: ' + badPatterns[i].toString().slice(0, 60)
-        }).catch(function() {});
+        }).catch(function () {});
       } catch (e) {}
 
       return res.status(400).json({ success: false, message: 'Bad request.' });
@@ -118,6 +179,7 @@ function suspiciousRequestGuard(req, res, next) {
 /* ============================================
    BRUTE-FORCE PROTECTION
    In-memory per-IP tracker.
+   Resets automatically via setInterval cleanup.
 ============================================ */
 var _failedAttempts   = {};
 var BLOCK_THRESHOLD   = 10;
@@ -127,9 +189,13 @@ var BLOCK_DURATION_MS = 30 * 60 * 1000;
 function recordFailedAttempt(ip, action) {
   var key = ip + ':' + action;
   var now = Date.now();
-  if (!_failedAttempts[key]) _failedAttempts[key] = { count: 0, firstAt: now, blockedUntil: 0 };
+  if (!_failedAttempts[key]) {
+    _failedAttempts[key] = { count: 0, firstAt: now, blockedUntil: 0 };
+  }
   var r = _failedAttempts[key];
-  if (now - r.firstAt > BLOCK_WINDOW_MS) { r.count = 0; r.firstAt = now; r.blockedUntil = 0; }
+  if (now - r.firstAt > BLOCK_WINDOW_MS) {
+    r.count = 0; r.firstAt = now; r.blockedUntil = 0;
+  }
   r.count++;
   if (r.count >= BLOCK_THRESHOLD) {
     r.blockedUntil = now + BLOCK_DURATION_MS;
@@ -146,10 +212,10 @@ function clearFailedAttempts(ip, action) {
   delete _failedAttempts[ip + ':' + action];
 }
 
-/* Clean old entries every hour */
-setInterval(function() {
+/* Clean old entries every hour to prevent memory leak */
+setInterval(function () {
   var now = Date.now();
-  Object.keys(_failedAttempts).forEach(function(k) {
+  Object.keys(_failedAttempts).forEach(function (k) {
     var r = _failedAttempts[k];
     if (r.blockedUntil < now && (now - r.firstAt) > BLOCK_WINDOW_MS * 2) {
       delete _failedAttempts[k];
@@ -161,7 +227,7 @@ setInterval(function() {
    BRUTE-FORCE MIDDLEWARE FACTORY
 ============================================ */
 function bruteForceGuard(action) {
-  return function(req, res, next) {
+  return function (req, res, next) {
     var ip = (req.headers['x-forwarded-for']
       ? req.headers['x-forwarded-for'].split(',')[0].trim()
       : req.ip) || 'unknown';
@@ -177,8 +243,8 @@ function bruteForceGuard(action) {
 
     req._securityIp         = ip;
     req._securityAction     = action;
-    req.recordFailedAttempt = function() { recordFailedAttempt(ip, action); };
-    req.clearFailedAttempts = function() { clearFailedAttempts(ip, action); };
+    req.recordFailedAttempt = function () { recordFailedAttempt(ip, action); };
+    req.clearFailedAttempts = function () { clearFailedAttempts(ip, action); };
 
     next();
   };
@@ -186,17 +252,15 @@ function bruteForceGuard(action) {
 
 /* ============================================
    HELMET CONFIG
-   Tuned for Railway + Google OAuth + Chart.js CDN
+   Tuned for Railway + Google OAuth + CDN assets.
 ============================================ */
 function getHelmetConfig() {
-  if (!helmet) return null;
+  if (!helmet) { return null; }
 
   return helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-
-        /* Allows <script> blocks and external scripts */
         scriptSrc: [
           "'self'",
           "'unsafe-inline'",
@@ -204,23 +268,14 @@ function getHelmetConfig() {
           "https://apis.google.com",
           "https://cdnjs.cloudflare.com"
         ],
-
-        /* ✅ THE FIX — this was missing.
-           Helmet defaults script-src-attr to 'none' which
-           blocks ALL onclick="..." attributes on every element.
-           Adding 'unsafe-inline' here restores onclick behaviour
-           across admin, teacher, and every other page. */
+        /* Allows onclick="..." inline event handlers */
         scriptSrcAttr: ["'unsafe-inline'"],
-
-        /* ✅ Added accounts.google.com — fixes GSI stylesheet
-           warning visible in all three console outputs */
         styleSrc: [
           "'self'",
           "'unsafe-inline'",
           "https://fonts.googleapis.com",
           "https://accounts.google.com"
         ],
-
         fontSrc:    ["'self'", "https://fonts.gstatic.com"],
         imgSrc:     ["'self'", "data:", "https:", "blob:"],
         connectSrc: ["'self'", "https://accounts.google.com", "https://api.paystack.co"],
@@ -238,52 +293,63 @@ function getHelmetConfig() {
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
   });
 }
+
 /* ============================================
    MAIN EXPORT — applySecurityMiddleware(app)
 ============================================ */
 function applySecurityMiddleware(app) {
   var isProd = process.env.NODE_ENV === 'production';
 
-  /* 1. Helmet */
-  var helmetCfg = getHelmetConfig();
-  if (helmetCfg) { app.use(helmetCfg); console.log('✅ Security: Helmet headers active'); }
-
-  /* 2. Trust proxy for Railway */
+  /* 1. Trust proxy for Railway (must be first) */
   app.set('trust proxy', 1);
+
+  /* 2. Helmet HTTP headers */
+  var helmetCfg = getHelmetConfig();
+  if (helmetCfg) {
+    app.use(helmetCfg);
+    console.log('✅ Security: Helmet headers active');
+  }
 
   /* 3. MongoDB injection sanitisation */
   if (mongoSanitize) {
     app.use(mongoSanitize({
       replaceWith: '_',
-      onSanitizeRequest: function(req) {
+      onSanitizeRequest: function (req) {
         console.warn('[Security] MongoDB injection attempt sanitised | path:', req.path);
       }
     }));
     console.log('✅ Security: MongoDB sanitisation active');
   }
 
-  /* 4. XSS cleaning */
-  if (xssClean) {
-    app.use(xssClean());
-    console.log('✅ Security: XSS cleaning active');
-  }
+  /* 4. XSS sanitisation (inline, no external package) */
+  app.use(xssSanitizer);
+  console.log('✅ Security: XSS sanitisation active');
 
   /* 5. Suspicious request detector */
   app.use(suspiciousRequestGuard);
   console.log('✅ Security: Suspicious request guard active');
 
-  /* ---- RATE LIMITS ---- */
+  /* 6. Rate limiting */
   if (rateLimit) {
-    app.use('/api/',                              makeLimit(15, 300,  'Too many requests. Please slow down.'));
-    app.use('/api/auth/',                         makeLimit(15, 30,   'Too many authentication attempts. Please wait 15 minutes.'));
-    app.use('/api/institution/auth/',             makeLimit(15, 20,   'Too many institution login attempts. Please wait 15 minutes.'));
-    app.use('/api/institution/payment/webhook',   makeLimit(1,  100,  'Webhook rate limit exceeded.'));
-    app.use('/api/payment/webhook',               makeLimit(1,  100,  'Webhook rate limit exceeded.'));
-    app.use('/api/institution/student/submit',    makeLimit(5,  10,   'Too many exam submissions. Please wait.'));
+    app.use('/api/',
+      makeLimit(15, 300,  'Too many requests. Please slow down.'));
+    app.use('/api/auth/',
+      makeLimit(15, 30,   'Too many authentication attempts. Please wait 15 minutes.'));
+    app.use('/api/institution/auth/',
+      makeLimit(15, 20,   'Too many institution login attempts. Please wait 15 minutes.'));
+    app.use('/api/institution/payment/webhook',
+      makeLimit(1,  100,  'Webhook rate limit exceeded.'));
+    app.use('/api/payment/webhook',
+      makeLimit(1,  100,  'Webhook rate limit exceeded.'));
+    app.use('/api/institution/student/submit',
+      makeLimit(5,  10,   'Too many exam submissions. Please wait.'));
     console.log('✅ Security: Rate limiting active');
   }
 
-  console.log('✅ Security middleware stack applied (' + (isProd ? 'PRODUCTION' : 'DEVELOPMENT') + ' mode)');
+  console.log(
+    '✅ Security middleware stack applied (' +
+    (isProd ? 'PRODUCTION' : 'DEVELOPMENT') + ' mode)'
+  );
 }
 
 module.exports = {
