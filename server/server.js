@@ -78,6 +78,10 @@ app.use("/api/institution/students",   require("./institution/routes/inst.studen
 app.use("/api/institution/paper",      require("./institution/routes/inst.paper.routes"));
 app.use("/api/institution/score",      require("./institution/routes/inst.score.routes"));
 
+/* ✅ PHASE M: Report Card System */
+app.use("/api/institution/reportcard", require("./institution/routes/inst.reportcard.routes"));
+
+
 /* ============================================
    HEALTH CHECK
 ============================================ */

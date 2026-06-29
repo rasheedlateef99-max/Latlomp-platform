@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Report Cards — LatLomp Institution</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js" crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --primary:#6c63ff; --pd:#574fd6; --green:#43e97b; --red:#ff6584;
+      --orange:#ffa500; --yellow:#ffd600;
+      --dark:#0f0f1a;   --dark-2:#1a1a2e;
+      --border:rgba(255,255,255,0.08);
+      --text:#fff; --muted:#6b6b8a; --secondary:#a0a0c0;
+    }
+    html, body { margin:0; padding:0; background:var(--dark); color:var(--text); font-family:'Inter',sans-serif; }
+    @keyframes spin   { to { transform:rotate(360deg); } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+
+    .topbar { position:sticky; top:0; z-index:300; background:var(--dark-2); border-bottom:1px solid var(--border); height:60px; display:flex; align-items:center; padding:0 24px; gap:16px; }
+    .topbar-brand { font-size:15px; font-weight:800; color:#fff; white-space:nowrap; }
+    .topbar-back  { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:8px; background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--secondary); font-size:13px; font-weight:600; text-decoration:none; transition:all 0.2s; margin-left:auto; white-space:nowrap; }
+    .topbar-back:hover { color:#fff; background:rgba(255,255,255,0.1); }
+
+    .main { max-width:1200px; margin:0 auto; padding:28px 24px 60px; }
+    @media (max-width:700px) { .main { padding:18px 14px 48px; } }
+
+    .page-header { margin-bottom:22px; animation:fadeUp 0.3s ease; }
+    .page-header h1 { font-size:22px; font-weight:800; color:#fff; margin:0 0 4px; }
+    .page-header p  { font-size:13px; color:var(--muted); margin:0; }
+
+    .card { background:var(--dark-2); border:1px solid var(--border); border-radius:16px; overflow:hidden; margin-bottom:20px; }
+    .card-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:10px; }
+    .card-head h3 { font-size:15px; font-weight:700; color:#fff; margin:0; }
+    .card-body { padding:20px; }
+
+    .sel-grid { display:grid; grid-template-columns:1fr 1fr auto; gap:14px; align-items:end; }
+    @media (max-width:600px) { .sel-grid { grid-template-columns:1fr; } }
+
+    .field { display:flex; flex-direction:column; gap:6px; }
+    .field label { font-size:11px; font-weight:700; color:var(--secondary); text-transform:uppercase; letter-spacing:0.4px; }
+    .sel { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:9px; padding:11px 13px; color:#fff; font-size:14px; font-family:inherit; outline:none; width:100%; transition:border-color 0.2s; }
+    .sel:focus { border-color:var(--primary); }
+    .sel option { background:var(--dark-2); }
+
+    .btn { display:inline-flex; align-items:center; gap:7px; padding:9px 16px; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; border:none; transition:all 0.2s; text-decoration:none; white-space:nowrap; }
+    .btn-primary   { background:linear-gradient(135deg,var(--primary),var(--pd)); color:#fff; }
+    .btn-primary:hover  { transform:translateY(-1px); box-shadow:0 4px 16px rgba(108,99,255,0.4); }
+    .btn-green     { background:linear-gradient(135deg,var(--green),#38f9d7); color:#0f0f1a; }
+    .btn-green:hover    { transform:translateY(-1px); box-shadow:0 4px 14px rgba(67,233,123,0.35); }
+    .btn-orange    { background:rgba(255,165,0,0.1); border:1px solid rgba(255,165,0,0.3); color:var(--orange); }
+    .btn-orange:hover { background:rgba(255,165,0,0.2); }
+    .btn-danger    { background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); }
+    .btn-danger:hover { background:rgba(255,101,132,0.2); }
+    .btn-secondary { background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--secondary); }
+    .btn-secondary:hover { color:#fff; background:rgba(255,255,255,0.1); }
+    .btn-purple    { background:rgba(108,99,255,0.12); border:1px solid rgba(108,99,255,0.3); color:#a78bfa; }
+    .btn-purple:hover { background:rgba(108,99,255,0.22); }
+    .btn-sm { padding:6px 11px; font-size:12px; border-radius:7px; }
+    .btn:disabled { opacity:0.5; cursor:not-allowed; transform:none !important; }
+
+    .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+    .badge-green  { background:rgba(67,233,123,0.12);  color:var(--green); }
+    .badge-orange { background:rgba(255,165,0,0.12);   color:var(--orange); }
+    .badge-red    { background:rgba(255,101,132,0.12); color:var(--red); }
+    .badge-purple { background:rgba(108,99,255,0.12);  color:#a78bfa; }
+    .badge-muted  { background:rgba(255,255,255,0.06); color:var(--secondary); }
+
+    .stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+    @media (max-width:700px) { .stats-row { grid-template-columns:1fr 1fr; } }
+    .stat-card { background:var(--dark-2); border:1px solid var(--border); border-radius:12px; padding:16px; display:flex; align-items:center; gap:12px; }
+    .stat-icon { font-size:18px; width:38px; height:38px; display:flex; align-items:center; justify-content:center; border-radius:9px; flex-shrink:0; }
+    .stat-val  { font-size:22px; font-weight:900; color:#fff; line-height:1; margin-bottom:2px; }
+    .stat-lbl  { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; }
+
+    .settings-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
+    @media (max-width:600px) { .settings-grid { grid-template-columns:1fr; } }
+    .inp { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; padding:10px 12px; color:#fff; font-size:13px; font-family:inherit; outline:none; width:100%; transition:border-color 0.2s; }
+    .inp:focus { border-color:var(--primary); }
+    .inp::placeholder { color:var(--muted); }
+    textarea.inp { min-height:72px; resize:vertical; }
+
+    .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    .rc-table { width:100%; border-collapse:collapse; min-width:700px; }
+    .rc-table th { padding:10px 13px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); background:rgba(255,255,255,0.02); border-bottom:1px solid var(--border); white-space:nowrap; }
+    .rc-table td { padding:10px 13px; font-size:13px; color:var(--secondary); border-bottom:1px solid var(--border); vertical-align:middle; }
+    .rc-table tr:last-child td { border-bottom:none; }
+    .rc-table tr:hover td { background:rgba(255,255,255,0.02); }
+    .s-name { font-weight:700; color:#fff; }
+    .s-id   { font-size:11px; color:var(--muted); margin-top:2px; }
+
+    .spinner { width:18px; height:18px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block; }
+
+    .empty { text-align:center; padding:48px 20px; }
+    .empty-icon  { font-size:48px; margin-bottom:12px; }
+    .empty-title { font-size:15px; font-weight:700; color:var(--secondary); margin-bottom:8px; }
+    .empty-sub   { font-size:13px; color:var(--muted); line-height:1.7; }
+
+    .toast { position:fixed; bottom:24px; right:24px; background:var(--dark-2); border:1px solid var(--border); border-radius:10px; padding:13px 18px; font-size:13px; font-weight:600; color:#fff; z-index:9999; box-shadow:0 8px 32px rgba(0,0,0,0.4); max-width:300px; display:none; }
+
+    /* ---- REPORT CARD MODAL ---- */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:600; display:none; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto; }
+    .modal-overlay.active { display:flex; }
+    .modal-box { background:#fff; color:#111; border-radius:12px; width:100%; max-width:740px; overflow:hidden; margin:auto; }
+
+    /* ---- REPORT CARD PRINT LAYOUT ---- */
+    .rc-print { font-family:'Inter',Arial,sans-serif; color:#111; background:#fff; }
+    .rc-header { display:flex; align-items:center; gap:16px; padding:16px 20px; border-bottom:3px solid; }
+    .rc-school-logo { width:64px; height:64px; object-fit:cover; border-radius:6px; flex-shrink:0; }
+    .rc-school-logo-placeholder { width:64px; height:64px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:900; color:#fff; flex-shrink:0; }
+    .rc-school-name   { font-size:18px; font-weight:900; margin:0 0 2px; }
+    .rc-school-address { font-size:11px; color:#555; margin:0 0 3px; }
+    .rc-card-title    { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px; }
+
+    .rc-student-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:0; padding:0 20px; margin:12px 0; }
+    .rc-student-item { padding:7px 12px 7px 0; border-bottom:1px solid #e5e5e5; }
+    .rc-student-item:nth-child(3n) { padding-right:0; }
+    .rc-item-label { font-size:10px; font-weight:700; text-transform:uppercase; color:#777; letter-spacing:0.4px; margin-bottom:2px; }
+    .rc-item-value { font-size:13px; font-weight:700; color:#111; }
+
+    .rc-scores-section { padding:10px 20px 0; }
+    .rc-scores-title  { font-size:11px; font-weight:700; text-transform:uppercase; color:#777; letter-spacing:0.4px; margin-bottom:8px; }
+    .rc-scores-table  { width:100%; border-collapse:collapse; font-size:12px; }
+    .rc-scores-table th { background:#f0f0f5; padding:7px 9px; text-align:center; font-weight:700; font-size:10px; text-transform:uppercase; letter-spacing:0.3px; border:1px solid #ddd; }
+    .rc-scores-table th:first-child { text-align:left; }
+    .rc-scores-table td { padding:7px 9px; border:1px solid #e8e8e8; text-align:center; }
+    .rc-scores-table td:first-child { text-align:left; font-weight:600; }
+    .rc-scores-table tr:nth-child(even) td { background:#fafafa; }
+    .rc-scores-table .grade-a { color:#16a34a; font-weight:800; }
+    .rc-scores-table .grade-b { color:#2563eb; font-weight:800; }
+    .rc-scores-table .grade-c { color:#d97706; font-weight:800; }
+    .rc-scores-table .grade-f { color:#dc2626; font-weight:800; }
+    .rc-scores-table .absent-row td { color:#999; font-style:italic; }
+
+    .rc-summary { display:grid; grid-template-columns:repeat(5,1fr); gap:0; margin:10px 20px; border:1px solid #ddd; border-radius:6px; overflow:hidden; }
+    .rc-sum-item { padding:8px 10px; text-align:center; border-right:1px solid #ddd; }
+    .rc-sum-item:last-child { border-right:none; }
+    .rc-sum-val { font-size:16px; font-weight:900; color:#111; }
+    .rc-sum-lbl { font-size:9px; text-transform:uppercase; color:#888; letter-spacing:0.4px; margin-top:2px; }
+
+    .rc-comments { padding:8px 20px; display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .rc-comment-box { border:1px solid #ddd; border-radius:6px; padding:8px 10px; min-height:48px; }
+    .rc-comment-label { font-size:10px; font-weight:700; text-transform:uppercase; color:#777; margin-bottom:4px; }
+    .rc-comment-text  { font-size:12px; color:#333; line-height:1.5; }
+
+    .rc-footer { padding:8px 20px 14px; display:flex; align-items:center; justify-content:space-between; border-top:1px solid #eee; margin-top:8px; }
+    .rc-resumption { font-size:12px; color:#333; }
+    .rc-resumption strong { font-weight:800; }
+    .rc-stamp { width:70px; height:40px; border:2px dashed #ccc; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:10px; color:#bbb; text-align:center; }
+
+    .rc-modal-actions { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-top:1px solid var(--border); background:var(--dark-2); gap:10px; flex-wrap:wrap; }
+
+    /* ---- @media print ---- */
+    @media print {
+      body > *:not(#printArea) { display:none !important; }
+      #printArea { display:block !important; }
+      #printArea .rc-print { page-break-after:always; }
+      #printArea .rc-print:last-child { page-break-after:avoid; }
+      @page { margin:10mm; size:A4 portrait; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand">📋 Report Cards</div>
+  <a class="topbar-back" href="/institution/school/dashboard.html">&larr; Dashboard</a>
+</div>
+
+<div class="main">
+
+  <div class="page-header">
+    <h1>Report Cards</h1>
+    <p>Generate, configure and release student report cards by class and term</p>
+  </div>
+
+  <!-- SELECTOR -->
+  <div class="card">
+    <div class="card-head"><h3>Select Class &amp; Term</h3></div>
+    <div class="card-body">
+      <div class="sel-grid">
+        <div class="field">
+          <label>Class</label>
+          <select id="selClass" class="sel"><option value="">-- Select Class --</option></select>
+        </div>
+        <div class="field">
+          <label>Term</label>
+          <select id="selTerm" class="sel"><option value="">-- Select Term --</option></select>
+        </div>
+        <div>
+          <button class="btn btn-primary" id="loadBtn" onclick="loadReportCards()" disabled>
+            Load Report Cards
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTENT AREA -->
+  <div id="rcContent" style="display:none;">
+
+    <!-- STATS -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(108,99,255,0.12);">🧑‍🎓</div>
+        <div><div class="stat-val" id="statStudents">—</div><div class="stat-lbl">Students</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(67,233,123,0.12);">📚</div>
+        <div><div class="stat-val" id="statSubjects">—</div><div class="stat-lbl">Subjects</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(255,165,0,0.12);">📊</div>
+        <div><div class="stat-val" id="statClassAvg">—</div><div class="stat-lbl">Class Avg</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(255,101,132,0.12);">👁</div>
+        <div><div class="stat-val" id="statReleased">—</div><div class="stat-lbl">Release Status</div></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="card">
+      <div class="card-head">
+        <h3>Report Card Settings</h3>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-sm" onclick="loadReportCards()">↻ Refresh</button>
+          <button class="btn btn-green btn-sm" id="saveSettingsBtn" onclick="saveSettings()">💾 Save Settings</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="settings-grid">
+          <div class="field">
+            <label>Principal's Comment</label>
+            <textarea id="principalComment" class="inp" placeholder="e.g. Keep it up! You have done well this term."></textarea>
+          </div>
+          <div class="field">
+            <label>Next Term Resumption Date</label>
+            <input type="date" id="resumptionDate" class="inp" />
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding-top:12px; border-top:1px solid var(--border);">
+          <div>
+            <div style="font-size:13px; font-weight:700; color:#fff; margin-bottom:3px;">Release Report Cards to Students</div>
+            <div style="font-size:12px; color:var(--muted);">When released, students can view their report cards in the student portal (Phase Q).</div>
+          </div>
+          <button class="btn" id="releaseBtn" onclick="toggleRelease()">🔒 Not Released</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STUDENT ROSTER -->
+    <div class="card">
+      <div class="card-head">
+        <h3>Students</h3>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-orange btn-sm" onclick="exportAllPDF()">📄 Export All PDF</button>
+          <button class="btn btn-secondary btn-sm" onclick="printAllCards()">🖨 Print All</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="rc-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Student</th>
+              <th>Subjects</th>
+              <th>Avg %</th>
+              <th>Total</th>
+              <th>Position</th>
+              <th>Passed</th>
+              <th>Teacher Comment</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="rosterBody">
+            <tr><td colspan="9" style="text-align:center; padding:32px; color:var(--muted);">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /rcContent -->
+
+  <!-- EMPTY -->
+  <div id="rcEmpty">
+    <div class="empty">
+      <div class="empty-icon">📋</div>
+      <div class="empty-title">Select a class and term above</div>
+      <div class="empty-sub">Then click <strong>Load Report Cards</strong> to generate report cards for all students in that class.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- REPORT CARD MODAL (individual view) -->
+<div class="modal-overlay" id="rcModal">
+  <div style="width:100%; max-width:760px; margin:auto;">
+    <div class="modal-box" id="rcModalBox">
+      <!-- Populated by JS -->
+    </div>
+    <div class="rc-modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">← Back to List</button>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn btn-orange btn-sm" id="modalPdfBtn" onclick="exportSinglePDF()">📄 Export PDF</button>
+        <button class="btn btn-secondary btn-sm" onclick="printSingle()">🖨 Print</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HIDDEN PRINT AREA -->
+<div id="printArea" style="display:none;"></div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/institution/js/inst.api.js"></script>
+<script>
+/* ============================================
+   ✅ PHASE M: REPORT CARDS PAGE
+   Admin can:
+   - Load class report cards for a given term
+   - Set principal comment + resumption date
+   - Enter per-student teacher comments
+   - Release report cards to students
+   - View individual report card
+   - Print individual or whole class
+   - Export to PDF (individual or bulk)
+============================================ */
+
+var _classes    = [];
+var _terms      = [];
+var _data       = null;  /* full API response */
+var _currentStudent = null;
+
+/* ============================================ INIT */
+document.addEventListener('DOMContentLoaded', async function () {
+  if (!instRequireAuth('school_admin')) { return; }
+  await loadStructure();
+});
+
+async function loadStructure() {
+  var [cRes, tRes] = await Promise.all([
+    instApi('/structure/classes'),
+    instApi('/structure/terms')
+  ]);
+  _classes = cRes.ok ? (cRes.data.classes || []) : [];
+  _terms   = tRes.ok ? (tRes.data.terms   || []) : [];
+
+  fillSel('selClass', _classes, 'name', '_id');
+  fillSel('selTerm',  _terms,   function(t) {
+    return (t.name || '') + (t.session ? ' — ' + t.session : '');
+  }, '_id');
+
+  /* Auto-select current term */
+  var cur = _terms.find(function(t) { return t.isCurrent; });
+  if (cur) { document.getElementById('selTerm').value = cur._id; }
+
+  ['selClass','selTerm'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) { el.addEventListener('change', function() {
+      var c = document.getElementById('selClass').value;
+      var t = document.getElementById('selTerm').value;
+      document.getElementById('loadBtn').disabled = !(c && t);
+    }); }
+  });
+}
+
+function fillSel(selectId, items, labelFn, valueKey) {
+  var el = document.getElementById(selectId);
+  if (!el) { return; }
+  el.innerHTML = '<option value="">-- Select --</option>';
+  items.forEach(function (item) {
+    var label = typeof labelFn === 'function' ? labelFn(item) : item[labelFn];
+    var opt   = document.createElement('option');
+    opt.value       = item[valueKey];
+    opt.textContent = label;
+    el.appendChild(opt);
+  });
+}
+
+/* ============================================ LOAD */
+async function loadReportCards() {
+  var classId = document.getElementById('selClass').value;
+  var termId  = document.getElementById('selTerm').value;
+  if (!classId || !termId) { return; }
+
+  var btn = document.getElementById('loadBtn');
+  if (btn) { btn.innerHTML = '<span class="spinner"></span> Loading...'; btn.disabled = true; }
+
+  var res = await instApi('/reportcard/class/' + classId + '/term/' + termId);
+
+  if (btn) { btn.innerHTML = 'Load Report Cards'; btn.disabled = false; }
+
+  if (!res.ok) {
+    showToast((res.data && res.data.message) || 'Failed to load.', 'error');
+    return;
+  }
+
+  _data = res.data;
+  renderPage();
+}
+
+/* ============================================ RENDER */
+function renderPage() {
+  var d = _data;
+  var el = document.getElementById('rcContent');
+  var em = document.getElementById('rcEmpty');
+  if (el) { el.style.display = 'block'; }
+  if (em) { em.style.display = 'none'; }
+
+  var students   = d.students   || [];
+  var subjList   = d.subjectList || [];
+  var settings   = d.settings   || {};
+
+  /* Stats */
+  setText('statStudents', students.length);
+  setText('statSubjects', subjList.length);
+
+  var avgPercent = 0;
+  if (students.length > 0) {
+    avgPercent = Math.round(
+      students.reduce(function(s, st) { return s + (st.summary.avgPercent || 0); }, 0)
+      / students.length
+    );
+  }
+  setText('statClassAvg', avgPercent + '%');
+  setText('statReleased', settings.isReleased ? 'Released' : 'Not Released');
+
+  /* Settings */
+  var pcEl = document.getElementById('principalComment');
+  var rdEl = document.getElementById('resumptionDate');
+  if (pcEl) { pcEl.value = settings.principalComment || ''; }
+  if (rdEl && settings.resumptionDate) {
+    rdEl.value = new Date(settings.resumptionDate).toISOString().split('T')[0];
+  }
+
+  /* Release button */
+  var rBtn = document.getElementById('releaseBtn');
+  if (rBtn) {
+    if (settings.isReleased) {
+      rBtn.className = 'btn btn-danger';
+      rBtn.textContent = '🔓 Revoke Release';
+    } else {
+      rBtn.className = 'btn btn-green';
+      rBtn.textContent = '🔓 Release to Students';
+    }
+  }
+
+  /* Roster */
+  renderRoster(students);
+}
+
+function renderRoster(students) {
+  var tbody = document.getElementById('rosterBody');
+  if (!tbody) { return; }
+
+  if (!students.length) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty"><div class="empty-icon">🧑‍🎓</div><div class="empty-title">No students found</div><div class="empty-sub">Add students to this class first.</div></div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = students.map(function(st, idx) {
+    var sum     = st.summary || {};
+    var pct     = sum.avgPercent || 0;
+    var pctColor = pct >= 70 ? 'var(--green)' : pct >= 50 ? 'var(--orange)' : 'var(--red)';
+    var position = sum.overallPosition
+      ? (ordinal(sum.overallPosition) + ' / ' + sum.overallOutOf)
+      : '—';
+    var passed = sum.subjectsPassed + ' / ' + sum.subjectsTotal;
+    var comment = esc(st.teacherComment || '');
+    var sid = st._id.toString();
+
+    return '<tr>' +
+      '<td style="color:var(--muted); font-weight:700;">' + (idx + 1) + '</td>' +
+      '<td>' +
+        '<div class="s-name">' + esc(st.name) + '</div>' +
+        '<div class="s-id">' + esc(st.admissionNo || st.studentId || '') + '</div>' +
+      '</td>' +
+      '<td style="text-align:center;">' + (sum.subjectsTotal || 0) + '</td>' +
+      '<td style="font-weight:800; color:' + pctColor + ';">' + pct + '%</td>' +
+      '<td style="font-weight:700; color:#fff;">' + (sum.totalMarks || 0) + '/' + (sum.maxPossibleSum || 0) + '</td>' +
+      '<td style="color:#a78bfa; font-weight:700;">' + position + '</td>' +
+      '<td>' + passed + '</td>' +
+      '<td>' +
+        '<input type="text" class="inp" style="width:160px; padding:5px 8px; font-size:12px;" ' +
+        'value="' + comment + '" ' +
+        'placeholder="Enter comment..." ' +
+        'onblur="saveComment(\'' + sid + '\', this.value)" ' +
+        '/>' +
+      '</td>' +
+      '<td>' +
+        '<button class="btn btn-purple btn-sm" onclick="viewCard(\'' + sid + '\')">👁 View</button> ' +
+        '<button class="btn btn-secondary btn-sm" onclick="exportOnePDF(\'' + sid + '\')">📄 PDF</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+/* ============================================ SETTINGS */
+async function saveSettings() {
+  var classId = document.getElementById('selClass').value;
+  var termId  = document.getElementById('selTerm').value;
+  var comment = document.getElementById('principalComment').value;
+  var rdEl    = document.getElementById('resumptionDate');
+  var resumption = rdEl && rdEl.value ? rdEl.value : null;
+
+  var btn = document.getElementById('saveSettingsBtn');
+  if (btn) { btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true; }
+
+  var res = await instApi('/reportcard/class/' + classId + '/term/' + termId + '/settings', 'PUT', {
+    principalComment: comment,
+    resumptionDate:   resumption
+  });
+
+  if (btn) { btn.innerHTML = '💾 Save Settings'; btn.disabled = false; }
+
+  if (res.ok) {
+    if (_data && _data.settings) {
+      _data.settings.principalComment = comment;
+      _data.settings.resumptionDate   = resumption;
+    }
+    showToast('Settings saved.', 'success');
+  } else {
+    showToast((res.data && res.data.message) || 'Save failed.', 'error');
+  }
+}
+
+async function saveComment(studentId, comment) {
+  var classId = document.getElementById('selClass').value;
+  var termId  = document.getElementById('selTerm').value;
+  await instApi('/reportcard/class/' + classId + '/term/' + termId + '/comment/' + studentId, 'PUT', { comment: comment });
+  /* Update local data */
+  if (_data && _data.students) {
+    var st = _data.students.find(function(s) { return s._id.toString() === studentId; });
+    if (st) { st.teacherComment = comment; }
+  }
+}
+
+async function toggleRelease() {
+  var classId = document.getElementById('selClass').value;
+  var termId  = document.getElementById('selTerm').value;
+  var res = await instApi('/reportcard/class/' + classId + '/term/' + termId + '/release', 'PUT');
+  if (res.ok) {
+    if (_data && _data.settings) {
+      _data.settings.isReleased = res.data.isReleased;
+    }
+    showToast(res.data.message, 'success');
+    renderPage();
+  } else {
+    showToast((res.data && res.data.message) || 'Failed.', 'error');
+  }
+}
+
+/* ============================================ VIEW CARD */
+function viewCard(studentId) {
+  if (!_data) { return; }
+  var student = _data.students.find(function(s) { return s._id.toString() === studentId; });
+  if (!student) { return; }
+  _currentStudent = student;
+
+  var html = buildReportCardHTML(student, _data);
+  var box  = document.getElementById('rcModalBox');
+  if (box) { box.innerHTML = html; }
+  document.getElementById('rcModal').classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('rcModal').classList.remove('active');
+  _currentStudent = null;
+}
+
+/* ============================================
+   BUILD REPORT CARD HTML
+   Used for modal view, print, and PDF data source.
+============================================ */
+function buildReportCardHTML(student, data) {
+  var school   = data.school   || {};
+  var term     = data.term     || {};
+  var config   = data.config   || {};
+  var settings = data.settings || {};
+
+  var components = (config.components || [])
+    .slice()
+    .sort(function(a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
+
+  var resumptionStr = settings.resumptionDate
+    ? new Date(settings.resumptionDate).toLocaleDateString('en-NG', { weekday:'long', day:'numeric', month:'long', year:'numeric' })
+    : 'To be announced';
+
+  var primaryColor = school.primaryColor || '#6c63ff';
+
+  /* Header */
+  var logoHtml = school.logo
+    ? '<img src="' + esc(school.logo) + '" class="rc-school-logo" alt="Logo" />'
+    : '<div class="rc-school-logo-placeholder" style="background:' + primaryColor + ';">' +
+        esc((school.name || 'S').charAt(0)) + '</div>';
+
+  var cls = (data.subjectList && data.subjectList.length > 0)
+    ? '' /* class name not in subjectList, use term context */
+    : '';
+
+  /* Score table header */
+  var compHeaders = components.map(function(c) {
+    return '<th>' + esc(c.label) + '<br><span style="font-size:9px; color:#888;">/' + c.maxScore + '</span></th>';
+  }).join('');
+
+  /* Score rows */
+  var rows = student.subjects.map(function(subj, idx) {
+    if (subj.absent) {
+      return '<tr class="absent-row">' +
+        '<td>' + esc(subj.name) + '</td>' +
+        components.map(function() { return '<td>—</td>'; }).join('') +
+        '<td>—</td><td>—</td><td style="color:#999;">Absent</td><td>—</td><td>—</td>' +
+      '</tr>';
+    }
+
+    var compCells = components.map(function(c) {
+      var scoresMap = subj.scores || {};
+      var val = (typeof scoresMap.get === 'function')
+        ? (scoresMap.get(c.key) !== undefined ? scoresMap.get(c.key) : (scoresMap[c.key] !== undefined ? scoresMap[c.key] : '—'))
+        : (scoresMap[c.key] !== undefined ? scoresMap[c.key] : '—');
+      return '<td>' + val + '</td>';
+    }).join('');
+
+    var gradeCls = !subj.grade || subj.grade === '—' ? '' :
+      subj.grade.startsWith('A') ? 'grade-a' :
+      subj.grade.startsWith('B') ? 'grade-b' :
+      subj.grade.startsWith('C') ? 'grade-c' : 'grade-f';
+
+    var posStr = subj.position ? (subj.position + '/' + subj.positionOutOf) : '—';
+
+    return '<tr>' +
+      '<td>' + esc(subj.name) + '</td>' +
+      compCells +
+      '<td style="font-weight:800;">' + (subj.total !== null ? subj.total : '—') + '</td>' +
+      '<td>' + (subj.percentage !== null ? subj.percentage + '%' : '—') + '</td>' +
+      '<td class="' + gradeCls + '">' + esc(subj.grade) + '</td>' +
+      '<td style="font-size:11px; color:#666;">' + esc(subj.remark) + '</td>' +
+      '<td style="font-size:11px;">' + posStr + '</td>' +
+    '</tr>';
+  }).join('');
+
+  var sum = student.summary || {};
+  var overallPos = sum.overallPosition
+    ? (ordinal(sum.overallPosition) + ' out of ' + sum.overallOutOf)
+    : '—';
+
+  var teacherComment = student.teacherComment || 'Keep working hard.';
+  var principalComment = settings.principalComment || 'Keep it up!';
+
+  /* Get the class name from selector */
+  var clsEl  = document.getElementById('selClass');
+  var clsName = '';
+  if (clsEl && clsEl.selectedIndex > 0) {
+    clsName = clsEl.options[clsEl.selectedIndex].text;
+  }
+
+  return '<div class="rc-print">' +
+
+    /* Header */
+    '<div class="rc-header" style="border-color:' + primaryColor + ';">' +
+      logoHtml +
+      '<div style="flex:1;">' +
+        '<div class="rc-school-name">' + esc(school.name || 'School Name') + '</div>' +
+        '<div class="rc-school-address">' + esc(school.address || '') + (school.state ? ', ' + school.state : '') + '</div>' +
+        '<div class="rc-card-title" style="color:' + primaryColor + ';">Student Report Card</div>' +
+      '</div>' +
+      '<div style="text-align:right;">' +
+        '<div style="font-size:13px; font-weight:800;">' + esc(term.name || '') + '</div>' +
+        '<div style="font-size:12px; color:#555;">' + esc(term.session || '') + '</div>' +
+        '<div style="font-size:11px; color:#888; margin-top:4px;">Class: ' + esc(clsName) + '</div>' +
+      '</div>' +
+    '</div>' +
+
+    /* Student info */
+    '<div class="rc-student-grid">' +
+      rcItem('Student Name', student.name) +
+      rcItem('Admission No', student.admissionNo || '—') +
+      rcItem('Student ID',   student.studentId   || '—') +
+      rcItem('Gender',       student.gender      ? cap(student.gender) : '—') +
+      rcItem('Term',         term.name           || '—') +
+      rcItem('Session',      term.session        || '—') +
+    '</div>' +
+
+    /* Scores */
+    '<div class="rc-scores-section">' +
+      '<div class="rc-scores-title">Academic Performance</div>' +
+      '<table class="rc-scores-table">' +
+        '<thead><tr>' +
+          '<th style="text-align:left;">Subject</th>' + compHeaders +
+          '<th>Total</th><th>%</th><th>Grade</th><th>Remark</th><th>Position</th>' +
+        '</tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>' +
+    '</div>' +
+
+    /* Summary */
+    '<div class="rc-summary">' +
+      rcSumItem(sum.totalMarks + '/' + sum.maxPossibleSum, 'Total Marks') +
+      rcSumItem((sum.avgPercent || 0) + '%',               'Average') +
+      rcSumItem(sum.subjectsPassed + '/' + sum.subjectsTotal, 'Subjects Passed') +
+      rcSumItem(overallPos,                                 'Class Position') +
+      rcSumItem(getGradeRemark(sum.avgPercent || 0, data.config), 'Remark') +
+    '</div>' +
+
+    /* Comments */
+    '<div class="rc-comments">' +
+      '<div class="rc-comment-box">' +
+        '<div class="rc-comment-label">Class Teacher\'s Comment</div>' +
+        '<div class="rc-comment-text">' + esc(teacherComment) + '</div>' +
+      '</div>' +
+      '<div class="rc-comment-box">' +
+        '<div class="rc-comment-label">Principal\'s Comment</div>' +
+        '<div class="rc-comment-text">' + esc(principalComment) + '</div>' +
+      '</div>' +
+    '</div>' +
+
+    /* Footer */
+    '<div class="rc-footer">' +
+      '<div class="rc-resumption"><strong>Next Term Resumption:</strong> ' + resumptionStr + '</div>' +
+      '<div style="text-align:center;">' +
+        '<div class="rc-stamp">School<br>Stamp</div>' +
+      '</div>' +
+    '</div>' +
+
+  '</div>';
+}
+
+function rcItem(label, value) {
+  return '<div class="rc-student-item">' +
+    '<div class="rc-item-label">' + label + '</div>' +
+    '<div class="rc-item-value">' + esc(String(value || '—')) + '</div>' +
+  '</div>';
+}
+
+function rcSumItem(value, label) {
+  return '<div class="rc-sum-item">' +
+    '<div class="rc-sum-val">' + esc(String(value || '—')) + '</div>' +
+    '<div class="rc-sum-lbl">' + label + '</div>' +
+  '</div>';
+}
+
+function getGradeRemark(pct, config) {
+  if (!config || !config.gradeBoundaries) { return pct >= 50 ? 'Pass' : 'Fail'; }
+  var gb = config.gradeBoundaries;
+  for (var i = 0; i < gb.length; i++) {
+    if (pct >= gb[i].minScore && pct <= gb[i].maxScore) { return gb[i].remark; }
+  }
+  return '—';
+}
+
+/* ============================================ PRINT */
+function printSingle() {
+  if (!_currentStudent || !_data) { return; }
+  var html = buildReportCardHTML(_currentStudent, _data);
+  var area = document.getElementById('printArea');
+  if (area) { area.innerHTML = '<div class="rc-print">' + html + '</div>'; }
+  window.print();
+}
+
+function printAllCards() {
+  if (!_data || !_data.students.length) { return; }
+  var area = document.getElementById('printArea');
+  if (!area) { return; }
+  area.innerHTML = _data.students.map(function(st) {
+    return buildReportCardHTML(st, _data);
+  }).join('');
+  window.print();
+}
+
+/* ============================================ PDF EXPORT */
+function exportSinglePDF() {
+  if (!_currentStudent || !_data) { return; }
+  generatePDF([_currentStudent], _data);
+}
+
+function exportOnePDF(studentId) {
+  if (!_data) { return; }
+  var student = _data.students.find(function(s) { return s._id.toString() === studentId; });
+  if (!student) { return; }
+  generatePDF([student], _data);
+}
+
+function exportAllPDF() {
+  if (!_data || !_data.students.length) {
+    showToast('Load report cards first.', 'error');
+    return;
+  }
+  generatePDF(_data.students, _data);
+}
+
+function generatePDF(students, data) {
+  if (typeof window.jspdf === 'undefined' && typeof jsPDF === 'undefined') {
+    showToast('PDF library not loaded. Please refresh.', 'error');
+    return;
+  }
+
+  var jsPDFCtor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+  var doc       = new jsPDFCtor({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  var school    = data.school   || {};
+  var term      = data.term     || {};
+  var config    = data.config   || {};
+  var settings  = data.settings || {};
+  var pageW     = doc.internal.pageSize.getWidth();
+  var pageH     = doc.internal.pageSize.getHeight();
+  var margin    = 12;
+  var primary   = school.primaryColor || '#6c63ff';
+
+  var components = (config.components || [])
+    .slice()
+    .sort(function(a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
+
+  var clsEl   = document.getElementById('selClass');
+  var clsName = (clsEl && clsEl.selectedIndex > 0) ? clsEl.options[clsEl.selectedIndex].text : '';
+
+  students.forEach(function(student, pageIdx) {
+    if (pageIdx > 0) { doc.addPage(); }
+
+    var y = margin;
+
+    /* Header bar */
+    doc.setFillColor(hexR(primary), hexG(primary), hexB(primary));
+    doc.rect(0, 0, pageW, 26, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(school.name || 'School Name', margin, 10);
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text((school.address || '') + (school.state ? ', ' + school.state : ''), margin, 16);
+    doc.text('STUDENT REPORT CARD', margin, 22);
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text(term.name + (term.session ? '  —  ' + term.session : ''), pageW - margin, 10, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text('Class: ' + clsName, pageW - margin, 16, { align: 'right' });
+
+    y = 32;
+
+    /* Student info grid */
+    doc.setFillColor(248, 248, 252);
+    doc.rect(margin, y, pageW - margin * 2, 22, 'F');
+    doc.setDrawColor(220, 220, 230);
+    doc.rect(margin, y, pageW - margin * 2, 22, 'S');
+
+    var infoItems = [
+      ['Student Name', student.name],
+      ['Admission No', student.admissionNo || '—'],
+      ['Student ID',   student.studentId   || '—'],
+      ['Gender',       student.gender ? cap(student.gender) : '—'],
+      ['Term',         term.name           || '—'],
+      ['Session',      term.session        || '—']
+    ];
+    var colW2 = (pageW - margin * 2) / 3;
+    infoItems.forEach(function(item, i) {
+      var col = i % 3;
+      var row = Math.floor(i / 3);
+      var ix  = margin + col * colW2 + 4;
+      var iy  = y + 6 + row * 10;
+      doc.setFontSize(7);
+      doc.setTextColor(120, 120, 140);
+      doc.setFont('helvetica', 'normal');
+      doc.text(item[0].toUpperCase(), ix, iy);
+      doc.setFontSize(8.5);
+      doc.setTextColor(30, 30, 30);
+      doc.setFont('helvetica', 'bold');
+      doc.text(String(item[1] || '—').substring(0, 28), ix, iy + 5);
+    });
+
+    y += 28;
+
+    /* Subject scores table */
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(120, 120, 140);
+    doc.text('ACADEMIC PERFORMANCE', margin, y);
+    y += 4;
+
+    var tableHead = [['Subject'].concat(
+      components.map(function(c) { return c.label + '\n/' + c.maxScore; })
+    ).concat(['Total', '%', 'Grade', 'Remark', 'Pos'])];
+
+    var tableBody = student.subjects.map(function(subj) {
+      if (subj.absent) {
+        return [subj.name].concat(components.map(function() { return '—'; }))
+          .concat(['—', '—', '—', 'Absent', '—']);
+      }
+      var scoresMap = subj.scores || {};
+      var compVals  = components.map(function(c) {
+        var val = (typeof scoresMap.get === 'function')
+          ? scoresMap.get(c.key)
+          : scoresMap[c.key];
+        return val !== undefined && val !== null ? String(val) : '—';
+      });
+      return [subj.name].concat(compVals).concat([
+        subj.total !== null ? String(subj.total) : '—',
+        subj.percentage !== null ? subj.percentage + '%' : '—',
+        subj.grade || '—',
+        subj.remark || '—',
+        subj.position ? (subj.position + '/' + (subj.positionOutOf || '?')) : '—'
+      ]);
+    });
+
+    var colWidths = {};
+    colWidths[0] = 38; /* Subject name */
+    components.forEach(function(_, i) { colWidths[i + 1] = 14; });
+    var afterComps = components.length + 1;
+    colWidths[afterComps]     = 12; /* Total */
+    colWidths[afterComps + 1] = 10; /* % */
+    colWidths[afterComps + 2] = 10; /* Grade */
+    colWidths[afterComps + 3] = 22; /* Remark */
+    colWidths[afterComps + 4] = 10; /* Pos */
+
+    doc.autoTable({
+      head:   tableHead,
+      body:   tableBody,
+      startY: y,
+      margin: { left: margin, right: margin },
+      styles: {
+        fontSize:    7.5,
+        cellPadding: 2,
+        textColor:   [30, 30, 50],
+        fillColor:   [255, 255, 255],
+        lineColor:   [210, 210, 225],
+        lineWidth:   0.2
+      },
+      headStyles: {
+        fillColor:  [hexR(primary), hexG(primary), hexB(primary)],
+        textColor:  [255, 255, 255],
+        fontStyle:  'bold',
+        fontSize:   6.5,
+        halign:     'center'
+      },
+      alternateRowStyles: { fillColor: [248, 248, 253] },
+      columnStyles:       colWidths,
+      didParseCell: function(d) {
+        /* Colour grade column */
+        if (d.section === 'body' && d.column.index === afterComps + 2) {
+          var g = d.cell.raw || '';
+          if (g.startsWith('A'))      { d.cell.styles.textColor = [22, 163, 74];  d.cell.styles.fontStyle = 'bold'; }
+          else if (g.startsWith('B')) { d.cell.styles.textColor = [37, 99, 235];  d.cell.styles.fontStyle = 'bold'; }
+          else if (g.startsWith('C')) { d.cell.styles.textColor = [217, 119, 6];  d.cell.styles.fontStyle = 'bold'; }
+          else if (g.startsWith('F') || g.startsWith('E')) {
+            d.cell.styles.textColor = [220, 38, 38]; d.cell.styles.fontStyle = 'bold';
+          }
+        }
+      }
+    });
+
+    y = doc.lastAutoTable.finalY + 6;
+
+    /* Summary row */
+    var sum = student.summary || {};
+    doc.setFillColor(hexR(primary) + 40 > 255 ? 255 : hexR(primary) + 40,
+                     hexG(primary) + 40 > 255 ? 255 : hexG(primary) + 40,
+                     hexB(primary) + 40 > 255 ? 255 : hexB(primary) + 40);
+    doc.setFillColor(240, 240, 252);
+    doc.rect(margin, y, pageW - margin * 2, 12, 'F');
+    doc.setDrawColor(200, 200, 220);
+    doc.rect(margin, y, pageW - margin * 2, 12, 'S');
+
+    var sumItems = [
+      ['Total: ' + (sum.totalMarks || 0) + '/' + (sum.maxPossibleSum || 0), null],
+      ['Average: ' + (sum.avgPercent || 0) + '%', null],
+      ['Passed: ' + (sum.subjectsPassed || 0) + '/' + (sum.subjectsTotal || 0), null],
+      ['Class Position: ' + (sum.overallPosition ? ordinal(sum.overallPosition) + '/' + sum.overallOutOf : '—'), null]
+    ];
+    var sumColW = (pageW - margin * 2) / sumItems.length;
+    sumItems.forEach(function(item, i) {
+      var sx = margin + i * sumColW + sumColW / 2;
+      doc.setFontSize(8.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 30, 50);
+      doc.text(item[0], sx, y + 8, { align: 'center' });
+    });
+
+    y += 18;
+
+    /* Comments */
+    if (y + 22 < pageH - 20) {
+      var halfW = (pageW - margin * 2 - 8) / 2;
+      var teacherCmt   = student.teacherComment   || 'Keep working hard.';
+      var principalCmt = settings.principalComment || 'Keep it up!';
+
+      doc.setDrawColor(200, 200, 220);
+      doc.setFillColor(255, 255, 255);
+      doc.rect(margin, y, halfW, 18, 'FD');
+      doc.rect(margin + halfW + 8, y, halfW, 18, 'FD');
+
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(120, 120, 140);
+      doc.text("CLASS TEACHER'S COMMENT", margin + 3, y + 5);
+      doc.text("PRINCIPAL'S COMMENT", margin + halfW + 11, y + 5);
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(30, 30, 30);
+      var tcLines = doc.splitTextToSize(teacherCmt, halfW - 6);
+      doc.text(tcLines.slice(0, 2), margin + 3, y + 11);
+      var pcLines = doc.splitTextToSize(principalCmt, halfW - 6);
+      doc.text(pcLines.slice(0, 2), margin + halfW + 11, y + 11);
+
+      y += 24;
+    }
+
+    /* Resumption date + footer */
+    if (settings.resumptionDate) {
+      var resDStr = new Date(settings.resumptionDate)
+        .toLocaleDateString('en-NG', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 30, 30);
+      doc.text('Next Term Resumption: ' + resDStr, margin, y);
+      y += 6;
+    }
+
+    /* Page footer */
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(160, 160, 180);
+    doc.text(
+      school.name + '  —  ' + term.name + ' ' + term.session + '  —  Generated ' + new Date().toLocaleDateString(),
+      pageW / 2, pageH - 8, { align: 'center' }
+    );
+  });
+
+  var clsFile  = clsName.replace(/[^a-zA-Z0-9]/g, '_') || 'Class';
+  var termFile = (term.name || '').replace(/[^a-zA-Z0-9]/g, '_') || 'Term';
+  doc.save('ReportCards_' + clsFile + '_' + termFile + '_' + new Date().toISOString().slice(0,10) + '.pdf');
+  showToast(students.length + ' report card' + (students.length !== 1 ? 's' : '') + ' exported.', 'success');
+}
+
+/* ============================================ HELPERS */
+function hexR(hex) { return parseInt((hex || '#6c63ff').replace('#','').substring(0,2), 16) || 108; }
+function hexG(hex) { return parseInt((hex || '#6c63ff').replace('#','').substring(2,4), 16) || 99; }
+function hexB(hex) { return parseInt((hex || '#6c63ff').replace('#','').substring(4,6), 16) || 255; }
+
+function ordinal(n) {
+  var s = ['th','st','nd','rd'];
+  var v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function cap(str) { return str ? str.charAt(0).toUpperCase() + str.slice(1) : ''; }
+
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function setText(id, val) { var el = document.getElementById(id); if (el) { el.textContent = val; } }
+
+function showToast(msg, type) {
+  var t = document.getElementById('toast');
+  if (!t) { return; }
+  t.textContent   = msg;
+  t.style.display = 'block';
+  t.style.borderColor = type === 'success' ? 'rgba(67,233,123,0.4)' : type === 'error' ? 'rgba(255,101,132,0.4)' : 'var(--border)';
+  t.style.color   = type === 'success' ? 'var(--green)' : type === 'error' ? 'var(--red)' : '#fff';
+  clearTimeout(t._to);
+  t._to = setTimeout(function() { t.style.display = 'none'; }, 4000);
+}
+</script>
+</body>
+</html>
