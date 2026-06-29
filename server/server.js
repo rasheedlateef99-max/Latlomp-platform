@@ -74,8 +74,9 @@ app.use("/api/institution/report",     require("./institution/routes/inst.report
 app.use("/api/institution/students",   require("./institution/routes/inst.student.mgmt.routes"));
 app.use("/api/institution/paper",      require("./institution/routes/inst.paper.routes"));
 app.use("/api/institution/score",      require("./institution/routes/inst.score.routes"));
-/* ✅ PHASE M: Report Card System */
 app.use("/api/institution/reportcard", require("./institution/routes/inst.reportcard.routes"));
+/* ✅ PHASE N: Timetable System */
+app.use("/api/institution/timetable",  require("./institution/routes/inst.timetable.routes"));
 
 /* ============================================
    HEALTH CHECK
