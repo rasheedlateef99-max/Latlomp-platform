@@ -1,33 +1,28 @@
 /* ============================================
    LATLOMP INSTITUTION — TIMETABLE ROUTES
    ✅ PHASE N: Timetable System
-   ✅ STAGE 3: Added public endpoint for the
-      no-login class timetable page.
+   ✅ STAGE 3: Public endpoint added
+   ✅ STAGE 4: Security + data consistency fixes
+
+   FIX 1 (CRITICAL): Tenant-ownership verification
+   added before every create/update. classId,
+   subjectId, and teacherId are now confirmed to
+   belong to the requesting school before any
+   write is allowed.
+
+   FIX 2: When isBreak=true, subject/teacher/room/
+   color fields are now cleared automatically so
+   break slots never retain stale subject data.
+
+   FIX 3: Public endpoint merged into a single
+   School query instead of two.
 
    Mounted at: /api/institution/timetable
 
    ROUTE ORDER IS INTENTIONAL:
-   Named paths (/class/:id, /teacher/:id,
-   /summary, /periods, /public/:slug/:classId,
-   /class/:id/clear) must be defined BEFORE the
-   generic /:id route.
-
-   ENDPOINTS:
-   GET  /public/:slug/:classId  Public class timetable (NO AUTH)
-   GET  /class/:classId         Class timetable (auth)
-   GET  /teacher/:teacherId     Teacher schedule (auth)
-   GET  /summary                All classes summary (admin)
-   GET  /periods                School period config (auth)
-   POST /periods                Save period config (admin)
-   POST /                       Create slot (admin)
-   PUT  /:id                    Update slot (admin)
-   DELETE /class/:classId/clear Clear all slots for class (admin)
-   DELETE /:id                  Delete one slot (admin)
-
-   GUARDS:
-   readGuard  — teacherOrAdmin + subscription
-   adminGuard — schoolAdminOnly + subscription
-   public route — no guard, validated by school slug
+   Named paths (/public/:slug/:classId, /class/:id,
+   /teacher/:id, /summary, /periods, /class/:id/clear)
+   must be defined BEFORE the generic /:id route.
 ============================================ */
 'use strict';
 
@@ -37,6 +32,7 @@ const TimetableSlot  = require('../models/Timetable.model');
 const SchoolUser     = require('../models/SchoolUser.model');
 const School         = require('../models/School.model');
 const SchoolClass    = require('../models/Class.model');
+const SchoolSubject  = require('../models/SchoolSubject.model');
 
 const { instProtect, schoolAdminOnly, teacherOrAdmin } = require('../middleware/inst.auth');
 const { requireActiveSubscription }                    = require('../middleware/inst.tenant');
@@ -50,21 +46,64 @@ var adminGuard = [instProtect, schoolAdminOnly, requireActiveSubscription];
 
 var DAY_ORDER = { monday:1, tuesday:2, wednesday:3, thursday:4, friday:5, saturday:6 };
 
+/* ✅ STAGE 4 FIX 1: Verify classId, subjectId, and
+   teacherId (if provided) all belong to this school.
+   Returns an error message string if any ownership
+   check fails, or null if everything is valid. */
+async function verifyOwnership(schoolId, classId, subjectId, teacherId) {
+  if (classId) {
+    var cls = await SchoolClass.findOne({ _id: classId, schoolId: schoolId }).select('_id').lean();
+    if (!cls) { return 'Class not found in your school.'; }
+  }
+  if (subjectId) {
+    var subj = await SchoolSubject.findOne({ _id: subjectId, schoolId: schoolId }).select('_id').lean();
+    if (!subj) { return 'Subject not found in your school.'; }
+  }
+  if (teacherId) {
+    var teacher = await SchoolUser.findOne({ _id: teacherId, schoolId: schoolId }).select('_id').lean();
+    if (!teacher) { return 'Teacher not found in your school.'; }
+  }
+  return null;
+}
+
+/* ✅ STAGE 4 FIX 2: When isBreak is true, strip out
+   subject/teacher/room/color so break slots never
+   carry stale subject data. */
 function buildSlotPayload(body) {
   var payload = {};
+  var isBreak = !!body.isBreak;
+
   if (body.day        !== undefined) payload.day        = String(body.day).toLowerCase().trim();
   if (body.period     !== undefined) payload.period      = parseInt(body.period);
   if (body.startTime  !== undefined) payload.startTime   = String(body.startTime  || '').trim();
   if (body.endTime    !== undefined) payload.endTime     = String(body.endTime    || '').trim();
-  if (body.subjectId  !== undefined) payload.subjectId   = body.subjectId  || null;
-  if (body.subjectName!== undefined) payload.subjectName = String(body.subjectName || '').trim();
-  if (body.teacherId  !== undefined) payload.teacherId   = body.teacherId  || null;
-  if (body.teacherName!== undefined) payload.teacherName = String(body.teacherName || '').trim();
-  if (body.room       !== undefined) payload.room        = String(body.room       || '').trim();
-  if (body.color      !== undefined) payload.color       = String(body.color      || '').trim();
-  if (body.notes      !== undefined) payload.notes       = String(body.notes      || '').trim();
-  if (body.isBreak    !== undefined) payload.isBreak     = !!body.isBreak;
   if (body.termId     !== undefined) payload.termId      = body.termId || null;
+  if (body.isBreak    !== undefined) payload.isBreak     = isBreak;
+
+  if (isBreak) {
+    /* Clear all subject-related fields for break slots */
+    payload.subjectId   = null;
+    payload.subjectName = '';
+    payload.teacherId   = null;
+    payload.teacherName = '';
+    payload.room        = '';
+    payload.color       = '';
+    payload.notes       = body.notes !== undefined ? String(body.notes || '').trim() : undefined;
+  } else {
+    if (body.subjectId  !== undefined) payload.subjectId   = body.subjectId  || null;
+    if (body.subjectName!== undefined) payload.subjectName = String(body.subjectName || '').trim();
+    if (body.teacherId  !== undefined) payload.teacherId   = body.teacherId  || null;
+    if (body.teacherName!== undefined) payload.teacherName = String(body.teacherName || '').trim();
+    if (body.room       !== undefined) payload.room        = String(body.room       || '').trim();
+    if (body.color      !== undefined) payload.color       = String(body.color      || '').trim();
+    if (body.notes      !== undefined) payload.notes       = String(body.notes      || '').trim();
+  }
+
+  /* Remove undefined keys so Object.assign doesn't wipe existing values unintentionally */
+  Object.keys(payload).forEach(function (k) {
+    if (payload[k] === undefined) { delete payload[k]; }
+  });
+
   return payload;
 }
 
@@ -92,13 +131,8 @@ function getDefaultPeriods() {
 }
 
 /* ============================================
-   ✅ STAGE 3: GET /public/:slug/:classId
-   NO AUTH. Used by the public class timetable
-   page (no login required).
-   Resolves school by slug first — this is the
-   same slug mechanism used for Phase E branded
-   access links. Only non-sensitive fields are
-   returned (subject, teacher name, room, time).
+   ✅ GET /public/:slug/:classId
+   NO AUTH. ✅ STAGE 4 FIX 3: single School query.
    ⚠ Must be before /class/:classId and /:id
 ============================================ */
 router.get('/public/:slug/:classId', async function (req, res) {
@@ -106,7 +140,9 @@ router.get('/public/:slug/:classId', async function (req, res) {
     var slug    = req.params.slug;
     var classId = req.params.classId;
 
-    var school = await School.findOne({ slug: slug }).select('_id name logo primaryColor').lean();
+    var school = await School.findOne({ slug: slug })
+      .select('_id name logo primaryColor timetablePeriods')
+      .lean();
     if (!school) {
       return res.status(404).json({ success: false, message: 'School not found.' });
     }
@@ -126,9 +162,8 @@ router.get('/public/:slug/:classId', async function (req, res) {
       .sort({ period: 1 })
       .lean();
 
-    var periods = (await School.findById(school._id).select('timetablePeriods').lean());
-    var periodList = (periods && periods.timetablePeriods && periods.timetablePeriods.length > 0)
-      ? periods.timetablePeriods
+    var periodList = (school.timetablePeriods && school.timetablePeriods.length > 0)
+      ? school.timetablePeriods
       : getDefaultPeriods();
 
     var grouped = { monday:[], tuesday:[], wednesday:[], thursday:[], friday:[], saturday:[] };
@@ -160,7 +195,7 @@ router.get('/public/:slug/:classId', async function (req, res) {
 });
 
 /* ============================================
-   1. GET /class/:classId  (authenticated)
+   GET /class/:classId  (authenticated)
 ============================================ */
 router.get('/class/:classId', readGuard, async function (req, res) {
   try {
@@ -190,7 +225,7 @@ router.get('/class/:classId', readGuard, async function (req, res) {
 });
 
 /* ============================================
-   2. GET /teacher/:teacherId
+   GET /teacher/:teacherId
 ============================================ */
 router.get('/teacher/:teacherId', readGuard, async function (req, res) {
   try {
@@ -225,7 +260,7 @@ router.get('/teacher/:teacherId', readGuard, async function (req, res) {
 });
 
 /* ============================================
-   3. GET /summary
+   GET /summary
 ============================================ */
 router.get('/summary', adminGuard, async function (req, res) {
   try {
@@ -248,7 +283,7 @@ router.get('/summary', adminGuard, async function (req, res) {
 });
 
 /* ============================================
-   4. GET /periods
+   GET /periods
 ============================================ */
 router.get('/periods', readGuard, async function (req, res) {
   try {
@@ -264,7 +299,7 @@ router.get('/periods', readGuard, async function (req, res) {
 });
 
 /* ============================================
-   5. POST /periods
+   POST /periods
 ============================================ */
 router.post('/periods', adminGuard, async function (req, res) {
   try {
@@ -281,7 +316,7 @@ router.post('/periods', adminGuard, async function (req, res) {
 });
 
 /* ============================================
-   6. DELETE /class/:classId/clear
+   DELETE /class/:classId/clear
 ============================================ */
 router.delete('/class/:classId/clear', adminGuard, async function (req, res) {
   try {
@@ -298,7 +333,8 @@ router.delete('/class/:classId/clear', adminGuard, async function (req, res) {
 });
 
 /* ============================================
-   7. POST /
+   POST /
+   ✅ STAGE 4 FIX 1: Ownership verification added.
 ============================================ */
 router.post('/', adminGuard, async function (req, res) {
   try {
@@ -311,12 +347,25 @@ router.post('/', adminGuard, async function (req, res) {
 
     var day    = String(body.day).toLowerCase().trim();
     var period = parseInt(body.period);
+    var isBreak = !!body.isBreak;
 
     if (!DAY_ORDER[day]) {
       return res.status(400).json({ success: false, message: 'Invalid day.' });
     }
 
-    if (body.teacherId) {
+    /* ✅ STAGE 4 FIX 1: Verify classId always; subjectId/teacherId
+       only when not a break slot (break slots have neither) */
+    var ownershipErr = await verifyOwnership(
+      schoolId,
+      body.classId,
+      isBreak ? null : body.subjectId,
+      isBreak ? null : body.teacherId
+    );
+    if (ownershipErr) {
+      return res.status(404).json({ success: false, message: ownershipErr });
+    }
+
+    if (!isBreak && body.teacherId) {
       var conflict = await checkTeacherConflict(schoolId, body.teacherId, day, period, null);
       if (conflict) {
         var conflictClass = conflict.classId ? conflict.classId.name : 'another class';
@@ -332,6 +381,8 @@ router.post('/', adminGuard, async function (req, res) {
     var payload      = buildSlotPayload(body);
     payload.schoolId = schoolId;
     payload.classId  = body.classId;
+    payload.day      = day;
+    payload.period   = period;
 
     var slot = await TimetableSlot.create(payload);
     await slot.populate('classId',   'name');
@@ -352,7 +403,8 @@ router.post('/', adminGuard, async function (req, res) {
 });
 
 /* ============================================
-   8. PUT /:id
+   PUT /:id
+   ✅ STAGE 4 FIX 1: Ownership verification added.
 ============================================ */
 router.put('/:id', adminGuard, async function (req, res) {
   try {
@@ -365,10 +417,22 @@ router.put('/:id', adminGuard, async function (req, res) {
 
     var finalDay     = body.day    ? String(body.day).toLowerCase().trim() : existing.day;
     var finalPeriod  = body.period ? parseInt(body.period)                 : existing.period;
-    var finalTeacher = body.teacherId !== undefined ? body.teacherId : existing.teacherId;
+    var finalIsBreak = body.isBreak !== undefined ? !!body.isBreak : existing.isBreak;
+    var finalTeacher = finalIsBreak ? null : (body.teacherId !== undefined ? body.teacherId : existing.teacherId);
 
     if (body.day && !DAY_ORDER[finalDay]) {
       return res.status(400).json({ success: false, message: 'Invalid day.' });
+    }
+
+    /* ✅ STAGE 4 FIX 1: Verify any newly-supplied references belong to this school */
+    var ownershipErr = await verifyOwnership(
+      schoolId,
+      body.classId,                                  /* usually unchanged, but verify if sent */
+      finalIsBreak ? null : body.subjectId,
+      finalIsBreak ? null : body.teacherId
+    );
+    if (ownershipErr) {
+      return res.status(404).json({ success: false, message: ownershipErr });
     }
 
     if (finalTeacher) {
@@ -385,6 +449,9 @@ router.put('/:id', adminGuard, async function (req, res) {
     }
 
     var updates = buildSlotPayload(body);
+    if (body.day)    { updates.day    = finalDay; }
+    if (body.period) { updates.period = finalPeriod; }
+
     Object.assign(existing, updates);
     await existing.save();
 
@@ -403,7 +470,7 @@ router.put('/:id', adminGuard, async function (req, res) {
 });
 
 /* ============================================
-   9. DELETE /:id
+   DELETE /:id
 ============================================ */
 router.delete('/:id', adminGuard, async function (req, res) {
   try {
