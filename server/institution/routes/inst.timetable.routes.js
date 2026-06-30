@@ -3,19 +3,15 @@
    ✅ PHASE N: Timetable System
    ✅ STAGE 3: Public endpoint added
    ✅ STAGE 4: Security + data consistency fixes
-
-   FIX 1 (CRITICAL): Tenant-ownership verification
-   added before every create/update. classId,
-   subjectId, and teacherId are now confirmed to
-   belong to the requesting school before any
-   write is allowed.
-
-   FIX 2: When isBreak=true, subject/teacher/room/
-   color fields are now cleared automatically so
-   break slots never retain stale subject data.
-
-   FIX 3: Public endpoint merged into a single
-   School query instead of two.
+   ✅ HOTFIX: Fixed duplicate model registration
+      crash. SchoolSubject is registered by
+      Subject.model.js (the file used everywhere
+      else in this codebase, e.g.
+      inst.structure.routes.js). Requiring the
+      separate SchoolSubject.model.js file here
+      caused mongoose.model() to be called twice
+      for the same model name, crashing the server
+      with OverwriteModelError on every boot.
 
    Mounted at: /api/institution/timetable
 
@@ -32,7 +28,11 @@ const TimetableSlot  = require('../models/Timetable.model');
 const SchoolUser     = require('../models/SchoolUser.model');
 const School         = require('../models/School.model');
 const SchoolClass    = require('../models/Class.model');
-const SchoolSubject  = require('../models/SchoolSubject.model');
+/* ✅ HOTFIX: was '../models/SchoolSubject.model' — caused
+   OverwriteModelError because Subject.model.js already
+   registers the same 'SchoolSubject' mongoose model name
+   and is required first by inst.structure.routes.js. */
+const SchoolSubject  = require('../models/Subject.model');
 
 const { instProtect, schoolAdminOnly, teacherOrAdmin } = require('../middleware/inst.auth');
 const { requireActiveSubscription }                    = require('../middleware/inst.tenant');
@@ -46,10 +46,6 @@ var adminGuard = [instProtect, schoolAdminOnly, requireActiveSubscription];
 
 var DAY_ORDER = { monday:1, tuesday:2, wednesday:3, thursday:4, friday:5, saturday:6 };
 
-/* ✅ STAGE 4 FIX 1: Verify classId, subjectId, and
-   teacherId (if provided) all belong to this school.
-   Returns an error message string if any ownership
-   check fails, or null if everything is valid. */
 async function verifyOwnership(schoolId, classId, subjectId, teacherId) {
   if (classId) {
     var cls = await SchoolClass.findOne({ _id: classId, schoolId: schoolId }).select('_id').lean();
@@ -66,9 +62,6 @@ async function verifyOwnership(schoolId, classId, subjectId, teacherId) {
   return null;
 }
 
-/* ✅ STAGE 4 FIX 2: When isBreak is true, strip out
-   subject/teacher/room/color so break slots never
-   carry stale subject data. */
 function buildSlotPayload(body) {
   var payload = {};
   var isBreak = !!body.isBreak;
@@ -81,7 +74,6 @@ function buildSlotPayload(body) {
   if (body.isBreak    !== undefined) payload.isBreak     = isBreak;
 
   if (isBreak) {
-    /* Clear all subject-related fields for break slots */
     payload.subjectId   = null;
     payload.subjectName = '';
     payload.teacherId   = null;
@@ -99,7 +91,6 @@ function buildSlotPayload(body) {
     if (body.notes      !== undefined) payload.notes       = String(body.notes      || '').trim();
   }
 
-  /* Remove undefined keys so Object.assign doesn't wipe existing values unintentionally */
   Object.keys(payload).forEach(function (k) {
     if (payload[k] === undefined) { delete payload[k]; }
   });
@@ -131,9 +122,7 @@ function getDefaultPeriods() {
 }
 
 /* ============================================
-   ✅ GET /public/:slug/:classId
-   NO AUTH. ✅ STAGE 4 FIX 3: single School query.
-   ⚠ Must be before /class/:classId and /:id
+   GET /public/:slug/:classId  — NO AUTH
 ============================================ */
 router.get('/public/:slug/:classId', async function (req, res) {
   try {
@@ -334,7 +323,6 @@ router.delete('/class/:classId/clear', adminGuard, async function (req, res) {
 
 /* ============================================
    POST /
-   ✅ STAGE 4 FIX 1: Ownership verification added.
 ============================================ */
 router.post('/', adminGuard, async function (req, res) {
   try {
@@ -353,8 +341,6 @@ router.post('/', adminGuard, async function (req, res) {
       return res.status(400).json({ success: false, message: 'Invalid day.' });
     }
 
-    /* ✅ STAGE 4 FIX 1: Verify classId always; subjectId/teacherId
-       only when not a break slot (break slots have neither) */
     var ownershipErr = await verifyOwnership(
       schoolId,
       body.classId,
@@ -404,7 +390,6 @@ router.post('/', adminGuard, async function (req, res) {
 
 /* ============================================
    PUT /:id
-   ✅ STAGE 4 FIX 1: Ownership verification added.
 ============================================ */
 router.put('/:id', adminGuard, async function (req, res) {
   try {
@@ -424,10 +409,9 @@ router.put('/:id', adminGuard, async function (req, res) {
       return res.status(400).json({ success: false, message: 'Invalid day.' });
     }
 
-    /* ✅ STAGE 4 FIX 1: Verify any newly-supplied references belong to this school */
     var ownershipErr = await verifyOwnership(
       schoolId,
-      body.classId,                                  /* usually unchanged, but verify if sent */
+      body.classId,
       finalIsBreak ? null : body.subjectId,
       finalIsBreak ? null : body.teacherId
     );
