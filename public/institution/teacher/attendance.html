@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendance — LatLomp Institution</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --primary:#6c63ff; --pd:#574fd6;
+      --green:#43e97b;   --red:#ff6584;
+      --orange:#ffa500;  --blue:#4facfe;
+      --dark:#0f0f1a;    --dark-2:#1a1a2e;
+      --border:rgba(255,255,255,0.08);
+      --text:#fff; --muted:#6b6b8a; --secondary:#a0a0c0;
+    }
+    html, body { margin:0; padding:0; background:var(--dark); color:var(--text); font-family:'Inter',sans-serif; }
+    @keyframes spin   { to { transform:rotate(360deg); } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+
+    .topbar { position:sticky; top:0; z-index:300; background:var(--dark-2); border-bottom:1px solid var(--border); height:60px; display:flex; align-items:center; padding:0 24px; gap:16px; }
+    .topbar-brand { font-size:15px; font-weight:800; color:#fff; white-space:nowrap; }
+    .topbar-back  { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:8px; background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--secondary); font-size:13px; font-weight:600; text-decoration:none; transition:all 0.2s; margin-left:auto; white-space:nowrap; }
+    .topbar-back:hover { color:#fff; background:rgba(255,255,255,0.1); }
+
+    .main { max-width:1100px; margin:0 auto; padding:28px 24px 60px; }
+    @media (max-width:700px) { .main { padding:18px 14px 48px; } }
+
+    .page-header { margin-bottom:22px; animation:fadeUp 0.3s ease; }
+    .page-header h1 { font-size:22px; font-weight:800; color:#fff; margin:0 0 4px; }
+    .page-header p  { font-size:13px; color:var(--muted); margin:0; }
+
+    .card { background:var(--dark-2); border:1px solid var(--border); border-radius:16px; overflow:hidden; margin-bottom:20px; }
+    .card-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:10px; }
+    .card-head h3 { font-size:15px; font-weight:700; color:#fff; margin:0; }
+    .card-body { padding:20px; }
+
+    .sel-grid { display:grid; grid-template-columns:1fr 1fr auto; gap:14px; align-items:end; }
+    @media (max-width:700px) { .sel-grid { grid-template-columns:1fr 1fr; } }
+    @media (max-width:480px) { .sel-grid { grid-template-columns:1fr; } }
+
+    .field { display:flex; flex-direction:column; gap:6px; }
+    .field label { font-size:11px; font-weight:700; color:var(--secondary); text-transform:uppercase; letter-spacing:0.4px; }
+    .sel, .inp { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:9px; padding:11px 13px; color:#fff; font-size:14px; font-family:inherit; outline:none; width:100%; transition:border-color 0.2s; }
+    .sel:focus, .inp:focus { border-color:var(--primary); }
+    .sel option { background:var(--dark-2); }
+
+    .btn { display:inline-flex; align-items:center; gap:7px; padding:9px 16px; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; border:none; transition:all 0.2s; text-decoration:none; white-space:nowrap; }
+    .btn-primary   { background:linear-gradient(135deg,var(--primary),var(--pd)); color:#fff; }
+    .btn-primary:hover  { transform:translateY(-1px); box-shadow:0 4px 16px rgba(108,99,255,0.4); }
+    .btn-green     { background:linear-gradient(135deg,var(--green),#38f9d7); color:#0f0f1a; }
+    .btn-green:hover    { transform:translateY(-1px); box-shadow:0 4px 14px rgba(67,233,123,0.35); }
+    .btn-secondary { background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--secondary); }
+    .btn-secondary:hover { color:#fff; background:rgba(255,255,255,0.1); }
+    .btn-sm { padding:6px 11px; font-size:12px; border-radius:7px; }
+    .btn:disabled { opacity:0.5; cursor:not-allowed; transform:none !important; }
+
+    .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+    .badge-green  { background:rgba(67,233,123,0.12);  color:var(--green); }
+    .badge-orange { background:rgba(255,165,0,0.12);   color:var(--orange); }
+    .badge-muted  { background:rgba(255,255,255,0.06); color:var(--secondary); }
+    .badge-blue   { background:rgba(79,172,254,0.12);  color:var(--blue); }
+
+    /* ---- PERIOD SELECTOR (period mode only) ---- */
+    .period-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+    .period-tab  { padding:8px 14px; border-radius:9px; border:1px solid var(--border); background:rgba(255,255,255,0.04); color:var(--secondary); font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; transition:all 0.15s; white-space:nowrap; }
+    .period-tab:hover { border-color:rgba(108,99,255,0.4); color:#fff; }
+    .period-tab.active { background:rgba(108,99,255,0.15); border-color:var(--primary); color:#a78bfa; }
+    .period-tab.marked { position:relative; }
+    .period-tab.marked::after { content:'✓'; position:absolute; top:-5px; right:-5px; background:var(--green); color:#0f0f1a; font-size:8px; font-weight:900; width:14px; height:14px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+
+    /* ---- ROSTER TABLE ---- */
+    .roster-table { width:100%; border-collapse:collapse; }
+    .roster-table th { padding:10px 13px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); background:rgba(255,255,255,0.02); border-bottom:1px solid var(--border); }
+    .roster-table td { padding:10px 13px; font-size:13px; color:var(--secondary); border-bottom:1px solid var(--border); vertical-align:middle; }
+    .roster-table tr:last-child td { border-bottom:none; }
+    .s-name { font-weight:700; color:#fff; }
+    .s-id   { font-size:11px; color:var(--muted); margin-top:2px; }
+
+    /* ---- STATUS TOGGLE ---- */
+    .status-group { display:flex; gap:4px; flex-wrap:wrap; }
+    .status-btn { padding:5px 10px; border-radius:7px; border:1px solid var(--border); background:rgba(255,255,255,0.04); color:var(--muted); font-size:11px; font-weight:700; cursor:pointer; font-family:inherit; transition:all 0.15s; white-space:nowrap; }
+    .status-btn:hover { border-color:rgba(255,255,255,0.2); color:var(--secondary); }
+    .status-btn.sel-present  { background:rgba(67,233,123,0.15); border-color:rgba(67,233,123,0.4); color:var(--green); }
+    .status-btn.sel-absent   { background:rgba(255,101,132,0.15); border-color:rgba(255,101,132,0.4); color:var(--red); }
+    .status-btn.sel-late     { background:rgba(255,165,0,0.15);   border-color:rgba(255,165,0,0.4);   color:var(--orange); }
+    .status-btn.sel-excused  { background:rgba(79,172,254,0.15);  border-color:rgba(79,172,254,0.4);  color:var(--blue); }
+
+    .notes-inp { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:6px; padding:5px 8px; color:#fff; font-size:11px; font-family:inherit; outline:none; width:110px; transition:border-color 0.2s; }
+    .notes-inp:focus { border-color:var(--primary); }
+
+    /* ---- STATS ROW ---- */
+    .stats-row { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:16px; }
+    .stat-pill { display:flex; align-items:center; gap:7px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:10px; padding:8px 14px; font-size:12px; font-weight:700; }
+
+    /* ---- SAVE BAR ---- */
+    .save-bar { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; padding:14px 20px; border-top:1px solid var(--border); background:var(--dark-2); }
+    .save-bar-info { font-size:13px; color:var(--muted); }
+    .save-bar-info strong { color:#fff; }
+
+    /* ---- HISTORY ---- */
+    .history-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px; padding:16px 20px; }
+    .hist-card { background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:10px; padding:12px; cursor:pointer; transition:all 0.15s; }
+    .hist-card:hover { border-color:rgba(108,99,255,0.4); background:rgba(108,99,255,0.06); }
+    .hist-date  { font-size:13px; font-weight:800; color:#fff; margin-bottom:4px; }
+    .hist-meta  { font-size:11px; color:var(--muted); }
+    .hist-bar   { height:4px; border-radius:2px; background:rgba(255,255,255,0.06); margin-top:8px; overflow:hidden; }
+    .hist-fill  { height:100%; border-radius:2px; background:linear-gradient(90deg,var(--green),#38f9d7); transition:width 0.3s; }
+
+    .tabs { display:flex; gap:4px; background:rgba(255,255,255,0.04); border-radius:10px; padding:4px; margin-bottom:20px; }
+    .tab  { flex:1; padding:9px 14px; border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:all 0.2s; background:transparent; color:var(--secondary); white-space:nowrap; }
+    .tab.active { background:linear-gradient(135deg,var(--primary),var(--pd)); color:#fff; }
+
+    .mode-banner { background:rgba(108,99,255,0.07); border:1px solid rgba(108,99,255,0.2); border-radius:10px; padding:11px 16px; font-size:13px; color:#a78bfa; margin-bottom:16px; line-height:1.6; }
+    .mode-banner strong { color:#fff; }
+
+    .spinner { width:18px; height:18px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block; }
+    .spinner-lg { width:28px; height:28px; border-width:3px; display:block; margin:40px auto; }
+
+    .empty { text-align:center; padding:40px 20px; }
+    .empty-icon  { font-size:40px; margin-bottom:10px; }
+    .empty-title { font-size:14px; font-weight:700; color:var(--secondary); margin-bottom:6px; }
+    .empty-sub   { font-size:12px; color:var(--muted); line-height:1.7; }
+
+    .toast { position:fixed; bottom:24px; right:24px; background:var(--dark-2); border:1px solid var(--border); border-radius:10px; padding:13px 18px; font-size:13px; font-weight:600; color:#fff; z-index:9999; box-shadow:0 8px 32px rgba(0,0,0,0.4); max-width:300px; display:none; }
+
+    @media print {
+      .topbar, .tabs, .mode-banner, .save-bar, .btn, .status-btn, .notes-inp, .history-grid { display:none !important; }
+      .card { border:1px solid #ddd !important; background:#fff !important; color:#111 !important; }
+      .card-head h3, .s-name, .roster-table td { color:#111 !important; }
+      .roster-table th, .roster-table td { border-color:#ddd !important; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand">📋 Attendance</div>
+  <a class="topbar-back" href="/institution/teacher/dashboard.html">&larr; Dashboard</a>
+</div>
+
+<div class="main">
+
+  <div class="page-header">
+    <h1>Attendance</h1>
+    <p id="modeSubtitle">Mark and manage student attendance</p>
+  </div>
+
+  <!-- SELECTOR CARD -->
+  <div class="card">
+    <div class="card-head"><h3>Select Class &amp; Date</h3></div>
+    <div class="card-body">
+      <div class="sel-grid">
+        <div class="field">
+          <label>Class</label>
+          <select id="selClass" class="sel" onchange="onSelectorChange()">
+            <option value="">-- Select Class --</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Date</label>
+          <input type="date" id="selDate" class="inp" onchange="onSelectorChange()" />
+        </div>
+        <button class="btn btn-primary" id="loadBtn" onclick="loadAttendance()" disabled>
+          Load Roster
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" id="tabMark"    onclick="switchTab('mark',this)">📋 Mark Attendance</button>
+    <button class="tab"         id="tabHistory" onclick="switchTab('history',this)">📅 History</button>
+  </div>
+
+  <!-- MARK TAB -->
+  <div id="paneMark">
+    <div id="attendanceArea"></div>
+  </div>
+
+  <!-- HISTORY TAB -->
+  <div id="paneHistory" style="display:none;">
+    <div class="card">
+      <div class="card-head">
+        <h3>Marked Dates</h3>
+        <button class="btn btn-secondary btn-sm" onclick="loadHistory()">↻ Refresh</button>
+      </div>
+      <div id="historyContent">
+        <div class="empty">
+          <div class="empty-icon">📅</div>
+          <div class="empty-title">Select a class first</div>
+          <div class="empty-sub">Choose a class above to view its attendance history.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/institution/js/inst.api.js"></script>
+<script>
+/* ============================================
+   ✅ PHASE O STAGE 2: TEACHER ATTENDANCE PAGE
+   Supports both attendance modes:
+   - DAILY:  one mark per student per class per day
+   - PERIOD: one mark per student per period per day
+
+   Mode is read from GET /attendance/settings on
+   page load. The UI branches automatically.
+   No separate pages, no duplicate logic.
+============================================ */
+
+var _mode     = 'daily';  /* 'daily' | 'period' */
+var _classes  = [];
+var _terms    = [];
+var _periods  = [];       /* school's timetable periods (for period mode) */
+var _roster   = [];       /* current loaded roster */
+var _selectedPeriod = null;
+var _availablePeriods = []; /* period-mode: periods that exist for this class on this weekday */
+var _statusMap  = {};     /* studentId → { status, notes, recordId } */
+
+var STATUSES = [
+  { key: 'present', label: '✓ Present', cls: 'sel-present' },
+  { key: 'absent',  label: '✗ Absent',  cls: 'sel-absent'  },
+  { key: 'late',    label: '⏰ Late',    cls: 'sel-late'    },
+  { key: 'excused', label: '📝 Excused', cls: 'sel-excused' }
+];
+
+/* ============================================ INIT */
+document.addEventListener('DOMContentLoaded', async function () {
+  if (!instRequireAuth()) { return; }
+  setTodayDate();
+  await Promise.all([ loadSettings(), loadStructure() ]);
+});
+
+function setTodayDate() {
+  var today = new Date();
+  var y = today.getFullYear();
+  var m = String(today.getMonth() + 1).padStart(2, '0');
+  var d = String(today.getDate()).padStart(2, '0');
+  document.getElementById('selDate').value = y + '-' + m + '-' + d;
+}
+
+async function loadSettings() {
+  var res = await instApi('/attendance/settings');
+  if (res.ok) {
+    _mode = res.data.attendanceMode || 'daily';
+    var subtitle = document.getElementById('modeSubtitle');
+    if (subtitle) {
+      subtitle.textContent = _mode === 'period'
+        ? 'Period-based attendance — mark each lecture separately'
+        : 'Daily attendance — mark once per class per day';
+    }
+  }
+}
+
+async function loadStructure() {
+  var [cRes, tRes, pRes] = await Promise.all([
+    instApi('/structure/classes'),
+    instApi('/structure/terms'),
+    instApi('/timetable/periods')
+  ]);
+
+  _classes = cRes.ok ? (cRes.data.classes || []) : [];
+  _terms   = tRes.ok ? (tRes.data.terms   || []) : [];
+  _periods = pRes.ok ? (pRes.data.periods  || []) : [];
+
+  var clsSel = document.getElementById('selClass');
+  if (!clsSel) { return; }
+  clsSel.innerHTML = '<option value="">-- Select Class --</option>' +
+    _classes.map(function (c) {
+      return '<option value="' + c._id + '">' + esc(c.name) + '</option>';
+    }).join('');
+
+  onSelectorChange();
+}
+
+function onSelectorChange() {
+  var cls  = document.getElementById('selClass').value;
+  var date = document.getElementById('selDate').value;
+  document.getElementById('loadBtn').disabled = !(cls && date);
+}
+
+/* ============================================ TAB SWITCH */
+function switchTab(tab, el) {
+  document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
+  if (el) { el.classList.add('active'); }
+  document.getElementById('paneMark').style.display    = tab === 'mark'    ? 'block' : 'none';
+  document.getElementById('paneHistory').style.display = tab === 'history' ? 'block' : 'none';
+  if (tab === 'history') { loadHistory(); }
+}
+
+/* ============================================ LOAD ATTENDANCE */
+async function loadAttendance() {
+  var classId = document.getElementById('selClass').value;
+  var date    = document.getElementById('selDate').value;
+  if (!classId || !date) { return; }
+
+  var area = document.getElementById('attendanceArea');
+  area.innerHTML = '<div class="card"><div class="card-body"><span class="spinner spinner-lg"></span></div></div>';
+
+  _selectedPeriod = null;
+  _availablePeriods = [];
+
+  /* In period mode, first load available periods for this class on this date */
+  if (_mode === 'period') {
+    var periodRes = await instApi('/attendance/class/' + classId + '/date/' + date);
+    if (periodRes.ok) {
+      _availablePeriods = periodRes.data.availablePeriods || [];
+    }
+
+    if (_availablePeriods.length === 0) {
+      area.innerHTML = renderEmpty(
+        '📅', 'No periods scheduled',
+        'This class has no timetable entries for ' + getDayLabel(date) + '. Set up the timetable first, or switch to Daily attendance mode in School Settings.'
+      );
+      return;
+    }
+
+    /* Auto-select first unfinished period */
+    var firstUnmarked = _availablePeriods.find(function (p) { return !p.isMarked; });
+    _selectedPeriod = firstUnmarked ? firstUnmarked.period : _availablePeriods[0].period;
+  }
+
+  await loadRosterForSelection(classId, date);
+}
+
+async function loadRosterForSelection(classId, date) {
+  var area = document.getElementById('attendanceArea');
+  var url  = '/attendance/class/' + classId + '/date/' + date;
+  if (_mode === 'period' && _selectedPeriod) {
+    url += '?period=' + _selectedPeriod;
+  }
+
+  var res = await instApi(url);
+  if (!res.ok) {
+    area.innerHTML = renderEmpty('⚠️', 'Failed to load roster', esc((res.data && res.data.message) || 'Unknown error'));
+    return;
+  }
+
+  _roster = res.data.roster || [];
+  _statusMap = {};
+  _roster.forEach(function (st) {
+    _statusMap[st.studentId.toString()] = {
+      status:   st.status   || '',
+      notes:    st.notes    || '',
+      recordId: st.recordId || null
+    };
+  });
+
+  renderAttendanceUI(classId, date, res.data);
+}
+
+/* ============================================ RENDER */
+function renderAttendanceUI(classId, date, data) {
+  var area      = document.getElementById('attendanceArea');
+  var isMarked  = data.isFullyMarked;
+  var tCtx      = data.timetableContext;
+  var dateLabel = formatDate(date);
+
+  /* Class/period context label */
+  var clsEl   = document.getElementById('selClass');
+  var clsName = clsEl.selectedIndex > 0 ? clsEl.options[clsEl.selectedIndex].text : '';
+
+  var html = '';
+
+  /* Period mode — period selector tabs */
+  if (_mode === 'period' && _availablePeriods.length > 0) {
+    html += '<div class="mode-banner">📚 <strong>Period-based Attendance</strong> — Select a period below, then mark attendance for that lecture.</div>';
+    html += '<div class="period-tabs">';
+    _availablePeriods.forEach(function (p) {
+      var isActive = p.period === _selectedPeriod;
+      html += '<button class="period-tab' + (isActive ? ' active' : '') + (p.isMarked ? ' marked' : '') + '" ' +
+        'onclick="selectPeriod(\'' + classId + '\',\'' + date + '\',' + p.period + ')">' +
+        'P' + p.period + (p.subjectName ? ' · ' + esc(p.subjectName) : '') +
+        '</button>';
+    });
+    html += '</div>';
+  } else if (_mode === 'daily') {
+    html += '<div class="mode-banner">📋 <strong>Daily Attendance</strong> — ' + esc(clsName) + ' · ' + dateLabel + '</div>';
+  }
+
+  if (_roster.length === 0) {
+    area.innerHTML = html + renderEmpty('🧑‍🎓', 'No active students in this class', 'Add students to this class in the Students section first.');
+    return;
+  }
+
+  /* Stats summary */
+  var presentN = 0, absentN = 0, lateN = 0, excusedN = 0, unmarkedN = 0;
+  _roster.forEach(function (st) {
+    var m = _statusMap[st.studentId.toString()] || {};
+    var s = m.status || '';
+    if (s === 'present') { presentN++; }
+    else if (s === 'absent')  { absentN++;  }
+    else if (s === 'late')    { lateN++;    }
+    else if (s === 'excused') { excusedN++; }
+    else                       { unmarkedN++; }
+  });
+
+  var headLabel = _mode === 'period' && tCtx
+    ? esc(clsName) + ' · ' + (tCtx.subjectName || 'Period ' + _selectedPeriod) + ' · ' + dateLabel
+    : esc(clsName) + ' · ' + dateLabel;
+
+  html +=
+    '<div class="card">' +
+      '<div class="card-head">' +
+        '<h3>' + headLabel + '</h3>' +
+        '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
+          '<button class="btn btn-secondary btn-sm" onclick="markAll(\'present\')">✓ All Present</button>' +
+          '<button class="btn btn-secondary btn-sm" onclick="markAll(\'absent\')">✗ All Absent</button>' +
+          '<button class="btn btn-secondary btn-sm" onclick="window.print()">🖨 Print</button>' +
+        '</div>' +
+      '</div>';
+
+  /* Stats */
+  html += '<div style="padding:12px 20px 0;">' +
+    '<div class="stats-row">' +
+      statPill('✓', presentN, 'Present', '#43e97b') +
+      statPill('✗', absentN, 'Absent', '#ff6584') +
+      statPill('⏰', lateN, 'Late', '#ffa500') +
+      statPill('📝', excusedN, 'Excused', '#4facfe') +
+      (unmarkedN > 0 ? statPill('?', unmarkedN, 'Not Marked', '#6b6b8a') : '') +
+    '</div>' +
+  '</div>';
+
+  /* Roster table */
+  var rows = _roster.map(function (st, idx) {
+    var sid  = st.studentId.toString();
+    var m    = _statusMap[sid] || {};
+    var curr = m.status || '';
+
+    var statusBtns = STATUSES.map(function (s) {
+      return '<button class="status-btn ' + (curr === s.key ? s.cls : '') + '" ' +
+        'id="sbtn_' + idx + '_' + s.key + '" ' +
+        'onclick="setStatus(\'' + sid + '\',' + idx + ',\'' + s.key + '\')">' +
+        s.label + '</button>';
+    }).join('');
+
+    return '<tr id="srow_' + idx + '">' +
+      '<td style="width:28px; color:var(--muted); font-weight:700; text-align:center;">' + (idx + 1) + '</td>' +
+      '<td><div class="s-name">' + esc(st.name) + '</div>' +
+        '<div class="s-id">' + esc(st.admissionNo || st.studentCode || '') + '</div></td>' +
+      '<td><div class="status-group">' + statusBtns + '</div></td>' +
+      '<td><input type="text" class="notes-inp" placeholder="Notes..." ' +
+        'id="notes_' + idx + '" value="' + esc(m.notes || '') + '" ' +
+        'onblur="updateNotes(\'' + sid + '\',this.value)" /></td>' +
+    '</tr>';
+  }).join('');
+
+  html +=
+      '<div style="overflow-x:auto;">' +
+        '<table class="roster-table">' +
+          '<thead><tr>' +
+            '<th>#</th>' +
+            '<th>Student</th>' +
+            '<th>Attendance</th>' +
+            '<th style="width:130px;">Notes</th>' +
+          '</tr></thead>' +
+          '<tbody id="rosterBody">' + rows + '</tbody>' +
+        '</table>' +
+      '</div>' +
+
+      '<div class="save-bar">' +
+        '<div class="save-bar-info">' +
+          (unmarkedN > 0
+            ? '<strong>' + unmarkedN + '</strong> student' + (unmarkedN !== 1 ? 's' : '') + ' not yet marked'
+            : '<strong>All ' + _roster.length + ' students marked</strong>') +
+        '</div>' +
+        '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
+          '<button class="btn btn-secondary btn-sm" onclick="clearAll()">↺ Clear All</button>' +
+          '<button class="btn btn-green" id="saveBtn" onclick="saveAttendance(\'' + classId + '\',\'' + date + '\')">' +
+            '💾 Save Attendance' +
+          '</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  area.innerHTML = html;
+}
+
+/* ============================================ PERIOD SELECTION */
+async function selectPeriod(classId, date, period) {
+  _selectedPeriod = period;
+  await loadRosterForSelection(classId, date);
+}
+
+/* ============================================ STATUS CONTROLS */
+function setStatus(studentId, rowIdx, status) {
+  if (!_statusMap[studentId]) { _statusMap[studentId] = { status: '', notes: '' }; }
+  _statusMap[studentId].status = status;
+
+  /* Update all 4 buttons for this row */
+  STATUSES.forEach(function (s) {
+    var btn = document.getElementById('sbtn_' + rowIdx + '_' + s.key);
+    if (btn) {
+      btn.className = 'status-btn' + (status === s.key ? ' ' + s.cls : '');
+    }
+  });
+
+  /* Update row background gently */
+  var row = document.getElementById('srow_' + rowIdx);
+  if (row) {
+    row.style.background = status === 'present' ? 'rgba(67,233,123,0.04)'
+      : status === 'absent'  ? 'rgba(255,101,132,0.04)'
+      : status === 'late'    ? 'rgba(255,165,0,0.04)'
+      : status === 'excused' ? 'rgba(79,172,254,0.04)'
+      : '';
+  }
+
+  updateSaveBarCount();
+}
+
+function updateNotes(studentId, val) {
+  if (!_statusMap[studentId]) { _statusMap[studentId] = { status: '', notes: '' }; }
+  _statusMap[studentId].notes = val;
+}
+
+function markAll(status) {
+  _roster.forEach(function (st, idx) {
+    setStatus(st.studentId.toString(), idx, status);
+  });
+}
+
+function clearAll() {
+  _roster.forEach(function (st, idx) {
+    setStatus(st.studentId.toString(), idx, '');
+  });
+}
+
+function updateSaveBarCount() {
+  var unmarked = _roster.filter(function (st) {
+    var m = _statusMap[st.studentId.toString()] || {};
+    return !m.status;
+  }).length;
+  var infoEl = document.querySelector('.save-bar-info');
+  if (infoEl) {
+    infoEl.innerHTML = unmarked > 0
+      ? '<strong>' + unmarked + '</strong> student' + (unmarked !== 1 ? 's' : '') + ' not yet marked'
+      : '<strong>All ' + _roster.length + ' students marked</strong>';
+  }
+}
+
+/* ============================================ SAVE */
+async function saveAttendance(classId, date) {
+  var records = _roster.map(function (st) {
+    var m = _statusMap[st.studentId.toString()] || {};
+    return { studentId: st.studentId, status: m.status || 'absent', notes: m.notes || '' };
+  }).filter(function (r) { return r.status; });
+
+  if (records.length === 0) {
+    showToast('No attendance marked. Please mark at least one student.', 'error');
+    return;
+  }
+
+  var btn = document.getElementById('saveBtn');
+  if (btn) { btn.innerHTML = '<span class="spinner"></span> Saving...'; btn.disabled = true; }
+
+  /* Find current term */
+  var currentTerm = _terms.find(function (t) { return t.isCurrent; });
+  var termId      = currentTerm ? currentTerm._id : null;
+
+  var payload = {
+    classId:  classId,
+    date:     date,
+    termId:   termId,
+    records:  records
+  };
+  if (_mode === 'period' && _selectedPeriod) {
+    payload.period = _selectedPeriod;
+  }
+
+  var res = await instApi('/attendance/mark', 'POST', payload);
+
+  if (btn) { btn.innerHTML = '💾 Save Attendance'; btn.disabled = false; }
+
+  if (res.ok) {
+    var msg = res.data.saved + ' record' + (res.data.saved !== 1 ? 's' : '') + ' saved.';
+    if (res.data.failed > 0) { msg += ' ' + res.data.failed + ' failed.'; }
+    showToast(msg, res.data.failed > 0 ? 'warning' : 'success');
+
+    /* Mark this period as done in the period tabs */
+    if (_mode === 'period' && _selectedPeriod) {
+      var p = _availablePeriods.find(function (x) { return x.period === _selectedPeriod; });
+      if (p) { p.isMarked = true; }
+    }
+
+    /* Reload to show confirmed saved state */
+    setTimeout(function () { loadRosterForSelection(classId, date); }, 600);
+  } else {
+    showToast((res.data && res.data.message) || 'Save failed.', 'error');
+  }
+}
+
+/* ============================================ HISTORY */
+async function loadHistory() {
+  var classId = document.getElementById('selClass').value;
+  var content = document.getElementById('historyContent');
+  if (!content) { return; }
+
+  if (!classId) {
+    content.innerHTML = '<div class="empty"><div class="empty-icon">📅</div><div class="empty-title">Select a class first</div></div>';
+    return;
+  }
+
+  content.innerHTML = '<div style="text-align:center; padding:32px;"><span class="spinner spinner-lg"></span></div>';
+
+  var currentTerm = _terms.find(function (t) { return t.isCurrent; });
+  var url = '/attendance/class/' + classId + '/dates';
+  if (currentTerm) { url += '?termId=' + currentTerm._id; }
+
+  var res = await instApi(url);
+
+  if (!res.ok || !res.data.dates.length) {
+    content.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">No attendance marked yet</div><div class="empty-sub">Start marking attendance to see history here.</div></div>';
+    return;
+  }
+
+  var dates = res.data.dates;
+
+  /* Group by date */
+  var byDate = {};
+  dates.forEach(function (d) {
+    var key = new Date(d.date).toISOString().slice(0, 10);
+    if (!byDate[key]) { byDate[key] = { date: d.date, periods: [], studentCount: 0, presentCount: 0 }; }
+    if (d.period) { byDate[key].periods.push(d.period); }
+    byDate[key].studentCount = Math.max(byDate[key].studentCount, d.studentCount);
+    byDate[key].presentCount = Math.max(byDate[key].presentCount, d.presentCount);
+  });
+
+  var html = '<div class="history-grid">';
+  Object.keys(byDate).forEach(function (dateKey) {
+    var d     = byDate[dateKey];
+    var pct   = d.studentCount > 0 ? Math.round((d.presentCount / d.studentCount) * 100) : 0;
+    var label = formatDate(dateKey);
+    var periodNote = d.periods.length > 0 ? d.periods.length + ' period' + (d.periods.length !== 1 ? 's' : '') : 'Daily';
+
+    html += '<div class="hist-card" onclick="jumpToDate(\'' + dateKey + '\')">' +
+      '<div class="hist-date">' + label + '</div>' +
+      '<div class="hist-meta">' + periodNote + ' · ' + pct + '% present</div>' +
+      '<div class="hist-bar"><div class="hist-fill" style="width:' + pct + '%;"></div></div>' +
+    '</div>';
+  });
+  html += '</div>';
+  content.innerHTML = html;
+}
+
+function jumpToDate(dateKey) {
+  var dateInp = document.getElementById('selDate');
+  if (dateInp) { dateInp.value = dateKey; }
+  switchTab('mark', document.getElementById('tabMark'));
+  loadAttendance();
+}
+
+/* ============================================ HELPERS */
+function statPill(icon, count, label, color) {
+  return '<div class="stat-pill" style="border-color:' + color + '33;">' +
+    '<span style="color:' + color + '; font-size:14px;">' + icon + '</span>' +
+    '<span style="color:' + color + ';">' + count + '</span>' +
+    '<span style="color:var(--muted);">' + label + '</span>' +
+  '</div>';
+}
+
+function formatDate(dateStr) {
+  try {
+    var d = new Date(dateStr + 'T00:00:00Z');
+    return d.toLocaleDateString('en-NG', {
+      weekday: 'short', day: 'numeric',
+      month: 'short', year: 'numeric',
+      timeZone: 'UTC'
+    });
+  } catch (e) { return dateStr; }
+}
+
+function getDayLabel(dateStr) {
+  try {
+    var d = new Date(dateStr + 'T00:00:00Z');
+    return d.toLocaleDateString('en-NG', { weekday: 'long', timeZone: 'UTC' });
+  } catch (e) { return dateStr; }
+}
+
+function renderEmpty(icon, title, sub) {
+  return '<div class="card"><div class="card-body"><div class="empty">' +
+    '<div class="empty-icon">' + icon + '</div>' +
+    '<div class="empty-title">' + esc(title) + '</div>' +
+    '<div class="empty-sub">' + esc(sub) + '</div>' +
+  '</div></div></div>';
+}
+
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg, type) {
+  var t = document.getElementById('toast');
+  if (!t) { return; }
+  t.textContent   = msg;
+  t.style.display = 'block';
+  t.style.borderColor = type === 'success' ? 'rgba(67,233,123,0.4)' : type === 'error' ? 'rgba(255,101,132,0.4)' : type === 'warning' ? 'rgba(255,165,0,0.4)' : 'var(--border)';
+  t.style.color   = type === 'success' ? 'var(--green)' : type === 'error' ? 'var(--red)' : type === 'warning' ? 'var(--orange)' : '#fff';
+  clearTimeout(t._to);
+  t._to = setTimeout(function () { t.style.display = 'none'; }, 4000);
+}
+</script>
+</body>
+</html>
