@@ -214,6 +214,7 @@
     <button class="nav-item" onclick="window.location='/institution/school/students.html'">       <span class="nav-icon">🧑‍🎓</span> Students</button>
     <button class="nav-item"        data-sec="structure"    onclick="showSection('structure')">    <span class="nav-icon">🏗️</span>  Structure</button>
     <a class="nav-item" href="/institution/timetable/index.html">                                  <span class="nav-icon">📅</span> Timetable</a>
+    <a class="nav-item" href="/institution/teacher/attendance.html">                               <span class="nav-icon">📋</span> Attendance</a>
     <button class="nav-item"        data-sec="exams"        onclick="showSection('exams')">        <span class="nav-icon">📝</span> Exams</button>
     <button class="nav-item"        data-sec="results"      onclick="showSection('results')">      <span class="nav-icon">📊</span> Results</button>
     <button class="nav-item" onclick="window.location='/institution/school/analytics.html'">       <span class="nav-icon">📈</span> Analytics</button>
@@ -222,6 +223,7 @@
     <button class="nav-item"        data-sec="settings"     onclick="showSection('settings')">     <span class="nav-icon">⚙️</span> School Settings</button>
     <!-- ✅ PHASE L.6: Score Config nav link -->
     <a class="nav-item" href="/institution/school/score-config.html"><span class="nav-icon">🎯</span> Score Config</a>
+    <a class="nav-item" href="/institution/school/attendance-reports.html"><span class="nav-icon">📊</span> Attendance Reports</a>
     <div class="sb-sep">Links</div>
     <a href="/institution/student/exam.html" class="nav-item" target="_blank"><span class="nav-icon">🎓</span> Student Portal</a>
     <a href="/institution/index.html"        class="nav-item"><span class="nav-icon">🏠</span> Institution Home</a>
@@ -273,6 +275,9 @@
           <button class="btn btn-secondary" onclick="showSection('results')">📊 Results</button>
           <!-- ✅ PHASE L.6: Score Config quick action -->
           <a class="btn btn-secondary" href="/institution/school/score-config.html">🎯 Score Config</a>
+          <!-- ✅ PHASE O: Attendance quick actions -->
+          <a class="btn btn-secondary" href="/institution/teacher/attendance.html">📋 Attendance</a>
+          <a class="btn btn-secondary" href="/institution/school/attendance-reports.html">📊 Attendance Reports</a>
         </div>
       </div>
     </div>
@@ -464,8 +469,35 @@
             <div><div style="font-size:14px; font-weight:600; color:#fff;">Allow late entry</div><div style="font-size:12px; color:var(--muted);">Students can join exam after it starts</div></div>
             <label style="position:relative; display:inline-block; width:44px; height:24px; cursor:pointer;">
               <input type="checkbox" id="setLateEntry" style="opacity:0; width:0; height:0;" onchange="toggleCheck(this)" />
-              <span id="setLateEntrySlider" style="position:absolute; inset:0; background:rgba(255,255,255,0.1); border-radius:24px; transition:all 0.3s;"></span>
+             <span id="setLateEntrySlider" style="position:absolute; inset:0; background:rgba(255,255,255,0.1); border-radius:24px; transition:all 0.3s;"></span>
             </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- ✅ PHASE O: Attendance Mode -->
+      <div class="card">
+        <div class="card-head"><h3>Attendance Mode</h3></div>
+        <div class="card-body">
+          <p style="font-size:13px; color:var(--secondary); margin:0 0 16px; line-height:1.6;">
+            Choose how teachers mark attendance for this school. You can change this at any time — existing attendance records are not affected.
+          </p>
+          <div id="attModeDesc" style="font-size:13px; color:#a78bfa; margin-bottom:18px; line-height:1.6; background:rgba(108,99,255,0.07); border:1px solid rgba(108,99,255,0.2); border-radius:9px; padding:12px 16px;">
+            Loading current mode...
+          </div>
+          <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <button id="attModDaily"  class="btn btn-sm btn-secondary" onclick="saveAttendanceMode('daily')">
+              📋 Daily Attendance
+            </button>
+            <button id="attModPeriod" class="btn btn-sm btn-secondary" onclick="saveAttendanceMode('period')">
+              📚 Period / Lecture Attendance
+            </button>
+          </div>
+          <div style="margin-top:14px; font-size:12px; color:var(--muted); line-height:1.9;">
+            <strong style="color:var(--secondary);">📋 Daily</strong> — One mark per student per class per day.
+            Best for primary and secondary schools.<br/>
+            <strong style="color:var(--secondary);">📚 Period / Lecture</strong> — One mark per student per lecture or period.
+            Best for polytechnics, colleges, and universities.
           </div>
         </div>
       </div>
@@ -1160,9 +1192,10 @@ function loadSettingsSection() {
     'setSecondaryColor':_school.secondaryColor ||'#43e97b'
   };
   Object.keys(fieldMap).forEach(function(id){var el=document.getElementById(id); if(el)el.value=fieldMap[id];});
-  setToggle('setAutoRelease', _school.settings&&_school.settings.examResultsAutoRelease);
+ setToggle('setAutoRelease', _school.settings&&_school.settings.examResultsAutoRelease);
   setToggle('setLateEntry',   _school.settings&&_school.settings.allowLateSubmission);
   loadSlugPanel();
+  loadAttendanceMode();
 }
 
 function loadSlugPanel() {
@@ -1198,7 +1231,37 @@ function loadSlugPanel() {
     }
   }
 }
+/* ============================================
+   ✅ PHASE O: ATTENDANCE MODE SETTINGS
+   Loads current mode and highlights the active
+   button. saveAttendanceMode() calls the API
+   and refreshes the display.
+============================================ */
+async function loadAttendanceMode() {
+  var res = await instApi('/attendance/settings');
+  if (!res.ok) { return; }
+  var mode      = res.data.attendanceMode || 'daily';
+  var dailyBtn  = document.getElementById('attModDaily');
+  var periodBtn = document.getElementById('attModPeriod');
+  var descEl    = document.getElementById('attModeDesc');
+  if (dailyBtn)  { dailyBtn.className  = 'btn btn-sm ' + (mode === 'daily'  ? 'btn-primary' : 'btn-secondary'); }
+  if (periodBtn) { periodBtn.className = 'btn btn-sm ' + (mode === 'period' ? 'btn-primary' : 'btn-secondary'); }
+  if (descEl) {
+    descEl.textContent = mode === 'period'
+      ? 'Period / Lecture mode is active — teachers mark attendance per lecture or period. Best for polytechnics, colleges, and universities.'
+      : 'Daily mode is active — teachers mark attendance once per class per day. Best for primary and secondary schools.';
+  }
+}
 
+async function saveAttendanceMode(mode) {
+  var res = await instApi('/attendance/settings', 'PATCH', { attendanceMode: mode });
+  if (res.ok) {
+    instToast('Attendance mode updated to "' + mode + '".', 'success');
+    loadAttendanceMode();
+  } else {
+    instToast((res.data && res.data.message) || 'Failed to update mode.', 'error');
+  }
+}
 /* Live slug validation as user types */
 function onSlugInput(value) {
   var clean = value.toLowerCase().replace(/[^a-z0-9-]/g, '');
