@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Login — LatLomp Institution</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --primary:#6c63ff; --pd:#574fd6;
+      --green:#43e97b;   --red:#ff6584;
+      --orange:#ffa500;
+      --dark:#0f0f1a;    --dark-2:#1a1a2e;
+      --border:rgba(255,255,255,0.08);
+      --text:#fff; --muted:#6b6b8a; --secondary:#a0a0c0;
+    }
+    html, body {
+      margin:0; padding:0;
+      background:var(--dark);
+      color:var(--text);
+      font-family:'Inter',sans-serif;
+      min-height:100vh;
+    }
+    @keyframes spin   { to { transform:rotate(360deg); } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes pulse  { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
+
+    /* ---- LAYOUT ---- */
+    .page {
+      min-height:100vh;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      padding:24px 20px;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(108,99,255,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 20%, rgba(67,233,123,0.07) 0%, transparent 55%),
+        var(--dark);
+    }
+
+    /* ---- CARD ---- */
+    .login-card {
+      width:100%;
+      max-width:420px;
+      background:var(--dark-2);
+      border:1px solid var(--border);
+      border-radius:20px;
+      padding:36px 32px;
+      animation:fadeUp 0.35s ease;
+      box-shadow:0 24px 80px rgba(0,0,0,0.5);
+    }
+    @media (max-width:480px) { .login-card { padding:28px 20px; } }
+
+    /* ---- SCHOOL BRANDING HEADER ---- */
+    .school-header {
+      text-align:center;
+      margin-bottom:28px;
+    }
+    .school-logo-wrap {
+      width:64px; height:64px;
+      border-radius:14px;
+      margin:0 auto 14px;
+      display:flex; align-items:center; justify-content:center;
+      overflow:hidden;
+      background:linear-gradient(135deg,var(--primary),var(--pd));
+      font-size:28px; font-weight:900; color:#fff;
+      flex-shrink:0;
+      transition:all 0.3s;
+    }
+    .school-logo-wrap img {
+      width:100%; height:100%; object-fit:cover;
+      border-radius:14px;
+    }
+    .school-name {
+      font-size:16px; font-weight:800; color:#fff;
+      margin:0 0 4px;
+      transition:all 0.3s;
+    }
+    .portal-label {
+      font-size:12px; font-weight:700;
+      color:var(--muted);
+      text-transform:uppercase;
+      letter-spacing:0.6px;
+    }
+
+    /* ---- DIVIDER ---- */
+    .divider {
+      height:1px;
+      background:var(--border);
+      margin:0 0 24px;
+    }
+
+    /* ---- FORM ---- */
+    .field { display:flex; flex-direction:column; gap:7px; margin-bottom:16px; }
+    .field label {
+      font-size:11px; font-weight:700;
+      color:var(--secondary);
+      text-transform:uppercase;
+      letter-spacing:0.5px;
+    }
+    .inp-wrap { position:relative; }
+    .inp {
+      width:100%;
+      background:rgba(255,255,255,0.04);
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:13px 14px;
+      color:#fff;
+      font-size:15px;
+      font-family:'Inter',sans-serif;
+      outline:none;
+      transition:border-color 0.2s, background 0.2s;
+    }
+    .inp:focus { border-color:var(--primary); background:rgba(108,99,255,0.05); }
+    .inp::placeholder { color:var(--muted); }
+    .inp.has-toggle { padding-right:46px; }
+    .inp-icon {
+      position:absolute; right:14px; top:50%;
+      transform:translateY(-50%);
+      font-size:16px; cursor:pointer;
+      color:var(--muted); transition:color 0.2s;
+      user-select:none; line-height:1;
+    }
+    .inp-icon:hover { color:var(--secondary); }
+
+    /* Slug row — hidden when slug is in URL */
+    .slug-row { display:flex; flex-direction:column; gap:7px; margin-bottom:16px; }
+    .slug-hint {
+      font-size:11px; color:var(--muted); line-height:1.5; margin-top:2px;
+    }
+
+    /* PIN dots display */
+    .pin-wrap { position:relative; }
+
+    /* ---- TAB TOGGLE for admissionNo vs studentCode ---- */
+    .id-tabs {
+      display:flex;
+      background:rgba(255,255,255,0.04);
+      border-radius:8px;
+      padding:3px;
+      margin-bottom:16px;
+      gap:3px;
+    }
+    .id-tab {
+      flex:1;
+      padding:7px;
+      text-align:center;
+      border-radius:6px;
+      border:none;
+      font-size:12px;
+      font-weight:700;
+      cursor:pointer;
+      font-family:'Inter',sans-serif;
+      transition:all 0.2s;
+      background:transparent;
+      color:var(--muted);
+    }
+    .id-tab.active {
+      background:linear-gradient(135deg,var(--primary),var(--pd));
+      color:#fff;
+    }
+
+    /* ---- ERROR BOX ---- */
+    .err-box {
+      display:none;
+      background:rgba(255,101,132,0.08);
+      border:1px solid rgba(255,101,132,0.3);
+      border-radius:9px;
+      padding:12px 14px;
+      font-size:13px;
+      color:var(--red);
+      margin-bottom:16px;
+      line-height:1.5;
+    }
+
+    /* ---- INFO BOX ---- */
+    .info-box {
+      background:rgba(108,99,255,0.07);
+      border:1px solid rgba(108,99,255,0.2);
+      border-radius:9px;
+      padding:12px 14px;
+      font-size:12px;
+      color:#a78bfa;
+      margin-bottom:20px;
+      line-height:1.6;
+    }
+    .info-box strong { color:#fff; }
+
+    /* ---- SUBMIT BUTTON ---- */
+    .btn-login {
+      width:100%;
+      padding:15px;
+      background:linear-gradient(135deg,var(--primary),var(--pd));
+      color:#fff;
+      border:none;
+      border-radius:12px;
+      font-size:15px;
+      font-weight:800;
+      cursor:pointer;
+      font-family:'Inter',sans-serif;
+      transition:all 0.2s;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      letter-spacing:0.2px;
+    }
+    .btn-login:hover:not(:disabled) {
+      transform:translateY(-2px);
+      box-shadow:0 8px 28px rgba(108,99,255,0.5);
+    }
+    .btn-login:disabled {
+      opacity:0.55;
+      cursor:not-allowed;
+      transform:none;
+    }
+
+    /* ---- SUCCESS STATE ---- */
+    .success-state {
+      display:none;
+      text-align:center;
+      padding:12px 0;
+      animation:fadeUp 0.3s ease;
+    }
+    .success-icon { font-size:52px; margin-bottom:14px; }
+    .success-title { font-size:18px; font-weight:800; color:#fff; margin:0 0 6px; }
+    .success-sub   { font-size:13px; color:var(--secondary); margin:0 0 16px; }
+    .progress-bar  {
+      height:4px;
+      background:rgba(255,255,255,0.08);
+      border-radius:2px;
+      overflow:hidden;
+    }
+    .progress-fill {
+      height:100%;
+      background:linear-gradient(90deg,var(--primary),var(--green));
+      border-radius:2px;
+      animation:progressAnim 1.8s ease forwards;
+    }
+    @keyframes progressAnim { from { width:0%; } to { width:100%; } }
+
+    /* ---- FOOTER ---- */
+    .login-footer {
+      text-align:center;
+      margin-top:22px;
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.6;
+    }
+    .login-footer a {
+      color:var(--primary);
+      text-decoration:none;
+    }
+    .login-footer a:hover { text-decoration:underline; }
+
+    .spinner {
+      width:18px; height:18px;
+      border:2px solid rgba(255,255,255,0.4);
+      border-top-color:#fff;
+      border-radius:50%;
+      animation:spin 0.7s linear infinite;
+      display:inline-block;
+    }
+
+    /* ---- SLUG DETECTED BADGE ---- */
+    .slug-detected {
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      background:rgba(67,233,123,0.1);
+      border:1px solid rgba(67,233,123,0.25);
+      color:var(--green);
+      border-radius:20px;
+      padding:4px 12px;
+      font-size:11px;
+      font-weight:700;
+      margin-bottom:18px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+  <div class="login-card">
+
+    <!-- SCHOOL HEADER -->
+    <div class="school-header">
+      <div class="school-logo-wrap" id="schoolLogoWrap">🎓</div>
+      <div class="school-name"  id="schoolName">Student Portal</div>
+      <div class="portal-label">Secure Student Login</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- SLUG DETECTED BADGE (shown when slug is in URL) -->
+    <div class="slug-detected" id="slugBadge" style="display:none;">
+      🔗 School link detected
+    </div>
+
+    <!-- MAIN FORM -->
+    <div id="formArea">
+
+      <!-- ERROR -->
+      <div class="err-box" id="errBox"></div>
+
+      <!-- SLUG FIELD (hidden if ?slug is in URL) -->
+      <div class="slug-row" id="slugRow">
+        <label style="font-size:11px; font-weight:700; color:var(--secondary); text-transform:uppercase; letter-spacing:0.5px;">
+          School Access Code
+        </label>
+        <input type="text" id="schoolSlug" class="inp"
+               placeholder="e.g. greenfield-secondary-school"
+               autocomplete="off"
+               oninput="onSlugInput()" />
+        <div class="slug-hint">
+          Your school's access code is in the link your school gave you.
+          Contact your school admin if you don't have it.
+        </div>
+      </div>
+
+      <!-- ID TYPE SELECTOR -->
+      <div style="margin-bottom:8px;">
+        <div class="id-tabs">
+          <button class="id-tab active" id="tabAdmission" onclick="switchIdTab('admission')">
+            Admission No
+          </button>
+          <button class="id-tab" id="tabStudentCode" onclick="switchIdTab('code')">
+            Student ID
+          </button>
+        </div>
+      </div>
+
+      <!-- ADMISSION NUMBER -->
+      <div class="field" id="fieldAdmission">
+        <label>Admission Number</label>
+        <input type="text" id="admissionNo" class="inp"
+               placeholder="e.g. ADM-2024-001"
+               autocomplete="off" />
+      </div>
+
+      <!-- STUDENT CODE (hidden by default) -->
+      <div class="field" id="fieldStudentCode" style="display:none;">
+        <label>Student ID / Code</label>
+        <input type="text" id="studentCode" class="inp"
+               placeholder="e.g. STU-2024-0001"
+               autocomplete="off" />
+      </div>
+
+      <!-- PIN -->
+      <div class="field">
+        <label>PIN</label>
+        <div class="inp-wrap pin-wrap">
+          <input type="password" id="pinInput" class="inp has-toggle"
+                 placeholder="Enter your PIN"
+                 maxlength="8"
+                 autocomplete="current-password"
+                 onkeydown="onPinKeydown(event)" />
+          <span class="inp-icon" id="pinToggle" onclick="togglePin()">👁</span>
+        </div>
+      </div>
+
+      <!-- INFO -->
+      <div class="info-box">
+        <strong>First time logging in?</strong> Your PIN was assigned by your school administrator.
+        Contact your school if you have not received a PIN.
+      </div>
+
+      <!-- SUBMIT -->
+      <button class="btn-login" id="loginBtn" onclick="submitLogin()">
+        Sign In →
+      </button>
+
+    </div><!-- /formArea -->
+
+    <!-- SUCCESS STATE (shown after login) -->
+    <div class="success-state" id="successState">
+      <div class="success-icon">🎉</div>
+      <div class="success-title" id="successTitle">Welcome!</div>
+      <div class="success-sub" id="successSub">Loading your portal...</div>
+      <div class="progress-bar"><div class="progress-fill"></div></div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="login-footer">
+      <a href="/institution/student/exam.html">← Take a CBT Exam</a>
+      &nbsp;·&nbsp;
+      <a href="/institution/index.html">Staff Login</a>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ============================================
+   ✅ PHASE P STAGE 2: STUDENT LOGIN PAGE
+   PIN-based authentication.
+   Slug can be pre-filled from ?slug= URL param.
+   On success: stores token + user in localStorage
+   and redirects to portal.html.
+============================================ */
+
+var STUDENT_TOKEN_KEY  = 'latlomp_student_token';
+var STUDENT_USER_KEY   = 'latlomp_student_user';
+var STUDENT_SCHOOL_KEY = 'latlomp_student_school';
+
+var _idTab = 'admission'; /* 'admission' | 'code' */
+
+/* ============================================ INIT */
+document.addEventListener('DOMContentLoaded', function () {
+  /* If already logged in, go straight to portal */
+  var existing = localStorage.getItem(STUDENT_TOKEN_KEY);
+  if (existing) {
+    window.location.replace('/institution/student/portal.html');
+    return;
+  }
+
+  /* Read slug from URL */
+  var params = new URLSearchParams(window.location.search);
+  var slug   = params.get('slug');
+  if (slug && slug.trim()) {
+    document.getElementById('schoolSlug').value = slug.trim();
+    document.getElementById('slugRow').style.display  = 'none';
+    document.getElementById('slugBadge').style.display = 'inline-flex';
+  }
+});
+
+/* ============================================ SLUG INPUT */
+function onSlugInput() {
+  /* Nothing special — just let user type */
+}
+
+/* ============================================ ID TYPE TAB */
+function switchIdTab(type) {
+  _idTab = type;
+  var isAdm = (type === 'admission');
+  document.getElementById('tabAdmission').className  = 'id-tab' + (isAdm  ? ' active' : '');
+  document.getElementById('tabStudentCode').className = 'id-tab' + (!isAdm ? ' active' : '');
+  document.getElementById('fieldAdmission').style.display   = isAdm  ? 'flex'  : 'none';
+  document.getElementById('fieldStudentCode').style.display = !isAdm ? 'flex'  : 'none';
+}
+
+/* ============================================ PIN TOGGLE */
+function togglePin() {
+  var inp  = document.getElementById('pinInput');
+  var icon = document.getElementById('pinToggle');
+  if (!inp || !icon) { return; }
+  if (inp.type === 'password') {
+    inp.type  = 'text';
+    icon.textContent = '🙈';
+  } else {
+    inp.type  = 'password';
+    icon.textContent = '👁';
+  }
+}
+
+function onPinKeydown(e) {
+  if (e.key === 'Enter') { submitLogin(); }
+}
+
+/* ============================================ SUBMIT */
+async function submitLogin() {
+  var errBox    = document.getElementById('errBox');
+  var loginBtn  = document.getElementById('loginBtn');
+  if (!errBox || !loginBtn) { return; }
+
+  errBox.style.display = 'none';
+
+  /* Gather values */
+  var slug        = document.getElementById('schoolSlug').value.trim();
+  var admissionNo = document.getElementById('admissionNo').value.trim();
+  var studentCode = document.getElementById('studentCode').value.trim();
+  var pin         = document.getElementById('pinInput').value.trim();
+
+  /* Validation */
+  if (!slug) {
+    showErr('Please enter your school access code.');
+    document.getElementById('slugRow').style.display = 'flex';
+    document.getElementById('schoolSlug').focus();
+    return;
+  }
+  if (_idTab === 'admission' && !admissionNo) {
+    showErr('Please enter your admission number.');
+    document.getElementById('admissionNo').focus();
+    return;
+  }
+  if (_idTab === 'code' && !studentCode) {
+    showErr('Please enter your student ID.');
+    document.getElementById('studentCode').focus();
+    return;
+  }
+  if (!pin) {
+    showErr('Please enter your PIN.');
+    document.getElementById('pinInput').focus();
+    return;
+  }
+
+  /* Loading state */
+  loginBtn.innerHTML = '<span class="spinner"></span> Signing in...';
+  loginBtn.disabled  = true;
+
+  var body = { schoolSlug: slug, pin: pin };
+  if (_idTab === 'admission') { body.admissionNo = admissionNo; }
+  else                         { body.studentCode = studentCode; }
+
+  try {
+    var res  = await fetch('/api/institution/student-portal/portal/login', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(body)
+    });
+    var data = await res.json();
+
+    if (!res.ok || !data.success) {
+      loginBtn.innerHTML = 'Sign In →';
+      loginBtn.disabled  = false;
+      showErr(data.message || 'Login failed. Please check your details and try again.');
+      return;
+    }
+
+    /* ---- SUCCESS ---- */
+    /* Store token and user data */
+    localStorage.setItem(STUDENT_TOKEN_KEY,  data.token);
+    localStorage.setItem(STUDENT_USER_KEY,   JSON.stringify(data.student  || {}));
+    localStorage.setItem(STUDENT_SCHOOL_KEY, JSON.stringify(data.school   || {}));
+
+    /* Update school logo/name with returned branding */
+    applyBranding(data.school, data.student);
+
+    /* Show success state */
+    showSuccess(data.student, data.school);
+
+  } catch (err) {
+    loginBtn.innerHTML = 'Sign In →';
+    loginBtn.disabled  = false;
+    showErr('Network error. Please check your connection and try again.');
+    console.error('[student-login] fetch error:', err.message);
+  }
+}
+
+/* ============================================ BRANDING */
+function applyBranding(school, student) {
+  if (!school) { return; }
+
+  var logoWrap = document.getElementById('schoolLogoWrap');
+  var nameEl   = document.getElementById('schoolName');
+
+  if (logoWrap) {
+    if (school.logo) {
+      logoWrap.innerHTML = '<img src="' + esc(school.logo) + '" alt="School Logo" />';
+    } else {
+      logoWrap.textContent = esc((school.name || 'S').charAt(0).toUpperCase());
+    }
+    if (school.primaryColor) {
+      logoWrap.style.background = school.primaryColor;
+    }
+  }
+
+  if (nameEl && school.name) {
+    nameEl.textContent = school.name;
+  }
+}
+
+/* ============================================ SUCCESS STATE */
+function showSuccess(student, school) {
+  var formArea     = document.getElementById('formArea');
+  var successState = document.getElementById('successState');
+  var titleEl      = document.getElementById('successTitle');
+  var subEl        = document.getElementById('successSub');
+  var slugBadge    = document.getElementById('slugBadge');
+
+  if (formArea)     { formArea.style.display     = 'none'; }
+  if (slugBadge)    { slugBadge.style.display     = 'none'; }
+  if (successState) { successState.style.display  = 'block'; }
+
+  if (titleEl) {
+    titleEl.textContent = 'Welcome, ' + ((student && student.name) ? student.name.split(' ')[0] : 'Student') + '! 🎉';
+  }
+  if (subEl) {
+    subEl.textContent = (school && school.name)
+      ? 'Loading ' + school.name + ' student portal...'
+      : 'Loading your student portal...';
+  }
+
+  /* Redirect after progress bar animation completes */
+  setTimeout(function () {
+    window.location.replace('/institution/student/portal.html');
+  }, 2000);
+}
+
+/* ============================================ ERROR */
+function showErr(msg) {
+  var el = document.getElementById('errBox');
+  if (!el) { return; }
+  el.textContent   = msg;
+  el.style.display = 'block';
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
