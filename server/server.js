@@ -63,21 +63,22 @@ app.use("/api/admin",   require("./institution/routes/inst.superadmin.routes"));
 /* ============================================
    INSTITUTION ROUTES
 ============================================ */
-app.use("/api/institution/auth",       require("./institution/routes/inst.auth.routes"));
-app.use("/api/institution/school",     require("./institution/routes/inst.school.routes"));
-app.use("/api/institution/teacher",    require("./institution/routes/inst.teacher.routes"));
-app.use("/api/institution/student",    require("./institution/routes/inst.student.routes"));
-app.use("/api/institution/superadmin", require("./institution/routes/inst.superadmin.routes"));
-app.use("/api/institution/payment",    require("./institution/routes/inst.payment.routes"));
-app.use("/api/institution/structure",  require("./institution/routes/inst.structure.routes"));
-app.use("/api/institution/report",     require("./institution/routes/inst.report.routes"));
-app.use("/api/institution/students",   require("./institution/routes/inst.student.mgmt.routes"));
-app.use("/api/institution/paper",      require("./institution/routes/inst.paper.routes"));
-app.use("/api/institution/score",      require("./institution/routes/inst.score.routes"));
-app.use("/api/institution/reportcard", require("./institution/routes/inst.reportcard.routes"));
-app.use("/api/institution/timetable",  require("./institution/routes/inst.timetable.routes"));
-/* ✅ PHASE O: Attendance System */
-app.use("/api/institution/attendance", require("./institution/routes/inst.attendance.routes"));
+app.use("/api/institution/auth",           require("./institution/routes/inst.auth.routes"));
+app.use("/api/institution/school",         require("./institution/routes/inst.school.routes"));
+app.use("/api/institution/teacher",        require("./institution/routes/inst.teacher.routes"));
+app.use("/api/institution/student",        require("./institution/routes/inst.student.routes"));
+app.use("/api/institution/superadmin",     require("./institution/routes/inst.superadmin.routes"));
+app.use("/api/institution/payment",        require("./institution/routes/inst.payment.routes"));
+app.use("/api/institution/structure",      require("./institution/routes/inst.structure.routes"));
+app.use("/api/institution/report",         require("./institution/routes/inst.report.routes"));
+app.use("/api/institution/students",       require("./institution/routes/inst.student.mgmt.routes"));
+app.use("/api/institution/paper",          require("./institution/routes/inst.paper.routes"));
+app.use("/api/institution/score",          require("./institution/routes/inst.score.routes"));
+app.use("/api/institution/reportcard",     require("./institution/routes/inst.reportcard.routes"));
+app.use("/api/institution/timetable",      require("./institution/routes/inst.timetable.routes"));
+app.use("/api/institution/attendance",     require("./institution/routes/inst.attendance.routes"));
+/* ✅ PHASE P: Student Authenticated Portal */
+app.use("/api/institution/student-portal", require("./institution/routes/inst.student.portal.routes"));
 
 /* ============================================
    HEALTH CHECK
