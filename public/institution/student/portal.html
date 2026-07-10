@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Portal — LatLomp Institution</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --primary:#6c63ff; --pd:#574fd6;
+      --green:#43e97b;   --red:#ff6584;
+      --orange:#ffa500;  --blue:#4facfe;
+      --dark:#0f0f1a;    --dark-2:#1a1a2e;
+      --border:rgba(255,255,255,0.08);
+      --text:#fff; --muted:#6b6b8a; --secondary:#a0a0c0;
+    }
+    html, body {
+      margin:0; padding:0;
+      background:var(--dark);
+      color:var(--text);
+      font-family:'Inter',sans-serif;
+      min-height:100vh;
+    }
+    @keyframes spin   { to { transform:rotate(360deg); } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+
+    /* ============ TOPBAR ============ */
+    .topbar {
+      position:sticky; top:0; z-index:300;
+      background:var(--dark-2);
+      border-bottom:1px solid var(--border);
+      height:60px;
+      display:flex; align-items:center;
+      padding:0 20px; gap:12px;
+    }
+    .topbar-logo {
+      width:34px; height:34px; border-radius:8px;
+      background:linear-gradient(135deg,var(--primary),var(--pd));
+      display:flex; align-items:center; justify-content:center;
+      font-size:16px; font-weight:900; color:#fff;
+      flex-shrink:0; overflow:hidden;
+    }
+    .topbar-logo img { width:100%; height:100%; object-fit:cover; border-radius:8px; }
+    .topbar-school { font-size:14px; font-weight:700; color:#fff; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .topbar-name   { font-size:11px; color:var(--muted); }
+    .btn-logout {
+      display:inline-flex; align-items:center; gap:5px;
+      padding:6px 12px; border-radius:7px;
+      background:rgba(255,101,132,0.08);
+      border:1px solid rgba(255,101,132,0.25);
+      color:var(--red); font-size:12px; font-weight:700;
+      cursor:pointer; font-family:inherit; transition:all 0.2s;
+    }
+    .btn-logout:hover { background:rgba(255,101,132,0.16); }
+
+    /* ============ BOTTOM NAV (mobile-first) ============ */
+    .bottom-nav {
+      position:fixed; bottom:0; left:0; right:0; z-index:300;
+      background:var(--dark-2);
+      border-top:1px solid var(--border);
+      display:flex; height:64px;
+      padding-bottom:env(safe-area-inset-bottom, 0px);
+    }
+    .nav-btn {
+      flex:1; display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      gap:3px; border:none; background:transparent;
+      color:var(--muted); font-family:inherit;
+      cursor:pointer; padding:8px 4px;
+      transition:all 0.15s; font-size:10px; font-weight:700;
+      letter-spacing:0.2px;
+    }
+    .nav-btn .nav-icon { font-size:20px; line-height:1; transition:transform 0.15s; }
+    .nav-btn.active { color:var(--primary); }
+    .nav-btn.active .nav-icon { transform:scale(1.15); }
+    .nav-btn:hover:not(.active) { color:var(--secondary); }
+
+    /* ============ CONTENT ============ */
+    .content {
+      max-width:900px;
+      margin:0 auto;
+      padding:20px 16px 90px;
+    }
+
+    .section { display:none; animation:fadeUp 0.25s ease; }
+    .section.active { display:block; }
+
+    /* ============ CARDS ============ */
+    .card {
+      background:var(--dark-2);
+      border:1px solid var(--border);
+      border-radius:14px;
+      overflow:hidden;
+      margin-bottom:16px;
+    }
+    .card-head {
+      display:flex; align-items:center;
+      justify-content:space-between;
+      padding:14px 18px;
+      border-bottom:1px solid var(--border);
+      flex-wrap:wrap; gap:8px;
+    }
+    .card-head h3 { font-size:14px; font-weight:700; color:#fff; margin:0; }
+    .card-body { padding:18px; }
+
+    /* ============ PROFILE CARD (Overview) ============ */
+    .profile-card {
+      background:linear-gradient(135deg,rgba(108,99,255,0.15),rgba(87,79,214,0.08));
+      border:1px solid rgba(108,99,255,0.2);
+      border-radius:16px;
+      padding:22px 20px;
+      display:flex;
+      align-items:center;
+      gap:16px;
+      margin-bottom:16px;
+    }
+    .avatar {
+      width:64px; height:64px; border-radius:50%;
+      background:linear-gradient(135deg,var(--primary),var(--pd));
+      display:flex; align-items:center; justify-content:center;
+      font-size:26px; font-weight:900; color:#fff;
+      flex-shrink:0; overflow:hidden;
+    }
+    .avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+    .profile-name  { font-size:18px; font-weight:800; color:#fff; margin:0 0 4px; }
+    .profile-class { font-size:13px; color:#a78bfa; font-weight:600; margin:0 0 2px; }
+    .profile-meta  { font-size:12px; color:var(--muted); margin:0; }
+
+    /* ============ STATS ROW (Overview) ============ */
+    .stats-row {
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+      margin-bottom:16px;
+    }
+    .stat-tile {
+      background:var(--dark-2);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:16px;
+      text-align:center;
+    }
+    .stat-tile .st-val {
+      font-size:26px; font-weight:900;
+      color:#fff; line-height:1; margin-bottom:4px;
+    }
+    .stat-tile .st-lbl {
+      font-size:11px; font-weight:700;
+      color:var(--muted); text-transform:uppercase;
+      letter-spacing:0.4px;
+    }
+
+    /* ============ NOTICE BOXES ============ */
+    .notice {
+      border-radius:10px; padding:14px 16px;
+      font-size:13px; line-height:1.6; margin-bottom:14px;
+    }
+    .notice-purple { background:rgba(108,99,255,0.07); border:1px solid rgba(108,99,255,0.2); color:#a78bfa; }
+    .notice-orange { background:rgba(255,165,0,0.07);  border:1px solid rgba(255,165,0,0.25); color:var(--orange); }
+    .notice-green  { background:rgba(67,233,123,0.07); border:1px solid rgba(67,233,123,0.2); color:var(--green); }
+    .notice strong { color:#fff; }
+
+    /* ============ SCORES TABLE ============ */
+    .score-table { width:100%; border-collapse:collapse; }
+    .score-table th {
+      padding:9px 12px; text-align:left;
+      font-size:10px; font-weight:700;
+      text-transform:uppercase; letter-spacing:0.5px;
+      color:var(--muted);
+      background:rgba(255,255,255,0.02);
+      border-bottom:1px solid var(--border);
+      white-space:nowrap;
+    }
+    .score-table td {
+      padding:10px 12px; font-size:13px;
+      color:var(--secondary);
+      border-bottom:1px solid var(--border);
+      vertical-align:middle;
+    }
+    .score-table tr:last-child td { border-bottom:none; }
+    .score-table tr:hover td { background:rgba(255,255,255,0.015); }
+    .subj-name { font-weight:700; color:#fff; }
+
+    /* ============ GRADE BADGE ============ */
+    .grade-badge {
+      display:inline-flex; align-items:center; justify-content:center;
+      width:34px; height:34px; border-radius:8px;
+      font-size:12px; font-weight:800;
+    }
+
+    /* ============ PCT BAR ============ */
+    .pct-bar-wrap { display:flex; align-items:center; gap:8px; }
+    .pct-bar { flex:1; height:5px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden; }
+    .pct-fill { height:100%; border-radius:3px; transition:width 0.5s; }
+    .pct-num  { font-size:12px; font-weight:800; min-width:36px; text-align:right; }
+
+    /* ============ REPORT CARD ============ */
+    .rc-meta-grid {
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin-bottom:16px;
+    }
+    .rc-meta-item {
+      background:rgba(255,255,255,0.03);
+      border-radius:9px;
+      padding:12px;
+    }
+    .rc-meta-label { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:3px; }
+    .rc-meta-value { font-size:14px; font-weight:700; color:#fff; }
+
+    /* ============ TIMETABLE GRID ============ */
+    .tt-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    .tt-table { width:100%; border-collapse:collapse; min-width:520px; }
+    .tt-table th {
+      padding:9px 8px; text-align:center;
+      font-size:10px; font-weight:700;
+      text-transform:uppercase; letter-spacing:0.4px;
+      color:var(--muted);
+      background:rgba(255,255,255,0.02);
+      border:1px solid var(--border);
+      white-space:nowrap;
+    }
+    .tt-table th.period-col { text-align:left; padding-left:12px; width:110px; }
+    .tt-table td { border:1px solid var(--border); padding:0; vertical-align:top; height:56px; }
+    .tt-period-label { padding:7px 10px; font-size:11px; font-weight:700; color:#fff; background:rgba(255,255,255,0.03); }
+    .tt-time { font-size:10px; color:var(--muted); font-weight:400; margin-top:1px; }
+    .tt-cell { width:100%; height:100%; min-height:56px; padding:6px 7px; }
+    .tt-cell.is-break {
+      background:repeating-linear-gradient(
+        45deg, rgba(255,255,255,0.015), rgba(255,255,255,0.015) 4px,
+        transparent 4px, transparent 8px
+      );
+    }
+    .tt-subj { font-size:11px; font-weight:800; color:#fff; line-height:1.3; margin-bottom:1px; }
+    .tt-teacher { font-size:10px; color:var(--secondary); }
+    .tt-room { font-size:10px; color:var(--muted); }
+    .tt-break-lbl { font-size:10px; color:var(--muted); font-style:italic; display:flex; align-items:center; justify-content:center; height:100%; }
+    .tt-empty { font-size:10px; color:rgba(255,255,255,0.15); display:flex; align-items:center; justify-content:center; height:100%; }
+
+    /* ============ ATTENDANCE ============ */
+    .att-summary-grid {
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:8px;
+      margin-bottom:16px;
+    }
+    @media (max-width:480px) { .att-summary-grid { grid-template-columns:1fr 1fr; } }
+    .att-pill {
+      border-radius:10px;
+      padding:12px;
+      text-align:center;
+    }
+    .att-pill .att-num  { font-size:22px; font-weight:900; color:#fff; line-height:1; margin-bottom:3px; }
+    .att-pill .att-lbl  { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; }
+
+    .att-record { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border); }
+    .att-record:last-child { border-bottom:none; }
+    .att-date  { font-size:13px; font-weight:700; color:#fff; }
+    .att-period { font-size:11px; color:var(--muted); }
+
+    /* ============ TERM SELECTOR ============ */
+    .term-sel {
+      background:rgba(255,255,255,0.04);
+      border:1px solid var(--border);
+      border-radius:8px;
+      padding:8px 12px;
+      color:#fff;
+      font-size:13px;
+      font-family:inherit;
+      outline:none;
+      cursor:pointer;
+      transition:border-color 0.2s;
+    }
+    .term-sel:focus { border-color:var(--primary); }
+    .term-sel option { background:var(--dark-2); }
+
+    /* ============ BADGES ============ */
+    .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+    .badge-green  { background:rgba(67,233,123,0.12);  color:var(--green); }
+    .badge-orange { background:rgba(255,165,0,0.12);   color:var(--orange); }
+    .badge-red    { background:rgba(255,101,132,0.12); color:var(--red); }
+    .badge-blue   { background:rgba(79,172,254,0.12);  color:var(--blue); }
+    .badge-muted  { background:rgba(255,255,255,0.06); color:var(--secondary); }
+
+    /* ============ SPINNER ============ */
+    .spinner { width:18px; height:18px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block; }
+    .spinner-lg { width:28px; height:28px; border-width:3px; display:block; margin:36px auto; }
+
+    /* ============ EMPTY ============ */
+    .empty { text-align:center; padding:40px 16px; }
+    .empty-icon  { font-size:40px; margin-bottom:10px; }
+    .empty-title { font-size:14px; font-weight:700; color:var(--secondary); margin-bottom:6px; }
+    .empty-sub   { font-size:12px; color:var(--muted); line-height:1.7; }
+
+    /* ============ LOADING OVERLAY ============ */
+    .loading-overlay {
+      position:fixed; inset:0; background:var(--dark);
+      display:flex; align-items:center; justify-content:center;
+      flex-direction:column; gap:14px; z-index:999;
+    }
+    .loading-overlay p { font-size:13px; color:var(--muted); }
+  </style>
+</head>
+<body>
+
+<!-- INITIAL LOADING OVERLAY -->
+<div class="loading-overlay" id="loadingOverlay">
+  <span class="spinner" style="width:32px; height:32px; border-width:3px;"></span>
+  <p>Loading your portal...</p>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar" id="topbar" style="display:none;">
+  <div class="topbar-logo" id="topbarLogo">🎓</div>
+  <div style="flex:1; min-width:0;">
+    <div class="topbar-school" id="topbarSchool">School Name</div>
+    <div class="topbar-name"   id="topbarName">Student</div>
+  </div>
+  <button class="btn-logout" onclick="logout()">Sign Out</button>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="content" id="mainContent" style="display:none;">
+
+  <!-- ============ SECTION: OVERVIEW ============ -->
+  <div class="section active" id="secOverview">
+
+    <div class="profile-card" id="profileCard">
+      <div class="avatar" id="avatarEl">🧑‍🎓</div>
+      <div>
+        <div class="profile-name"  id="profileName">Loading...</div>
+        <div class="profile-class" id="profileClass"></div>
+        <div class="profile-meta"  id="profileMeta"></div>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-tile">
+        <div class="st-val" id="overviewAttPct">—</div>
+        <div class="st-lbl">Attendance</div>
+      </div>
+      <div class="stat-tile">
+        <div class="st-val" id="overviewScoreCount">—</div>
+        <div class="st-lbl">Subjects Released</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>Quick Access</h3></div>
+      <div class="card-body" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:14px;">
+        <button class="btn-nav-quick" onclick="switchSection('secScores',   'navScores')"   style="padding:14px; background:rgba(108,99,255,0.1); border:1px solid rgba(108,99,255,0.25); border-radius:12px; color:#a78bfa; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; text-align:center;">📊 My Scores</button>
+        <button class="btn-nav-quick" onclick="switchSection('secReport',   'navReport')"   style="padding:14px; background:rgba(67,233,123,0.08); border:1px solid rgba(67,233,123,0.2); border-radius:12px; color:var(--green); font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; text-align:center;">📋 Report Card</button>
+        <button class="btn-nav-quick" onclick="switchSection('secTimetable','navTimetable')" style="padding:14px; background:rgba(255,165,0,0.08); border:1px solid rgba(255,165,0,0.2); border-radius:12px; color:var(--orange); font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; text-align:center;">📅 Timetable</button>
+        <button class="btn-nav-quick" onclick="switchSection('secAttendance','navAttendance')" style="padding:14px; background:rgba(79,172,254,0.08); border:1px solid rgba(79,172,254,0.2); border-radius:12px; color:var(--blue); font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; text-align:center;">📌 Attendance</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ SECTION: SCORES ============ -->
+  <div class="section" id="secScores">
+    <div class="card">
+      <div class="card-head">
+        <h3>📊 My Scores</h3>
+        <select class="term-sel" id="scoreTermSel" onchange="loadScores()">
+          <option value="">Loading terms...</option>
+        </select>
+      </div>
+      <div id="scoresContent">
+        <div class="card-body"><span class="spinner spinner-lg"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SECTION: REPORT CARD ============ -->
+  <div class="section" id="secReport">
+    <div class="card">
+      <div class="card-head">
+        <h3>📋 Report Card</h3>
+        <select class="term-sel" id="reportTermSel" onchange="loadReportCard()">
+          <option value="">Loading terms...</option>
+        </select>
+      </div>
+      <div id="reportContent">
+        <div class="card-body"><span class="spinner spinner-lg"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SECTION: TIMETABLE ============ -->
+  <div class="section" id="secTimetable">
+    <div class="card">
+      <div class="card-head"><h3>📅 My Timetable</h3></div>
+      <div id="timetableContent">
+        <div class="card-body"><span class="spinner spinner-lg"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SECTION: ATTENDANCE ============ -->
+  <div class="section" id="secAttendance">
+    <div class="card">
+      <div class="card-head">
+        <h3>📌 Attendance</h3>
+        <select class="term-sel" id="attTermSel" onchange="loadAttendance()">
+          <option value="">Loading terms...</option>
+        </select>
+      </div>
+      <div id="attendanceContent">
+        <div class="card-body"><span class="spinner spinner-lg"></span></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /content -->
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav" id="bottomNav" style="display:none;">
+  <button class="nav-btn active" id="navOverview"   onclick="switchSection('secOverview',   'navOverview')">
+    <span class="nav-icon">🏠</span>Home
+  </button>
+  <button class="nav-btn" id="navScores"     onclick="switchSection('secScores',     'navScores')">
+    <span class="nav-icon">📊</span>Scores
+  </button>
+  <button class="nav-btn" id="navReport"     onclick="switchSection('secReport',     'navReport')">
+    <span class="nav-icon">📋</span>Report
+  </button>
+  <button class="nav-btn" id="navTimetable"  onclick="switchSection('secTimetable',  'navTimetable')">
+    <span class="nav-icon">📅</span>Timetable
+  </button>
+  <button class="nav-btn" id="navAttendance" onclick="switchSection('secAttendance', 'navAttendance')">
+    <span class="nav-icon">📌</span>Attendance
+  </button>
+</nav>
+
+<script>
+/* ============================================
+   ✅ PHASE P STAGE 3: STUDENT PORTAL DASHBOARD
+   Read-only portal. Student sees their own data.
+   Uses student JWT from localStorage.
+   API base: /api/institution/student-portal
+============================================ */
+
+var STUDENT_TOKEN_KEY  = 'latlomp_student_token';
+var STUDENT_USER_KEY   = 'latlomp_student_user';
+var STUDENT_SCHOOL_KEY = 'latlomp_student_school';
+var API_BASE           = '/api/institution/student-portal';
+
+var _student  = null;
+var _school   = null;
+var _terms    = [];
+var _loaded   = {};  /* tracks which sections have loaded */
+
+/* ============================================ API HELPER */
+async function sApi(path, method, body) {
+  method = method || 'GET';
+  var token = localStorage.getItem(STUDENT_TOKEN_KEY);
+  var opts  = {
+    method:  method,
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': token ? ('Bearer ' + token) : ''
+    }
+  };
+  if (body && method !== 'GET') { opts.body = JSON.stringify(body); }
+  try {
+    var res  = await fetch(API_BASE + path, opts);
+    var data = await res.json();
+    /* Token expired or invalid */
+    if (res.status === 401) {
+      localStorage.removeItem(STUDENT_TOKEN_KEY);
+      localStorage.removeItem(STUDENT_USER_KEY);
+      localStorage.removeItem(STUDENT_SCHOOL_KEY);
+      window.location.replace('/institution/student/login.html');
+      return { ok: false, status: 401, data: data };
+    }
+    return { ok: res.ok, status: res.status, data: data };
+  } catch (err) {
+    return { ok: false, status: 0, data: { message: 'Network error.' } };
+  }
+}
+
+/* ============================================ INIT */
+document.addEventListener('DOMContentLoaded', async function () {
+  var token = localStorage.getItem(STUDENT_TOKEN_KEY);
+  if (!token) {
+    window.location.replace('/institution/student/login.html');
+    return;
+  }
+
+  /* Try cached school/student data first for faster render */
+  var cachedStudent = safeJson(localStorage.getItem(STUDENT_USER_KEY));
+  var cachedSchool  = safeJson(localStorage.getItem(STUDENT_SCHOOL_KEY));
+  if (cachedStudent && cachedSchool) {
+    _student = cachedStudent;
+    _school  = cachedSchool;
+    applyTopbar();
+  }
+
+  /* Load fresh profile from server */
+  var meRes = await sApi('/portal/me');
+  if (!meRes.ok) {
+    /* sApi already handles 401 redirect */
+    return;
+  }
+
+  _student = meRes.data.student;
+  _school  = meRes.data.school;
+  localStorage.setItem(STUDENT_USER_KEY,   JSON.stringify(_student));
+  localStorage.setItem(STUDENT_SCHOOL_KEY, JSON.stringify(_school));
+
+  applyTopbar();
+
+  /* Load terms then overview data in parallel */
+  await loadTerms();
+  await loadOverviewData();
+
+  /* Show UI */
+  document.getElementById('loadingOverlay').style.display = 'none';
+  document.getElementById('topbar').style.display         = 'flex';
+  document.getElementById('mainContent').style.display    = 'block';
+  document.getElementById('bottomNav').style.display      = 'flex';
+});
+
+/* ============================================ TOPBAR */
+function applyTopbar() {
+  if (!_school || !_student) { return; }
+
+  var logoEl    = document.getElementById('topbarLogo');
+  var schoolEl  = document.getElementById('topbarSchool');
+  var nameEl    = document.getElementById('topbarName');
+
+  if (logoEl) {
+    if (_school.logo) {
+      logoEl.innerHTML = '<img src="' + esc(_school.logo) + '" alt="Logo" />';
+    } else {
+      logoEl.textContent = esc((_school.name || 'S').charAt(0));
+      if (_school.primaryColor) { logoEl.style.background = _school.primaryColor; }
+    }
+  }
+  if (schoolEl) { schoolEl.textContent = _school.name || ''; }
+  if (nameEl)   { nameEl.textContent   = _student.name || ''; }
+}
+
+/* ============================================ OVERVIEW */
+async function loadOverviewData() {
+  /* Profile card */
+  var avatarEl  = document.getElementById('avatarEl');
+  var nameEl    = document.getElementById('profileName');
+  var classEl   = document.getElementById('profileClass');
+  var metaEl    = document.getElementById('profileMeta');
+
+  if (avatarEl) {
+    if (_student.passportPhotoUrl) {
+      avatarEl.innerHTML = '<img src="' + esc(_student.passportPhotoUrl) + '" alt="Photo" />';
+    } else {
+      avatarEl.textContent = esc((_student.name || 'S').charAt(0).toUpperCase());
+    }
+  }
+  if (nameEl)  { nameEl.textContent  = _student.name      || '—'; }
+  if (classEl) { classEl.textContent = _student.className  || ''; }
+
+  var metaParts = [];
+  if (_student.admissionNo) { metaParts.push('Adm: ' + _student.admissionNo); }
+  if (_student.studentCode) { metaParts.push('ID: '  + _student.studentCode);  }
+  if (_student.gender)      { metaParts.push(cap(_student.gender)); }
+  if (metaEl) { metaEl.textContent = metaParts.join('  ·  '); }
+
+  /* Quick stats — load attendance % and score count */
+  var currentTermId = getCurrentTermId();
+  var attFilter  = currentTermId ? '?termId=' + currentTermId : '';
+  var scoreFilter = currentTermId ? '?termId=' + currentTermId : '';
+
+  var [attRes, scoreRes] = await Promise.all([
+    sApi('/portal/attendance' + attFilter),
+    sApi('/portal/scores'    + scoreFilter)
+  ]);
+
+  var attPct      = document.getElementById('overviewAttPct');
+  var scoreCount  = document.getElementById('overviewScoreCount');
+
+  if (attPct) {
+    attPct.textContent = attRes.ok ? ((attRes.data.totals && attRes.data.totals.percentage) || 0) + '%' : '—';
+    var pct = attRes.ok ? (attRes.data.totals && attRes.data.totals.percentage) || 0 : 0;
+    attPct.style.color = pct >= 75 ? 'var(--green)' : pct >= 50 ? 'var(--orange)' : 'var(--red)';
+  }
+  if (scoreCount) {
+    scoreCount.textContent = scoreRes.ok ? ((scoreRes.data.scores && scoreRes.data.scores.length) || 0) : '—';
+  }
+}
+
+/* ============================================ TERMS */
+async function loadTerms() {
+  var res = await sApi('/portal/terms');
+  if (!res.ok) { return; }
+  _terms = res.data.terms || [];
+
+  var currentId = getCurrentTermId();
+  var opts = _terms.map(function (t) {
+    var label = (t.name || '') + (t.session ? ' — ' + t.session : '');
+    return '<option value="' + t._id + '"' + (t._id === currentId ? ' selected' : '') + '>' + esc(label) + '</option>';
+  }).join('');
+
+  ['scoreTermSel','reportTermSel','attTermSel'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) { el.innerHTML = opts || '<option value="">No terms</option>'; }
+  });
+}
+
+function getCurrentTermId() {
+  var cur = _terms.find(function (t) { return t.isCurrent; });
+  return cur ? cur._id : (_terms.length > 0 ? _terms[0]._id : '');
+}
+
+/* ============================================ NAV */
+function switchSection(sectionId, navId) {
+  /* Deactivate all */
+  document.querySelectorAll('.section').forEach(function (s) { s.classList.remove('active'); });
+  document.querySelectorAll('.nav-btn').forEach(function (b) { b.classList.remove('active'); });
+
+  /* Activate target */
+  var sec = document.getElementById(sectionId);
+  var nav = document.getElementById(navId);
+  if (sec) { sec.classList.add('active'); }
+  if (nav) { nav.classList.add('active'); }
+
+  /* Lazy-load section content on first visit */
+  if (!_loaded[sectionId]) {
+    _loaded[sectionId] = true;
+    if (sectionId === 'secScores')     { loadScores();     }
+    if (sectionId === 'secReport')     { loadReportCard(); }
+    if (sectionId === 'secTimetable')  { loadTimetable();  }
+    if (sectionId === 'secAttendance') { loadAttendance(); }
+  }
+
+  /* Scroll to top */
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ============================================ SCORES */
+async function loadScores() {
+  var el     = document.getElementById('scoresContent');
+  var termId = (document.getElementById('scoreTermSel') || {}).value || '';
+  if (!el) { return; }
+
+  el.innerHTML = '<div class="card-body"><span class="spinner spinner-lg"></span></div>';
+
+  var res = await sApi('/portal/scores' + (termId ? '?termId=' + termId : ''));
+  if (!res.ok) {
+    el.innerHTML = renderEmpty('⚠️', 'Failed to load scores', esc(res.data.message || ''));
+    return;
+  }
+
+  var scores = res.data.scores || [];
+  if (!scores.length) {
+    el.innerHTML = renderEmpty('📊', 'No scores released yet',
+      'Your school admin has not released any scores for this term. Check back later.');
+    return;
+  }
+
+  /* Summary row */
+  var totalPct = Math.round(scores.reduce(function (a, s) { return a + (s.percentage || 0); }, 0) / scores.length);
+  var passed   = scores.filter(function (s) { return (s.percentage || 0) >= 50; }).length;
+  var pctColor = totalPct >= 75 ? 'var(--green)' : totalPct >= 50 ? 'var(--orange)' : 'var(--red)';
+
+  var rows = scores.map(function (s) {
+    var pct   = s.percentage || 0;
+    var color = pct >= 75 ? 'var(--green)' : pct >= 50 ? 'var(--orange)' : 'var(--red)';
+    var gradeBg = pct >= 75 ? 'rgba(67,233,123,0.12)' : pct >= 50 ? 'rgba(255,165,0,0.12)' : 'rgba(255,101,132,0.12)';
+    var pos = s.position ? (ordinal(s.position) + '/' + s.positionOutOf) : '—';
+
+    return '<tr>' +
+      '<td><div class="subj-name">' + esc(s.subjectName) + '</div>' +
+        (s.subjectCode ? '<div style="font-size:10px; color:var(--muted);">' + esc(s.subjectCode) + '</div>' : '') +
+      '</td>' +
+      '<td style="text-align:center; font-weight:800; color:#fff;">' + (s.total || 0) + '<span style="font-size:10px; color:var(--muted);">/' + (s.maxPossible || 0) + '</span></td>' +
+      '<td style="text-align:center;">' +
+        '<div class="pct-bar-wrap">' +
+          '<div class="pct-bar"><div class="pct-fill" style="width:' + pct + '%; background:' + color + ';"></div></div>' +
+          '<span class="pct-num" style="color:' + color + ';">' + pct + '%</span>' +
+        '</div>' +
+      '</td>' +
+      '<td style="text-align:center;">' +
+        '<div class="grade-badge" style="background:' + gradeBg + '; color:' + color + ';">' + esc(s.grade || '—') + '</div>' +
+      '</td>' +
+      '<td style="text-align:center; font-size:12px; color:#a78bfa; font-weight:700;">' + pos + '</td>' +
+    '</tr>';
+  }).join('');
+
+  el.innerHTML =
+    '<div style="padding:14px 18px 0; display:flex; gap:14px; flex-wrap:wrap;">' +
+      '<div style="font-size:13px; color:var(--secondary);">Average: <strong style="color:' + pctColor + ';">' + totalPct + '%</strong></div>' +
+      '<div style="font-size:13px; color:var(--secondary);">Passed: <strong style="color:var(--green);">' + passed + ' of ' + scores.length + '</strong></div>' +
+    '</div>' +
+    '<div style="overflow-x:auto;">' +
+    '<table class="score-table">' +
+      '<thead><tr>' +
+        '<th>Subject</th>' +
+        '<th style="text-align:center; white-space:nowrap;">Total</th>' +
+        '<th>Score %</th>' +
+        '<th style="text-align:center;">Grade</th>' +
+        '<th style="text-align:center; white-space:nowrap;">Position</th>' +
+      '</tr></thead>' +
+      '<tbody>' + rows + '</tbody>' +
+    '</table>' +
+    '</div>';
+}
+
+/* ============================================ REPORT CARD */
+async function loadReportCard() {
+  var el     = document.getElementById('reportContent');
+  var termId = (document.getElementById('reportTermSel') || {}).value || '';
+  if (!el) { return; }
+
+  el.innerHTML = '<div class="card-body"><span class="spinner spinner-lg"></span></div>';
+
+  /* Load report card meta + scores in parallel */
+  var [rcRes, scoreRes] = await Promise.all([
+    sApi('/portal/report-card' + (termId ? '?termId=' + termId : '')),
+    sApi('/portal/scores'      + (termId ? '?termId=' + termId : ''))
+  ]);
+
+  if (!rcRes.ok) {
+    el.innerHTML = renderEmpty('⚠️', 'Failed to load report card', esc(rcRes.data.message || ''));
+    return;
+  }
+
+  if (!rcRes.data.released) {
+    el.innerHTML =
+      '<div class="card-body">' +
+        '<div class="notice notice-orange">⏳ ' + esc(rcRes.data.message || 'Report card not yet released.') + '</div>' +
+      '</div>';
+    return;
+  }
+
+  var term    = rcRes.data.term    || {};
+  var scores  = (scoreRes.ok && scoreRes.data.scores) ? scoreRes.data.scores : [];
+  var teacherComment   = rcRes.data.teacherComment    || '';
+  var principalComment = rcRes.data.principalComment  || '';
+  var resumptionDate   = rcRes.data.resumptionDate    || null;
+
+  /* Compute summary */
+  var totalMarks     = 0, maxPossible = 0, percentSum = 0, subjectsPassed = 0;
+  scores.forEach(function (s) {
+    totalMarks     += (s.total      || 0);
+    maxPossible    += (s.maxPossible || 0);
+    percentSum     += (s.percentage  || 0);
+    if ((s.percentage || 0) >= 50) { subjectsPassed++; }
+  });
+  var avgPct = scores.length > 0 ? Math.round(percentSum / scores.length) : 0;
+  var avgColor = avgPct >= 75 ? 'var(--green)' : avgPct >= 50 ? 'var(--orange)' : 'var(--red)';
+
+  var scoreRows = scores.map(function (s) {
+    var pct   = s.percentage || 0;
+    var color = pct >= 75 ? 'var(--green)' : pct >= 50 ? 'var(--orange)' : 'var(--red)';
+    return '<tr>' +
+      '<td class="subj-name">' + esc(s.subjectName) + '</td>' +
+      '<td style="text-align:center; font-weight:800; color:#fff;">' + (s.total || 0) + '</td>' +
+      '<td style="text-align:center; color:' + color + '; font-weight:700;">' + pct + '%</td>' +
+      '<td style="text-align:center; font-weight:800; color:' + color + ';">' + esc(s.grade || '—') + '</td>' +
+      '<td style="text-align:center; font-size:12px; color:var(--secondary);">' + esc(s.remark || '—') + '</td>' +
+    '</tr>';
+  }).join('');
+
+  var resumptionStr = resumptionDate
+    ? new Date(resumptionDate).toLocaleDateString('en-NG', { weekday:'long', day:'numeric', month:'long', year:'numeric', timeZone:'UTC' })
+    : 'To be announced';
+
+  el.innerHTML =
+    '<div class="card-body">' +
+      '<div class="notice notice-green" style="margin-bottom:16px;">✅ <strong>Report card released</strong> — ' + esc(term.name || '') + (term.session ? ' — ' + esc(term.session) : '') + '</div>' +
+
+      /* Summary */
+      '<div class="rc-meta-grid">' +
+        rcMeta('Total Marks', totalMarks + ' / ' + maxPossible) +
+        rcMeta('Average',     avgPct + '%',     avgColor) +
+        rcMeta('Passed',      subjectsPassed + ' of ' + scores.length) +
+        rcMeta('Student',     _student ? _student.name : '—') +
+      '</div>' +
+
+      /* Score table */
+      (scores.length > 0
+        ? '<div style="overflow-x:auto; margin-bottom:14px;">' +
+            '<table class="score-table">' +
+              '<thead><tr>' +
+                '<th>Subject</th>' +
+                '<th style="text-align:center;">Total</th>' +
+                '<th style="text-align:center;">%</th>' +
+                '<th style="text-align:center;">Grade</th>' +
+                '<th style="text-align:center;">Remark</th>' +
+              '</tr></thead>' +
+              '<tbody>' + scoreRows + '</tbody>' +
+            '</table>' +
+          '</div>'
+        : '<div class="notice notice-orange">Detailed scores not yet available.</div>') +
+
+      /* Comments */
+      (teacherComment || principalComment
+        ? '<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">' +
+            (teacherComment   ? '<div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:9px; padding:12px;"><div style="font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:5px;">Class Teacher</div><div style="font-size:13px; color:var(--secondary); line-height:1.5;">' + esc(teacherComment) + '</div></div>' : '') +
+            (principalComment ? '<div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:9px; padding:12px;"><div style="font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:5px;">Principal</div><div style="font-size:13px; color:var(--secondary); line-height:1.5;">' + esc(principalComment) + '</div></div>' : '') +
+          '</div>'
+        : '') +
+
+      /* Resumption */
+      '<div style="text-align:center; padding:12px; background:rgba(108,99,255,0.06); border:1px solid rgba(108,99,255,0.15); border-radius:9px; font-size:13px; color:#a78bfa;">' +
+        '📅 <strong style="color:#fff;">Next Term Resumption:</strong> ' + esc(resumptionStr) +
+      '</div>' +
+    '</div>';
+}
+
+function rcMeta(label, value, color) {
+  return '<div class="rc-meta-item">' +
+    '<div class="rc-meta-label">' + esc(label) + '</div>' +
+    '<div class="rc-meta-value"' + (color ? ' style="color:' + color + ';"' : '') + '>' + esc(String(value || '—')) + '</div>' +
+  '</div>';
+}
+
+/* ============================================ TIMETABLE */
+async function loadTimetable() {
+  var el = document.getElementById('timetableContent');
+  if (!el) { return; }
+  el.innerHTML = '<div class="card-body"><span class="spinner spinner-lg"></span></div>';
+
+  var res = await sApi('/portal/timetable');
+  if (!res.ok) {
+    el.innerHTML = renderEmpty('⚠️', 'Failed to load timetable', esc(res.data.message || ''));
+    return;
+  }
+
+  var periods = res.data.periods || [];
+  var grouped = res.data.grouped || {};
+
+  if (!periods.length && !res.data.total) {
+    el.innerHTML = renderEmpty('📅', 'No timetable set up yet',
+      'Your school admin has not configured your class timetable yet.');
+    return;
+  }
+
+  var DAYS = [
+    { key:'monday',    label:'Mon' },
+    { key:'tuesday',   label:'Tue' },
+    { key:'wednesday', label:'Wed' },
+    { key:'thursday',  label:'Thu' },
+    { key:'friday',    label:'Fri' },
+    { key:'saturday',  label:'Sat' }
+  ];
+
+  /* Build slot lookup */
+  var slotMap = {};
+  DAYS.forEach(function (d) {
+    (grouped[d.key] || []).forEach(function (slot) {
+      slotMap[d.key + '_' + slot.period] = slot;
+    });
+  });
+
+  var header = '<th class="period-col">Period</th>' +
+    DAYS.map(function (d) { return '<th>' + d.label + '</th>'; }).join('');
+
+  var rows = periods.map(function (p) {
+    var cells = DAYS.map(function (d) {
+      var slot = slotMap[d.key + '_' + p.period];
+      if (p.isBreak) {
+        return '<td><div class="tt-cell is-break"><div class="tt-break-lbl">' + esc(p.label) + '</div></div></td>';
+      }
+      if (slot && slot.subjectName) {
+        return '<td><div class="tt-cell" style="border-left:2px solid ' + (slot.color || 'var(--primary)') + ';">' +
+          '<div class="tt-subj">' + esc(slot.subjectName) + '</div>' +
+          (slot.teacherName ? '<div class="tt-teacher">' + esc(slot.teacherName) + '</div>' : '') +
+          (slot.room ? '<div class="tt-room">📍' + esc(slot.room) + '</div>' : '') +
+        '</div></td>';
+      }
+      return '<td><div class="tt-cell"><div class="tt-empty">—</div></div></td>';
+    }).join('');
+
+    return '<tr><td><div class="tt-period-label">' + esc(p.label) +
+      '<div class="tt-time">' + esc(p.startTime || '') + (p.endTime ? '–' + esc(p.endTime) : '') + '</div>' +
+    '</div></td>' + cells + '</tr>';
+  }).join('');
+
+  el.innerHTML = '<div class="tt-wrap"><table class="tt-table">' +
+    '<thead><tr>' + header + '</tr></thead>' +
+    '<tbody>' + rows + '</tbody>' +
+  '</table></div>';
+}
+
+/* ============================================ ATTENDANCE */
+async function loadAttendance() {
+  var el     = document.getElementById('attendanceContent');
+  var termId = (document.getElementById('attTermSel') || {}).value || '';
+  if (!el) { return; }
+  el.innerHTML = '<div class="card-body"><span class="spinner spinner-lg"></span></div>';
+
+  var res = await sApi('/portal/attendance' + (termId ? '?termId=' + termId : ''));
+  if (!res.ok) {
+    el.innerHTML = renderEmpty('⚠️', 'Failed to load attendance', esc(res.data.message || ''));
+    return;
+  }
+
+  var totals  = res.data.totals  || {};
+  var records = res.data.records || [];
+  var pct     = totals.percentage || 0;
+  var pctColor = pct >= 75 ? 'var(--green)' : pct >= 50 ? 'var(--orange)' : 'var(--red)';
+
+  /* Donut-style percentage display */
+  var pctDisplay =
+    '<div style="text-align:center; padding:20px 0 10px;">' +
+      '<div style="font-size:48px; font-weight:900; color:' + pctColor + '; line-height:1;">' + pct + '%</div>' +
+      '<div style="font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-top:4px;">Attendance Rate</div>' +
+      '<div class="pct-bar" style="margin:14px auto 0; max-width:200px; height:8px;">' +
+        '<div class="pct-fill" style="width:' + pct + '%; background:' + pctColor + ';"></div>' +
+      '</div>' +
+    '</div>';
+
+  var pills =
+    '<div class="att-summary-grid">' +
+      attPill(totals.presentCount || 0, 'Present', 'rgba(67,233,123,0.1)',  'rgba(67,233,123,0.25)',  'var(--green)') +
+      attPill(totals.absentCount  || 0, 'Absent',  'rgba(255,101,132,0.1)', 'rgba(255,101,132,0.25)', 'var(--red)') +
+      attPill(totals.lateCount    || 0, 'Late',     'rgba(255,165,0,0.1)',   'rgba(255,165,0,0.25)',   'var(--orange)') +
+      attPill(totals.excusedCount || 0, 'Excused',  'rgba(79,172,254,0.1)',  'rgba(79,172,254,0.25)',  'var(--blue)') +
+    '</div>';
+
+  var recordRows = '';
+  if (records.length > 0) {
+    recordRows =
+      '<div style="padding:0 18px 4px; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-top:6px;">Recent Records</div>' +
+      '<div style="padding:0 18px 16px;">' +
+      records.map(function (r) {
+        var dateStr = r.date ? new Date(r.date).toLocaleDateString('en-NG', { day:'numeric', month:'short', year:'numeric', timeZone:'UTC' }) : '—';
+        var statusBadge = r.status === 'present' ? '<span class="badge badge-green">Present</span>'
+          : r.status === 'absent'  ? '<span class="badge badge-red">Absent</span>'
+          : r.status === 'late'    ? '<span class="badge badge-orange">Late</span>'
+          : '<span class="badge badge-blue">Excused</span>';
+        var periodNote = r.period ? ' · Period ' + r.period : '';
+        return '<div class="att-record">' +
+          '<div>' +
+            '<div class="att-date">' + dateStr + '</div>' +
+            (r.notes ? '<div class="att-period" style="color:var(--muted);">' + esc(r.notes) + '</div>' : '<div class="att-period">' + (periodNote || 'Daily') + '</div>') +
+          '</div>' +
+          statusBadge +
+        '</div>';
+      }).join('') +
+      '</div>';
+  } else {
+    recordRows = '<div style="padding:0 18px 16px;"><div class="notice notice-purple">No attendance records found for this term.</div></div>';
+  }
+
+  el.innerHTML = pctDisplay + pills + recordRows;
+}
+
+function attPill(num, label, bg, border, color) {
+  return '<div class="att-pill" style="background:' + bg + '; border:1px solid ' + border + ';">' +
+    '<div class="att-num" style="color:' + color + ';">' + num + '</div>' +
+    '<div class="att-lbl">' + label + '</div>' +
+  '</div>';
+}
+
+/* ============================================ LOGOUT */
+function logout() {
+  if (!confirm('Sign out of the student portal?')) { return; }
+  localStorage.removeItem(STUDENT_TOKEN_KEY);
+  localStorage.removeItem(STUDENT_USER_KEY);
+  localStorage.removeItem(STUDENT_SCHOOL_KEY);
+  window.location.replace('/institution/student/login.html');
+}
+
+/* ============================================ HELPERS */
+function renderEmpty(icon, title, sub) {
+  return '<div class="card-body"><div class="empty">' +
+    '<div class="empty-icon">' + icon + '</div>' +
+    '<div class="empty-title">' + esc(title) + '</div>' +
+    '<div class="empty-sub">' + esc(sub) + '</div>' +
+  '</div></div>';
+}
+
+function ordinal(n) {
+  var s = ['th','st','nd','rd'];
+  var v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function cap(str) { return str ? str.charAt(0).toUpperCase() + str.slice(1) : ''; }
+
+function safeJson(str) {
+  try { return str ? JSON.parse(str) : null; } catch (e) { return null; }
+}
+
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
