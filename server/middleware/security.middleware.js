@@ -337,6 +337,8 @@ function applySecurityMiddleware(app) {
       makeLimit(15, 30,   'Too many authentication attempts. Please wait 15 minutes.'));
     app.use('/api/institution/auth/',
       makeLimit(15, 20,   'Too many institution login attempts. Please wait 15 minutes.'));
+    app.use('/api/institution/student-portal/portal/login',
+      makeLimit(15, 10,   'Too many login attempts. Please wait 15 minutes.'));
     app.use('/api/institution/payment/webhook',
       makeLimit(1,  100,  'Webhook rate limit exceeded.'));
     app.use('/api/payment/webhook',
