@@ -5,18 +5,18 @@
    ✅ PHASE L.6: Score Config Update Endpoints
    ✅ PHASE L.7: Approval Workflow + Visibility
 
-   NEW ENDPOINTS (L.7):
-     GET  /submission-status/:classId/:subjectId/:termId
-     POST /submit
-     GET  /submissions
-     GET  /submissions/pending-count
-     PUT  /submissions/:id/approve
-     PUT  /submissions/:id/reject
-     PUT  /submissions/:id/release
-
-   EXISTING ENDPOINTS: unchanged.
-   LOCK CHECK: /entry and /bulk now reject saves
-   when an approved submission exists.
+   ✅ RESTRUCTURE STAGE 3:
+   Score approval authority delegated to senior staff.
+   CHANGED GUARD (5 endpoints):
+     GET  /submissions/pending-count → approvalGuard
+     GET  /submissions              → approvalGuard
+     PUT  /submissions/:id/approve  → approvalGuard
+     PUT  /submissions/:id/reject   → approvalGuard
+     PUT  /submissions/:id/release  → approvalGuard
+   UNCHANGED (admin only — score structure config):
+     PUT  /config/:id → adminGuard
+     POST /config     → adminGuard
+   All other route logic is identical to Phase L.7.
 ============================================ */
 'use strict';
 
@@ -28,11 +28,18 @@ const ScoreConfig        = require('../models/ScoreConfig.model');
 const SchoolStudent      = require('../models/SchoolStudent.model');
 const ScoreSubmission    = require('../models/ScoreSubmission.model');
 
-const { instProtect, teacherOrAdmin, schoolAdminOnly } = require('../middleware/inst.auth');
-const { requireActiveSubscription }                    = require('../middleware/inst.tenant');
+const {
+  instProtect,
+  teacherOrAdmin,
+  schoolAdminOnly,
+  seniorStaffOrAdmin          /* ✅ STAGE 3: added */
+} = require('../middleware/inst.auth');
+const { requireActiveSubscription } = require('../middleware/inst.tenant');
 
-var guard      = [instProtect, teacherOrAdmin,  requireActiveSubscription];
-var adminGuard = [instProtect, schoolAdminOnly, requireActiveSubscription];
+var guard         = [instProtect, teacherOrAdmin,     requireActiveSubscription];
+var adminGuard    = [instProtect, schoolAdminOnly,    requireActiveSubscription];
+/* ✅ STAGE 3: approval authority now includes principal, vice_principal, dean, hod */
+var approvalGuard = [instProtect, seniorStaffOrAdmin, requireActiveSubscription];
 
 /* ============================================
    Shared calculation helper (unchanged).
@@ -94,7 +101,8 @@ router.get('/config', guard, async function (req, res) {
 });
 
 /* ============================================
-   PUT /config/:id  (L.6)
+   PUT /config/:id  (L.6) — adminGuard (unchanged)
+   Score structure config remains admin-only.
 ============================================ */
 router.put('/config/:id', adminGuard, async function (req, res) {
   try {
@@ -154,7 +162,7 @@ router.put('/config/:id', adminGuard, async function (req, res) {
 });
 
 /* ============================================
-   POST /config  (L.6)
+   POST /config  (L.6) — adminGuard (unchanged)
 ============================================ */
 router.post('/config', adminGuard, async function (req, res) {
   try {
@@ -184,10 +192,7 @@ router.post('/config', adminGuard, async function (req, res) {
 });
 
 /* ============================================
-   ✅ PHASE L.7: GET /submission-status/:c/:s/:t
-   Returns the current submission record for a
-   class/subject/term combination.
-   Used by score-entry.html on every roster load.
+   GET /submission-status/:classId/:subjectId/:termId
    ⚠ Defined before /submit to avoid path conflict.
 ============================================ */
 router.get('/submission-status/:classId/:subjectId/:termId', guard, async function (req, res) {
@@ -211,12 +216,12 @@ router.get('/submission-status/:classId/:subjectId/:termId', guard, async functi
 });
 
 /* ============================================
-   ✅ PHASE L.7: GET /submissions/pending-count
-   Returns count of pending submissions for this
-   school. Used by dashboard for notification badge.
+   GET /submissions/pending-count
+   ✅ STAGE 3: approvalGuard — principal and
+   vice_principal see pending count on their dashboard.
    ⚠ Must be before /submissions/:id
 ============================================ */
-router.get('/submissions/pending-count', adminGuard, async function (req, res) {
+router.get('/submissions/pending-count', approvalGuard, async function (req, res) {
   try {
     var count = await ScoreSubmission.countDocuments({
       schoolId: req.schoolId,
@@ -229,12 +234,11 @@ router.get('/submissions/pending-count', adminGuard, async function (req, res) {
 });
 
 /* ============================================
-   ✅ PHASE L.7: GET /submissions
-   Admin lists all submissions for this school
-   with optional status filter and pagination.
-   Populates class/subject/term/teacher names.
+   GET /submissions
+   ✅ STAGE 3: approvalGuard — senior staff can
+   view all submissions to review and approve.
 ============================================ */
-router.get('/submissions', adminGuard, async function (req, res) {
+router.get('/submissions', approvalGuard, async function (req, res) {
   try {
     var { status, page, limit } = req.query;
     var filter = { schoolId: req.schoolId };
@@ -273,12 +277,11 @@ router.get('/submissions', adminGuard, async function (req, res) {
 });
 
 /* ============================================
-   ✅ PHASE L.7: PUT /submissions/:id/approve
-   Admin approves a submission.
-   Scores for this class/subject/term become
-   locked — /entry and /bulk will reject edits.
+   PUT /submissions/:id/approve
+   ✅ STAGE 3: approvalGuard — principal,
+   vice_principal, dean, hod can now approve.
 ============================================ */
-router.put('/submissions/:id/approve', adminGuard, async function (req, res) {
+router.put('/submissions/:id/approve', approvalGuard, async function (req, res) {
   try {
     var sub = await ScoreSubmission.findOne({ _id: req.params.id, schoolId: req.schoolId });
     if (!sub) {
@@ -314,12 +317,11 @@ router.put('/submissions/:id/approve', adminGuard, async function (req, res) {
 });
 
 /* ============================================
-   ✅ PHASE L.7: PUT /submissions/:id/reject
-   Admin rejects with a reason.
-   Teacher can edit scores and resubmit.
+   PUT /submissions/:id/reject
+   ✅ STAGE 3: approvalGuard
    Body: { reason: string }
 ============================================ */
-router.put('/submissions/:id/reject', adminGuard, async function (req, res) {
+router.put('/submissions/:id/reject', approvalGuard, async function (req, res) {
   try {
     var { reason } = req.body || {};
     if (!reason || !reason.trim()) {
@@ -362,11 +364,10 @@ router.put('/submissions/:id/reject', adminGuard, async function (req, res) {
 });
 
 /* ============================================
-   ✅ PHASE L.7: PUT /submissions/:id/release
-   Toggles visibility of approved scores to
-   students. Only works on approved submissions.
+   PUT /submissions/:id/release
+   ✅ STAGE 3: approvalGuard
 ============================================ */
-router.put('/submissions/:id/release', adminGuard, async function (req, res) {
+router.put('/submissions/:id/release', approvalGuard, async function (req, res) {
   try {
     var sub = await ScoreSubmission.findOne({ _id: req.params.id, schoolId: req.schoolId });
     if (!sub) {
@@ -390,8 +391,8 @@ router.put('/submissions/:id/release', adminGuard, async function (req, res) {
     await sub.save();
 
     return res.json({
-      success:           true,
-      message:           sub.releasedToStudents
+      success:            true,
+      message:            sub.releasedToStudents
         ? 'Scores released to students.'
         : 'Score visibility revoked.',
       releasedToStudents: sub.releasedToStudents,
@@ -404,11 +405,7 @@ router.put('/submissions/:id/release', adminGuard, async function (req, res) {
 });
 
 /* ============================================
-   ✅ PHASE L.7: POST /submit
-   Teacher submits saved scores for approval.
-   Creates a new submission or updates a
-   previously rejected one back to pending.
-   Cannot submit if already approved.
+   POST /submit (unchanged)
 ============================================ */
 router.post('/submit', guard, async function (req, res) {
   try {
@@ -421,7 +418,6 @@ router.post('/submit', guard, async function (req, res) {
       });
     }
 
-    /* Check if already approved — cannot resubmit approved work */
     var existing = await ScoreSubmission.findOne({
       schoolId: req.schoolId, classId: classId,
       subjectId: subjectId, termId: termId
@@ -434,7 +430,6 @@ router.post('/submit', guard, async function (req, res) {
       });
     }
 
-    /* Count how many scores have been saved for this combination */
     var scoreCount = await SchoolScore.countDocuments({
       schoolId: req.schoolId, classId: classId,
       subjectId: subjectId,   termId: termId
@@ -481,9 +476,7 @@ router.post('/submit', guard, async function (req, res) {
 });
 
 /* ============================================
-   POST /entry
-   ✅ L.7: Lock check added — approved scores
-   cannot be overwritten.
+   POST /entry (unchanged)
 ============================================ */
 router.post('/entry', guard, async function (req, res) {
   try {
@@ -494,7 +487,6 @@ router.post('/entry', guard, async function (req, res) {
       return res.status(400).json({ success: false, message: 'studentId, classId, subjectId, and termId are all required.' });
     }
 
-    /* ✅ L.7: Reject if an approved submission exists */
     var approvedSub = await ScoreSubmission.findOne({
       schoolId: schoolId, classId: body.classId,
       subjectId: body.subjectId, termId: body.termId,
@@ -554,8 +546,7 @@ router.post('/entry', guard, async function (req, res) {
 });
 
 /* ============================================
-   POST /bulk
-   ✅ L.7: Lock check added.
+   POST /bulk (unchanged)
 ============================================ */
 router.post('/bulk', guard, async function (req, res) {
   try {
@@ -572,7 +563,6 @@ router.post('/bulk', guard, async function (req, res) {
       return res.status(400).json({ success: false, message: 'Maximum 500 entries per bulk save.' });
     }
 
-    /* ✅ L.7: Reject if an approved submission exists */
     var approvedSub = await ScoreSubmission.findOne({
       schoolId: schoolId, classId: body.classId,
       subjectId: body.subjectId, termId: body.termId,
@@ -659,6 +649,7 @@ router.post('/bulk', guard, async function (req, res) {
 
 /* ============================================
    GET /class/:classId/subject/:subjectId/term/:termId
+   (unchanged)
 ============================================ */
 router.get('/class/:classId/subject/:subjectId/term/:termId', guard, async function (req, res) {
   try {
@@ -694,7 +685,7 @@ router.get('/class/:classId/subject/:subjectId/term/:termId', guard, async funct
 });
 
 /* ============================================
-   GET /student/:studentId
+   GET /student/:studentId (unchanged)
 ============================================ */
 router.get('/student/:studentId', guard, async function (req, res) {
   try {
@@ -710,7 +701,7 @@ router.get('/student/:studentId', guard, async function (req, res) {
 });
 
 /* ============================================
-   DELETE /:id
+   DELETE /:id (unchanged)
 ============================================ */
 router.delete('/:id', guard, async function (req, res) {
   try {
@@ -726,7 +717,7 @@ router.delete('/:id', guard, async function (req, res) {
 });
 
 /* ============================================
-   POST /rank/:classId/:subjectId/:termId  (L.4)
+   POST /rank/:classId/:subjectId/:termId (unchanged)
 ============================================ */
 router.post('/rank/:classId/:subjectId/:termId', guard, async function (req, res) {
   try {
