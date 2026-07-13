@@ -4,7 +4,7 @@
    ✅ PHASE A (preserved):
    - classId, departmentId, level
 
-   ✅ PHASE J CHANGES:
+   ✅ PHASE J CHANGES (preserved):
    - studentId (auto-generated, school-scoped)
    - passportPhotoUrl
    - parentName, parentEmail (parentPhone already existed)
@@ -12,14 +12,22 @@
    - classHistory[] (movement tracking — feeds Phase S promotions)
    - joinedSession, joinedYear
 
-   🐛 BUG FIX:
-   - departmentId ref changed from 'Department' to 'SchoolDepartment'
-     to match the established naming rule that avoids collision
-     with the CBT Department model.
+   ✅ PHASE P (preserved):
+   - pinCode (bcrypt-hashed student portal PIN)
 
-   All new fields are optional with safe defaults.
+   🐛 BUG FIX (preserved):
+   - departmentId ref changed from 'Department' to 'SchoolDepartment'
+
+   ✅ RESTRUCTURE STAGE 2:
+   - createdByRole: which role type created this student
+     (audit trail: 'school_admin', 'class_teacher', 'hod', etc.)
+   - createdById: which staff member created this student
+     (allows class_teacher to identify their registered students)
+   Both fields are optional with safe defaults.
    Existing students are NOT broken — no migration needed.
 ============================================ */
+'use strict';
+
 const mongoose = require('mongoose');
 
 /* ✅ PHASE J: One entry per class movement event */
@@ -75,8 +83,7 @@ const schoolStudentSchema = new mongoose.Schema(
     gender:      { type: String, enum: ['male','female','other',''], default: '' },
     dateOfBirth: { type: Date,   default: null },
 
-    /* ✅ PHASE J: Passport photo — external URL, same pattern as
-       Phase G question images (imgur/cloudinary, no upload backend) */
+    /* ✅ PHASE J: Passport photo */
     passportPhotoUrl: { type: String, default: '' },
 
     /* ---- Contact ---- */
@@ -89,29 +96,47 @@ const schoolStudentSchema = new mongoose.Schema(
     parentPhone: { type: String, default: '' },
     parentEmail: { type: String, default: '', lowercase: true },
 
-    /* ---- Auth (for future student portal) ---- */
-    pinCode:     { type: String, default: '' },
+    /* ✅ PHASE P: Student portal PIN (bcrypt-hashed) */
+    pinCode: { type: String, default: '' },
 
-    /* ✅ PHASE J: Lifecycle status — feeds Phase S promotions */
+    /* ✅ PHASE J: Lifecycle status */
     status: {
       type:    String,
       enum:    ['active', 'graduated', 'transferred', 'repeated', 'inactive'],
       default: 'active'
     },
-    /* Legacy quick filter — kept in sync with status automatically */
+    /* Legacy quick filter — kept in sync with status */
     isActive: { type: Boolean, default: true },
 
     /* ✅ PHASE J: Session tracking */
-    joinedSession: { type: String, default: '' },  /* e.g. "2024/2025" */
+    joinedSession: { type: String, default: '' },
     joinedYear:    { type: Number, default: null },
 
     /* ---- Stats ---- */
     totalExamsTaken: { type: Number, default: 0 },
-    averageScore:    { type: Number, default: 0 }
+    averageScore:    { type: Number, default: 0 },
+
+    /* ---- ✅ RESTRUCTURE STAGE 2: Audit trail ----
+       Tracks which staff role and which staff member
+       created this student record. Enables class teachers
+       to verify their own student registrations and
+       provides an audit trail for delegated student creation.
+       Both fields are optional with safe defaults.
+       Existing students retain default values.
+    ---- */
+    createdByRole: { type: String, default: '' },
+    /* e.g. 'school_admin', 'class_teacher', 'department_admin' */
+
+    createdById: {
+      type:    mongoose.Schema.Types.ObjectId,
+      ref:     'SchoolUser',
+      default: null
+    }
   },
   { timestamps: true }
 );
 
+/* ---- Indexes ---- */
 schoolStudentSchema.index({ schoolId: 1 });
 schoolStudentSchema.index({ schoolId: 1, class: 1 });
 schoolStudentSchema.index({ schoolId: 1, classId: 1 });
@@ -120,12 +145,12 @@ schoolStudentSchema.index({ schoolId: 1, admissionNo: 1 }, { unique: true, spars
 /* ✅ PHASE J */
 schoolStudentSchema.index({ schoolId: 1, studentId: 1 }, { unique: true, sparse: true });
 schoolStudentSchema.index({ schoolId: 1, status: 1 });
+/* ✅ STAGE 2: Lookup by creating staff member */
+schoolStudentSchema.index({ schoolId: 1, createdById: 1 });
 
 /* ============================================
    ✅ PHASE J: Generate next student ID for a school
    Format: PREFIX-YEAR-SEQUENCE (e.g. "BFS-2025-0001")
-   Prefix derived from school name (first 3 letters).
-   Sequence is per-school, per-year, based on existing count.
 ============================================ */
 schoolStudentSchema.statics.generateStudentId = async function (schoolId, schoolName, year) {
   var prefix = (schoolName || 'SCH')
