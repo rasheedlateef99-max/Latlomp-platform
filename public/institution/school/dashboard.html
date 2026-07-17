@@ -516,10 +516,56 @@
     <div class="field"><label>Teacher Email <span>*</span></label><input type="email" id="inviteEmail" placeholder="teacher@email.com" /></div>
     <div class="field"><label>Full Name (optional)</label><input type="text" id="inviteName" placeholder="e.g. Mrs. Adaeze Okafor" /></div>
     <div class="field-row">
-      <div class="field"><label>Role</label><select id="inviteRole"><option value="teacher">Teacher</option><option value="vice_principal">Vice Principal</option></select></div>
+      <div class="field"><label>Role</label>
+  <select id="inviteRole" onchange="onInviteRoleChange()">
+  <option value="teacher">Teacher</option>
+  <option value="subject_teacher">Subject Teacher</option>
+  <option value="class_teacher">Class Teacher</option>
+  <option value="vice_principal">Vice Principal</option>
+  <option value="principal">Principal</option>
+  <option value="hod">Head of Department (HOD)</option>
+  <option value="department_admin">Department Administrator</option>
+  <option value="lecturer">Lecturer</option>
+  <option value="instructor">Instructor</option>
+  <option value="dean">Dean</option>
+  <option value="bursar">Bursar</option>
+</select>
+      </div>
       <div class="field"><label>Subjects</label><input type="text" id="inviteSubjects" placeholder="e.g. Maths, English" /></div>
     </div>
     <div class="field"><label>Classes</label><input type="text" id="inviteClasses" placeholder="e.g. JSS1, SS2A" /></div>
+    <!-- ✅ STAGE 5: Assign to Class (shown when role = class_teacher) -->
+    <div class="field" id="fieldAssignClass" style="display:none;">
+      <label>Assign to Class <span>*</span></label>
+      <select id="inviteAssignedClassId" style="background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:9px; padding:11px 13px; color:#fff; font-size:14px; font-family:inherit; outline:none; width:100%;">
+        <option value="">-- Select Class --</option>
+      </select>
+      <div class="field-hint">This class teacher will own and manage this specific class.</div>
+    </div>
+
+    <!-- ✅ STAGE 5: Assign to Department (shown when role = hod or department_admin) -->
+    <div class="field" id="fieldAssignDept" style="display:none;">
+      <label>Assign to Department</label>
+      <select id="inviteAssignedDeptId" style="background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:9px; padding:11px 13px; color:#fff; font-size:14px; font-family:inherit; outline:none; width:100%;">
+        <option value="">-- Select Department --</option>
+      </select>
+      <div class="field-hint">This staff member will manage students in this department.</div>
+    </div>
+
+    <!-- ✅ STAGE 5: Additional Responsibilities (optional, all roles) -->
+    <div class="field" id="fieldAdditionalRoles">
+      <label>Additional Responsibilities (optional)</label>
+      <select id="inviteAdditionalRoles" multiple style="background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:9px; padding:8px 10px; color:#fff; font-size:13px; font-family:inherit; outline:none; width:100%; height:96px;">
+        <option value="teacher">Teacher / Subject Teacher</option>
+        <option value="class_teacher">Class Teacher</option>
+        <option value="hod">Head of Department (HOD)</option>
+        <option value="lecturer">Lecturer</option>
+        <option value="instructor">Instructor</option>
+        <option value="department_admin">Department Administrator</option>
+      </select>
+      <div class="field-hint">Hold Ctrl (Windows) or ⌘ Cmd (Mac) to select multiple. Only needed when one person holds more than one responsibility.</div>
+    </div>
+
     <div class="field" style="margin-bottom:8px;">
       <label>Invitation Expires In</label>
       <div class="expiry-grid">
@@ -1351,11 +1397,69 @@ async function saveSettings() {
   else instToast((res.data&&res.data.message)||'Failed.','error');
 }
 
+/* ============================================
+   ✅ STAGE 5: INVITE ROLE CHANGE HANDLER
+   Shows/hides class and department assignment
+   fields based on the selected role.
+   class_teacher: shows class selector.
+   hod/department_admin: shows dept selector.
+   All other roles: hides both.
+============================================ */
+function onInviteRoleChange() {
+  var role        = (document.getElementById('inviteRole')||{}).value || 'teacher';
+  var classField  = document.getElementById('fieldAssignClass');
+  var deptField   = document.getElementById('fieldAssignDept');
+
+  var needsClass  = (role === 'class_teacher');
+  var needsDept   = (role === 'hod' || role === 'department_admin');
+
+  if (classField) { classField.style.display = needsClass ? 'flex' : 'none'; }
+  if (deptField)  { deptField.style.display  = needsDept  ? 'flex' : 'none'; }
+
+  /* If departments not loaded yet and dept field needs to show, load them */
+  if (needsDept && _departments.length === 0) {
+    loadDepartments().then(function() {
+      var deptSelEl = document.getElementById('inviteAssignedDeptId');
+      if (deptSelEl) {
+        deptSelEl.innerHTML = '<option value="">-- Select Department --</option>' +
+          _departments.map(function(d) {
+            return '<option value="' + d._id + '">' + d.name + '</option>';
+          }).join('');
+      }
+    });
+  }
+}
+
 /* ============================================ INVITE */
 function openInviteModal() {
   closeAllModals();
-  document.getElementById('inviteErr').style.display='none'; document.getElementById('inviteSuccess').style.display='none';
-  ['inviteEmail','inviteName','inviteSubjects','inviteClasses','inviteMessage'].forEach(function(id){var el=document.getElementById(id); if(el)el.value='';});
+  document.getElementById('inviteErr').style.display='none';
+  document.getElementById('inviteSuccess').style.display='none';
+  ['inviteEmail','inviteName','inviteSubjects','inviteClasses','inviteMessage'].forEach(function(id){
+    var el=document.getElementById(id); if(el)el.value='';
+  });
+  /* ✅ STAGE 5: Reset new fields */
+  var roleEl = document.getElementById('inviteRole');
+  if (roleEl) roleEl.value = 'teacher';
+  var classSelEl = document.getElementById('inviteAssignedClassId');
+  if (classSelEl) {
+    classSelEl.innerHTML = '<option value="">-- Select Class --</option>' +
+      _classes.map(function(c) {
+        return '<option value="' + c._id + '">' + c.name + '</option>';
+      }).join('');
+  }
+  var deptSelEl = document.getElementById('inviteAssignedDeptId');
+  if (deptSelEl) {
+    deptSelEl.innerHTML = '<option value="">-- Select Department --</option>' +
+      _departments.map(function(d) {
+        return '<option value="' + d._id + '">' + d.name + '</option>';
+      }).join('');
+  }
+  var addRolesEl = document.getElementById('inviteAdditionalRoles');
+  if (addRolesEl) {
+    Array.from(addRolesEl.options).forEach(function(o) { o.selected = false; });
+  }
+  onInviteRoleChange();
   selectExpiry('7days');
   document.getElementById('inviteModal').style.display='flex';
   setTimeout(function(){var el=document.getElementById('inviteEmail'); if(el)el.focus();},100);
@@ -1364,10 +1468,40 @@ function openInviteModal() {
 async function sendInvite() {
   var btn=document.getElementById('inviteBtn'); var errEl=document.getElementById('inviteErr'); var sucEl=document.getElementById('inviteSuccess');
   if (errEl) errEl.style.display='none'; if (sucEl) sucEl.style.display='none';
-  var email=(document.getElementById('inviteEmail')||{}).value.trim(); var name=(document.getElementById('inviteName')||{}).value.trim(); var role=(document.getElementById('inviteRole')||{}).value; var subjects=(document.getElementById('inviteSubjects')||{}).value.trim(); var classes=(document.getElementById('inviteClasses')||{}).value.trim(); var message=(document.getElementById('inviteMessage')||{}).value.trim(); var expiryDuration=(document.getElementById('inviteExpiryDuration')||{}).value||'7days';
+var email          = (document.getElementById('inviteEmail')||{}).value.trim();
+  var name           = (document.getElementById('inviteName')||{}).value.trim();
+  var role           = (document.getElementById('inviteRole')||{}).value;
+  var subjects       = (document.getElementById('inviteSubjects')||{}).value.trim();
+  var classes        = (document.getElementById('inviteClasses')||{}).value.trim();
+  var message        = (document.getElementById('inviteMessage')||{}).value.trim();
+  var expiryDuration = (document.getElementById('inviteExpiryDuration')||{}).value||'7days';
+  /* ✅ STAGE 5: new assignment fields */
+  var assignedClassId  = (document.getElementById('inviteAssignedClassId')||{}).value  || null;
+  var assignedDeptId   = (document.getElementById('inviteAssignedDeptId')||{}).value   || null;
+  var addRolesEl       = document.getElementById('inviteAdditionalRoles');
+  var additionalRoles  = addRolesEl
+    ? Array.from(addRolesEl.selectedOptions).map(function(o) { return o.value; })
+    : [];
+  /* Validate: class_teacher must have a class assigned */
+  if (role === 'class_teacher' && !assignedClassId) {
+    if (errEl) { errEl.textContent = '⚠️ Please select a class to assign to this class teacher.'; errEl.style.display = 'block'; }
+    return;
+  }
   if (!email) {if (errEl) {errEl.textContent='⚠️ Email is required.'; errEl.style.display='block';} return;}
   if (btn) {btn.innerHTML='<span class="spinner"></span> Sending...'; btn.disabled=true;}
-  var res=await instApi('/school/invite-teacher','POST',{email,name,role,message,expiryDuration,subjects:subjects?subjects.split(',').map(function(s){return s.trim();}):[], classes:classes?classes.split(',').map(function(s){return s.trim();}):[]});
+var res=await instApi('/school/invite-teacher','POST',{
+    email:              email,
+    name:               name,
+    role:               role,
+    message:            message,
+    expiryDuration:     expiryDuration,
+    subjects:           subjects ? subjects.split(',').map(function(s){return s.trim();}) : [],
+    classes:            classes  ? classes.split(',').map(function(s){return s.trim();})  : [],
+    /* ✅ STAGE 5: new assignment fields */
+    assignedClassId:    assignedClassId  || null,
+    assignedDeptId:     assignedDeptId   || null,
+    additionalRoles:    additionalRoles
+  });
   if (btn) {btn.innerHTML='Send Invitation →'; btn.disabled=false;}
   if (res.ok) {var inv=res.data.invite; var inviteUrl=inv&&inv.inviteUrl; var expiryLbl=inv&&inv.expiryLabel; if (sucEl) {sucEl.innerHTML='✅ Invitation sent to <strong>'+email+'</strong>!'+(expiryLbl?'<br/>⏰ Expires in <strong>'+expiryLbl+'</strong>.':'')+(inviteUrl?'<br/><br/><div style="font-size:12px;color:var(--muted);">Share this link if email fails:</div><div class="invite-link-box">'+inviteUrl+'</div>':''); sucEl.style.display='block';} instToast('Invitation sent!','success'); loadTeachers();}
   else {if (errEl) {errEl.textContent=(res.data&&res.data.message)||'Failed to send invitation.'; errEl.style.display='block';}}
