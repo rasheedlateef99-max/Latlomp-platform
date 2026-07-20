@@ -2,17 +2,20 @@
    LATLOMP INSTITUTION — INVITATION MODEL
 
    ✅ PHASE B: Admin-controlled invitation expiry
-   New field: expiryDuration
-   Options:   5min | 10min | 30min | 1hr | 24hr | 7days
-   Default:   7days (backward-compatible)
-
-   The pre('validate') hook reads expiryDuration
-   and computes expiresAt accordingly.
+   ✅ RESTRUCTURE STAGE 5:
+   Added new fields for role delegation:
+     assignedClassId    — class ownership for class_teacher
+     assignedDepartmentId — dept ownership for hod/dept_admin
+     additionalRoles    — multiple responsibilities
+   Also expanded role enum to include all valid roles.
+   All additions have safe defaults — existing
+   invitations are not broken.
 ============================================ */
+'use strict';
+
 const mongoose = require('mongoose');
 const crypto   = require('crypto');
 
-/* Expiry duration → milliseconds map */
 var EXPIRY_MS = {
   '5min':  5  * 60 * 1000,
   '10min': 10 * 60 * 1000,
@@ -22,7 +25,6 @@ var EXPIRY_MS = {
   '7days': 7  * 24 * 60 * 60 * 1000
 };
 
-/* Human-readable labels for emails and UI */
 var EXPIRY_LABELS = {
   '5min':  '5 minutes',
   '10min': '10 minutes',
@@ -32,6 +34,27 @@ var EXPIRY_LABELS = {
   '7days': '7 days'
 };
 
+/* ============================================
+   ALL VALID ROLE VALUES
+   ✅ STAGE 5: Expanded from ['teacher','vice_principal']
+   to include all roles defined in SchoolUser.model.js.
+   Backward compatible — existing invitations keep
+   their existing role values.
+============================================ */
+var VALID_ROLES = [
+  'teacher',
+  'vice_principal',
+  'bursar',
+  'class_teacher',
+  'subject_teacher',
+  'lecturer',
+  'instructor',
+  'hod',
+  'dean',
+  'department_admin',
+  'principal'
+];
+
 const invitationSchema = new mongoose.Schema(
   {
     schoolId:  { type: mongoose.Schema.Types.ObjectId, ref: 'School',     required: true },
@@ -39,12 +62,51 @@ const invitationSchema = new mongoose.Schema(
 
     email:    { type: String, required: true, lowercase: true, trim: true },
     name:     { type: String, default: '' },
-    role:     { type: String, enum: ['teacher', 'vice_principal'], default: 'teacher' },
+
+    /* ✅ STAGE 5: expanded enum to include all roles */
+    role: {
+      type:    String,
+      enum:    VALID_ROLES,
+      default: 'teacher'
+    },
+
     subjects: [String],
     classes:  [String],
 
-    token:    { type: String, required: true, unique: true },
-    expiresAt:{ type: Date,   required: true },
+    /* ✅ STAGE 5: Class ownership scope.
+       Stored on invitation so FLOW 1 can copy it
+       to SchoolUser.classId when teacher accepts.
+       Required when role = 'class_teacher'. */
+    assignedClassId: {
+      type:    mongoose.Schema.Types.ObjectId,
+      ref:     'SchoolClass',
+      default: null
+    },
+
+    /* ✅ STAGE 5: Department ownership scope.
+       Stored on invitation so FLOW 1 can copy it
+       to SchoolUser.departmentId when staff accepts.
+       Used when role = 'hod' or 'department_admin'. */
+    assignedDepartmentId: {
+      type:    mongoose.Schema.Types.ObjectId,
+      ref:     'Department',
+      default: null
+    },
+
+    /* ✅ STAGE 5: Additional responsibilities.
+       Stored on invitation so FLOW 1 can copy them
+       to SchoolUser.additionalRoles when staff accepts.
+       Each value must be a valid role string. */
+    additionalRoles: {
+      type: [{
+        type: String,
+        enum: VALID_ROLES
+      }],
+      default: []
+    },
+
+    token:     { type: String, required: true, unique: true },
+    expiresAt: { type: Date,   required: true },
 
     /* ✅ PHASE B: admin-chosen expiry window */
     expiryDuration: {
@@ -69,13 +131,7 @@ invitationSchema.index({ token:    1 });
 invitationSchema.index({ schoolId: 1, email: 1 });
 invitationSchema.index({ expiresAt: 1 });
 
-/*
-  ✅ pre('validate') — runs BEFORE Mongoose validation.
-  Sets token and expiresAt on first creation.
-  expiresAt is computed from expiryDuration so admin
-  controls how long the invite link remains valid.
-*/
-invitationSchema.pre('validate', function(next) {
+invitationSchema.pre('validate', function (next) {
   if (!this.token) {
     this.token = crypto.randomBytes(32).toString('hex');
   }
@@ -86,8 +142,7 @@ invitationSchema.pre('validate', function(next) {
   next();
 });
 
-/* Static helper: get human-readable label for a duration key */
-invitationSchema.statics.getExpiryLabel = function(key) {
+invitationSchema.statics.getExpiryLabel = function (key) {
   return EXPIRY_LABELS[key] || '7 days';
 };
 

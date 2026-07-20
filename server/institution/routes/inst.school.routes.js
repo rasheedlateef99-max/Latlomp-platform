@@ -5,7 +5,27 @@
    ✅ PHASE E: Slug management
      GET  /school/by-slug/:slug  — public
      PUT  /school/slug           — admin only
+
+   ✅ RESTRUCTURE STAGE 5:
+   1. invite-teacher: stores new delegation fields
+      (assignedClassId, assignedDepartmentId,
+       additionalRoles) on the Invitation record
+      so FLOW 1 in inst.auth.routes.js can copy them
+      to SchoolUser when the staff member accepts.
+   2. GET /teachers: expanded to return ALL non-admin
+      staff (was: only teacher + vice_principal).
+      Includes new fields: classId, departmentId,
+      additionalRoles.
+   3. DELETE/deactivate/reactivate: expanded role filter
+      to match all non-admin roles.
+   4. NEW: GET /my-role-context — returns role-specific
+      scope context for dashboard initialization.
+      class_teacher → their assigned class + student count
+      hod/dept_admin → their department + student count
+      admin → school-wide student count
 ============================================ */
+'use strict';
+
 const express      = require('express');
 const router       = express.Router();
 const School       = require('../models/School.model');
@@ -18,17 +38,23 @@ const { instProtect, schoolAdminOnly }   = require('../middleware/inst.auth');
 const { requireActiveSubscription }      = require('../middleware/inst.tenant');
 const emailService = require('../services/inst.email.service');
 
+/* ✅ STAGE 5: All non-admin staff roles.
+   Used by staff list, deactivate, and delete endpoints. */
+var ALL_NON_ADMIN_ROLES = [
+  'teacher', 'vice_principal', 'bursar',
+  'class_teacher', 'subject_teacher',
+  'lecturer', 'instructor',
+  'hod', 'dean', 'department_admin', 'principal'
+];
+
 /* ============================================
    ✅ PHASE E — PUBLIC SLUG RESOLVER
    GET /api/institution/school/by-slug/:slug
-
-   No auth required. Returns only public branding
-   info needed to render the branded landing page.
-   Never exposes private school data.
+   No auth required.
 ============================================ */
 router.get('/by-slug/:slug', async (req, res) => {
   try {
-    var slug   = (req.params.slug || '').toLowerCase().trim();
+    var slug = (req.params.slug || '').toLowerCase().trim();
     if (!slug) return res.status(400).json({ success: false, message: 'Slug is required.' });
 
     var school = await School.findOne({ slug })
@@ -40,7 +66,6 @@ router.get('/by-slug/:slug', async (req, res) => {
         message: 'No school found with this link. The link may have changed or expired.'
       });
     }
-
     if (school.isSuspended) {
       return res.status(403).json({
         success: false,
@@ -69,22 +94,11 @@ router.get('/by-slug/:slug', async (req, res) => {
 /* ============================================
    ✅ PHASE E — UPDATE SLUG
    PUT /api/institution/school/slug
-
-   Admin only. Rules:
-   - Slug: lowercase letters, numbers, hyphens only
-   - Length: 3–50 characters
-   - Globally unique
-   - 30-day cooldown between manual changes
-     (bypassed if slugUpdatedAt is null — first time)
 ============================================ */
 router.put('/slug', instProtect, schoolAdminOnly, async (req, res) => {
   try {
     var newSlug = (req.body.slug || '').toLowerCase().trim();
-
-    /* ---- Validate format ---- */
-    if (!newSlug) {
-      return res.status(400).json({ success: false, message: 'Slug is required.' });
-    }
+    if (!newSlug) return res.status(400).json({ success: false, message: 'Slug is required.' });
     if (!/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/.test(newSlug)) {
       return res.status(400).json({
         success: false,
@@ -95,16 +109,10 @@ router.put('/slug', instProtect, schoolAdminOnly, async (req, res) => {
     var school = await School.findById(req.schoolId);
     if (!school) return res.status(404).json({ success: false, message: 'School not found.' });
 
-    /* ---- No change needed ---- */
     if (school.slug === newSlug) {
-      return res.status(200).json({
-        success: true,
-        message: 'This is already your current link.',
-        slug: school.slug
-      });
+      return res.status(200).json({ success: true, message: 'This is already your current link.', slug: school.slug });
     }
 
-    /* ---- Cooldown check (30 days between manual changes) ---- */
     if (school.slugUpdatedAt) {
       var daysSinceChange = Math.floor((Date.now() - new Date(school.slugUpdatedAt).getTime()) / 86400000);
       if (daysSinceChange < 30) {
@@ -116,27 +124,17 @@ router.put('/slug', instProtect, schoolAdminOnly, async (req, res) => {
       }
     }
 
-    /* ---- Uniqueness check ---- */
     var existing = await School.findOne({ slug: newSlug, _id: { $ne: req.schoolId } });
     if (existing) {
-      return res.status(409).json({
-        success: false,
-        message: '"' + newSlug + '" is already taken. Please choose a different link.'
-      });
+      return res.status(409).json({ success: false, message: '"' + newSlug + '" is already taken. Please choose a different link.' });
     }
 
-    /* ---- Save ---- */
     var oldSlug = school.slug;
     school.slug          = newSlug;
     school.slugUpdatedAt = new Date();
     await school.save();
 
-    return res.status(200).json({
-      success: true,
-      message: 'Your school link has been updated successfully.',
-      slug:    school.slug,
-      oldSlug: oldSlug
-    });
+    return res.status(200).json({ success: true, message: 'Your school link has been updated successfully.', slug: school.slug, oldSlug: oldSlug });
   } catch (err) {
     if (err.code === 11000) {
       return res.status(409).json({ success: false, message: 'This link is already taken. Please choose a different one.' });
@@ -202,7 +200,7 @@ router.get('/dashboard', instProtect, requireActiveSubscription, async (req, res
   try {
     var schoolId = req.schoolId;
     var [teacherCount, examCount, resultCount, inviteCount] = await Promise.all([
-      SchoolUser.countDocuments({ schoolId, role: { $in: ['teacher','vice_principal'] }, isActive: true }),
+      SchoolUser.countDocuments({ schoolId, role: { $in: ALL_NON_ADMIN_ROLES }, isActive: true }),
       SchoolExam.countDocuments({ schoolId }),
       SchoolResult.countDocuments({ schoolId }),
       Invitation.countDocuments({ schoolId, status: 'pending' })
@@ -217,10 +215,12 @@ router.get('/dashboard', instProtect, requireActiveSubscription, async (req, res
     }
     return res.status(200).json({
       success: true,
-      stats: { teachers: teacherCount, exams: examCount, results: resultCount,
-               pendingInvites: inviteCount, daysLeft,
-               subscriptionPlan:   school.subscriptionPlan,
-               subscriptionExpiry: school.subscriptionExpiry },
+      stats: {
+        teachers: teacherCount, exams: examCount, results: resultCount,
+        pendingInvites: inviteCount, daysLeft,
+        subscriptionPlan:   school.subscriptionPlan,
+        subscriptionExpiry: school.subscriptionExpiry
+      },
       recentExams, school
     });
   } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
@@ -317,7 +317,8 @@ router.post('/subscribe', instProtect, async (req, res) => {
     var paystackRes = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + process.env.PAYSTACK_SECRET_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: school.email, amount: plan.price * 100, reference, callback_url: callbackUrl,
+      body: JSON.stringify({
+        email: school.email, amount: plan.price * 100, reference, callback_url: callbackUrl,
         metadata: { schoolId: school._id.toString(), planCode, planName: plan.name, schoolName: school.name, type: 'institution_subscription' }
       })
     });
@@ -335,10 +336,19 @@ router.post('/subscribe', instProtect, async (req, res) => {
 /* ============================================
    POST /api/institution/school/invite-teacher
    ✅ PHASE B: expiryDuration support
+   ✅ STAGE 5: stores assignedClassId,
+   assignedDepartmentId, additionalRoles on the
+   Invitation so FLOW 1 can copy them to SchoolUser
+   when the staff member accepts the invitation.
 ============================================ */
 router.post('/invite-teacher', instProtect, schoolAdminOnly, requireActiveSubscription, async (req, res) => {
   try {
-    var { email, name, role, subjects, classes, message, expiryDuration } = req.body;
+    var {
+      email, name, role, subjects, classes, message, expiryDuration,
+      /* ✅ STAGE 5: new delegation fields */
+      assignedClassId, assignedDeptId, additionalRoles
+    } = req.body;
+
     if (!email) return res.status(400).json({ success: false, message: 'Email is required.' });
 
     var validDurations = ['5min', '10min', '30min', '1hr', '24hr', '7days'];
@@ -352,21 +362,29 @@ router.post('/invite-teacher', instProtect, schoolAdminOnly, requireActiveSubscr
       { $set: { status: 'cancelled' } }
     );
 
+    /* ✅ STAGE 5: validate additionalRoles */
+    var safeAdditionalRoles = Array.isArray(additionalRoles)
+      ? additionalRoles.filter(function(r) { return ALL_NON_ADMIN_ROLES.includes(r); })
+      : [];
+
     var invite = await Invitation.create({
-      schoolId:       req.schoolId,
-      invitedBy:      req.schoolUser._id,
-      email:          email.toLowerCase(),
-      name:           name    || '',
-      role:           role    || 'teacher',
-      subjects:       Array.isArray(subjects) ? subjects : (subjects ? subjects.split(',').map(function(s){return s.trim();}) : []),
-      classes:        Array.isArray(classes)  ? classes  : (classes  ? classes.split(',').map(function(s){return s.trim();}) : []),
-      message:        message || '',
-      expiryDuration: chosenDuration
+      schoolId:             req.schoolId,
+      invitedBy:            req.schoolUser._id,
+      email:                email.toLowerCase(),
+      name:                 name    || '',
+      role:                 role    || 'teacher',
+      subjects:             Array.isArray(subjects) ? subjects : (subjects ? subjects.split(',').map(function(s){return s.trim();}) : []),
+      classes:              Array.isArray(classes)  ? classes  : (classes  ? classes.split(',').map(function(s){return s.trim();})  : []),
+      message:              message || '',
+      expiryDuration:       chosenDuration,
+      /* ✅ STAGE 5: delegation fields */
+      assignedClassId:      assignedClassId || null,
+      assignedDepartmentId: assignedDeptId  || null,
+      additionalRoles:      safeAdditionalRoles
     });
 
-    var school    = req.school;
-    var inviteUrl = (process.env.APP_URL || 'https://latlompsystem.up.railway.app') +
-      '/institution/index.html?invite=' + invite.token;
+    var school      = req.school;
+    var inviteUrl   = (process.env.APP_URL || 'https://latlompsystem.up.railway.app') + '/institution/index.html?invite=' + invite.token;
     var expiryLabel = Invitation.getExpiryLabel(chosenDuration);
 
     try {
@@ -383,7 +401,10 @@ router.post('/invite-teacher', instProtect, schoolAdminOnly, requireActiveSubscr
       invite: {
         _id: invite._id, email: invite.email, name: invite.name, role: invite.role,
         token: invite.token, inviteUrl, expiresAt: invite.expiresAt,
-        expiryDuration: invite.expiryDuration, expiryLabel
+        expiryDuration: invite.expiryDuration, expiryLabel,
+        assignedClassId:      invite.assignedClassId      || null,
+        assignedDepartmentId: invite.assignedDepartmentId || null,
+        additionalRoles:      invite.additionalRoles      || []
       }
     });
   } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
@@ -391,11 +412,20 @@ router.post('/invite-teacher', instProtect, schoolAdminOnly, requireActiveSubscr
 
 /* ============================================
    GET /api/institution/school/teachers
+   ✅ STAGE 5: expanded to return ALL non-admin
+   staff, not just teacher + vice_principal.
+   Also returns classId, departmentId,
+   additionalRoles for the new delegation model.
 ============================================ */
 router.get('/teachers', instProtect, schoolAdminOnly, requireActiveSubscription, async (req, res) => {
   try {
-    var teachers       = await SchoolUser.find({ schoolId: req.schoolId, role: { $in: ['teacher', 'vice_principal'] } })
-      .select('-googleId').sort({ name: 1 });
+    var teachers = await SchoolUser.find({
+      schoolId: req.schoolId,
+      role:     { $in: ALL_NON_ADMIN_ROLES }
+    })
+      .select('-googleId')
+      .sort({ name: 1 });
+
     var pendingInvites = await Invitation.find({ schoolId: req.schoolId, status: 'pending' }).sort({ createdAt: -1 });
     var invitesWithLabels = pendingInvites.map(function(inv) {
       var obj = inv.toObject();
@@ -403,17 +433,23 @@ router.get('/teachers', instProtect, schoolAdminOnly, requireActiveSubscription,
       obj.isExpiredNow = new Date(inv.expiresAt) < new Date();
       return obj;
     });
+
     return res.status(200).json({ success: true, teachers, pendingInvites: invitesWithLabels });
   } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
 });
 
 /* ============================================
    DELETE /api/institution/school/teachers/:id
+   ✅ STAGE 5: expanded role filter.
 ============================================ */
 router.delete('/teachers/:id', instProtect, schoolAdminOnly, requireActiveSubscription, async (req, res) => {
   try {
-    var teacher = await SchoolUser.findOne({ _id: req.params.id, schoolId: req.schoolId, role: { $in: ['teacher','vice_principal'] } });
-    if (!teacher) return res.status(404).json({ success: false, message: 'Teacher not found in your school.' });
+    var teacher = await SchoolUser.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId,
+      role:     { $in: ALL_NON_ADMIN_ROLES }
+    });
+    if (!teacher) return res.status(404).json({ success: false, message: 'Staff member not found in your school.' });
     await Invitation.updateMany({ schoolId: req.schoolId, email: teacher.email, status: 'pending' }, { $set: { status: 'cancelled' } });
     await SchoolUser.findByIdAndDelete(req.params.id);
     return res.status(200).json({ success: true, message: teacher.name + ' has been permanently removed from your school.' });
@@ -422,30 +458,108 @@ router.delete('/teachers/:id', instProtect, schoolAdminOnly, requireActiveSubscr
 
 /* ============================================
    PUT /api/institution/school/teachers/:id/deactivate
+   ✅ STAGE 5: expanded role filter.
 ============================================ */
 router.put('/teachers/:id/deactivate', instProtect, schoolAdminOnly, requireActiveSubscription, async (req, res) => {
   try {
     var teacher = await SchoolUser.findOneAndUpdate(
-      { _id: req.params.id, schoolId: req.schoolId, role: { $in: ['teacher','vice_principal'] } },
-      { $set: { isActive: false } }, { new: true }
+      { _id: req.params.id, schoolId: req.schoolId, role: { $in: ALL_NON_ADMIN_ROLES } },
+      { $set: { isActive: false } },
+      { new: true }
     ).select('-googleId');
-    if (!teacher) return res.status(404).json({ success: false, message: 'Teacher not found in your school.' });
+    if (!teacher) return res.status(404).json({ success: false, message: 'Staff member not found in your school.' });
     return res.status(200).json({ success: true, message: teacher.name + "'s account has been deactivated.", teacher });
   } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
 });
 
 /* ============================================
    PUT /api/institution/school/teachers/:id/reactivate
+   ✅ STAGE 5: expanded role filter.
 ============================================ */
 router.put('/teachers/:id/reactivate', instProtect, schoolAdminOnly, requireActiveSubscription, async (req, res) => {
   try {
     var teacher = await SchoolUser.findOneAndUpdate(
-      { _id: req.params.id, schoolId: req.schoolId, role: { $in: ['teacher','vice_principal'] } },
-      { $set: { isActive: true } }, { new: true }
+      { _id: req.params.id, schoolId: req.schoolId, role: { $in: ALL_NON_ADMIN_ROLES } },
+      { $set: { isActive: true } },
+      { new: true }
     ).select('-googleId');
-    if (!teacher) return res.status(404).json({ success: false, message: 'Teacher not found in your school.' });
+    if (!teacher) return res.status(404).json({ success: false, message: 'Staff member not found in your school.' });
     return res.status(200).json({ success: true, message: teacher.name + "'s account has been reactivated.", teacher });
   } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
+});
+
+/* ============================================
+   ✅ NEW STAGE 5: GET /api/institution/school/my-role-context
+   Returns role-specific scope data for the
+   dashboard on first load. Every role gets back
+   what they "own" so the frontend can initialize
+   the correct view without extra calls.
+
+   class_teacher:     { assignedClass, studentCount }
+   hod/dept_admin:    { assignedDepartment, studentCount }
+   admin/senior staff:{ studentCount (institution-wide) }
+============================================ */
+router.get('/my-role-context', instProtect, requireActiveSubscription, async function (req, res) {
+  try {
+    var user           = req.schoolUser;
+    var schoolId       = req.schoolId;
+    var effectiveRoles = [user.role].concat(Array.isArray(user.additionalRoles) ? user.additionalRoles : []);
+
+    /* Lazy-load models (avoids circular require issues) */
+    var SchoolStudent = require('../models/SchoolStudent.model');
+
+    var context = {
+      role:            user.role,
+      additionalRoles: user.additionalRoles || [],
+      effectiveRoles:  effectiveRoles,
+      studentCount:    0
+    };
+
+    var seniorRoles = ['school_admin', 'principal', 'vice_principal', 'dean'];
+    var isSenior    = effectiveRoles.some(function (r) { return seniorRoles.includes(r); });
+
+    if (isSenior) {
+      /* Admin/senior staff: institution-wide count */
+      context.studentCount = await SchoolStudent.countDocuments({ schoolId: schoolId, status: 'active' });
+    } else if (effectiveRoles.includes('class_teacher') && user.classId) {
+      /* Class teacher: their assigned class */
+      try {
+        var SchoolClass = require('../models/Class.model');
+        var cls = await SchoolClass.findOne({ _id: user.classId, schoolId: schoolId })
+          .select('name category sortOrder').lean();
+        if (cls) {
+          context.assignedClass = { _id: cls._id, name: cls.name, category: cls.category || '' };
+          context.studentCount  = await SchoolStudent.countDocuments({
+            schoolId: schoolId, classId: user.classId, status: 'active'
+          });
+        }
+      } catch (e) { console.warn('[my-role-context] Class lookup failed:', e.message); }
+    } else if (
+      effectiveRoles.some(function (r) { return ['hod', 'department_admin'].includes(r); }) &&
+      user.departmentId
+    ) {
+      /* HOD / Department Admin: their assigned department */
+      try {
+        var Department = require('../models/Department.model');
+        var dept = await Department.findOne({ _id: user.departmentId, schoolId: schoolId })
+          .select('name code').lean();
+        if (dept) {
+          context.assignedDepartment = { _id: dept._id, name: dept.name, code: dept.code || '' };
+          context.studentCount       = await SchoolStudent.countDocuments({
+            schoolId: schoolId, departmentId: user.departmentId, status: 'active'
+          });
+        }
+      } catch (e) { console.warn('[my-role-context] Department lookup failed:', e.message); }
+    } else {
+      /* Other teaching roles: no scope — just their name/role */
+      context.studentCount = 0;
+    }
+
+    return res.json({ success: true, context: context });
+  } catch (err) {
+    console.error('[inst.school] GET /my-role-context:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 /* ============================================
@@ -464,8 +578,10 @@ router.get('/results', instProtect, schoolAdminOnly, requireActiveSubscription, 
         .sort({ createdAt: -1 }).skip(skip).limit(limitNum),
       SchoolResult.countDocuments(filter)
     ]);
-    return res.status(200).json({ success: true, results,
-      pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total/limitNum) } });
+    return res.status(200).json({
+      success: true, results,
+      pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total/limitNum) }
+    });
   } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
 });
 
@@ -480,9 +596,11 @@ router.post('/results/release', instProtect, schoolAdminOnly, requireActiveSubsc
       { schoolId: req.schoolId, examId },
       { $set: { isReleased: true, releasedAt: new Date(), releasedBy: req.schoolUser._id } }
     );
-    return res.status(200).json({ success: true,
+    return res.status(200).json({
+      success: true,
       message: updated.modifiedCount + ' result' + (updated.modifiedCount !== 1 ? 's' : '') + ' released.',
-      count: updated.modifiedCount });
+      count: updated.modifiedCount
+    });
   } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
 });
 
@@ -491,7 +609,7 @@ router.post('/results/release', instProtect, schoolAdminOnly, requireActiveSubsc
 ============================================ */
 router.put('/profile', instProtect, schoolAdminOnly, async (req, res) => {
   try {
-    var school  = await School.findById(req.schoolId);
+    var school = await School.findById(req.schoolId);
     if (!school) return res.status(404).json({ success: false, message: 'School not found.' });
     var allowed = ['name','phone','address','state','country','type','principalName','motto','website','logo','primaryColor','secondaryColor'];
     allowed.forEach(function(field) { if (req.body[field] !== undefined) school[field] = req.body[field]; });

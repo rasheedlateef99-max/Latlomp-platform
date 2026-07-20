@@ -5,13 +5,21 @@
    GET  /api/institution/auth/me
 
    ✅ FOUNDATION FIX: Added returning user login path.
-   Previously, any Google account without an active
-   invite token that did not match a School.email
-   would create a new ghost school. Now the route
-   checks SchoolUser first, so all returning teachers,
-   vice principals, and admins are correctly identified
-   before any school creation is attempted.
+
+   ✅ RESTRUCTURE STAGE 5:
+   FLOW 1 (invite acceptance) now copies the three
+   new delegation fields from the Invitation record
+   to the SchoolUser record when a staff member
+   accepts their invitation for the first time:
+     invite.assignedClassId      → user.classId
+     invite.assignedDepartmentId → user.departmentId
+     invite.additionalRoles      → user.additionalRoles
+   All response user objects now include
+   additionalRoles so the frontend can compute
+   effective roles and render the correct dashboard.
 ============================================ */
+'use strict';
+
 const express          = require('express');
 const router           = express.Router();
 const { OAuth2Client } = require('google-auth-library');
@@ -25,26 +33,15 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 /* ============================================
    POST /api/institution/auth/google
-
-   THREE FLOWS, checked in this order:
-   1. INVITE TOKEN  — teacher accepting an invitation
-   2. RETURNING USER — any existing SchoolUser logging
-                       back in (teacher, admin, etc.)
-   3. NEW SCHOOL    — first-time school registration
-                       (only when no SchoolUser exists)
 ============================================ */
 router.post('/google', async (req, res) => {
   try {
     var { credential, inviteToken } = req.body;
 
     if (!credential) {
-      return res.status(400).json({
-        success: false,
-        message: 'Google credential is required.'
-      });
+      return res.status(400).json({ success: false, message: 'Google credential is required.' });
     }
 
-    /* ---- Verify Google token ---- */
     var ticket = await googleClient.verifyIdToken({
       idToken:  credential,
       audience: process.env.GOOGLE_CLIENT_ID
@@ -57,75 +54,55 @@ router.post('/google', async (req, res) => {
     var googleId = payload.sub;
 
     /* ============================================
-       FLOW 1 — TEACHER INVITE
-       Only runs when an invite token is present in
-       the request. This is the first-time activation
-       path for invited teachers.
+       FLOW 1 — TEACHER / STAFF INVITE ACCEPTANCE
+       ✅ STAGE 5: copies delegation fields from
+       Invitation to SchoolUser on first login.
     ============================================ */
     if (inviteToken) {
-      var invite = await Invitation.findOne({
-        token:  inviteToken,
-        status: 'pending'
-      });
+      var invite = await Invitation.findOne({ token: inviteToken, status: 'pending' });
 
       if (!invite) {
-        logAudit({
-          req,
-          action:  'institution.auth.teacher_invite.invalid',
-          success: false,
-          message: 'Invalid or expired invite token used by: ' + email
-        });
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid or expired invitation.'
-        });
+        logAudit({ req, action: 'institution.auth.teacher_invite.invalid', success: false, message: 'Invalid or expired invite token used by: ' + email });
+        return res.status(400).json({ success: false, message: 'Invalid or expired invitation.' });
       }
 
       if (new Date() > invite.expiresAt) {
         invite.status = 'expired';
         await invite.save();
-        logAudit({
-          req,
-          action:  'institution.auth.teacher_invite.expired',
-          success: false,
-          message: 'Expired invite used by: ' + email
-        });
-        return res.status(400).json({
-          success: false,
-          message: 'This invitation has expired. Please ask your school admin to send a new invitation.'
-        });
+        logAudit({ req, action: 'institution.auth.teacher_invite.expired', success: false, message: 'Expired invite used by: ' + email });
+        return res.status(400).json({ success: false, message: 'This invitation has expired. Please ask your school admin to send a new invitation.' });
       }
 
       if (invite.email && invite.email !== email) {
-        logAudit({
-          req,
-          action:  'institution.auth.teacher_invite.email_mismatch',
-          success: false,
-          message: 'Invite email mismatch: expected ' + invite.email + ', got ' + email
-        });
-        return res.status(400).json({
-          success: false,
-          message: 'This invitation was sent to ' + invite.email + '. Please sign in with that Google account.'
-        });
+        logAudit({ req, action: 'institution.auth.teacher_invite.email_mismatch', success: false, message: 'Invite email mismatch: expected ' + invite.email + ', got ' + email });
+        return res.status(400).json({ success: false, message: 'This invitation was sent to ' + invite.email + '. Please sign in with that Google account.' });
       }
 
-      /* Create or update the teacher's SchoolUser record */
+      /* Create or update the staff member's SchoolUser record.
+         ✅ STAGE 5: classId, departmentId, additionalRoles
+         are now copied from the Invitation to SchoolUser
+         so the delegation model takes effect immediately
+         on first login. */
       var teacher = await SchoolUser.findOneAndUpdate(
         { schoolId: invite.schoolId, email: email },
         {
           $set: {
-            name:        name || invite.name,
-            avatar:      avatar,
-            googleId:    googleId,
-            role:        invite.role,
-            subjects:    invite.subjects || [],
-            classes:     invite.classes  || [],
-            isVerified:  true,
-            isActive:    true,
-            invitedBy:   invite.invitedBy,
-            invitedAt:   invite.createdAt,
-            joinedAt:    new Date(),
-            lastLoginAt: new Date()
+            name:            name || invite.name,
+            avatar:          avatar,
+            googleId:        googleId,
+            role:            invite.role,
+            subjects:        invite.subjects        || [],
+            classes:         invite.classes         || [],
+            /* ✅ STAGE 5: delegation fields */
+            classId:         invite.assignedClassId       || null,
+            departmentId:    invite.assignedDepartmentId  || null,
+            additionalRoles: invite.additionalRoles       || [],
+            isVerified:      true,
+            isActive:        true,
+            invitedBy:       invite.invitedBy,
+            invitedAt:       invite.createdAt,
+            joinedAt:        new Date(),
+            lastLoginAt:     new Date()
           }
         },
         { upsert: true, new: true }
@@ -140,68 +117,43 @@ router.post('/google', async (req, res) => {
 
       logAudit({
         req,
-        action:     'institution.auth.teacher_invite.accepted',
-        resource:   'SchoolUser',
-        resourceId: teacher._id.toString(),
-        success:    true,
-        message:    'Teacher accepted invite: ' + email + ' → school: ' + invite.schoolId
+        action: 'institution.auth.teacher_invite.accepted', resource: 'SchoolUser',
+        resourceId: teacher._id.toString(), success: true,
+        message: 'Staff accepted invite: ' + email + ' → school: ' + invite.schoolId
       });
 
       return res.status(200).json({
-        success:    true,
-        message:    'Welcome to ' + (school ? school.name : 'the school') + '!',
-        token:      token,
+        success: true,
+        message: 'Welcome to ' + (school ? school.name : 'the school') + '!',
+        token:   token,
         user: {
-          _id:      teacher._id,
-          name:     teacher.name,
-          email:    teacher.email,
-          role:     teacher.role,
-          avatar:   teacher.avatar,
-          schoolId: teacher.schoolId
+          _id:             teacher._id,
+          name:            teacher.name,
+          email:           teacher.email,
+          role:            teacher.role,
+          /* ✅ STAGE 5: included in response */
+          additionalRoles: teacher.additionalRoles || [],
+          avatar:          teacher.avatar,
+          schoolId:        teacher.schoolId
         },
-        school:     school ? {
-          _id:  school._id,
-          name: school.name,
-          logo: school.logo
-        } : null,
+        school:     school ? { _id: school._id, name: school.name, logo: school.logo } : null,
         redirectTo: '/institution/teacher/dashboard.html'
       });
     }
 
     /* ============================================
        FLOW 2 — RETURNING USER
-       ✅ FOUNDATION FIX: This block is new.
-
-       Before attempting any school lookup or creation,
-       check whether this Google account already belongs
-       to an existing SchoolUser in the system.
-
-       This correctly handles:
-       - Teachers logging in after their invite was
-         accepted (on any device, any browser)
-       - Vice principals returning after activation
-       - School admins who already have a SchoolUser
-         record (also caught here, slightly faster path)
-
-       One email = one school. If the same person is
-       a teacher at two schools, they would have two
-       Google accounts — this system does not support
-       multi-school membership per email.
+       ✅ FOUNDATION FIX: checks SchoolUser first.
+       ✅ STAGE 5: additionalRoles included in response.
     ============================================ */
-    var existingUser = await SchoolUser.findOne({ email: email })
-      .populate('schoolId');
+    var existingUser = await SchoolUser.findOne({ email: email }).populate('schoolId');
 
     if (existingUser) {
-
-      /* ---- Account deactivated — tell them clearly ---- */
       if (!existingUser.isActive) {
         logAudit({
-          req,
-          action:  'institution.auth.login.deactivated',
-          resource:   'SchoolUser',
-          resourceId: existingUser._id.toString(),
-          success: false,
-          message: 'Deactivated account login attempt: ' + email
+          req, action: 'institution.auth.login.deactivated',
+          resource: 'SchoolUser', resourceId: existingUser._id.toString(),
+          success: false, message: 'Deactivated account login attempt: ' + email
         });
         return res.status(403).json({
           success: false,
@@ -209,39 +161,29 @@ router.post('/google', async (req, res) => {
         });
       }
 
-      /* ---- Update Google credentials on every login ---- */
       existingUser.googleId    = googleId;
       existingUser.avatar      = avatar;
       existingUser.lastLoginAt = new Date();
       await existingUser.save();
 
-      var userSchool = existingUser.schoolId;
+      var userSchool   = existingUser.schoolId;
       var userSchoolId = userSchool && userSchool._id ? userSchool._id : userSchool;
 
-      /* Ensure we have the full school object */
       if (!userSchool || typeof userSchool === 'string' || !userSchool.name) {
         userSchool = await School.findById(userSchoolId);
       }
 
       if (!userSchool) {
-        /* School was deleted — very edge case */
         logAudit({
-          req,
-          action:  'institution.auth.login.orphaned_user',
-          resource:   'SchoolUser',
-          resourceId: existingUser._id.toString(),
-          success: false,
-          message: 'SchoolUser exists but school is missing: ' + email
+          req, action: 'institution.auth.login.orphaned_user',
+          resource: 'SchoolUser', resourceId: existingUser._id.toString(),
+          success: false, message: 'SchoolUser exists but school is missing: ' + email
         });
-        return res.status(404).json({
-          success: false,
-          message: 'Your school account could not be found. Please contact support.'
-        });
+        return res.status(404).json({ success: false, message: 'Your school account could not be found. Please contact support.' });
       }
 
       var returningToken = signInstToken(existingUser._id, userSchoolId);
 
-      /* Determine correct redirect based on role */
       var redirectTo;
       if (existingUser.role === 'school_admin') {
         redirectTo = userSchool.onboardingDone
@@ -252,25 +194,24 @@ router.post('/google', async (req, res) => {
       }
 
       logAudit({
-        req,
-        action:     'institution.auth.login',
-        resource:   'SchoolUser',
-        resourceId: existingUser._id.toString(),
-        success:    true,
-        message:    'Returning user login: ' + email + ' (' + existingUser.role + ')'
+        req, action: 'institution.auth.login',
+        resource: 'SchoolUser', resourceId: existingUser._id.toString(),
+        success: true, message: 'Returning user login: ' + email + ' (' + existingUser.role + ')'
       });
 
       return res.status(200).json({
-        success:    true,
-        message:    'Welcome back, ' + existingUser.name + '!',
-        token:      returningToken,
+        success: true,
+        message: 'Welcome back, ' + existingUser.name + '!',
+        token:   returningToken,
         user: {
-          _id:      existingUser._id,
-          name:     existingUser.name,
-          email:    existingUser.email,
-          role:     existingUser.role,
-          avatar:   existingUser.avatar,
-          schoolId: userSchoolId
+          _id:             existingUser._id,
+          name:            existingUser.name,
+          email:           existingUser.email,
+          role:            existingUser.role,
+          /* ✅ STAGE 5: included in response */
+          additionalRoles: existingUser.additionalRoles || [],
+          avatar:          existingUser.avatar,
+          schoolId:        userSchoolId
         },
         school:     userSchool,
         redirectTo: redirectTo
@@ -278,18 +219,11 @@ router.post('/google', async (req, res) => {
     }
 
     /* ============================================
-       FLOW 3 — SCHOOL ADMIN OR NEW REGISTRATION
-       Only reached if NO SchoolUser exists with this
-       email. This is now a much narrower path:
-       - A genuine new school registration
-       - OR an admin whose SchoolUser was accidentally
-         deleted (handled below with auto-recreation)
+       FLOW 3 — NEW SCHOOL OR ADMIN RECOVERY
     ============================================ */
     var existingSchool = await School.findOne({ email: email });
 
     if (existingSchool) {
-      /* ---- Admin whose SchoolUser record is missing ---- */
-      /* This is a recovery path for data integrity issues */
       var schoolUser = await SchoolUser.findOneAndUpdate(
         { schoolId: existingSchool._id, email: email },
         {
@@ -312,25 +246,22 @@ router.post('/google', async (req, res) => {
       var adminToken = signInstToken(schoolUser._id, existingSchool._id);
 
       logAudit({
-        req,
-        action:     'institution.auth.login',
-        resource:   'SchoolUser',
-        resourceId: schoolUser._id.toString(),
-        success:    true,
-        message:    'School admin login (recovery): ' + email
+        req, action: 'institution.auth.login',
+        resource: 'SchoolUser', resourceId: schoolUser._id.toString(),
+        success: true, message: 'School admin login (recovery): ' + email
       });
 
       return res.status(200).json({
-        success:    true,
-        message:    'Welcome back, ' + name + '!',
-        token:      adminToken,
+        success: true, message: 'Welcome back, ' + name + '!',
+        token:   adminToken,
         user: {
-          _id:      schoolUser._id,
-          name:     schoolUser.name,
-          email:    schoolUser.email,
-          role:     schoolUser.role,
-          avatar:   schoolUser.avatar,
-          schoolId: existingSchool._id
+          _id:             schoolUser._id,
+          name:            schoolUser.name,
+          email:           schoolUser.email,
+          role:            schoolUser.role,
+          additionalRoles: schoolUser.additionalRoles || [],
+          avatar:          schoolUser.avatar,
+          schoolId:        existingSchool._id
         },
         school:     existingSchool,
         redirectTo: existingSchool.onboardingDone
@@ -368,25 +299,22 @@ router.post('/google', async (req, res) => {
     var newToken = signInstToken(newSchoolUser._id, newSchool._id);
 
     logAudit({
-      req,
-      action:     'institution.auth.register',
-      resource:   'School',
-      resourceId: newSchool._id.toString(),
-      success:    true,
-      message:    'New school admin registered: ' + email
+      req, action: 'institution.auth.register',
+      resource: 'School', resourceId: newSchool._id.toString(),
+      success: true, message: 'New school admin registered: ' + email
     });
 
     return res.status(201).json({
-      success:    true,
-      message:    "Welcome! Let's set up your school.",
-      token:      newToken,
+      success: true, message: "Welcome! Let's set up your school.",
+      token:   newToken,
       user: {
-        _id:      newSchoolUser._id,
-        name:     newSchoolUser.name,
-        email:    newSchoolUser.email,
-        role:     newSchoolUser.role,
-        avatar:   newSchoolUser.avatar,
-        schoolId: newSchool._id
+        _id:             newSchoolUser._id,
+        name:            newSchoolUser.name,
+        email:           newSchoolUser.email,
+        role:            newSchoolUser.role,
+        additionalRoles: [],
+        avatar:          newSchoolUser.avatar,
+        schoolId:        newSchool._id
       },
       school:     newSchool,
       redirectTo: '/institution/onboarding.html',
@@ -395,21 +323,14 @@ router.post('/google', async (req, res) => {
 
   } catch (err) {
     console.error('[InstAuth] Google auth error:', err.message);
-    logAudit({
-      req,
-      action:  'institution.auth.error',
-      success: false,
-      message: err.message
-    });
-    return res.status(500).json({
-      success: false,
-      message: 'Authentication failed. Please try again.'
-    });
+    logAudit({ req, action: 'institution.auth.error', success: false, message: err.message });
+    return res.status(500).json({ success: false, message: 'Authentication failed. Please try again.' });
   }
 });
 
 /* ============================================
    GET /api/institution/auth/me
+   ✅ STAGE 5: additionalRoles included in response.
 ============================================ */
 router.get('/me', instProtect, async (req, res) => {
   try {
@@ -417,12 +338,14 @@ router.get('/me', instProtect, async (req, res) => {
     return res.status(200).json({
       success: true,
       user: {
-        _id:      req.schoolUser._id,
-        name:     req.schoolUser.name,
-        email:    req.schoolUser.email,
-        role:     req.schoolUser.role,
-        avatar:   req.schoolUser.avatar,
-        schoolId: req.schoolId
+        _id:             req.schoolUser._id,
+        name:            req.schoolUser.name,
+        email:           req.schoolUser.email,
+        role:            req.schoolUser.role,
+        /* ✅ STAGE 5: included in response */
+        additionalRoles: req.schoolUser.additionalRoles || [],
+        avatar:          req.schoolUser.avatar,
+        schoolId:        req.schoolId
       },
       school: school
     });
