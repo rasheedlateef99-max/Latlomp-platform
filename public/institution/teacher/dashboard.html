@@ -230,8 +230,10 @@
 
   <div class="page-content">
 
-    <!-- OVERVIEW -->
+   <!-- OVERVIEW -->
     <div class="section active" id="sec-overview">
+      <!-- ✅ STAGE 6: Role context card — shown for class_teacher and department_admin -->
+      <div id="roleContextCard" style="display:none;"></div>
       <div class="page-header">
         <div><h1 id="welcomeTitle">Welcome back!</h1><p>Here's your teaching dashboard at a glance.</p></div>
         <button class="btn btn-green" onclick="openCreateExamModal()">+ New Exam</button>
@@ -571,6 +573,7 @@ var _activeResultId = null;
 var _gradeAnswers   = [];
 var _schoolUser     = null;
 
+var _roleContext    = null;  /* ✅ STAGE 6: role-scope context from API */
 var _qTableData     = [];
 var _previewVisible = false;
 
@@ -769,12 +772,102 @@ function updateQPreview() {
   }
 }
 
+/* ============================================
+   ✅ STAGE 6: ROLE CONTEXT + DASHBOARD ADAPTATION
+============================================ */
+
+/* Fetch role-specific scope data from the server.
+   class_teacher → assignedClass + studentCount
+   hod/dept_admin → assignedDepartment + studentCount
+   admin/senior   → studentCount only */
+async function getMyRoleContext() {
+  var res = await instApi('/school/my-role-context');
+  if (res.ok) { _roleContext = res.data.context || null; }
+}
+
+/* Render the context banner inside #roleContextCard.
+   Called after getMyRoleContext() completes. */
+function renderRoleContextCard() {
+  var container = document.getElementById('roleContextCard');
+  if (!container) { return; }
+  if (!_roleContext || !_schoolUser) { container.style.display = 'none'; return; }
+
+  var effectiveRoles = getEffectiveRolesClient(_schoolUser);
+  var seniorRoles    = ['school_admin', 'principal', 'vice_principal', 'dean'];
+  var isSenior       = effectiveRoles.some(function (r) { return seniorRoles.includes(r); });
+
+  if (isSenior) { container.style.display = 'none'; return; }
+
+  if (effectiveRoles.includes('class_teacher') && _roleContext.assignedClass) {
+    container.style.display = 'block';
+    container.innerHTML =
+      '<div style="background:rgba(108,99,255,0.07);border:1px solid rgba(108,99,255,0.2);border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">' +
+        '<div style="display:flex;align-items:center;gap:12px;">' +
+          '<div style="width:40px;height:40px;border-radius:10px;background:rgba(108,99,255,0.15);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🏫</div>' +
+          '<div>' +
+            '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">My Class</div>' +
+            '<div style="font-size:17px;font-weight:800;color:#fff;">' + escHtml(_roleContext.assignedClass.name) + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="text-align:center;">' +
+          '<div style="font-size:24px;font-weight:900;color:var(--primary);">' + (_roleContext.studentCount || 0) + '</div>' +
+          '<div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;">Students</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+          '<a class="btn btn-secondary btn-sm" href="/institution/school/students.html">🧑‍🎓 My Students</a>' +
+          '<a class="btn btn-secondary btn-sm" href="/institution/teacher/attendance.html">📋 Attendance</a>' +
+          '<a class="btn btn-secondary btn-sm" href="/institution/school/report-cards.html">📋 Report Cards</a>' +
+        '</div>' +
+      '</div>';
+    return;
+  }
+
+  if (
+    effectiveRoles.some(function (r) { return ['hod', 'department_admin'].includes(r); }) &&
+    _roleContext.assignedDepartment
+  ) {
+    container.style.display = 'block';
+    container.innerHTML =
+      '<div style="background:rgba(67,233,123,0.06);border:1px solid rgba(67,233,123,0.2);border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">' +
+        '<div style="display:flex;align-items:center;gap:12px;">' +
+          '<div style="width:40px;height:40px;border-radius:10px;background:rgba(67,233,123,0.12);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🏢</div>' +
+          '<div>' +
+            '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">My Department</div>' +
+            '<div style="font-size:17px;font-weight:800;color:#fff;">' + escHtml(_roleContext.assignedDepartment.name) + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="text-align:center;">' +
+          '<div style="font-size:24px;font-weight:900;color:var(--green);">' + (_roleContext.studentCount || 0) + '</div>' +
+          '<div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;">Students</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+          '<a class="btn btn-secondary btn-sm" href="/institution/school/students.html">🧑‍🎓 My Students</a>' +
+          '<a class="btn btn-secondary btn-sm" href="/institution/teacher/attendance.html">📋 Attendance</a>' +
+        '</div>' +
+      '</div>';
+    return;
+  }
+
+  container.style.display = 'none';
+}
+
+/* Entry point for role-based dashboard adaptation.
+   Currently shows the context card. Future stages
+   can extend this to add/remove more UI elements. */
+function renderDashboardForRole(effectiveRoles) {
+  if (!effectiveRoles || effectiveRoles.length === 0) { return; }
+  setTimeout(renderRoleContextCard, 50);
+}
+
 /* ============================================ INIT */
 document.addEventListener('DOMContentLoaded', async function() {
   if (!instRequireAuth()) { return; }
   _schoolUser = instGetUser();
   if (!_schoolUser) { return; }
+  /* ✅ STAGE 6: fetch role context before rendering sidebar */
+  await getMyRoleContext();
   fillSidebar();
+  renderDashboardForRole(getEffectiveRolesClient(_schoolUser));
   await loadOverview();
   var yearEl = document.getElementById('exYear');
   if (yearEl) { yearEl.value = new Date().getFullYear(); }
@@ -782,10 +875,26 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 function fillSidebar() {
   var u = _schoolUser; if (!u) { return; }
-  var av=document.getElementById('sbAvatar');    if(av) { av.textContent=(u.name||'T').charAt(0).toUpperCase(); }
-  var nm=document.getElementById('sbName');      if(nm) { nm.textContent=u.name||'—'; }
-  var rl=document.getElementById('sbRole');      if(rl) { rl.textContent=u.role==='vice_principal'?'Vice Principal':'Teacher'; }
-  var sc=document.getElementById('sbSchoolTag'); if(sc) { sc.textContent='My School'; }
+  var av = document.getElementById('sbAvatar');
+  var nm = document.getElementById('sbName');
+  var rl = document.getElementById('sbRole');
+  var sc = document.getElementById('sbSchoolTag');
+  if (av) { av.textContent = (u.name || 'T').charAt(0).toUpperCase(); }
+  if (nm) { nm.textContent = u.name || '—'; }
+  /* ✅ STAGE 6: role label from effective roles */
+  var effectiveRoles = getEffectiveRolesClient(u);
+  var primaryRole    = effectiveRoles[0] || 'teacher';
+  if (rl) { rl.textContent = getRoleLabel(primaryRole); }
+  /* Show class/dept name in school tag instead of generic 'My School' */
+  if (sc) {
+    var contextLabel = 'My School';
+    if (_roleContext && _roleContext.assignedClass) {
+      contextLabel = _roleContext.assignedClass.name;
+    } else if (_roleContext && _roleContext.assignedDepartment) {
+      contextLabel = _roleContext.assignedDepartment.name;
+    }
+    sc.textContent = contextLabel;
+  }
 }
 
 function showSection(name) {
@@ -815,7 +924,24 @@ async function loadOverview() {
   document.getElementById('stPublished').textContent   = published;
   document.getElementById('stSubmissions').textContent = submissions;
   document.getElementById('stPendingGrade').textContent= '—';
-  var wt=document.getElementById('welcomeTitle'); if(wt&&_schoolUser)wt.textContent='Welcome, '+(_schoolUser.name||'Teacher')+'!';
+  var wt = document.getElementById('welcomeTitle');
+  if (wt && _schoolUser) {
+    wt.textContent = 'Welcome, ' + (_schoolUser.name || 'Teacher') + '!';
+    /* ✅ STAGE 6: context-aware subtitle */
+    var subEl = wt.parentElement ? wt.parentElement.querySelector('p') : null;
+    if (subEl) {
+      var effectiveRoles = getEffectiveRolesClient(_schoolUser);
+      var primaryRole    = effectiveRoles[0] || 'teacher';
+      var roleLabel      = getRoleLabel(primaryRole);
+      var contextLine    = 'Your ' + roleLabel.toLowerCase() + ' dashboard';
+      if (_roleContext && _roleContext.assignedClass) {
+        contextLine = roleLabel + ' · ' + _roleContext.assignedClass.name + ' · ' + (_roleContext.studentCount || 0) + ' students';
+      } else if (_roleContext && _roleContext.assignedDepartment) {
+        contextLine = roleLabel + ' · ' + _roleContext.assignedDepartment.name;
+      }
+      subEl.textContent = contextLine;
+    }
+  }
   renderOverviewExams(_myExams.slice(0,5));
 }
 

@@ -197,4 +197,123 @@ function instDaysLeft(expiryDate) {
   return Math.max(0, Math.ceil((new Date(expiryDate) - new Date()) / 86400000));
 }
 
+/* ============================================
+   ✅ RESTRUCTURE STAGE 6: TERMINOLOGY ADAPTER
+   Returns vocabulary object based on school type.
+   Used by all institution pages for consistent labels.
+   Backend stays role-generic; only frontend adapts.
+============================================ */
+function getTerminology(schoolType) {
+  var t = schoolType || 'secondary';
+  if (t === 'primary') {
+    return {
+      unitLabel:       'Class',
+      classManager:    'Class Teacher',
+      instructor:      'Subject Teacher',
+      seniorManager:   'Principal',
+      academicUnit:    'class',
+      studentGroup:    'Pupils',
+      attendanceUnit:  'Class Attendance',
+      scoreLabel:      'Scores',
+      reportLabel:     'Report Card',
+      parentLabel:     'Parent'
+    };
+  }
+  if (t === 'polytechnic') {
+    return {
+      unitLabel:       'Department',
+      classManager:    'Department Administrator',
+      instructor:      'Lecturer',
+      seniorManager:   'Dean',
+      academicUnit:    'department',
+      studentGroup:    'Students',
+      attendanceUnit:  'Lecture Attendance',
+      scoreLabel:      'Grades',
+      reportLabel:     'Academic Report',
+      parentLabel:     'Guardian'
+    };
+  }
+  if (t === 'university') {
+    return {
+      unitLabel:       'Department',
+      classManager:    'Department Administrator',
+      instructor:      'Lecturer',
+      seniorManager:   'Dean',
+      academicUnit:    'department',
+      studentGroup:    'Students',
+      attendanceUnit:  'Lecture Attendance',
+      scoreLabel:      'Grades',
+      reportLabel:     'Academic Transcript',
+      parentLabel:     'Guardian'
+    };
+  }
+  if (t === 'college') {
+    return {
+      unitLabel:       'Class',
+      classManager:    'Class Teacher',
+      instructor:      'Instructor',
+      seniorManager:   'Principal',
+      academicUnit:    'class',
+      studentGroup:    'Students',
+      attendanceUnit:  'Class Attendance',
+      scoreLabel:      'Scores',
+      reportLabel:     'Report Card',
+      parentLabel:     'Parent'
+    };
+  }
+  /* Default: secondary */
+  return {
+    unitLabel:       'Class',
+    classManager:    'Class Teacher',
+    instructor:      'Subject Teacher',
+    seniorManager:   'Principal',
+    academicUnit:    'class',
+    studentGroup:    'Students',
+    attendanceUnit:  'Class Attendance',
+    scoreLabel:      'Scores',
+    reportLabel:     'Report Card',
+    parentLabel:     'Parent'
+  };
+}
+
+/* ============================================
+   ✅ RESTRUCTURE STAGE 6: EFFECTIVE ROLES CLIENT
+   Frontend mirror of getEffectiveRoles() in inst.auth.js.
+   Returns union of user.role + user.additionalRoles.
+============================================ */
+function getEffectiveRolesClient(user) {
+  if (!user) { return []; }
+  var base     = user.role ? [user.role] : [];
+  var extra    = (Array.isArray(user.additionalRoles) && user.additionalRoles.length > 0)
+    ? user.additionalRoles
+    : [];
+  var combined = base.concat(extra);
+  return combined.filter(function (r, idx) {
+    return combined.indexOf(r) === idx;
+  });
+}
+
+/* ============================================
+   ✅ RESTRUCTURE STAGE 6: ROLE LABEL HELPER
+   Returns human-readable label for a role.
+   Optional terms object adapts to institution type.
+============================================ */
+function getRoleLabel(role, terms) {
+  var map = {
+    'school_admin':     'School Admin',
+    'principal':        (terms && terms.seniorManager) || 'Principal',
+    'vice_principal':   'Vice Principal',
+    'dean':             'Dean',
+    'hod':              'Head of Department',
+    'department_admin': 'Department Administrator',
+    'class_teacher':    (terms && terms.classManager)  || 'Class Teacher',
+    'subject_teacher':  (terms && terms.instructor)    || 'Subject Teacher',
+    'teacher':          (terms && terms.instructor)    || 'Teacher',
+    'lecturer':         (terms && terms.instructor)    || 'Lecturer',
+    'instructor':       'Instructor',
+    'bursar':           'Bursar'
+  };
+  return map[role] || role || 'Staff';
+}
+
 console.log('⚡ Institution API utility loaded');
