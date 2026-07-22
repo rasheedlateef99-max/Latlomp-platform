@@ -364,6 +364,29 @@
       .section { padding: 60px 16px; }
       .hero-stats { gap: 28px; }
     }
+
+    /* =========================================
+       ✅ STAGE 7: ENTRY POINTS SECTION
+    ========================================= */
+    .entry-section { padding:72px 24px; max-width:1100px; margin:0 auto; }
+    .entry-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(175px,1fr)); gap:14px; }
+    .entry-card {
+      background:var(--dark-2); border:1px solid var(--border);
+      border-radius:16px; padding:24px 18px; text-align:center;
+      text-decoration:none; transition:all 0.2s;
+      display:flex; flex-direction:column; align-items:center; gap:10px;
+    }
+    .entry-card:hover { transform:translateY(-3px); border-color:rgba(108,99,255,0.35); background:rgba(108,99,255,0.06); }
+    .entry-card.coming-soon { opacity:0.5; cursor:default; pointer-events:none; }
+    .entry-card-icon  { font-size:34px; line-height:1; }
+    .entry-card-title { font-size:14px; font-weight:800; color:#fff; }
+    .entry-card-desc  { font-size:12px; color:var(--text-2); line-height:1.5; }
+    .entry-card-badge { font-size:10px; font-weight:700; padding:3px 10px; border-radius:20px; text-transform:uppercase; letter-spacing:0.4px; margin-top:auto; }
+    .badge-staff   { background:rgba(108,99,255,0.12); color:#a78bfa; }
+    .badge-student { background:rgba(67,233,123,0.12);  color:var(--green); }
+    .badge-exam    { background:rgba(255,165,0,0.12);   color:#ffa500; }
+    .badge-soon    { background:rgba(255,255,255,0.06); color:var(--text-3); }
+
   </style>
 </head>
 <body>
@@ -412,14 +435,14 @@
 ========================================= -->
 <section class="hero">
   <div class="hero-content">
-    <div class="hero-badge">🏫 Multi-Tenant Educational SaaS for Nigeria</div>
+   <div class="hero-badge" id="heroBadge">🌍 Built for Every Educational Institution Worldwide</div>
     <h1 class="hero-title">
       Run Your School<br/>
       <span class="hl">Like a Professional</span>
     </h1>
-    <p class="hero-sub">
-      CBT exams, teacher management, student tracking, automated grading,
-      and subscription billing — all in one platform built for Nigerian schools.
+   <p class="hero-sub">
+      CBT exams, attendance, graded scores, report cards, timetables, and student portals —
+      one platform for every educational institution worldwide.
     </p>
     <div class="hero-btns">
       <a href="#signin" class="btn-hero-primary">🚀 Start Free 7-Day Trial</a>
@@ -527,31 +550,93 @@
   <div class="section" id="roles">
     <div class="section-tag">Who Uses It</div>
     <h2 class="section-title">Built for every role</h2>
-    <p class="section-sub">One platform, four distinct experiences — each isolated and secure.</p>
-    <div class="roles">
-      <div class="role">
+    <p class="section-sub">One platform, multiple portals — each isolated, secure, and purpose-built.</p>
+    <div class="roles" id="rolesGrid">
+     <div class="role">
         <div class="role-icon">🏫</div>
-        <div class="role-title">Institution Admin</div>
-        <div class="role-desc">Register your school, invite teachers, view all results, manage subscription and billing.</div>
+        <div class="role-title" id="roleAdminTitle">Institution Admin</div>
+        <div class="role-desc" id="roleAdminDesc">Register your school, invite staff, manage structure, subscriptions, and all academic operations.</div>
         <a href="#signin" class="role-link role-link-primary">Get Started →</a>
       </div>
       <div class="role">
+        <div class="role-icon">🎖️</div>
+        <div class="role-title" id="roleStaffTitle">Principal / Senior Staff</div>
+        <div class="role-desc" id="roleStaffDesc">Approve score submissions, officially release report cards, oversee all academic records.</div>
+        <a href="#signin" class="role-link role-link-outline">Sign In →</a>
+      </div>
+      <div class="role">
         <div class="role-icon">👩‍🏫</div>
-        <div class="role-title">Teacher</div>
-        <div class="role-desc">Accept your school invite, create exams and questions, monitor student submissions.</div>
+        <div class="role-title" id="roleTeacherTitle">Class Teacher / Subject Teacher</div>
+        <div class="role-desc" id="roleTeacherDesc">Accept your invite, register students, enter scores, mark attendance, write report comments.</div>
         <a href="#signin" class="role-link role-link-outline">Accept Invite →</a>
       </div>
       <div class="role">
-        <div class="role-icon">🎓</div>
-        <div class="role-title">Student</div>
-        <div class="role-desc">Enter exam code given by your teacher — no account needed. Get instant results.</div>
+        <div class="role-icon">🧑‍🎓</div>
+        <div class="role-title">Student Portal</div>
+        <div class="role-desc">Log in with your school-issued PIN to view released scores, report cards, timetable, and attendance.</div>
+        <a href="student/login.html" class="role-link role-link-green">Student Login →</a>
+      </div>
+      <div class="role">
+        <div class="role-icon">📝</div>
+        <div class="role-title">CBT Examination</div>
+        <div class="role-desc">Enter your exam access code given by your teacher. No account needed. Instant auto-graded results.</div>
         <a href="student/exam.html" class="role-link role-link-green">Take Exam →</a>
       </div>
       <div class="role">
-        <div class="role-icon">⚙️</div>
-        <div class="role-title">Platform Admin</div>
-        <div class="role-desc">Monitor all institutions, manage subscriptions, view platform-wide revenue analytics.</div>
-        <a href="../admin.html" class="role-link role-link-outline">Admin Panel →</a>
+        <div class="role-icon">👨‍👩‍👧</div>
+        <div class="role-title">Parent Portal</div>
+        <div class="role-desc">View your child's results, report card, attendance, and timetable. Launching in Phase Q.</div>
+        <span class="role-link" style="background:rgba(255,255,255,0.04); border:1px solid var(--border); color:var(--text-3); cursor:default;">Coming Soon</span>
+      </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================
+     QUICK ACCESS ENTRY POINTS  ✅ STAGE 7
+========================================= -->
+<div style="background:var(--dark-3); border-top:1px solid var(--border); border-bottom:1px solid var(--border);">
+  <div class="entry-section">
+    <div class="section-tag">Quick Access</div>
+    <h2 class="section-title" style="margin-bottom:8px;">Where do you need to go?</h2>
+    <p class="section-sub" style="margin-bottom:32px;">Select your role to go directly to the right portal.</p>
+    <div class="entry-grid">
+      <a href="#signin" class="entry-card">
+        <div class="entry-card-icon">🏫</div>
+        <div class="entry-card-title">Institution Admin</div>
+        <div class="entry-card-desc">Set up and manage your school</div>
+        <span class="entry-card-badge badge-staff">Google Sign-In</span>
+      </a>
+      <a href="#signin" class="entry-card">
+        <div class="entry-card-icon">🎖️</div>
+        <div class="entry-card-title" id="entrySeniorLabel">Principal / HOD / Dean</div>
+        <div class="entry-card-desc">Approve and release academic records</div>
+        <span class="entry-card-badge badge-staff">Google Sign-In</span>
+      </a>
+      <a href="#signin" class="entry-card">
+        <div class="entry-card-icon">👩‍🏫</div>
+        <div class="entry-card-title" id="entryTeacherLabel">Class Teacher / Lecturer</div>
+        <div class="entry-card-desc">Scores, attendance, student management</div>
+        <span class="entry-card-badge badge-staff">Google Sign-In</span>
+      </a>
+      <a href="student/login.html" class="entry-card">
+        <div class="entry-card-icon">🧑‍🎓</div>
+        <div class="entry-card-title">Student Portal</div>
+        <div class="entry-card-desc">View your scores and report card</div>
+        <span class="entry-card-badge badge-student">PIN Login</span>
+      </a>
+      <a href="student/exam.html" class="entry-card">
+        <div class="entry-card-icon">📝</div>
+        <div class="entry-card-title">CBT Examination</div>
+        <div class="entry-card-desc">Enter your exam access code</div>
+        <span class="entry-card-badge badge-exam">Access Code</span>
+      </a>
+      <div class="entry-card coming-soon">
+        <div class="entry-card-icon">👨‍👩‍👧</div>
+        <div class="entry-card-title">Parent Portal</div>
+        <div class="entry-card-desc">Monitor your child's progress</div>
+        <span class="entry-card-badge badge-soon">Phase Q — Soon</span>
       </div>
     </div>
   </div>
@@ -598,10 +683,14 @@
       Continue with Google
     </button>
 
-    <p class="signin-note">
+   <p class="signin-note">
       By signing in you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.<br/>
       Institution admins receive a free 7-day trial on first sign-in.
     </p>
+    <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:20px; padding-top:18px; border-top:1px solid var(--border);">
+      <a href="student/login.html" style="font-size:12px; font-weight:700; color:var(--green); text-decoration:none; padding:8px 16px; background:rgba(67,233,123,0.08); border:1px solid rgba(67,233,123,0.2); border-radius:8px; display:inline-flex; align-items:center; gap:6px;">🧑‍🎓 Student Portal</a>
+      <a href="student/exam.html"  style="font-size:12px; font-weight:700; color:#ffa500; text-decoration:none; padding:8px 16px; background:rgba(255,165,0,0.08); border:1px solid rgba(255,165,0,0.2); border-radius:8px; display:inline-flex; align-items:center; gap:6px;">📝 CBT Exam</a>
+    </div>
 
   </div>
 </div>
@@ -649,9 +738,13 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  /* Invite token check */
+ /* URL params */
   var params   = new URLSearchParams(window.location.search);
   _inviteToken = params.get('invite');
+
+  /* ✅ STAGE 7: School branding from slug param */
+  var slugParam = params.get('slug');
+  if (slugParam) { applySchoolBranding(slugParam); }
   if (_inviteToken) {
     var wrap = document.getElementById('inviteBannerWrap');
     if (wrap) wrap.style.display = 'block';
@@ -773,23 +866,93 @@ function resetBtn(btn) {
 /* ---- Redirect logic ---- */
 function doRedirect(user, school, redirectTo) {
   if (redirectTo) { window.location.replace(redirectTo); return; }
+  /* ✅ STAGE 7: all institution roles route to correct dashboard */
+  var allStaffRoles = [
+    'teacher', 'vice_principal', 'bursar',
+    'class_teacher', 'subject_teacher',
+    'lecturer', 'instructor',
+    'hod', 'dean', 'department_admin', 'principal'
+  ];
   if (user.role === 'school_admin') {
     window.location.replace(
       school && school.onboardingDone
         ? '/institution/school/dashboard.html'
         : '/institution/onboarding.html'
     );
-  } else if (user.role === 'teacher' || user.role === 'vice_principal') {
+  } else if (allStaffRoles.indexOf(user.role) !== -1) {
     window.location.replace('/institution/teacher/dashboard.html');
   } else {
-    window.location.replace('/institution/school/dashboard.html');
+    /* Unknown role — safe fallback */
+    window.location.replace('/institution/teacher/dashboard.html');
   }
 }
-
 /* ---- Show error ---- */
 function showErr(msg) {
   var el = document.getElementById('signinError');
   if (el) { el.textContent = msg; el.style.display = 'block'; }
+}
+
+/* ============================================
+   ✅ STAGE 7: SCHOOL BRANDING ADAPTER
+   Called when ?slug= is in the URL.
+   Fetches public branding from the school's slug
+   and adapts page colour, logo, and terminology.
+   Uses the existing public GET /school/by-slug/:slug
+   endpoint — no auth required.
+============================================ */
+async function applySchoolBranding(slug) {
+  try {
+    var res = await fetch('/api/institution/school/by-slug/' + encodeURIComponent(slug));
+    if (!res.ok) { return; }
+    var data = await res.json();
+    if (!data.success || !data.school) { return; }
+    var school = data.school;
+
+    /* Hero badge */
+    var badge = document.getElementById('heroBadge');
+    if (badge) { badge.textContent = '🏫 ' + school.name; }
+
+    /* Primary colour */
+    if (school.primaryColor) {
+      document.documentElement.style.setProperty('--primary',   school.primaryColor);
+      document.documentElement.style.setProperty('--primary-d', school.primaryColor);
+    }
+
+    /* Sign-in card */
+    var iconEl  = document.getElementById('signinIcon');
+    var titleEl = document.getElementById('signinTitle');
+    var descEl  = document.getElementById('signinDesc');
+    if (iconEl) {
+      if (school.logo) {
+        iconEl.innerHTML = '<img src="' + school.logo +
+          '" alt="Logo" style="width:64px;height:64px;border-radius:12px;object-fit:cover;" />';
+      }
+    }
+    if (titleEl) { titleEl.textContent = school.name; }
+    if (descEl)  { descEl.innerHTML    = 'Sign in with your Google account to access<br/><strong>' + school.name + '</strong>'; }
+
+    /* Nav logo name */
+    var navName = document.querySelector('.nav-logo-name');
+    if (navName) {
+      navName.textContent = school.name.length > 22
+        ? school.name.substring(0, 22) + '…'
+        : school.name;
+    }
+
+    /* Terminology adaptation for higher institutions */
+    var isHigher = (school.type === 'polytechnic' || school.type === 'university');
+    if (isHigher) {
+      var el;
+      el = document.getElementById('roleTeacherTitle');  if (el) el.textContent = 'Department Admin / Lecturer';
+      el = document.getElementById('roleTeacherDesc');   if (el) el.textContent = 'Accept your invite, register departmental students, enter course grades, mark lecture attendance.';
+      el = document.getElementById('roleStaffTitle');    if (el) el.textContent = 'Dean / HOD';
+      el = document.getElementById('roleStaffDesc');     if (el) el.textContent = 'Approve grade submissions, oversee department records and academic operations.';
+      el = document.getElementById('entryTeacherLabel'); if (el) el.textContent = 'Dept Admin / Lecturer';
+      el = document.getElementById('entrySeniorLabel');  if (el) el.textContent = 'Dean / HOD';
+    }
+  } catch (e) {
+    console.warn('[branding] applySchoolBranding error:', e.message);
+  }
 }
 
 /* ---- Load pricing plans ---- */
@@ -832,6 +995,7 @@ async function loadPlans() {
     if (grid) grid.innerHTML = '<div style="color:var(--text-3);text-align:center;padding:48px;grid-column:1/-1;font-size:14px;">Could not load plans.</div>';
   }
 }
+
 </script>
 </body>
 </html>

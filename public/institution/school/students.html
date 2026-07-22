@@ -267,6 +267,28 @@
   </div>
 </div>
 
+<!-- ✅ STAGE 8: SET PIN MODAL -->
+<div class="modal-overlay" id="setPinModal" style="display:none;">
+  <div class="modal-box" style="max-width:400px;">
+    <div class="modal-header">
+      <h2>Set Student PIN</h2>
+      <button class="modal-close" onclick="closeModal('setPinModal')">✕</button>
+    </div>
+    <input type="hidden" id="pinTargetId" />
+    <p style="font-size:13px; color:var(--secondary); margin:0 0 14px;" id="pinStudentName"></p>
+    <div class="field">
+      <label>New PIN (4–8 characters)</label>
+      <input type="text" id="newPinInput" class="inp" placeholder="e.g. 1234" maxlength="8"
+             onkeydown="if(event.key==='Enter'){confirmSetPin();}" />
+      <div class="field-hint">The student uses this PIN to log in to the student portal.</div>
+    </div>
+    <div id="pinResultBox" style="display:none; padding:10px 12px; border-radius:8px; font-size:13px; margin-top:10px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('setPinModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmSetPin()">Set PIN</button>
+    </div>
+  </div>
+</div>
 
 <script src="/institution/js/inst.api.js"></script>
 <script>
@@ -279,11 +301,54 @@ var _currentPage   = 1;
 var _totalPages    = 1;
 var _searchTimer   = null;
 var _parsedImportRows = [];
+/* ✅ STAGE 8: role context */
+var _schoolUser      = null;
+var _isSenior        = false;
+var _isClassTeacher  = false;
+var _myClassId       = null;
 
 document.addEventListener('DOMContentLoaded', async function() {
-  if (!instRequireAuth('school_admin')) { return; }
+  /* ✅ STAGE 8: opened to all staff with canManageStudents permission */
+  if (!instRequireAuth()) { return; }
+  _schoolUser = instGetUser();
+  if (!_schoolUser) { return; }
+
+  var effectiveRoles = getEffectiveRolesClient(_schoolUser);
+  var seniorRoles    = ['school_admin', 'principal', 'vice_principal', 'dean'];
+  _isSenior         = effectiveRoles.some(function (r) { return seniorRoles.includes(r); });
+  _isClassTeacher   = effectiveRoles.includes('class_teacher') && !_isSenior;
+  var isDeptRole     = effectiveRoles.some(function (r) { return ['hod','department_admin'].includes(r); }) && !_isSenior;
+
+  /* Fetch role context for class_teacher and dept roles */
+  if (_isClassTeacher || isDeptRole) {
+    var ctx = await instApi('/school/my-role-context');
+    if (ctx.ok && ctx.data.context) {
+      var rc = ctx.data.context;
+      if (rc.assignedClass)      { _myClassId = rc.assignedClass._id; }
+      if (rc.assignedDepartment) { _myClassId = rc.assignedDepartment._id; }
+    }
+  }
+
+  /* Adapt page for class_teacher */
+  if (_isClassTeacher) {
+    var ph   = document.querySelector('.page-header p');
+    var back = document.querySelector('.topbar-back');
+    if (ph)   { ph.textContent   = 'Manage students in your assigned class'; }
+    if (back) { back.href        = '/institution/teacher/dashboard.html'; back.textContent = '← Dashboard'; }
+    /* Bulk import stays admin-only — hide button */
+    var importBtn = document.querySelector('.header-btns button.btn-secondary');
+    if (importBtn) { importBtn.style.display = 'none'; }
+  }
+
   await loadClassesDropdown();
   await loadStats();
+
+  /* Auto-filter and lock class selector for class_teacher */
+  if (_isClassTeacher && _myClassId) {
+    var cf = document.getElementById('classFilter');
+    if (cf) { cf.value = _myClassId; cf.disabled = true; }
+  }
+
   await loadStudents(1);
 });
 
@@ -379,6 +444,7 @@ function renderStudentsTable(students) {
         '<button class="btn btn-secondary btn-sm" onclick="viewProfile(\'' + s._id + '\')">View</button>' +
         '<button class="btn btn-secondary btn-sm" onclick="openEditModal(\'' + s._id + '\')">Edit</button>' +
         '<button class="btn btn-orange btn-sm" onclick="openStatusModal(\'' + s._id + '\',\'' + esc(s.name).replace(/'/g,"&#39;") + '\',\'' + s.status + '\')">Status</button>' +
+       '<button class="btn btn-purple btn-sm" onclick="openSetPinModal(\'' + s._id + '\',\'' + esc(s.name).replace(/'/g,"&#39;") + '\')">🔑 PIN</button>' +
         '<button class="btn btn-danger btn-sm" onclick="deleteStudent(\'' + s._id + '\',\'' + esc(s.name).replace(/'/g,"&#39;") + '\')">Del</button>' +
       '</div></td>' +
     '</tr>';
@@ -406,7 +472,13 @@ function openAddModal() {
   ['sName','sAdmissionNo','sGender','sDob','sPhoto','sEmail','sPhone','sAddress','sParentName','sParentPhone','sParentEmail'].forEach(function(id) {
     var el = document.getElementById(id); if (el) { el.value = ''; }
   });
-  document.getElementById('sClassId').value = '';
+ /* ✅ STAGE 8: auto-fill class for class_teacher */
+  var classSelEl = document.getElementById('sClassId');
+  if (_isClassTeacher && _myClassId) {
+    if (classSelEl) { classSelEl.value = _myClassId; classSelEl.disabled = true; }
+  } else {
+    if (classSelEl) { classSelEl.value = ''; classSelEl.disabled = false; }
+  }
   document.getElementById('sJoinedSession').value = currentSessionGuess();
   document.getElementById('sPhotoPreview').style.display = 'none';
   document.getElementById('studentModalTitle').textContent = 'Add Student';
@@ -647,6 +719,41 @@ async function confirmImport() {
     resultBox.style.color = 'var(--red)';
     resultBox.textContent = (res.data && res.data.message) || 'Import failed.';
     resultBox.style.display = 'block';
+  }
+}
+
+/* ============================================ SET PIN — ✅ STAGE 8 */
+function openSetPinModal(studentId, name) {
+  closeAllModals();
+  document.getElementById('pinTargetId').value  = studentId;
+  document.getElementById('pinStudentName').textContent = 'Student: ' + name;
+  document.getElementById('newPinInput').value  = '';
+  document.getElementById('pinResultBox').style.display = 'none';
+  document.getElementById('setPinModal').style.display  = 'flex';
+  setTimeout(function () {
+    var el = document.getElementById('newPinInput'); if (el) { el.focus(); }
+  }, 100);
+}
+
+async function confirmSetPin() {
+  var id  = document.getElementById('pinTargetId').value;
+  var pin = (document.getElementById('newPinInput').value || '').trim();
+  if (!pin || pin.length < 4 || pin.length > 8) {
+    instToast('PIN must be 4 to 8 characters.', 'error');
+    return;
+  }
+  var res = await instApi('/student-portal/portal/admin/students/' + id + '/set-pin', 'PUT', { pin: pin });
+  var box = document.getElementById('pinResultBox');
+  if (res.ok) {
+    instToast((res.data && res.data.message) || 'PIN set successfully.', 'success');
+    closeModal('setPinModal');
+  } else {
+    if (box) {
+      box.style.background = 'rgba(255,101,132,0.1)';
+      box.style.color      = 'var(--red)';
+      box.textContent      = (res.data && res.data.message) || 'Failed to set PIN.';
+      box.style.display    = 'block';
+    }
   }
 }
 

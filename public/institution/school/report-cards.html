@@ -232,7 +232,7 @@
         </div>
       </div>
       <div class="card-body">
-        <div class="settings-grid">
+      <div class="settings-grid" id="seniorSettingsGrid"></div>  
           <div class="field">
             <label>Principal's Comment</label>
             <textarea id="principalComment" class="inp" placeholder="e.g. Keep it up! You have done well this term."></textarea>
@@ -242,7 +242,7 @@
             <input type="date" id="resumptionDate" class="inp" />
           </div>
         </div>
-        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding-top:12px; border-top:1px solid var(--border);">
+        <div id="releaseRow" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding-top:12px; border-top:1px solid var(--border);"></div>
           <div>
             <div style="font-size:13px; font-weight:700; color:#fff; margin-bottom:3px;">Release Report Cards to Students</div>
             <div style="font-size:12px; color:var(--muted);">When released, students can view their report cards in the student portal (Phase Q).</div>
@@ -331,6 +331,12 @@
    - Export to PDF (individual or bulk)
 ============================================ */
 
+/* ✅ STAGE 8: role context */
+var _schoolUser     = null;
+var _isSenior       = false;
+var _isClassTeacher = false;
+var _myClassId      = null;
+
 var _classes    = [];
 var _terms      = [];
 var _data       = null;  /* full API response */
@@ -338,7 +344,26 @@ var _currentStudent = null;
 
 /* ============================================ INIT */
 document.addEventListener('DOMContentLoaded', async function () {
-  if (!instRequireAuth('school_admin')) { return; }
+  /* ✅ STAGE 8: opened to class_teacher + senior staff */
+  if (!instRequireAuth()) { return; }
+  _schoolUser = instGetUser();
+  if (!_schoolUser) { return; }
+
+  var effectiveRoles = getEffectiveRolesClient(_schoolUser);
+  var seniorRoles    = ['school_admin', 'principal', 'vice_principal', 'dean'];
+  _isSenior         = effectiveRoles.some(function (r) { return seniorRoles.includes(r); });
+  _isClassTeacher   = effectiveRoles.includes('class_teacher') && !_isSenior;
+
+  if (_isClassTeacher) {
+    var back = document.querySelector('.topbar-back');
+    if (back) { back.href = '/institution/teacher/dashboard.html'; back.textContent = '← Dashboard'; }
+    /* Fetch assigned class */
+    var ctx = await instApi('/school/my-role-context');
+    if (ctx.ok && ctx.data.context && ctx.data.context.assignedClass) {
+      _myClassId = ctx.data.context.assignedClass._id;
+    }
+  }
+
   await loadStructure();
 });
 
@@ -355,9 +380,17 @@ async function loadStructure() {
     return (t.name || '') + (t.session ? ' — ' + t.session : '');
   }, '_id');
 
-  /* Auto-select current term */
+/* Auto-select current term */
   var cur = _terms.find(function(t) { return t.isCurrent; });
   if (cur) { document.getElementById('selTerm').value = cur._id; }
+
+  /* ✅ STAGE 8: auto-select and lock class for class_teacher */
+  if (_isClassTeacher && _myClassId) {
+    var clsSel = document.getElementById('selClass');
+    if (clsSel) { clsSel.value = _myClassId; clsSel.disabled = true; }
+    /* Enable Load button if term also selected */
+    if (cur) { document.getElementById('loadBtn').disabled = false; }
+  }
 
   ['selClass','selTerm'].forEach(function(id) {
     var el = document.getElementById(id);
@@ -438,16 +471,47 @@ function renderPage() {
     rdEl.value = new Date(settings.resumptionDate).toISOString().split('T')[0];
   }
 
-  /* Release button */
+ /* ✅ STAGE 8: Release button — only senior staff can release */
   var rBtn = document.getElementById('releaseBtn');
   if (rBtn) {
-    if (settings.isReleased) {
-      rBtn.className = 'btn btn-danger';
-      rBtn.textContent = '🔓 Revoke Release';
+    if (_isClassTeacher) {
+      rBtn.style.display = 'none';
+      /* Show read-only status badge instead */
+      var existingBadge = document.getElementById('releasedReadOnly');
+      if (!existingBadge) {
+        var badge = document.createElement('span');
+        badge.id  = 'releasedReadOnly';
+        badge.style.cssText = 'font-size:13px; font-weight:700; padding:9px 16px; border-radius:9px; display:inline-flex; align-items:center;';
+        rBtn.parentNode.insertBefore(badge, rBtn);
+      }
+      var badge2 = document.getElementById('releasedReadOnly');
+      if (badge2) {
+        badge2.textContent = settings.isReleased ? '✅ Released to Students' : '⏳ Not Yet Released by Senior Staff';
+        badge2.style.background = settings.isReleased ? 'rgba(67,233,123,0.1)' : 'rgba(255,255,255,0.04)';
+        badge2.style.border     = settings.isReleased ? '1px solid rgba(67,233,123,0.3)' : '1px solid var(--border)';
+        badge2.style.color      = settings.isReleased ? 'var(--green)' : 'var(--secondary)';
+      }
     } else {
-      rBtn.className = 'btn btn-green';
-      rBtn.textContent = '🔓 Release to Students';
+      rBtn.style.display = '';
+      if (settings.isReleased) {
+        rBtn.className   = 'btn btn-danger';
+        rBtn.textContent = '🔓 Revoke Release';
+      } else {
+        rBtn.className   = 'btn btn-green';
+        rBtn.textContent = '🔓 Release to Students';
+      }
     }
+  }
+
+/* ✅ STAGE 8: hide senior-only settings from class_teacher */
+  var seniorGrid = document.getElementById('seniorSettingsGrid');
+  var saveBtnEl  = document.getElementById('saveSettingsBtn');
+  if (_isClassTeacher) {
+    if (seniorGrid) { seniorGrid.style.display = 'none'; }
+    if (saveBtnEl)  { saveBtnEl.style.display  = 'none'; }
+  } else {
+    if (seniorGrid) { seniorGrid.style.display = ''; }
+    if (saveBtnEl)  { saveBtnEl.style.display  = ''; }
   }
 
   /* Roster */
