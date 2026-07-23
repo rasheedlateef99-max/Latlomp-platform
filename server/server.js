@@ -79,6 +79,15 @@ app.use("/api/institution/timetable",      require("./institution/routes/inst.ti
 app.use("/api/institution/attendance",     require("./institution/routes/inst.attendance.routes"));
 /* ✅ PHASE P: Student Authenticated Portal */
 app.use("/api/institution/student-portal", require("./institution/routes/inst.student.portal.routes"));
+/* ============================================
+   PLATFORM ADMINISTRATION ROUTES
+   Separate from all existing route namespaces.
+   /api/platform-auth  — Google OAuth for platform staff
+   /api/platform-staff — Staff CRUD (Stage 2)
+   Root Super Admin uses /api/admin (existing, untouched).
+============================================ */
+app.use("/api/platform-auth",  require("./platform/routes/platform.auth.routes"));
+app.use("/api/platform-staff", require("./platform/routes/platform.staff.routes"));
 
 /* ============================================
    HEALTH CHECK
