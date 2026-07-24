@@ -202,7 +202,6 @@ function requirePlatformPermission(action) {
     next();
   };
 }
-
 /* ============================================
    rootProtect
    ✅ STAGE 2 ADDITION

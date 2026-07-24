@@ -40,7 +40,6 @@ const {
   platformStaffProtect,
   requirePlatformPermission
 } = require('../middleware/platform.auth');
-
 /* ---- Audit helper ---- */
 function actorLabel(req) {
   return req.isRoot ? 'root' : (req.platformStaff ? req.platformStaff._id.toString() : 'unknown');
@@ -388,8 +387,6 @@ router.delete('/:id', rootProtect, async function (req, res) {
     return res.status(500).json({ success: false, message: err.message });
   }
 });
-
-
 /* ============================================
    DATA ENDPOINTS FOR PLATFORM STAFF DASHBOARD
    ✅ STAGE 3 ADDITION
@@ -546,5 +543,4 @@ router.get(
     }
   }
 );
-
 module.exports = router;
