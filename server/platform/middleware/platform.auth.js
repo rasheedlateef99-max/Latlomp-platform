@@ -28,6 +28,12 @@
 
 const jwt           = require('jsonwebtoken');
 const PlatformStaff = require('../models/PlatformStaff.model');
+/* Lazy-load main platform User model (for root verification).
+   Path: server/models/User.model.js — same model that adminOnly uses.
+   Lazy-loaded to prevent circular dependency risk. */
+function _getUserModel() {
+  try { return require('../../models/User.model'); } catch (e) { return null; }
+}
 
 /* ============================================
    PERMISSION SETS PER ROLE
@@ -197,10 +203,136 @@ function requirePlatformPermission(action) {
   };
 }
 
+/* ============================================
+   rootProtect
+   ✅ STAGE 2 ADDITION
+   Accepts ONLY the Root Super Admin's main platform
+   JWT (decoded.userId + isAdmin: true on User model).
+   Platform staff tokens fail here by design.
+   Used on: suspend, reactivate, delete staff endpoints.
+   These actions are root-exclusive per Option A decision.
+============================================ */
+async function rootProtect(req, res, next) {
+  try {
+    var token = null;
+    var authHeader = req.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    }
+    if (!token) {
+      return res.status(401).json({ success: false, message: 'Not authenticated.' });
+    }
+
+    var decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    /* Must be a main platform token */
+    if (!decoded.userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Root administrator access required. This action is restricted to the platform owner.'
+      });
+    }
+
+    var User = _getUserModel();
+    if (!User) {
+      return res.status(500).json({ success: false, message: 'Auth system error.' });
+    }
+
+    var user = await User.findById(decoded.userId).select('isAdmin email');
+    if (!user || !user.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Root administrator access required.'
+      });
+    }
+
+    req.rootUser = user;
+    req.isRoot   = true;
+    next();
+  } catch (err) {
+    return res.status(401).json({ success: false, message: 'Invalid or expired token.' });
+  }
+}
+
+/* ============================================
+   combinedRootOrPlatformAdmin
+   ✅ STAGE 2 ADDITION
+   Accepts EITHER:
+     (a) Root Super Admin — main platform JWT + isAdmin
+     (b) Platform Admin   — platform staff JWT + role='platform_admin'
+   Used on: invite staff, view staff list, view invitations,
+            revoke invitations.
+   Attaches req.isRoot (boolean) so routes can distinguish
+   who called them for audit trail purposes.
+============================================ */
+async function combinedRootOrPlatformAdmin(req, res, next) {
+  try {
+    var token = null;
+    var authHeader = req.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    }
+    if (!token) {
+      return res.status(401).json({ success: false, message: 'Not authenticated.' });
+    }
+
+    var decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    /* PATH A — Platform staff token */
+    if (decoded.platformStaffId) {
+      var staff = await PlatformStaff.findById(decoded.platformStaffId);
+      if (!staff) {
+        return res.status(401).json({ success: false, message: 'Staff account not found.' });
+      }
+      if (staff.status !== 'active' || !staff.isActive) {
+        return res.status(403).json({ success: false, message: 'Your account has been suspended.' });
+      }
+      if (staff.platformRole !== 'platform_admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'Platform administrator role required for this action.'
+        });
+      }
+      req.platformStaff       = staff;
+      req.platformRole        = staff.platformRole;
+      req.platformPermissions = PERMISSIONS[staff.platformRole] || [];
+      req.isRoot              = false;
+      return next();
+    }
+
+    /* PATH B — Main platform token (root super admin) */
+    if (decoded.userId) {
+      var User = _getUserModel();
+      if (!User) {
+        return res.status(500).json({ success: false, message: 'Auth system error.' });
+      }
+      var user = await User.findById(decoded.userId).select('isAdmin email name');
+      if (!user || !user.isAdmin) {
+        return res.status(403).json({
+          success: false,
+          message: 'Platform administrator or root access required.'
+        });
+      }
+      req.rootUser = user;
+      req.isRoot   = true;
+      return next();
+    }
+
+    /* No valid token type */
+    return res.status(401).json({ success: false, message: 'Invalid token type.' });
+
+  } catch (err) {
+    return res.status(401).json({ success: false, message: 'Invalid or expired token.' });
+  }
+}
 module.exports = {
+  /* ---- Stage 1 exports (unchanged) ---- */
   signPlatformToken,
   platformStaffProtect,
   rootOrPlatformAdmin,
   requirePlatformPermission,
-  PERMISSIONS
+  PERMISSIONS,
+  /* ---- Stage 2 additions ---- */
+  rootProtect,
+  combinedRootOrPlatformAdmin
 };

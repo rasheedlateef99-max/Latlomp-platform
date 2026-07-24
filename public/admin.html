@@ -222,6 +222,8 @@
       <button class="sb-link admin-nav-link"         data-section="cbt-management" onclick="showAdminSection('cbt-management')"> <span class="sb-icon">📝</span> CBT Management </button>
       <!-- ✅ FIX: onclick now calls showAdminSection AND instOnActivate -->
       <button class="sb-link admin-nav-link"         data-section="institutions"   onclick="showAdminSection('institutions'); setTimeout(instOnActivate, 200);"> <span class="sb-icon">🏫</span> Institutions    </button>
+
+      <button class="sb-link admin-nav-link" data-section="platform-staff" onclick="showAdminSection('platform-staff'); setTimeout(loadPlatformStaff, 200);"><span class="sb-icon">👥</span> Platform Staff</button>
       <a href="store.html"   class="sb-link"><span class="sb-icon">🏪</span> View Store    </a>
       <a href="teacher.html" class="sb-link"><span class="sb-icon">📚</span> Teacher Panel </a>
       <button class="sb-link" onclick="adminLogout()"><span class="sb-icon">🚪</span> Logout</button>
@@ -251,6 +253,7 @@
             <button class="a-btn a-btn-green"   onclick="showAdminSection('products'); setTimeout(openCreateProduct,300)">+ Add Product</button>
             <button class="a-btn a-btn-primary"  onclick="showAdminSection('cbt-management')">📝 Manage CBT</button>
             <button class="a-btn a-btn-blue"     onclick="showAdminSection('institutions'); setTimeout(instOnActivate,200)">🏫 Institutions</button>
+            <button class="a-btn a-btn-secondary" onclick="showAdminSection('platform-staff'); setTimeout(loadPlatformStaff,200)">👥 Platform Staff</button>
             <a href="store.html"   class="a-btn a-btn-secondary">🏪 View Store</a>
             <a href="teacher.html" class="a-btn a-btn-secondary">📚 Teacher Dashboard</a>
           </div>
@@ -434,6 +437,62 @@
           </div>
         </div>
 
+ </section>
+
+      <!-- ===== PLATFORM STAFF ===== -->
+      <section class="admin-section" id="as-platform-staff">
+        <div class="a-page-header">
+          <div><h1>👥 Platform Staff</h1><p>Manage platform administration team members and invitations</p></div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="a-btn a-btn-secondary" onclick="loadPlatformStaff()">↻ Refresh</button>
+            <button class="a-btn a-btn-blue" onclick="openPlatformInviteModal()">+ Invite Staff</button>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:20px;">
+          <div class="a-stat-card">
+            <div class="a-stat-icon" style="background:rgba(108,99,255,0.1);">👥</div>
+            <div><div class="a-stat-val" id="psStatTotal">—</div><div class="a-stat-lbl">Total Staff</div></div>
+          </div>
+          <div class="a-stat-card">
+            <div class="a-stat-icon" style="background:rgba(67,233,123,0.1);">✅</div>
+            <div><div class="a-stat-val" id="psStatActive">—</div><div class="a-stat-lbl">Active</div></div>
+          </div>
+          <div class="a-stat-card">
+            <div class="a-stat-icon" style="background:rgba(255,165,0,0.1);">📨</div>
+            <div><div class="a-stat-val" id="psStatPending">—</div><div class="a-stat-lbl">Pending Invites</div></div>
+          </div>
+        </div>
+
+        <!-- Active staff table -->
+        <div class="a-card">
+          <div class="a-card-head"><h3>Active Platform Staff</h3></div>
+          <div class="a-table-wrap">
+            <table class="admin-table">
+              <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th>Last Login</th><th>Actions</th></tr></thead>
+              <tbody id="psStaffBody">
+                <tr><td colspan="7" style="text-align:center; padding:28px; color:var(--text-muted);">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Pending invitations table -->
+        <div class="a-card">
+          <div class="a-card-head">
+            <h3>Pending Invitations</h3>
+            <button class="a-btn a-btn-secondary a-btn-sm" onclick="loadPlatformInvitations()">↻ Refresh</button>
+          </div>
+          <div class="a-table-wrap">
+            <table class="admin-table">
+              <thead><tr><th>Email</th><th>Role</th><th>Expires</th><th>Status</th><th>Invite Link</th><th>Actions</th></tr></thead>
+              <tbody id="psInvBody">
+                <tr><td colspan="6" style="text-align:center; padding:28px; color:var(--text-muted);">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
     </div>
@@ -638,6 +697,53 @@
     </div>
   </div>
 </div>
+
+<!-- ✅ STAGE 4: PLATFORM STAFF INVITE MODAL -->
+<div class="t-modal-overlay" id="psInviteModal" style="display:none;">
+  <div class="t-modal-box" style="max-width:480px;">
+    <div class="t-modal-header">
+      <h2>Invite Platform Staff</h2>
+      <button class="t-modal-close" onclick="closeAdminModal('psInviteModal')">✕</button>
+    </div>
+    <div id="psInviteErr" style="display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:#ff6584; padding:12px; border-radius:8px; font-size:13px; margin-bottom:16px;"></div>
+    <div class="t-form-grid">
+      <div class="t-form-group t-full">
+        <label>Email Address *</label>
+        <input type="email" id="psInvEmail" placeholder="staff@gmail.com" />
+        <div style="font-size:11px; color:var(--text-muted,#6b6b8a); margin-top:4px;">Must be a Gmail account — staff sign in with Google.</div>
+      </div>
+      <div class="t-form-group t-full">
+        <label>Name (optional)</label>
+        <input type="text" id="psInvName" placeholder="e.g. Amina Johnson" />
+      </div>
+      <div class="t-form-group t-full">
+        <label>Platform Role *</label>
+        <select id="psInvRole" onchange="updatePsRoleHint()">
+          <option value="support_admin">Support Administrator</option>
+          <option value="finance_admin">Finance Administrator</option>
+          <option value="content_admin">Content Administrator</option>
+          <option value="developer">Developer (Read-only)</option>
+          <option value="platform_admin">Platform Administrator</option>
+        </select>
+        <div id="psRoleHint" style="font-size:11px; color:var(--text-muted,#6b6b8a); margin-top:4px; line-height:1.6;"></div>
+      </div>
+    </div>
+    <!-- Result: invite URL shown after creation -->
+    <div id="psInvResult" style="display:none; margin-top:14px;">
+      <div style="background:rgba(67,233,123,0.08); border:1px solid rgba(67,233,123,0.2); border-radius:10px; padding:14px;">
+        <div style="font-size:11px; font-weight:700; color:#43e97b; text-transform:uppercase; margin-bottom:6px;">✅ Invitation Created — Share this link:</div>
+        <div id="psInvUrl" style="font-size:12px; color:#fff; word-break:break-all; font-family:monospace; line-height:1.6;"></div>
+      </div>
+      <button class="a-btn a-btn-green" style="width:100%; margin-top:10px;" onclick="copyPsInvUrl()">📋 Copy Invitation Link</button>
+      <div style="font-size:11px; color:var(--text-muted,#6b6b8a); text-align:center; margin-top:8px;">Share via WhatsApp, Telegram, email, or any channel. Expires in 7 days.</div>
+    </div>
+    <div class="t-modal-footer" id="psInvFooter">
+      <button type="button" class="a-btn a-btn-secondary" onclick="closeAdminModal('psInviteModal')">Cancel</button>
+      <button type="button" class="a-btn a-btn-blue" id="psSendInvBtn" onclick="sendPlatformInvite()">Create Invitation</button>
+    </div>
+  </div>
+</div>
+
 
 <div id="adminToast" style="display:none;"></div>
 
@@ -1136,9 +1242,238 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   });
-  observer.observe(target, { attributes: true });
+ observer.observe(target, { attributes: true });
 });
-</script>
 
+/* ============================================================
+   PLATFORM STAFF MANAGEMENT — ROOT ADMIN PANEL
+   ✅ STAGE 4 ADDITION
+   Uses root token (latlomp_token) — calls /api/platform-staff/*
+   Root passes rootProtect and combinedRootOrPlatformAdmin.
+   All 8 management endpoints accessible from here.
+============================================================ */
+
+var PS_ROLE_LABELS = {
+  platform_admin: 'Platform Administrator',
+  support_admin:  'Support Administrator',
+  finance_admin:  'Finance Administrator',
+  content_admin:  'Content Administrator',
+  developer:      'Developer'
+};
+
+var PS_ROLE_DESCRIPTIONS = {
+  platform_admin: 'Full platform access. Can invite and view staff. Cannot suspend/delete (root only).',
+  support_admin:  'View schools, subscriptions, analytics, send announcements, view logs.',
+  finance_admin:  'View and manage subscriptions, plans, and payment records.',
+  content_admin:  'Send announcements to all institutions.',
+  developer:      'Read-only access to schools, subscriptions, payments, and analytics.'
+};
+
+var _psGeneratedUrl = '';
+
+async function platformAdminApi(path, method, body) {
+  var token = localStorage.getItem('latlomp_token');
+  var opts  = {
+    method:  method || 'GET',
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+  };
+  if (body && method !== 'GET') opts.body = JSON.stringify(body);
+  try {
+    var res  = await fetch('/api/platform-staff' + path, opts);
+    var data = await res.json();
+    return { ok: res.ok, status: res.status, data: data };
+  } catch(e) {
+    return { ok: false, status: 0, data: { message: 'Network error: ' + e.message } };
+  }
+}
+
+function updatePsRoleHint() {
+  var role = (document.getElementById('psInvRole') || {}).value || '';
+  var hint = document.getElementById('psRoleHint');
+  if (hint) hint.textContent = PS_ROLE_DESCRIPTIONS[role] || '';
+}
+
+/* ---- Load stats + staff + invitations ---- */
+async function loadPlatformStaff() {
+  await Promise.all([loadPsStats(), loadPsStaffList(), loadPlatformInvitations()]);
+}
+
+async function loadPsStats() {
+  var res   = await platformAdminApi('/');
+  var invRes = await platformAdminApi('/invitations?status=pending');
+  if (res.ok) {
+    var staff   = res.data.staff   || [];
+    var active  = staff.filter(function(s) { return s.status === 'active'; }).length;
+    var pending = invRes.ok ? (invRes.data.invitations || []).length : 0;
+    document.getElementById('psStatTotal').textContent   = staff.length;
+    document.getElementById('psStatActive').textContent  = active;
+    document.getElementById('psStatPending').textContent = pending;
+  }
+}
+
+async function loadPsStaffList() {
+  var tbody = document.getElementById('psStaffBody');
+  if (!tbody) { return; }
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-muted);">Loading...</td></tr>';
+  var res = await platformAdminApi('/');
+  if (!res.ok) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#ff6584; padding:24px;">' + (res.data.message || 'Failed.') + '</td></tr>';
+    return;
+  }
+  var staff = res.data.staff || [];
+  if (!staff.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:32px; color:var(--text-muted);">No platform staff yet. Invite your first team member.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = staff.map(function(s) {
+    var roleLabel  = PS_ROLE_LABELS[s.platformRole] || s.platformRole;
+    var statusBadge = s.status === 'active'
+      ? '<span class="badge badge-active">Active</span>'
+      : '<span class="badge badge-suspended">Suspended</span>';
+    var joinedAt  = s.joinedAt    ? new Date(s.joinedAt).toLocaleDateString('en-NG', {day:'numeric',month:'short',year:'numeric'}) : '—';
+    var lastLogin = s.lastLoginAt ? new Date(s.lastLoginAt).toLocaleDateString('en-NG') : 'Never';
+    var safeName  = (s.name || '').replace(/'/g,"&#39;");
+    return '<tr>' +
+      '<td style="font-weight:700; color:#fff;">' + s.name + '</td>' +
+      '<td style="font-size:13px;">' + s.email + '</td>' +
+      '<td><span style="font-size:12px; background:rgba(108,99,255,0.12); color:#a78bfa; padding:3px 9px; border-radius:20px; font-weight:700;">' + roleLabel + '</span></td>' +
+      '<td>' + statusBadge + '</td>' +
+      '<td style="font-size:12px; color:var(--text-secondary,#a0a0c0);">' + joinedAt + '</td>' +
+      '<td style="font-size:12px; color:var(--text-secondary,#a0a0c0);">' + lastLogin + '</td>' +
+      '<td><div style="display:flex; gap:5px; flex-wrap:wrap;">' +
+        (s.status === 'active'
+          ? '<button class="a-btn a-btn-danger a-btn-sm" onclick="suspendPlatformStaff(\'' + s._id + '\',\'' + safeName + '\')">⛔ Suspend</button>'
+          : '<button class="a-btn a-btn-green a-btn-sm" onclick="reactivatePlatformStaff(\'' + s._id + '\',\'' + safeName + '\')">✅ Reactivate</button>') +
+        '<button class="a-btn a-btn-danger a-btn-sm" onclick="deletePlatformStaff(\'' + s._id + '\',\'' + safeName + '\')">🗑 Remove</button>' +
+      '</div></td>' +
+    '</tr>';
+  }).join('');
+}
+
+async function loadPlatformInvitations() {
+  var tbody = document.getElementById('psInvBody');
+  if (!tbody) { return; }
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:var(--text-muted);">Loading...</td></tr>';
+  var res = await platformAdminApi('/invitations?status=pending');
+  if (!res.ok) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#ff6584; padding:20px;">Failed to load.</td></tr>';
+    return;
+  }
+  var invitations = res.data.invitations || [];
+  if (!invitations.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-muted);">No pending invitations.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = invitations.map(function(inv) {
+    var roleLabel  = PS_ROLE_LABELS[inv.platformRole] || inv.platformRole;
+    var expiresAt  = inv.expiresAt ? new Date(inv.expiresAt).toLocaleDateString('en-NG') : '—';
+    var isExpired  = inv.isExpiredNow;
+    var statusBadge = isExpired
+      ? '<span class="badge badge-expired">Expired</span>'
+      : '<span class="badge badge-trial">Pending</span>';
+    var baseUrl    = window.location.origin;
+    var inviteUrl  = baseUrl + '/platform/staff-invite.html?token=' + inv.token;
+    return '<tr>' +
+      '<td style="font-weight:700; color:#fff;">' + inv.email + '</td>' +
+      '<td><span style="font-size:12px; background:rgba(108,99,255,0.12); color:#a78bfa; padding:3px 9px; border-radius:20px; font-weight:700;">' + roleLabel + '</span></td>' +
+      '<td style="font-size:12px; color:' + (isExpired ? '#ffa500' : 'var(--text-secondary,#a0a0c0)') + ';">' + expiresAt + '</td>' +
+      '<td>' + statusBadge + '</td>' +
+      '<td><button class="a-btn a-btn-secondary a-btn-sm" onclick="copyPsUrlDirect(\'' + inv.token + '\')">📋 Copy Link</button></td>' +
+      '<td>' + (!isExpired ? '<button class="a-btn a-btn-danger a-btn-sm" onclick="revokePlatformInvitation(\'' + inv._id + '\')">Revoke</button>' : '—') + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+/* ---- Actions ---- */
+async function suspendPlatformStaff(id, name) {
+  var reason = prompt('Reason for suspension (optional):') || '';
+  if (!confirm('Suspend ' + name + '? They will immediately lose platform admin access.')) { return; }
+  var res = await platformAdminApi('/' + id + '/suspend', 'PUT', { reason: reason });
+  if (res.ok) { instToast(res.data.message, 'success'); loadPlatformStaff(); }
+  else instToast(res.data.message || 'Failed.', 'error');
+}
+
+async function reactivatePlatformStaff(id, name) {
+  if (!confirm('Reactivate ' + name + '? They will regain platform admin access.')) { return; }
+  var res = await platformAdminApi('/' + id + '/reactivate', 'PUT');
+  if (res.ok) { instToast(res.data.message, 'success'); loadPlatformStaff(); }
+  else instToast(res.data.message || 'Failed.', 'error');
+}
+
+async function deletePlatformStaff(id, name) {
+  if (!confirm('PERMANENTLY REMOVE ' + name + ' from platform administration?\n\nThis cannot be undone.')) { return; }
+  var c2 = prompt('Type YES to confirm:');
+  if (c2 !== 'YES') { instToast('Removal cancelled.', 'error'); return; }
+  var res = await platformAdminApi('/' + id, 'DELETE');
+  if (res.ok) { instToast(res.data.message, 'success'); loadPlatformStaff(); }
+  else instToast(res.data.message || 'Failed.', 'error');
+}
+
+async function revokePlatformInvitation(id) {
+  if (!confirm('Revoke this invitation? The link will immediately become invalid.')) { return; }
+  var res = await platformAdminApi('/invitations/' + id, 'DELETE');
+  if (res.ok) { instToast(res.data.message, 'success'); loadPlatformInvitations(); loadPsStats(); }
+  else instToast(res.data.message || 'Failed.', 'error');
+}
+
+/* ---- Invite modal ---- */
+function openPlatformInviteModal() {
+  var errEl  = document.getElementById('psInviteErr');
+  var result = document.getElementById('psInvResult');
+  var footer = document.getElementById('psInvFooter');
+  if (errEl)  errEl.style.display   = 'none';
+  if (result) result.style.display  = 'none';
+  if (footer) footer.style.display  = 'flex';
+  var em = document.getElementById('psInvEmail'); if (em) em.value = '';
+  var nm = document.getElementById('psInvName');  if (nm) nm.value = '';
+  var rl = document.getElementById('psInvRole');  if (rl) rl.value = 'support_admin';
+  _psGeneratedUrl = '';
+  updatePsRoleHint();
+  document.getElementById('psInviteModal').style.display = 'flex';
+}
+
+async function sendPlatformInvite() {
+  var email = (document.getElementById('psInvEmail') || {}).value.trim();
+  var name  = (document.getElementById('psInvName')  || {}).value.trim();
+  var role  = (document.getElementById('psInvRole')  || {}).value;
+  var errEl = document.getElementById('psInviteErr');
+  if (errEl) errEl.style.display = 'none';
+  if (!email) {
+    if (errEl) { errEl.textContent = 'Email address is required.'; errEl.style.display = 'block'; }
+    return;
+  }
+  var btn = document.getElementById('psSendInvBtn');
+  if (btn) { btn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px;"></span> Creating...'; btn.disabled = true; }
+  var res = await platformAdminApi('/invite', 'POST', { email: email, name: name, platformRole: role });
+  if (btn) { btn.innerHTML = 'Create Invitation'; btn.disabled = false; }
+  if (res.ok) {
+    _psGeneratedUrl = res.data.invitation.inviteUrl || '';
+    var urlEl = document.getElementById('psInvUrl');
+    if (urlEl) urlEl.textContent = _psGeneratedUrl;
+    var rw = document.getElementById('psInvResult');
+    var ft = document.getElementById('psInvFooter');
+    if (rw) rw.style.display = 'block';
+    if (ft) ft.style.display  = 'none';
+    instToast('Invitation created for ' + email + '.', 'success');
+    loadPlatformStaff();
+  } else {
+    if (errEl) { errEl.textContent = res.data.message || 'Failed.'; errEl.style.display = 'block'; }
+  }
+}
+
+function copyPsInvUrl() {
+  if (!_psGeneratedUrl) { return; }
+  navigator.clipboard.writeText(_psGeneratedUrl)
+    .then(function () { instToast('Invitation link copied!', 'success'); })
+    .catch(function () { instToast('Copy failed — please select and copy manually.', 'error'); });
+}
+
+function copyPsUrlDirect(token) {
+  var url = window.location.origin + '/platform/staff-invite.html?token=' + token;
+  navigator.clipboard.writeText(url)
+    .then(function () { instToast('Invitation link copied!', 'success'); })
+    .catch(function () { instToast('Copy failed.', 'error'); });
+}
+</script>
 </body>
 </html>
