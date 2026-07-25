@@ -5,7 +5,10 @@
 
    COLLISION PREVENTION:
      This middleware checks decoded.platformStaffId.
-     Main platform tokens carry decoded.userId.
+     Main platform tokens carry decoded.id (confirmed Stage 5).
+     ✅ STAGE 5 FIX: rootProtect and combinedRootOrPlatformAdmin
+     now check decoded.userId || decoded.id — robust against
+     either JWT convention.
      Institution tokens carry decoded.schoolUserId.
      Student tokens carry decoded.studentId + role:'student'.
      These four payload shapes are structurally incompatible.
@@ -223,10 +226,13 @@ async function rootProtect(req, res, next) {
       return res.status(401).json({ success: false, message: 'Not authenticated.' });
     }
 
-    var decoded = jwt.verify(token, process.env.JWT_SECRET);
+   var decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    /* Must be a main platform token */
-    if (!decoded.userId) {
+    /* Must be a main platform token.
+       ✅ STAGE 5 FIX: check both decoded.id (standard Mongoose convention)
+       and decoded.userId (alternative convention) to be robust. */
+    var mainUserId = decoded.userId || decoded.id || null;
+    if (!mainUserId) {
       return res.status(403).json({
         success: false,
         message: 'Root administrator access required. This action is restricted to the platform owner.'
@@ -238,7 +244,7 @@ async function rootProtect(req, res, next) {
       return res.status(500).json({ success: false, message: 'Auth system error.' });
     }
 
-    var user = await User.findById(decoded.userId).select('isAdmin email');
+    var user = await User.findById(mainUserId).select('isAdmin email');
     if (!user || !user.isAdmin) {
       return res.status(403).json({
         success: false,
@@ -300,13 +306,17 @@ async function combinedRootOrPlatformAdmin(req, res, next) {
       return next();
     }
 
-    /* PATH B — Main platform token (root super admin) */
-    if (decoded.userId) {
+   /* PATH B — Main platform token (root super admin)
+       ✅ STAGE 5 FIX: check both decoded.id and decoded.userId.
+       The main platform JWT uses decoded.id (standard convention).
+       We check both to be defensive against either convention. */
+    var mainUserId = decoded.userId || decoded.id || null;
+    if (mainUserId) {
       var User = _getUserModel();
       if (!User) {
         return res.status(500).json({ success: false, message: 'Auth system error.' });
       }
-      var user = await User.findById(decoded.userId).select('isAdmin email name');
+      var user = await User.findById(mainUserId).select('isAdmin email name');
       if (!user || !user.isAdmin) {
         return res.status(403).json({
           success: false,
