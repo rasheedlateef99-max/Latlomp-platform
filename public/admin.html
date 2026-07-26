@@ -148,7 +148,31 @@
 <div id="adminDenied"
   style="display:none; min-height:100vh; flex-direction:column; align-items:center; justify-content:center; padding:32px; text-align:center; gap:20px;">
   <div style="font-size:28px; font-weight:800; color:#fff;">⚡ LatLomp Admin</div>
-  <div style="background:var(--dark-2,#1a1a2e); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:20px; padding:36px 32px; width:100%; max-width:400px; text-align:left;">
+
+  <!-- ✅ POLISH: TYPE SELECTION (shown first) -->
+  <div id="adminTypeSelect" style="background:var(--dark-2,#1a1a2e); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:20px; padding:36px 32px; width:100%; max-width:400px; text-align:left;">
+    <div style="text-align:center; margin-bottom:28px;">
+      <div style="font-size:44px; margin-bottom:12px;">🔧</div>
+      <h1 style="font-size:22px; font-weight:800; color:#fff; margin:0 0 8px;">Platform Administration</h1>
+      <p style="font-size:14px; color:var(--text-secondary,#a0a0c0); margin:0;">Choose your administrator type to continue</p>
+    </div>
+    <button onclick="selectAdminType('root')"
+      style="width:100%; padding:16px 20px; background:linear-gradient(135deg,#ff6584,#ff8e53); color:#fff; border:none; border-radius:12px; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; margin-bottom:12px; display:flex; align-items:center; justify-content:center; gap:10px; transition:all 0.2s;"
+      onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='none'">
+      🔐 Root Administrator
+    </button>
+    <button onclick="selectAdminType('staff')"
+      style="width:100%; padding:16px 20px; background:rgba(108,99,255,0.15); border:1px solid rgba(108,99,255,0.35); color:#a78bfa; border-radius:12px; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; gap:10px; transition:all 0.2s;"
+      onmouseover="this.style.background='rgba(108,99,255,0.25)'" onmouseout="this.style.background='rgba(108,99,255,0.15)'">
+      👥 Platform Staff
+    </button>
+    <div style="text-align:center; margin-top:20px;">
+      <a href="index.html" style="font-size:13px; color:var(--text-muted,#6b6b8a); text-decoration:none;">← Back to Platform</a>
+    </div>
+  </div>
+
+  <!-- ✅ ROOT ADMIN LOGIN FORM (existing — shown after selecting Root) -->
+  <div id="adminRootLoginCard" style="display:none; background:var(--dark-2,#1a1a2e); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:20px; padding:36px 32px; width:100%; max-width:400px; text-align:left;">
     <div style="text-align:center; margin-bottom:28px;">
       <div style="font-size:40px; margin-bottom:10px;">🔐</div>
       <h1 style="font-size:22px; font-weight:800; color:#fff; margin:0 0 6px;">Admin Access</h1>
@@ -177,11 +201,41 @@
       style="width:100%; padding:14px; background:linear-gradient(135deg,#ff6584,#ff8e53); color:#fff; border:none; border-radius:12px; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; transition:all 0.2s; margin-bottom:16px;">
       Access Admin Dashboard →
     </button>
-    <div style="text-align:center;">
-      <a href="index.html" style="font-size:13px; color:var(--text-muted,#6b6b8a); text-decoration:none;">← Back to Platform</a>
+    <div style="text-align:center; margin-top:8px;">
+      <button onclick="backToTypeSelect()" style="font-size:13px; color:var(--text-muted,#6b6b8a); background:none; border:none; cursor:pointer; font-family:inherit;">← Choose different type</button>
     </div>
-  </div>
-</div>
+  </div><!-- /adminRootLoginCard -->
+
+  <!-- ✅ PLATFORM STAFF GOOGLE SIGN-IN (shown after selecting Platform Staff) -->
+  <div id="adminStaffLoginCard" style="display:none; background:var(--dark-2,#1a1a2e); border:1px solid rgba(108,99,255,0.25); border-radius:20px; padding:36px 32px; width:100%; max-width:400px; text-align:left; position:relative; overflow:hidden;">
+    <div style="position:absolute; top:0; left:0; right:0; height:4px; background:linear-gradient(90deg,#6c63ff,#43e97b);"></div>
+    <div style="text-align:center; margin-bottom:28px;">
+      <div style="font-size:40px; margin-bottom:10px;">👥</div>
+      <h1 style="font-size:22px; font-weight:800; color:#fff; margin:0 0 6px;">Platform Staff</h1>
+      <p style="font-size:14px; color:var(--text-secondary,#a0a0c0); margin:0;">Sign in with your registered Google account</p>
+    </div>
+    <div id="staffLoginErrBox" style="display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:#ff6584; padding:12px 16px; border-radius:8px; font-size:13px; margin-bottom:16px; line-height:1.5;"></div>
+    <button id="staffGoogleBtn" onclick="triggerStaffGoogleSignIn()"
+      style="width:100%; padding:14px 20px; background:#fff; border:1px solid #dadce0; border-radius:12px; display:flex; align-items:center; justify-content:center; gap:12px; cursor:pointer; font-size:15px; font-weight:600; color:#3c4043; font-family:inherit; transition:all 0.2s; margin-bottom:16px;"
+      onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.15)'" onmouseout="this.style.boxShadow='none'">
+      <svg width="20" height="20" viewBox="0 0 48 48">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.36-8.16 2.36-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+      </svg>
+      Continue with Google
+    </button>
+    <p style="font-size:12px; color:var(--text-muted,#6b6b8a); text-align:center; line-height:1.7; margin:0 0 16px;">
+      You must be a registered Platform Staff member to access this area.
+      If you received an invitation, please use the invitation link instead.
+    </p>
+    <div style="text-align:center;">
+      <button onclick="backToTypeSelect()" style="font-size:13px; color:var(--text-muted,#6b6b8a); background:none; border:none; cursor:pointer; font-family:inherit;">← Choose different type</button>
+    </div>
+  </div><!-- /adminStaffLoginCard -->
+
+</div><!-- /adminDenied -->
 
 <!-- LOADING -->
 <div id="adminLoader" style="min-height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:16px;">
@@ -743,11 +797,33 @@
   </div>
 </div>
 
+<!-- ✅ POLISH: PERMISSION MANAGEMENT MODAL -->
+<div class="t-modal-overlay" id="psPermissionsModal" style="display:none;">
+  <div class="t-modal-box" style="max-width:580px;">
+    <div class="t-modal-header">
+      <h2 id="psPermModalTitle">Manage Permissions</h2>
+      <button class="t-modal-close" onclick="closeAdminModal('psPermissionsModal')">✕</button>
+    </div>
+    <div id="psPermStaffInfo" style="background:rgba(108,99,255,0.08); border:1px solid rgba(108,99,255,0.2); border-radius:10px; padding:12px 16px; margin-bottom:16px; font-size:13px;">
+      Loading...
+    </div>
+    <div style="font-size:12px; font-weight:700; color:var(--text-secondary,#a0a0c0); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:12px;">Module Permissions</div>
+    <div id="psPermModulesList" style="display:grid; gap:8px; max-height:380px; overflow-y:auto; padding-right:4px;"></div>
+    <div style="font-size:11px; color:var(--text-muted,#6b6b8a); margin-top:12px; line-height:1.6;">
+      ⚠️ Only Root Administrator can change permissions. Changes take effect on the staff member's next action.
+    </div>
+    <div class="t-modal-footer">
+      <button type="button" class="a-btn a-btn-secondary" onclick="closeAdminModal('psPermissionsModal')">Cancel</button>
+      <button type="button" class="a-btn a-btn-primary" id="psSavePermBtn" onclick="saveStaffPermissions()">Save Permissions</button>
+    </div>
+  </div>
+</div>
 
 <div id="adminToast" style="display:none;"></div>
 
 <script src="js/main.js"></script>
 <script src="js/admin.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 
 <script>
 /* ============================================================
@@ -1243,6 +1319,268 @@ document.addEventListener('DOMContentLoaded', function() {
   });
  observer.observe(target, { attributes: true });
 });
+
+/* ============================================================
+   ✅ POLISH: ADMIN TYPE SELECTION + STAFF GOOGLE SIGN-IN
+   Issue 2 fix: type selection before login form.
+   Root Admin → existing login (unchanged).
+   Platform Staff → Google OAuth → check DB → redirect.
+============================================================ */
+
+var _staffGoogleReady = false;
+var _psPermCurrentId  = null;
+
+/* Initialize Google for Platform Staff sign-in path */
+function initStaffGoogle() {
+  if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
+    setTimeout(initStaffGoogle, 600); return;
+  }
+  google.accounts.id.initialize({
+    client_id:             '804260807914-tl2i27hblh8f3s1g4a5ip12hejosk0ab.apps.googleusercontent.com',
+    callback:              handleStaffGoogleCallback,
+    auto_select:           false,
+    cancel_on_tap_outside: true
+  });
+  google.accounts.id.disableAutoSelect();
+  _staffGoogleReady = true;
+}
+initStaffGoogle();
+
+/* Show type selection or appropriate card when not logged in */
+function showAdminLoginGate() {
+  document.getElementById('adminTypeSelect').style.display     = 'block';
+  document.getElementById('adminRootLoginCard').style.display  = 'none';
+  document.getElementById('adminStaffLoginCard').style.display = 'none';
+}
+
+/* Called when Root/Staff button is clicked */
+function selectAdminType(type) {
+  document.getElementById('adminTypeSelect').style.display = 'none';
+  if (type === 'root') {
+    document.getElementById('adminRootLoginCard').style.display  = 'block';
+    document.getElementById('adminStaffLoginCard').style.display = 'none';
+    setTimeout(function() {
+      var el = document.getElementById('adminLoginEmail');
+      if (el) el.focus();
+    }, 100);
+  } else {
+    document.getElementById('adminStaffLoginCard').style.display = 'block';
+    document.getElementById('adminRootLoginCard').style.display  = 'none';
+    var errEl = document.getElementById('staffLoginErrBox');
+    if (errEl) errEl.style.display = 'none';
+  }
+}
+
+function backToTypeSelect() {
+  document.getElementById('adminTypeSelect').style.display     = 'block';
+  document.getElementById('adminRootLoginCard').style.display  = 'none';
+  document.getElementById('adminStaffLoginCard').style.display = 'none';
+}
+
+function triggerStaffGoogleSignIn() {
+  var errEl = document.getElementById('staffLoginErrBox');
+  if (errEl) errEl.style.display = 'none';
+  if (!_staffGoogleReady || typeof google === 'undefined' || !google.accounts) {
+    if (errEl) { errEl.textContent = 'Google Sign In is still loading. Please wait a moment.'; errEl.style.display = 'block'; }
+    return;
+  }
+  google.accounts.id.disableAutoSelect();
+  google.accounts.id.prompt(function(notification) {
+    if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+      if (errEl) {
+        errEl.textContent = 'Google sign in was blocked. Please ensure popups are allowed for this site.';
+        errEl.style.display = 'block';
+      }
+    }
+  });
+}
+
+async function handleStaffGoogleCallback(response) {
+  var btn   = document.getElementById('staffGoogleBtn');
+  var errEl = document.getElementById('staffLoginErrBox');
+  if (errEl) errEl.style.display = 'none';
+  if (btn)  { btn.disabled = true; btn.style.opacity = '0.7'; btn.textContent = 'Signing in...'; }
+
+  function resetStaffBtn() {
+    if (!btn) return;
+    btn.disabled     = false;
+    btn.style.opacity = '1';
+    btn.innerHTML =
+      '<svg width="20" height="20" viewBox="0 0 48 48">' +
+      '<path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>' +
+      '<path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>' +
+      '<path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>' +
+      '<path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.36-8.16 2.36-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>' +
+      '</svg> Continue with Google';
+  }
+
+  try {
+    var res  = await fetch('/api/platform-auth/google', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ credential: response.credential })
+      /* No inviteToken — returning user flow */
+    });
+    var data = await res.json();
+
+    if (data.success) {
+      localStorage.setItem('latlomp_platform_token', data.token);
+      localStorage.setItem('latlomp_platform_staff', JSON.stringify(data.staff));
+      if (btn) { btn.textContent = '✅ Redirecting...'; }
+      window.location.replace(data.redirectTo || '/platform/dashboard.html');
+    } else {
+      resetStaffBtn();
+      var msg = data.message || 'Sign in failed. Please try again.';
+      if (res.status === 401 && msg.includes('No platform administration')) {
+        msg = '🚫 This Google account is not registered as Platform Staff. Please use your invitation link or contact the platform administrator.';
+      }
+      if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+    }
+  } catch (err) {
+    resetStaffBtn();
+    if (errEl) { errEl.textContent = '❌ Network error. Please check your connection.'; errEl.style.display = 'block'; }
+  }
+}
+
+/* ============================================================
+   ✅ POLISH: PERMISSION MANAGEMENT
+   Issue 1 fix: Root Admin can manage per-staff permissions.
+============================================================ */
+
+var PS_MODULE_LABELS = {};
+(function() {
+  /* Build a quick lookup from module key to label */
+  var defs = [
+    { key:'store',label:'Store & Products',icon:'🛒',desc:'Manage store products and orders' },
+    { key:'institutions',label:'Institution Management',icon:'🏫',desc:'View and manage registered schools' },
+    { key:'subscriptions',label:'Subscription Management',icon:'💳',desc:'Manage plans, renewals and payments' },
+    { key:'cbt',label:'CBT Management',icon:'📝',desc:'Manage CBT departments, subjects, questions' },
+    { key:'practice',label:'Practice Content',icon:'⚡',desc:'Manage practice questions and content' },
+    { key:'staff',label:'Platform Staff',icon:'👥',desc:'Invite and manage platform staff' },
+    { key:'analytics',label:'Analytics',icon:'📊',desc:'View platform-wide analytics' },
+    { key:'reports',label:'Reports',icon:'📈',desc:'View and export reports' },
+    { key:'announcements',label:'Announcements',icon:'📢',desc:'Send announcements to institutions' },
+    { key:'audit_logs',label:'Audit Logs',icon:'🔍',desc:'View system audit logs' },
+    { key:'content',label:'Content Management',icon:'📄',desc:'Manage platform content and blog' }
+  ];
+  defs.forEach(function(d) { PS_MODULE_LABELS[d.key] = d; });
+})();
+
+async function openPermissionsModal(staffId, staffName) {
+  _psPermCurrentId = staffId;
+  var titleEl = document.getElementById('psPermModalTitle');
+  var infoEl  = document.getElementById('psPermStaffInfo');
+  var listEl  = document.getElementById('psPermModulesList');
+  if (titleEl) titleEl.textContent = 'Permissions — ' + staffName;
+  if (infoEl)  infoEl.innerHTML = '<span style="color:var(--text-muted,#6b6b8a);">Loading...</span>';
+  if (listEl)  listEl.innerHTML = '';
+
+  document.getElementById('psPermissionsModal').style.display = 'flex';
+
+  var res = await platformAdminApi('/' + staffId + '/permissions');
+  if (!res.ok) {
+    if (infoEl) infoEl.innerHTML = '<span style="color:#ff6584;">Failed to load permissions.</span>';
+    return;
+  }
+
+  var d = res.data;
+  if (infoEl) {
+    infoEl.innerHTML =
+      '<strong style="color:#fff;">' + d.staffName + '</strong>' +
+      ' &nbsp;·&nbsp; ' +
+      '<span style="background:rgba(108,99,255,0.15); color:#a78bfa; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;">' +
+        d.roleLabel +
+      '</span>' +
+      ' &nbsp;·&nbsp; ' +
+      '<span style="color:var(--text-secondary,#a0a0c0); font-size:12px;">' +
+        d.permissions.length + ' permissions assigned' +
+      '</span>';
+  }
+
+  if (!listEl) return;
+  var modules = d.availableModules || Object.values(PS_MODULE_LABELS);
+  var currentPerms = d.permissions || [];
+
+  listEl.innerHTML = modules.map(function(mod) {
+    var checked = currentPerms.includes(mod.key);
+    var isDefault = (d.defaultForRole || []).includes(mod.key);
+    return '<label style="display:flex; align-items:flex-start; gap:12px; padding:10px 14px; border-radius:10px; cursor:pointer; border:1px solid ' + (checked ? 'rgba(108,99,255,0.3)' : 'var(--border,rgba(255,255,255,0.08))') + '; background:' + (checked ? 'rgba(108,99,255,0.07)' : 'transparent') + '; transition:all 0.2s;" id="perm-row-' + mod.key + '" onclick="togglePermRow(\'' + mod.key + '\')">' +
+      '<input type="checkbox" value="' + mod.key + '" ' + (checked ? 'checked' : '') + ' id="perm-cb-' + mod.key + '" style="margin-top:2px; accent-color:#6c63ff; width:16px; height:16px; flex-shrink:0; cursor:pointer;" onclick="event.stopPropagation(); syncPermRow(\'' + mod.key + '\')" />' +
+      '<div style="flex:1;">' +
+        '<div style="font-size:14px; font-weight:700; color:#fff;">' + mod.icon + ' ' + mod.label + (isDefault ? ' <span style="font-size:10px; color:var(--text-muted,#6b6b8a); font-weight:400;">(role default)</span>' : '') + '</div>' +
+        '<div style="font-size:12px; color:var(--text-secondary,#a0a0c0); margin-top:2px;">' + mod.desc + '</div>' +
+      '</div>' +
+    '</label>';
+  }).join('');
+}
+
+function togglePermRow(key) {
+  var cb  = document.getElementById('perm-cb-' + key);
+  if (cb) { cb.checked = !cb.checked; }
+  syncPermRow(key);
+}
+
+function syncPermRow(key) {
+  var cb  = document.getElementById('perm-cb-' + key);
+  var row = document.getElementById('perm-row-' + key);
+  if (!cb || !row) return;
+  var checked = cb.checked;
+  row.style.borderColor  = checked ? 'rgba(108,99,255,0.3)' : 'var(--border,rgba(255,255,255,0.08))';
+  row.style.background   = checked ? 'rgba(108,99,255,0.07)' : 'transparent';
+}
+
+async function saveStaffPermissions() {
+  if (!_psPermCurrentId) return;
+  var checkboxes  = document.querySelectorAll('#psPermModulesList input[type="checkbox"]');
+  var permissions = Array.from(checkboxes).filter(function(c) { return c.checked; }).map(function(c) { return c.value; });
+  var btn         = document.getElementById('psSavePermBtn');
+  if (btn) { btn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px;"></span> Saving...'; btn.disabled = true; }
+  var res = await platformAdminApi('/' + _psPermCurrentId + '/permissions', 'PUT', { permissions: permissions });
+  if (btn) { btn.innerHTML = 'Save Permissions'; btn.disabled = false; }
+  if (res.ok) {
+    instToast('Permissions updated successfully.', 'success');
+    closeAdminModal('psPermissionsModal');
+    loadPlatformStaff();
+  } else {
+    instToast(res.data.message || 'Failed to save permissions.', 'error');
+  }
+}
+
+/* Patch loadPsStaffList to add Manage Permissions button (runs after original definition) */
+var _origLoadPsStaffList = loadPsStaffList;
+loadPsStaffList = async function() {
+  await _origLoadPsStaffList();
+  /* Inject Manage Permissions button into each staff row */
+  var tbody = document.getElementById('psStaffBody');
+  if (!tbody) return;
+  var rows = tbody.querySelectorAll('tr');
+  rows.forEach(function(row) {
+    var actionsTd = row.querySelector('td:last-child');
+    if (!actionsTd) return;
+    var btns = actionsTd.querySelector('div');
+    if (!btns) return;
+    /* Get staff ID from existing buttons' onclick */
+    var suspendBtn = btns.querySelector('[onclick*="suspendPlatformStaff"]');
+    var reactBtn   = btns.querySelector('[onclick*="reactivatePlatformStaff"]');
+    var deleteBtn  = btns.querySelector('[onclick*="deletePlatformStaff"]');
+    var existingBtn = suspendBtn || reactBtn;
+    if (!existingBtn) return;
+    var onclickStr = existingBtn.getAttribute('onclick') || '';
+    var idMatch    = onclickStr.match(/\('([^']+)'/);
+    if (!idMatch) return;
+    var staffId   = idMatch[1];
+    var nameMatch = onclickStr.match(/'([^']+)'\s*\)/);
+    var staffName = nameMatch ? nameMatch[1] : 'Staff';
+    /* Add button only if not already present */
+    if (btns.querySelector('.perm-mgmt-btn')) return;
+    var permBtn = document.createElement('button');
+    permBtn.className = 'a-btn a-btn-secondary a-btn-sm perm-mgmt-btn';
+    permBtn.textContent = '🔑 Permissions';
+    permBtn.onclick = function() { openPermissionsModal(staffId, staffName); };
+    btns.insertBefore(permBtn, btns.firstChild);
+  });
+};
+
 
 /* ============================================================
    PLATFORM STAFF MANAGEMENT — ROOT ADMIN PANEL

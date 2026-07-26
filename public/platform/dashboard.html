@@ -685,16 +685,15 @@ var ROLE_LABELS = {
   developer:      'Developer'
 };
 
+/* ✅ POLISH: Permissions now come from DB (staff.permissions array).
+   PERMISSIONS_MAP kept as FALLBACK ONLY for legacy staff without DB permissions.
+   New staff always have permissions set from defaults on invitation acceptance. */
 var PERMISSIONS_MAP = {
-  platform_admin: ['view_schools','manage_schools','view_subscriptions',
-    'manage_subscriptions','view_plans','manage_plans','view_payments',
-    'send_announcements','view_logs','view_analytics','invite_staff','view_staff'],
-  support_admin:  ['view_schools','view_subscriptions','view_analytics',
-    'send_announcements','view_logs'],
-  finance_admin:  ['view_schools','view_subscriptions','manage_subscriptions',
-    'view_plans','manage_plans','view_payments','view_analytics'],
-  content_admin:  ['send_announcements','view_analytics'],
-  developer:      ['view_schools','view_subscriptions','view_payments','view_logs','view_analytics']
+  platform_admin: ['institutions','subscriptions','cbt','staff','analytics','reports','announcements','audit_logs','store'],
+  support_admin:  ['institutions','analytics','announcements','audit_logs'],
+  finance_admin:  ['institutions','subscriptions','reports','analytics'],
+  content_admin:  ['announcements','content'],
+  developer:      ['analytics','audit_logs','reports']
 };
 
 /* ============================================ API ---- */
@@ -754,8 +753,11 @@ document.addEventListener('DOMContentLoaded', async function () {
     return;
   }
 
-  _platformStaff = res.data.staff;
-  _platformPerms = PERMISSIONS_MAP[_platformStaff.platformRole] || [];
+ _platformStaff = res.data.staff;
+  /* ✅ POLISH: Use DB permissions if present, fall back to role defaults */
+  _platformPerms = (_platformStaff.permissions && _platformStaff.permissions.length > 0)
+    ? _platformStaff.permissions
+    : (PERMISSIONS_MAP[_platformStaff.platformRole] || []);
 
   /* Store fresh staff data */
   localStorage.setItem(PLATFORM_STAFF_KEY, JSON.stringify(_platformStaff));
@@ -790,18 +792,23 @@ function fillSidebar() {
 }
 
 function renderRoleNavigation() {
-  /* Show/hide nav items based on permissions */
-  if (hasPermission('view_schools')) {
-    var el = document.getElementById('navSchools');
-    if (el) el.style.display = '';
-  }
-  if (hasPermission('invite_staff') || hasPermission('view_staff')) {
-    var elS = document.getElementById('navStaff');
-    if (elS) elS.style.display = '';
-  }
-  if (hasPermission('send_announcements')) {
-    var elA = document.getElementById('navAnnounce');
-    if (elA) elA.style.display = '';
+  /* ✅ POLISH: Navigation visibility uses DB-driven module permission keys */
+  var navMap = {
+    'institutions':  'navSchools',
+    'staff':         'navStaff',
+    'announcements': 'navAnnounce'
+  };
+  Object.keys(navMap).forEach(function(module) {
+    if (hasPermission(module)) {
+      var el = document.getElementById(navMap[module]);
+      if (el) el.style.display = '';
+    }
+  });
+
+  /* Stats grid: hide if no analytics permission */
+  if (!hasPermission('analytics')) {
+    var sg = document.getElementById('statsGrid');
+    if (sg) sg.style.display = 'none';
   }
 }
 

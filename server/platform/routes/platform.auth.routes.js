@@ -163,12 +163,15 @@ router.post('/google', async function (req, res) {
       var ip = req.ip || '';
       var ua = (req.headers && req.headers['user-agent']) || '';
 
-      var staff = await PlatformStaff.create({
+     var staff = await PlatformStaff.create({
         name:         name || invite.name || 'Platform Staff',
         email:        email,
         avatar:       avatar,
         googleId:     googleId,
         platformRole: invite.platformRole,
+        /* ✅ POLISH: Populate with role defaults on acceptance.
+           Root Admin can customize permissions afterwards. */
+        permissions:  PlatformStaff.getDefaultPermissions(invite.platformRole),
         status:       'active',
         isActive:     true,
         invitedBy:    invite.invitedBy || 'root',
@@ -185,7 +188,7 @@ router.post('/google', async function (req, res) {
 
       var token = signPlatformToken(staff._id, staff.platformRole);
 
-      return res.status(201).json({
+   return res.status(201).json({
         success:    true,
         message:    'Welcome to LatLomp Platform Administration, ' + staff.name + '!',
         token:      token,
@@ -195,7 +198,8 @@ router.post('/google', async function (req, res) {
           email:        staff.email,
           platformRole: staff.platformRole,
           roleLabel:    PlatformInvitation.getRoleLabel(staff.platformRole),
-          avatar:       staff.avatar
+          avatar:       staff.avatar,
+          permissions:  staff.permissions || []  /* ✅ POLISH */
         },
         redirectTo: '/platform/dashboard.html'
       });
@@ -230,7 +234,7 @@ router.post('/google', async function (req, res) {
 
       var returningToken = signPlatformToken(returningStaff._id, returningStaff.platformRole);
 
-      return res.status(200).json({
+     return res.status(200).json({
         success:    true,
         message:    'Welcome back, ' + returningStaff.name + '!',
         token:      returningToken,
@@ -240,7 +244,8 @@ router.post('/google', async function (req, res) {
           email:        returningStaff.email,
           platformRole: returningStaff.platformRole,
           roleLabel:    PlatformInvitation.getRoleLabel(returningStaff.platformRole),
-          avatar:       returningStaff.avatar
+          avatar:       returningStaff.avatar,
+          permissions:  returningStaff.permissions || []  /* ✅ POLISH */
         },
         redirectTo: '/platform/dashboard.html'
       });
@@ -266,7 +271,7 @@ router.post('/google', async function (req, res) {
 ============================================ */
 router.get('/me', platformStaffProtect, async function (req, res) {
   try {
-    return res.status(200).json({
+   return res.status(200).json({
       success: true,
       staff: {
         _id:          req.platformStaff._id,
@@ -276,7 +281,8 @@ router.get('/me', platformStaffProtect, async function (req, res) {
         roleLabel:    PlatformInvitation.getRoleLabel(req.platformStaff.platformRole),
         avatar:       req.platformStaff.avatar,
         lastLoginAt:  req.platformStaff.lastLoginAt,
-        joinedAt:     req.platformStaff.joinedAt
+        joinedAt:     req.platformStaff.joinedAt,
+        permissions:  req.platformStaff.permissions || []  /* ✅ POLISH */
       }
     });
   } catch (err) {

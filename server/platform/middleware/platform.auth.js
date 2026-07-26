@@ -48,52 +48,26 @@ function _getUserModel() {
    'root' is listed for reference only and is
    never stored as a platformRole on any account.
 ============================================ */
+/* ✅ POLISH: Permission keys now match PLATFORM_MODULES in PlatformStaff.model.js.
+   This map is used ONLY as a fallback for legacy staff accounts
+   that were created before the dynamic permission system.
+   New staff receive permissions from DB (populated on invite acceptance). */
 var PERMISSIONS = {
   platform_admin: [
-    'view_schools',
-    'manage_schools',          /* suspend, activate, delete */
-    'view_subscriptions',
-    'manage_subscriptions',    /* add days, change plan, expire */
-    'view_plans',
-    'manage_plans',            /* create, edit, toggle plans */
-    'view_payments',
-    'send_announcements',
-    'view_logs',
-    'view_analytics',
-    'invite_staff',            /* invite new platform staff */
-    'view_staff'               /* view staff list */
-    /* Note: suspend/delete staff is ROOT ONLY — not in this set */
+    'institutions', 'subscriptions', 'cbt', 'staff',
+    'analytics', 'reports', 'announcements', 'audit_logs', 'store'
   ],
-
   support_admin: [
-    'view_schools',
-    'view_subscriptions',
-    'view_analytics',
-    'send_announcements',
-    'view_logs'
+    'institutions', 'analytics', 'announcements', 'audit_logs'
   ],
-
   finance_admin: [
-    'view_schools',
-    'view_subscriptions',
-    'manage_subscriptions',
-    'view_plans',
-    'manage_plans',
-    'view_payments',
-    'view_analytics'
+    'institutions', 'subscriptions', 'reports', 'analytics'
   ],
-
   content_admin: [
-    'send_announcements',
-    'view_analytics'
+    'announcements', 'content'
   ],
-
   developer: [
-    'view_schools',
-    'view_subscriptions',
-    'view_payments',
-    'view_logs',
-    'view_analytics'
+    'analytics', 'audit_logs', 'reports'
   ]
 };
 
@@ -153,9 +127,14 @@ async function platformStaffProtect(req, res, next) {
       });
     }
 
-    req.platformStaff       = staff;
-    req.platformRole        = staff.platformRole;
-    req.platformPermissions = PERMISSIONS[staff.platformRole] || [];
+   req.platformStaff = staff;
+    req.platformRole  = staff.platformRole;
+    /* ✅ POLISH: Read permissions from DB (dynamic per staff member).
+       Falls back to hardcoded PERMISSIONS for legacy staff accounts
+       that were created before the dynamic permission update. */
+    req.platformPermissions = (staff.permissions && staff.permissions.length > 0)
+      ? staff.permissions
+      : (PERMISSIONS[staff.platformRole] || []);
     next();
 
   } catch (err) {

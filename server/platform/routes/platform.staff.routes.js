@@ -33,6 +33,7 @@ const express            = require('express');
 const router             = express.Router();
 
 const PlatformStaff      = require('../models/PlatformStaff.model');
+const PLATFORM_MODULES   = PlatformStaff.MODULES; /* ✅ Available modules for permission UI */
 const PlatformInvitation = require('../models/PlatformInvitation.model');
 const {
   combinedRootOrPlatformAdmin,
@@ -233,6 +234,91 @@ router.get('/', combinedRootOrPlatformAdmin, async function (req, res) {
 });
 
 /* ============================================
+   ✅ POLISH: GET /api/platform-staff/:id/permissions
+   ROOT + PLATFORM_ADMIN
+   Returns staff's current permissions + all available modules.
+   Used by admin UI to render permission checkboxes.
+   ⚠ Must be BEFORE GET /:id to avoid path conflict.
+============================================ */
+router.get('/:id/permissions', combinedRootOrPlatformAdmin, async function (req, res) {
+  try {
+    var staff = await PlatformStaff.findById(req.params.id)
+      .select('name email platformRole permissions')
+      .lean();
+    if (!staff) {
+      return res.status(404).json({ success: false, message: 'Platform staff member not found.' });
+    }
+
+    /* Ensure permissions are populated (legacy staff may have empty array) */
+    var currentPermissions = (staff.permissions && staff.permissions.length > 0)
+      ? staff.permissions
+      : PlatformStaff.getDefaultPermissions(staff.platformRole);
+
+    return res.status(200).json({
+      success:          true,
+      staffId:          staff._id,
+      staffName:        staff.name,
+      staffRole:        staff.platformRole,
+      roleLabel:        PlatformInvitation.getRoleLabel(staff.platformRole),
+      permissions:      currentPermissions,
+      availableModules: PLATFORM_MODULES,
+      defaultForRole:   PlatformStaff.getDefaultPermissions(staff.platformRole)
+    });
+  } catch (err) {
+    console.error('[platform.staff] GET /:id/permissions:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ POLISH: PUT /api/platform-staff/:id/permissions
+   ROOT ONLY — only root can change permissions.
+   Body: { permissions: ['institutions', 'cbt', ...] }
+   Validates each permission key against PLATFORM_MODULES.
+============================================ */
+router.put('/:id/permissions', rootProtect, async function (req, res) {
+  try {
+    var staff = await PlatformStaff.findById(req.params.id);
+    if (!staff) {
+      return res.status(404).json({ success: false, message: 'Platform staff member not found.' });
+    }
+
+    var requested = req.body.permissions;
+    if (!Array.isArray(requested)) {
+      return res.status(400).json({ success: false, message: 'permissions must be an array of module keys.' });
+    }
+
+    /* Validate — only accept known module keys */
+    var validKeys   = PLATFORM_MODULES.map(function (m) { return m.key; });
+    var invalid     = requested.filter(function (p) { return !validKeys.includes(p); });
+    if (invalid.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid permission keys: ' + invalid.join(', ') +
+                 '. Valid keys: ' + validKeys.join(', ')
+      });
+    }
+
+    /* Deduplicate */
+    var permissions = requested.filter(function (p, idx) {
+      return requested.indexOf(p) === idx;
+    });
+
+    staff.permissions = permissions;
+    await staff.save();
+
+    return res.status(200).json({
+      success:     true,
+      message:     staff.name + '\'s permissions updated successfully.',
+      permissions: staff.permissions
+    });
+  } catch (err) {
+    console.error('[platform.staff] PUT /:id/permissions:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
    GET /api/platform-staff/:id
    ROOT + PLATFORM_ADMIN
    Returns individual staff profile.
@@ -417,7 +503,7 @@ function _getSubModels() {
 router.get(
   '/data/stats',
   platformStaffProtect,
-  requirePlatformPermission('view_analytics'),
+  requirePlatformPermission('analytics'),
   async function (req, res) {
     try {
       var School = _getSchoolModel();
@@ -456,7 +542,7 @@ router.get(
 router.get(
   '/data/schools',
   platformStaffProtect,
-  requirePlatformPermission('view_schools'),
+  requirePlatformPermission('institutions'),
   async function (req, res) {
     try {
       var School = _getSchoolModel();
@@ -529,7 +615,7 @@ router.get(
 router.get(
   '/data/plans',
   platformStaffProtect,
-  requirePlatformPermission('view_plans'),
+  requirePlatformPermission('subscriptions'),
   async function (req, res) {
     try {
       var mods = _getSubModels();
