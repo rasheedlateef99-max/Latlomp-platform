@@ -9,6 +9,10 @@
      ✅ STAGE 5 FIX: rootProtect and combinedRootOrPlatformAdmin
      now check decoded.userId || decoded.id — robust against
      either JWT convention.
+   ✅ DEFINITIVE FIX: Admin is identified by user.role === 'admin'
+     NOT by user.isAdmin (which does not exist on User model).
+     User.model.js role enum: ['student', 'teacher', 'admin'].
+     Confirmed from auth.middleware.js adminOnly guard pattern.
      Institution tokens carry decoded.schoolUserId.
      Student tokens carry decoded.studentId + role:'student'.
      These four payload shapes are structurally incompatible.
@@ -244,8 +248,12 @@ async function rootProtect(req, res, next) {
       return res.status(500).json({ success: false, message: 'Auth system error.' });
     }
 
-    var user = await User.findById(mainUserId).select('isAdmin email');
-    if (!user || !user.isAdmin) {
+   /* ✅ DEFINITIVE FIX: User model has no 'isAdmin' field.
+       Admin is identified by role === 'admin' (confirmed from
+       User.model.js role enum: ['student','teacher','admin']
+       and adminOnly guard: req.user.role !== 'admin') */
+    var user = await User.findById(mainUserId).select('role email name');
+    if (!user || user.role !== 'admin') {
       return res.status(403).json({
         success: false,
         message: 'Root administrator access required.'
@@ -316,8 +324,10 @@ async function combinedRootOrPlatformAdmin(req, res, next) {
       if (!User) {
         return res.status(500).json({ success: false, message: 'Auth system error.' });
       }
-      var user = await User.findById(mainUserId).select('isAdmin email name');
-      if (!user || !user.isAdmin) {
+     /* ✅ DEFINITIVE FIX: check role === 'admin', not isAdmin field
+         (User model uses role enum, no boolean isAdmin exists) */
+      var user = await User.findById(mainUserId).select('role email name');
+      if (!user || user.role !== 'admin') {
         return res.status(403).json({
           success: false,
           message: 'Platform administrator or root access required.'
