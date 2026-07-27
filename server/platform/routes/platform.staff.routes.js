@@ -611,6 +611,57 @@ router.get(
   }
 );
 
+/* ---- GET /api/platform-staff/data/subscriptions ---- */
+router.get(
+  '/data/subscriptions',
+  platformStaffProtect,
+  requirePlatformPermission('subscriptions'),
+  async function (req, res) {
+    try {
+      var mods = _getSubModels();
+      var SubscriptionPlan = mods.SubscriptionPlan || null;
+      var Subscription     = mods.Subscription     || null;
+
+      if (!SubscriptionPlan) {
+        return res.status(503).json({ success: false, message: 'Subscription service temporarily unavailable.' });
+      }
+
+      var [plans, recentSubs, statsAgg] = await Promise.all([
+        SubscriptionPlan.find({}).sort({ sortOrder: 1 }).lean(),
+
+        Subscription ? Subscription.find({})
+          .sort({ createdAt: -1 })
+          .limit(30)
+          .lean()
+          : Promise.resolve([]),
+
+        Subscription ? Subscription.aggregate([
+          { $group: {
+            _id:   '$status',
+            count: { $sum: 1 },
+            total: { $sum: '$amount' }
+          }}
+        ]) : Promise.resolve([])
+      ]);
+
+      var statsMap = statsAgg.reduce(function (acc, s) {
+        acc[s._id] = { count: s.count || 0, total: s.total || 0 };
+        return acc;
+      }, {});
+
+      return res.json({
+        success:              true,
+        plans:                plans,
+        recentSubscriptions:  recentSubs,
+        stats:                statsMap
+      });
+    } catch (err) {
+      console.error('[platform-staff] GET /data/subscriptions:', err.message);
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
+);
+
 /* ---- GET /api/platform-staff/data/plans ---- */
 router.get(
   '/data/plans',
