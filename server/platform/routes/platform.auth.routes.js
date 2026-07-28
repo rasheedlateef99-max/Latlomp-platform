@@ -201,7 +201,7 @@ router.post('/google', async function (req, res) {
           avatar:       staff.avatar,
           permissions:  staff.permissions || []  /* ✅ POLISH */
         },
-        redirectTo: '/platform/dashboard.html'
+        redirectTo: '/admin.html'
       });
     }
 
@@ -247,7 +247,7 @@ router.post('/google', async function (req, res) {
           avatar:       returningStaff.avatar,
           permissions:  returningStaff.permissions || []  /* ✅ POLISH */
         },
-        redirectTo: '/platform/dashboard.html'
+       redirectTo: '/admin.html'
       });
     }
 

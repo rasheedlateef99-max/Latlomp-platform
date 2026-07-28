@@ -23,7 +23,7 @@ const Product  = require('../models/Product.model');
   Import from auth.middleware — same file as exam.routes
   and teacher.routes use. No separate admin.middleware needed.
 */
-const { protect, adminOnly } = require('../middleware/auth.middleware');
+const { protect, adminOnly, adminOrPlatformStaff } = require('../middleware/auth.middleware');
 
 /* ---- Cloudinary setup (optional) ---- */
 var cloudinary = null;
@@ -168,7 +168,7 @@ router.get('/products/:id', async function(req, res) {
 ============================================ */
 
 /* GET /api/store/admin/products */
-router.get('/admin/products', protect, adminOnly, async function(req, res) {
+router.get('/admin/products', adminOrPlatformStaff('store'), async function(req, res) {
   try {
     var products = await Product.find({})
       .sort({ createdAt: -1 })
@@ -191,7 +191,7 @@ router.get('/admin/products', protect, adminOnly, async function(req, res) {
 });
 
 /* POST /api/store/products */
-router.post('/products', protect, adminOnly, async function(req, res) {
+router.post('/products', adminOrPlatformStaff('store'), async function(req, res) {
   try {
     var body = req.body;
 
@@ -236,7 +236,7 @@ router.post('/products', protect, adminOnly, async function(req, res) {
 });
 
 /* PUT /api/store/products/:id */
-router.put('/products/:id', protect, adminOnly, async function(req, res) {
+router.put('/products/:id', adminOrPlatformStaff('store'), async function(req, res) {
   try {
     var body    = req.body;
     var updates = {};
@@ -279,7 +279,7 @@ router.put('/products/:id', protect, adminOnly, async function(req, res) {
 });
 
 /* DELETE /api/store/products/:id */
-router.delete('/products/:id', protect, adminOnly, async function(req, res) {
+router.delete('/products/:id', adminOrPlatformStaff('store'), async function(req, res) {
   try {
     var product = await Product.findById(req.params.id);
 
@@ -307,7 +307,7 @@ router.delete('/products/:id', protect, adminOnly, async function(req, res) {
 });
 
 /* POST /api/store/upload-image */
-router.post('/upload-image', protect, adminOnly, async function(req, res) {
+router.post('/upload-image', adminOrPlatformStaff('store'), async function(req, res) {
 
   if (upload) {
     /* Cloudinary configured — use multer */

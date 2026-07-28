@@ -267,7 +267,7 @@
       <div class="sb-avatar" id="adminAvatar">A</div>
       <div>
         <div style="font-size:14px; font-weight:700; color:#fff;" id="adminName">Admin</div>
-        <div style="font-size:11px; color:#ff6584; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Administrator</div>
+        <div id="adminRoleLabel" style="font-size:11px; color:#ff6584; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Administrator</div>
       </div>
     </div>
     <nav class="sb-nav">
@@ -836,6 +836,11 @@
 
 /* ---- Self-contained API wrapper for institution admin calls ---- */
 async function instAdminApi(path, method, body) {
+  /* ✅ ARCHITECTURE MIGRATION: platform staff use their own token + data endpoints */
+  if (typeof _isPlatformStaff !== 'undefined' && _isPlatformStaff) {
+    return await _platformStaffInstApi(path, method, body);
+  }
+  /* Original root admin behavior — unchanged */
   var token = localStorage.getItem('latlomp_token');
   var opts  = {
     method:  method || 'GET',
@@ -849,6 +854,60 @@ async function instAdminApi(path, method, body) {
   } catch(e) {
     return { ok: false, status: 0, data: { message: 'Network error: ' + e.message } };
   }
+}
+
+/* ✅ Maps admin API paths to platform staff data endpoints.
+   Read-only. Write operations return a clear 403.
+   Called by instAdminApi when _isPlatformStaff === true. */
+async function _platformStaffInstApi(path, method, body) {
+  var token   = localStorage.getItem('latlomp_platform_token');
+  var headers = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+  var verb    = (method || 'GET').toUpperCase();
+
+  /* Only GET operations are supported for platform staff via data endpoints */
+  if (verb !== 'GET') {
+    return { ok: false, status: 403, data: { message: 'This action requires Root Administrator access.' } };
+  }
+
+  /* Path mapping: admin path → platform staff data path */
+  var endpoint = null;
+
+  if (path === '/institutions/stats') {
+    endpoint = '/data/stats';
+  } else if (path.startsWith('/institutions') &&
+             !path.includes('/suspend') &&
+             !path.includes('/activate') &&
+             !path.includes('/subscription') &&
+             !path.includes('/announcements') &&
+             !path.match(/\/institutions\/[a-f0-9]{24}$/)) {
+    /* /institutions?page=...&limit=...&status=...&search=... */
+    endpoint = '/data/schools' + path.replace('/institutions', '');
+  } else if (path === '/subscription-plans' || path.startsWith('/subscription-plans?')) {
+    endpoint = '/data/plans' + path.replace('/subscription-plans', '');
+  } else if (path.startsWith('/institutions?limit=100')) {
+    /* Used for announcements school select dropdown */
+    endpoint = '/data/schools?limit=100';
+  }
+
+  if (endpoint) {
+    try {
+      var res  = await fetch('/api/platform-staff' + endpoint, { method: 'GET', headers: headers });
+      var data = await res.json();
+      /* Normalize plan response to match admin format */
+      if (endpoint.startsWith('/data/plans') && data.success && data.plans) {
+        data.plans = data.plans; /* already correct shape */
+      }
+      return { ok: res.ok, status: res.status, data: data };
+    } catch (e) {
+      return { ok: false, status: 0, data: { message: 'Network error: ' + e.message } };
+    }
+  }
+
+  /* Unmapped read path — not available for platform staff */
+  return {
+    ok: false, status: 403,
+    data: { message: 'This data requires Root Administrator access.' }
+  };
 }
 
 var _instCurrentFilter = 'all';
@@ -955,11 +1014,13 @@ async function instLoadSchools() {
         '<td>' + (s.teacherCount || 0) + '</td>' +
         '<td><div style="display:flex; gap:6px; flex-wrap:wrap;">' +
           '<button class="a-btn a-btn-secondary a-btn-sm" onclick="instShowDetail(\'' + s._id + '\')">👁 View</button>' +
-          '<button class="a-btn a-btn-blue a-btn-sm" onclick="instOpenSubModal(\'' + s._id + '\',\'' + safeName + '\',\'' + expiry + '\')">⚙ Sub</button>' +
-          (s.isSuspended
-            ? '<button class="a-btn a-btn-green a-btn-sm" onclick="instActivate(\'' + s._id + '\')">✅</button>'
-            : '<button class="a-btn a-btn-danger a-btn-sm" onclick="instSuspend(\'' + s._id + '\')">⛔</button>') +
-          '<button class="a-btn a-btn-danger a-btn-sm" onclick="instDelete(\'' + s._id + '\',\'' + safeName + '\')">🗑</button>' +
+          (!(typeof _isPlatformStaff !== 'undefined' && _isPlatformStaff) ? (
+            '<button class="a-btn a-btn-blue a-btn-sm" onclick="instOpenSubModal(\'' + s._id + '\',\'' + safeName + '\',\'' + expiry + '\')">⚙ Sub</button>' +
+            (s.isSuspended
+              ? '<button class="a-btn a-btn-green a-btn-sm" onclick="instActivate(\'' + s._id + '\')">✅</button>'
+              : '<button class="a-btn a-btn-danger a-btn-sm" onclick="instSuspend(\'' + s._id + '\')">⛔</button>') +
+            '<button class="a-btn a-btn-danger a-btn-sm" onclick="instDelete(\'' + s._id + '\',\'' + safeName + '\')">🗑</button>'
+          ) : '') +
         '</div></td>' +
       '</tr>';
     }).join('');
@@ -1021,11 +1082,12 @@ async function instShowDetail(id) {
 
     var expStr  = s.subscriptionExpiry ? new Date(s.subscriptionExpiry).toDateString() : '—';
     var safeName = (s.name || '').replace(/'/g,'&#39;');
+    var isPsView = (typeof _isPlatformStaff !== 'undefined' && _isPlatformStaff);
     footer.innerHTML =
-      '<button type="button" class="a-btn a-btn-blue" onclick="closeAdminModal(\'instSchoolDetailModal\'); instOpenSubModal(\'' + s._id + '\',\'' + safeName + '\',\'' + expStr + '\')">⚙ Manage Subscription</button>' +
-      (s.isSuspended
+      (!isPsView ? '<button type="button" class="a-btn a-btn-blue" onclick="closeAdminModal(\'instSchoolDetailModal\'); instOpenSubModal(\'' + s._id + '\',\'' + safeName + '\',\'' + expStr + '\')">⚙ Manage Subscription</button>' : '') +
+      (!isPsView ? (s.isSuspended
         ? '<button type="button" class="a-btn a-btn-green" onclick="closeAdminModal(\'instSchoolDetailModal\'); instActivate(\'' + s._id + '\')">✅ Activate</button>'
-        : '<button type="button" class="a-btn a-btn-danger" onclick="closeAdminModal(\'instSchoolDetailModal\'); instSuspend(\'' + s._id + '\')">⛔ Suspend</button>') +
+        : '<button type="button" class="a-btn a-btn-danger" onclick="closeAdminModal(\'instSchoolDetailModal\'); instSuspend(\'' + s._id + '\')">⛔ Suspend</button>') : '') +
       '<button type="button" class="a-btn a-btn-secondary" onclick="closeAdminModal(\'instSchoolDetailModal\')">Close</button>';
   } catch(e) { body.innerHTML = '<p style="color:#ff6584;">Error: ' + e.message + '</p>'; }
 }
@@ -1427,7 +1489,7 @@ async function handleStaffGoogleCallback(response) {
       localStorage.setItem('latlomp_platform_token', data.token);
       localStorage.setItem('latlomp_platform_staff', JSON.stringify(data.staff));
       if (btn) { btn.textContent = '✅ Redirecting...'; }
-      window.location.replace(data.redirectTo || '/platform/dashboard.html');
+      window.location.replace('/admin.html');
     } else {
       resetStaffBtn();
       var msg = data.message || 'Sign in failed. Please try again.';
@@ -1609,7 +1671,10 @@ var PS_ROLE_DESCRIPTIONS = {
 var _psGeneratedUrl = '';
 
 async function platformAdminApi(path, method, body) {
-  var token = localStorage.getItem('latlomp_token');
+  /* ✅ ARCHITECTURE MIGRATION: use platform token when staff is logged in */
+  var token = (typeof _isPlatformStaff !== 'undefined' && _isPlatformStaff)
+    ? localStorage.getItem('latlomp_platform_token')
+    : localStorage.getItem('latlomp_token');
   var opts  = {
     method:  method || 'GET',
     headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }

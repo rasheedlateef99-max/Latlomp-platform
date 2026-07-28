@@ -3,6 +3,37 @@
 ============================================ */
 
 /* ============================================
+   ✅ ARCHITECTURE MIGRATION:
+   Platform Staff as Delegated Root Admins.
+   These vars are set during DOMContentLoaded
+   when a valid platform staff token is found.
+   All inline script functions check these before
+   deciding how to make API calls.
+============================================ */
+var _isPlatformStaff    = false;
+var _platformStaffPerms = [];
+var _platformStaffUser  = null;
+
+/* Which permissions are required to see each admin section.
+   Empty array = always visible (no restriction).
+   Any single match grants access. */
+var SECTION_PERM_MAP = {
+  'overview':       [],
+  'products':       ['store'],
+  'cbt-management': ['cbt', 'practice'],
+  'institutions':   ['institutions', 'subscriptions', 'announcements', 'audit_logs'],
+  'platform-staff': ['staff']
+};
+
+var PS_ROLE_LABELS_ADMIN = {
+  platform_admin: 'Platform Administrator',
+  support_admin:  'Support Administrator',
+  finance_admin:  'Finance Administrator',
+  content_admin:  'Content Administrator',
+  developer:      'Developer'
+};
+
+/* ============================================
    ADMIN LOGIN
 ============================================ */
 async function submitAdminLogin() {
@@ -61,7 +92,12 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   try {
     var user = getCurrentUser();
-    if (!user) { clearTimeout(safetyTimer); showScreen('denied'); return; }
+    if (!user) {
+      if (await tryPlatformStaffLogin(safetyTimer, showScreen)) { return; }
+      clearTimeout(safetyTimer);
+      showScreen('denied');
+      return;
+    }
 
     var meRes = await apiRequest('/auth/me');
     if (!meRes.ok) {
@@ -73,9 +109,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     var serverUser = meRes.data.user;
-    if (!serverUser || serverUser.role !== 'admin') {
+   if (!serverUser || serverUser.role !== 'admin') {
       localStorage.removeItem('latlomp_token');
       localStorage.removeItem('latlomp_user');
+      /* ✅ Try platform staff before showing denied */
+      if (await tryPlatformStaffLogin(safetyTimer, showScreen)) { return; }
       clearTimeout(safetyTimer);
       showScreen('denied');
       return;
@@ -95,6 +133,9 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   } catch (err) {
     console.error('Admin init error:', err);
+    try {
+      if (await tryPlatformStaffLogin(safetyTimer, showScreen)) { return; }
+    } catch (e2) { /* silent */ }
     clearTimeout(safetyTimer);
     showScreen('denied');
   }
@@ -104,6 +145,19 @@ document.addEventListener('DOMContentLoaded', async function() {
    SECTION NAVIGATION
 ============================================ */
 function showAdminSection(name) {
+  /* ✅ Permission guard for platform staff */
+  if (_isPlatformStaff) {
+    var permsNeeded = SECTION_PERM_MAP[name];
+    if (permsNeeded && permsNeeded.length > 0) {
+      var allowed = permsNeeded.some(function (p) {
+        return _platformStaffPerms.indexOf(p) !== -1;
+      });
+      if (!allowed) {
+        adminToast('You do not have permission to access this section.', 'error');
+        return;
+      }
+    }
+  }
   document.querySelectorAll('.admin-section').forEach(function(s) { s.classList.remove('active'); });
 
   var section = document.getElementById('as-' + name);
@@ -187,7 +241,17 @@ document.addEventListener('click', function(e) {
 });
 
 function adminLogout() {
-  if (confirm('Log out of Admin Dashboard?')) logout();
+  if (!confirm('Log out of Admin Dashboard?')) { return; }
+  if (_isPlatformStaff) {
+    localStorage.removeItem('latlomp_platform_token');
+    localStorage.removeItem('latlomp_platform_staff');
+    _isPlatformStaff    = false;
+    _platformStaffPerms = [];
+    _platformStaffUser  = null;
+    window.location.replace('/admin.html');
+  } else {
+    logout();
+  }
 }
 
 /* ============================================
@@ -839,6 +903,161 @@ async function deleteCbtQuestion(questionId) {
   } else {
     adminToast(res.data.message || 'Delete failed.', 'error');
   }
+}
+
+/* ============================================
+   ✅ ARCHITECTURE MIGRATION: PLATFORM STAFF
+   Core functions for dual-auth admin panel.
+============================================ */
+
+/* Attempt to detect and activate a platform staff session.
+   Called from DOMContentLoaded when root admin check fails.
+   Returns true if platform staff session was activated. */
+async function tryPlatformStaffLogin(safetyTimer, showScreen) {
+  var pToken = localStorage.getItem('latlomp_platform_token');
+  if (!pToken) { return false; }
+
+  try {
+    var pRes = await fetch('/api/platform-auth/me', {
+      headers: { 'Authorization': 'Bearer ' + pToken, 'Content-Type': 'application/json' }
+    });
+    if (!pRes.ok) {
+      localStorage.removeItem('latlomp_platform_token');
+      localStorage.removeItem('latlomp_platform_staff');
+      return false;
+    }
+    var pData = await pRes.json();
+    if (!pData.success || !pData.staff) { return false; }
+
+    var staff = pData.staff;
+
+    /* Set global state — these are read by inline script functions */
+    _isPlatformStaff    = true;
+    _platformStaffUser  = staff;
+    _platformStaffPerms = (staff.permissions && staff.permissions.length > 0)
+      ? staff.permissions
+      : getPlatformStaffDefaultPerms(staff.platformRole);
+
+    localStorage.setItem('latlomp_platform_staff', JSON.stringify(staff));
+
+    clearTimeout(safetyTimer);
+    showScreen('app');
+
+    /* Update sidebar identity */
+    var nameEl   = document.getElementById('adminName');
+    var avatarEl = document.getElementById('adminAvatar');
+    var roleEl   = document.getElementById('adminRoleLabel');
+    if (nameEl)   nameEl.textContent   = staff.name || 'Platform Staff';
+    if (avatarEl) {
+      avatarEl.textContent = (staff.name || 'S').charAt(0).toUpperCase();
+      avatarEl.style.background = 'linear-gradient(135deg,#6c63ff,#574fd6)';
+    }
+    if (roleEl) {
+      roleEl.textContent = PS_ROLE_LABELS_ADMIN[staff.platformRole] || 'Platform Staff';
+      roleEl.style.color = '#a78bfa';
+    }
+
+    /* Filter UI based on permissions */
+    filterAdminForPlatformStaff(_platformStaffPerms);
+
+    /* Load overview */
+    loadAdminStats();
+    return true;
+
+  } catch (e) {
+    console.warn('[platform-staff] Session check failed:', e.message);
+    return false;
+  }
+}
+
+/* Hide sections + nav items the platform staff cannot access */
+function filterAdminForPlatformStaff(permissions) {
+  /* Hide unauthorized nav links */
+  Object.keys(SECTION_PERM_MAP).forEach(function (sectionName) {
+    var permsNeeded = SECTION_PERM_MAP[sectionName];
+    if (permsNeeded.length === 0) { return; } /* always visible */
+
+    var hasAccess = permsNeeded.some(function (p) { return permissions.indexOf(p) !== -1; });
+    var navLink   = document.querySelector('.admin-nav-link[data-section="' + sectionName + '"]');
+    if (navLink) navLink.style.display = hasAccess ? '' : 'none';
+  });
+
+  /* Hide institution sub-tabs platform staff can't use */
+  var tabPermMap = {
+    'instTabPlans':         'subscriptions',
+    'instTabAnnouncements': 'announcements',
+    'instTabLogs':          'audit_logs'
+  };
+  Object.keys(tabPermMap).forEach(function (tabId) {
+    var el      = document.getElementById(tabId);
+    var hasPerm = permissions.indexOf(tabPermMap[tabId]) !== -1;
+    if (el) el.style.display = hasPerm ? '' : 'none';
+  });
+
+  /* Hide overview stats if no analytics permission */
+  if (permissions.indexOf('analytics') === -1) {
+    var statsGrid = document.querySelector('.a-stats-grid');
+    if (statsGrid) statsGrid.style.display = 'none';
+  }
+
+  /* Hide "Add Product" button in overview if no store permission */
+  if (permissions.indexOf('store') === -1) {
+    document.querySelectorAll('[onclick*="openCreateProduct"]').forEach(function (el) {
+      el.style.display = 'none';
+    });
+  }
+
+/* ✅ ROUTE GUARD FIX: Patch apiRequest to use platform token.
+       CBT and Products sections call the global apiRequest() which
+       reads latlomp_token. Platform staff have latlomp_platform_token.
+       This patch redirects all apiRequest calls through the platform
+       token when _isPlatformStaff is true. */
+    var _origApiRequest = window.apiRequest;
+    window.apiRequest = function (endpoint, method, body) {
+      if (_isPlatformStaff) {
+        method = (method || 'GET').toUpperCase();
+        var url     = '/api' + endpoint;
+        var headers = { 'Content-Type': 'application/json' };
+        var pToken  = localStorage.getItem('latlomp_platform_token');
+        if (pToken) headers['Authorization'] = 'Bearer ' + pToken;
+        var opts = { method: method, headers: headers };
+        if (body && method !== 'GET') opts.body = JSON.stringify(body);
+        return fetch(url, opts).then(function (res) {
+          return res.json().then(function (data) {
+            return { ok: res.ok, status: res.status, data: data };
+          }).catch(function () {
+            return { ok: false, status: res.status, data: { message: 'Unexpected server response.' } };
+          });
+        }).catch(function () {
+          return { ok: false, status: 0, data: { message: 'Network error. Check your connection.' } };
+        });
+      }
+      return _origApiRequest(endpoint, method, body);
+    };
+
+  /* Navigate to first permitted section */
+  var firstPermitted = 'overview';
+  var orderedSections = ['institutions', 'cbt-management', 'products', 'platform-staff'];
+  for (var i = 0; i < orderedSections.length; i++) {
+    var sName       = orderedSections[i];
+    var sPerms      = SECTION_PERM_MAP[sName];
+    var sHasAccess  = sPerms.some(function (p) { return permissions.indexOf(p) !== -1; });
+    if (sHasAccess) { firstPermitted = sName; break; }
+  }
+  showAdminSection(firstPermitted);
+  if (firstPermitted === 'institutions') { setTimeout(instOnActivate, 200); }
+}
+
+/* Default permissions fallback for legacy staff without DB permissions */
+function getPlatformStaffDefaultPerms(role) {
+  var defaults = {
+    platform_admin: ['institutions','subscriptions','cbt','staff','analytics','reports','announcements','audit_logs','store'],
+    support_admin:  ['institutions','analytics','announcements','audit_logs'],
+    finance_admin:  ['institutions','subscriptions','reports','analytics'],
+    content_admin:  ['announcements','content'],
+    developer:      ['analytics','audit_logs','reports']
+  };
+  return defaults[role] || [];
 }
 
 console.log('🔧 Admin Dashboard loaded');

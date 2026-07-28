@@ -16,7 +16,7 @@ const Result     = require('../models/Result.model');
 const User       = require('../models/User.model');
 const Department = require('../models/Department.model');
 const Subject    = require('../models/Subject.model');
-const { protect, adminOnly } = require('../middleware/auth.middleware');
+const { protect, adminOnly, adminOrPlatformStaff } = require('../middleware/auth.middleware');
 
 function normalizeDifficulty(val) {
   var map = { 'easy':'Easy', 'Easy':'Easy', 'medium':'Medium', 'Medium':'Medium', 'hard':'Hard', 'Hard':'Hard', 'mixed':'Mixed', 'Mixed':'Mixed' };
@@ -74,7 +74,7 @@ router.get('/results/:id', protect, async (req, res) => {
 ============================================ */
 
 /* NEW — supports ?examCategory=jamb filter: */
-router.get('/admin/departments', protect, adminOnly, async (req, res) => {
+router.get('/admin/departments', adminOrPlatformStaff('cbt'), async function (req, res) {
   try {
     var filter = {};
     if (req.query.examCategory) filter.examCategory = req.query.examCategory;
@@ -86,7 +86,7 @@ router.get('/admin/departments', protect, adminOnly, async (req, res) => {
   }
 });
 
-router.post('/admin/departments', protect, adminOnly, async (req, res) => {
+router.post('/admin/departments', adminOrPlatformStaff('cbt'), async function (req, res) {
   try {
     var name     = (req.body.name         || '').trim();
     var category = (req.body.examCategory || '').trim();
@@ -110,7 +110,7 @@ router.post('/admin/departments', protect, adminOnly, async (req, res) => {
   }
 });
 
-router.put('/admin/departments/:id', protect, adminOnly, async (req, res) => {
+router.put('/admin/departments/:id', adminOrPlatformStaff('cbt'), async function (req, res) {
   try {
     var updates = {};
     if (req.body.name        !== undefined) updates.name        = req.body.name.trim();
@@ -124,7 +124,7 @@ router.put('/admin/departments/:id', protect, adminOnly, async (req, res) => {
   }
 });
 
-router.delete('/admin/departments/:id', protect, adminOnly, async (req, res) => {
+router.delete('/admin/departments/:id', adminOrPlatformStaff('cbt'), async function (req, res) {
   try {
     const subjectCount = await Subject.countDocuments({ department: req.params.id });
     if (subjectCount > 0)
@@ -140,7 +140,7 @@ router.delete('/admin/departments/:id', protect, adminOnly, async (req, res) => 
    ADMIN — Subject CRUD
 ============================================ */
 
-router.get('/admin/subjects', protect, adminOnly, async (req, res) => {
+router.get('/admin/subjects', adminOrPlatformStaff('cbt'), async function (req, res) {
   try {
     var filter = {};
     if (req.query.department) filter.department = req.query.department;
@@ -151,7 +151,7 @@ router.get('/admin/subjects', protect, adminOnly, async (req, res) => {
   }
 });
 
-router.post('/admin/subjects', protect, adminOnly, async (req, res) => {
+router.post('/admin/subjects', adminOrPlatformStaff('cbt'), async function (req, res) {
   try {
     var name   = (req.body.name       || '').trim();
     var deptId = (req.body.department || '').trim();
@@ -178,7 +178,7 @@ router.post('/admin/subjects', protect, adminOnly, async (req, res) => {
   }
 });
 
-router.put('/admin/subjects/:id', protect, adminOnly, async (req, res) => {
+router.put('/admin/subjects/:id', adminOrPlatformStaff('cbt'), async function (req, res) {
   try {
     var updates = {};
     if (req.body.name           !== undefined) updates.name           = req.body.name.trim();
@@ -197,7 +197,7 @@ router.put('/admin/subjects/:id', protect, adminOnly, async (req, res) => {
   }
 });
 
-router.delete('/admin/subjects/:id', protect, adminOnly, async (req, res) => {
+router.delete('/admin/subjects/:id', adminOrPlatformStaff('cbt'), async function (req, res) {
   try {
     const questionCount = await Question.countDocuments({ subjectId: req.params.id });
     if (questionCount > 0)
@@ -210,7 +210,7 @@ router.delete('/admin/subjects/:id', protect, adminOnly, async (req, res) => {
 });
 
 /* Subject questions */
-router.get('/admin/subjects/:id/questions', protect, adminOnly, async (req, res) => {
+router.get('/admin/subjects/:id/questions', adminOrPlatformStaff('cbt'), async function (req, res) {
   try {
     const questions = await Question.find({ subjectId: req.params.id }).sort({ createdAt: 1 });
     return res.status(200).json({ success: true, count: questions.length, questions });
@@ -219,7 +219,7 @@ router.get('/admin/subjects/:id/questions', protect, adminOnly, async (req, res)
   }
 });
 
-router.post('/admin/subjects/:id/questions', protect, adminOnly, async (req, res) => {
+router.post('/admin/subjects/:id/questions', adminOrPlatformStaff('cbt'), async function (req, res) {
   try {
     if (!req.body.question || !req.body.options || req.body.correctAnswer === undefined)
       return res.status(400).json({ success: false, message: 'Question, options, and correct answer are required.' });
@@ -247,7 +247,7 @@ router.post('/admin/subjects/:id/questions', protect, adminOnly, async (req, res
 });
 
 /* Delete a question */
-router.delete('/admin/questions/:id', protect, adminOnly, async (req, res) => {
+router.delete('/admin/questions/:id', adminOrPlatformStaff('cbt'), async function (req, res) {
   try {
     const question = await Question.findByIdAndDelete(req.params.id);
     if (question && question.subjectId)
