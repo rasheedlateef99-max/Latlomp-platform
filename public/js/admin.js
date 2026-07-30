@@ -17,12 +17,31 @@ var _platformStaffUser  = null;
 /* Which permissions are required to see each admin section.
    Empty array = always visible (no restriction).
    Any single match grants access. */
+/* ============================================
+   SECTION PERMISSION MAP
+   Controls which admin sections are visible to
+   platform staff based on their DB permissions.
+
+   HOW TO ADD A NEW MODULE (3 steps):
+     1. Add to server/platform/config/permissions.registry.js
+     2. Add HTML: <section class="admin-section" id="as-your-key">
+        and nav: <button class="sb-link admin-nav-link" data-section="your-key">
+     3. Add entry here: 'your-key': ['your_permission_key']
+
+   Empty array = always visible to all staff.
+   Any single match from the array grants access.
+============================================ */
 var SECTION_PERM_MAP = {
   'overview':       [],
   'products':       ['store'],
   'cbt-management': ['cbt', 'practice'],
   'institutions':   ['institutions', 'subscriptions', 'announcements', 'audit_logs'],
   'platform-staff': ['staff']
+  /* Future modules — add here when built:
+  ,'question-bank':    ['question_bank']
+  ,'question-engine':  ['question_engine']
+  ,'payment-gateway':  ['payment_gateway']
+  */
 };
 
 var PS_ROLE_LABELS_ADMIN = {

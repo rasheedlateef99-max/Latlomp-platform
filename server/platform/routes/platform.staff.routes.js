@@ -120,6 +120,21 @@ router.post('/invite', combinedRootOrPlatformAdmin, async function (req, res) {
 });
 
 /* ============================================
+   GET /api/platform-staff/permissions/registry
+   PUBLIC (no auth) — returns the full permission
+   registry for use by admin UI.
+   Must be placed BEFORE /:id to avoid path clash.
+============================================ */
+router.get('/permissions/registry', function (req, res) {
+  var registry = require('../../platform/config/permissions.registry');
+  return res.json({
+    success:    true,
+    registry:   registry.PERMISSION_REGISTRY,
+    roleDefaults: registry.ROLE_DEFAULT_PERMISSIONS
+  });
+});
+
+/* ============================================
    GET /api/platform-staff/invitations
    ROOT + PLATFORM_ADMIN
    ⚠ Must be BEFORE GET /:id to avoid Express

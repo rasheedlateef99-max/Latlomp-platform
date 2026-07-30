@@ -23,51 +23,14 @@
 const mongoose = require('mongoose');
 
 /* ============================================
-   PLATFORM MODULES — SINGLE SOURCE OF TRUTH
-   These are all available platform modules.
-   Used by admin UI (checkboxes) and middleware.
-   Add new modules here when new features launch.
-   Stored module keys must never be renamed once
-   assigned to staff — rename breaks their access.
+   PERMISSION REGISTRY — imported from single
+   source of truth. To add a new module, edit
+   server/platform/config/permissions.registry.js
+   only. This file never needs to change.
 ============================================ */
-var PLATFORM_MODULES = [
-  { key: 'store',         label: 'Store & Products',       icon: '🛒', desc: 'Manage store products and orders' },
-  { key: 'institutions',  label: 'Institution Management', icon: '🏫', desc: 'View and manage registered schools' },
-  { key: 'subscriptions', label: 'Subscription Management',icon: '💳', desc: 'Manage plans, renewals and payments' },
-  { key: 'cbt',           label: 'CBT Management',          icon: '📝', desc: 'Manage CBT departments, subjects, questions' },
-  { key: 'practice',      label: 'Practice Content',        icon: '⚡', desc: 'Manage practice questions and content' },
-  { key: 'staff',         label: 'Platform Staff',          icon: '👥', desc: 'Invite and manage platform administration staff' },
-  { key: 'analytics',     label: 'Analytics',               icon: '📊', desc: 'View platform-wide analytics and dashboards' },
-  { key: 'reports',       label: 'Reports',                 icon: '📈', desc: 'View and export platform reports' },
-  { key: 'announcements', label: 'Announcements',           icon: '📢', desc: 'Send announcements to all institutions' },
-  { key: 'audit_logs',    label: 'Audit Logs',              icon: '🔍', desc: 'View system audit and activity logs' },
-  { key: 'content',       label: 'Content Management',      icon: '📄', desc: 'Manage platform content and blog' }
-];
-
-/* ============================================
-   ROLE DEFAULT PERMISSIONS
-   Applied automatically when a staff member
-   accepts their invitation. Root Admin can
-   customize after account is created.
-============================================ */
-var ROLE_DEFAULT_PERMISSIONS = {
-  platform_admin: [
-    'institutions', 'subscriptions', 'cbt', 'staff',
-    'analytics', 'reports', 'announcements', 'audit_logs', 'store'
-  ],
-  support_admin: [
-    'institutions', 'analytics', 'announcements', 'audit_logs'
-  ],
-  finance_admin: [
-    'institutions', 'subscriptions', 'reports', 'analytics'
-  ],
-  content_admin: [
-    'announcements', 'content'
-  ],
-  developer: [
-    'analytics', 'audit_logs', 'reports'
-  ]
-};
+var registry             = require('../config/permissions.registry');
+var PLATFORM_MODULES     = registry.PERMISSION_REGISTRY;
+var ROLE_DEFAULT_PERMISSIONS = registry.ROLE_DEFAULT_PERMISSIONS;
 
 var PLATFORM_ROLES = [
   'platform_admin',
@@ -133,9 +96,9 @@ platformStaffSchema.index({ status:       1 });
 platformStaffSchema.statics.ROLES   = PLATFORM_ROLES;
 platformStaffSchema.statics.MODULES = PLATFORM_MODULES;
 
-/* Get default permissions for a role */
+/* Get default permissions for a role (delegates to registry) */
 platformStaffSchema.statics.getDefaultPermissions = function (role) {
-  return (ROLE_DEFAULT_PERMISSIONS[role] || []).slice();
+  return registry.getDefaultPermissions(role);
 };
 
 module.exports = mongoose.model('PlatformStaff', platformStaffSchema);

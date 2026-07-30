@@ -138,6 +138,69 @@
     .cbt-q-item { padding:14px 16px; border-bottom:1px solid var(--border,rgba(255,255,255,0.06)); }
     .cbt-q-item:last-child { border-bottom:none; }
 
+    /* ============================================
+       INSTITUTION MANAGEMENT — MOBILE RESPONSIVE
+    ============================================ */
+
+    /* Institution stats grid: 5-col → 3-col → 2-col → 1-col */
+    .inst-stats-grid {
+      display:grid;
+      grid-template-columns:repeat(5,1fr);
+      gap:16px;
+      margin-bottom:20px;
+    }
+    @media (max-width:1100px) { .inst-stats-grid { grid-template-columns:repeat(3,1fr); } }
+    @media (max-width:700px)  { .inst-stats-grid { grid-template-columns:1fr 1fr; gap:10px; } }
+    @media (max-width:400px)  { .inst-stats-grid { grid-template-columns:1fr; gap:8px; } }
+
+    /* Plan grid: 2-col announcement on mobile */
+    @media (max-width:700px) {
+      #instPanelAnnouncements > div[style*="grid-template-columns:1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+      }
+    }
+
+    /* Table button groups: stack on very small screens */
+    @media (max-width:480px) {
+      .admin-table td div[style*="display:flex"] {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px !important;
+      }
+      .admin-table td div[style*="display:flex"] .a-btn {
+        width: 100%;
+        justify-content: center;
+      }
+      .inst-search-bar { flex-direction: column; align-items: stretch; }
+      .inst-search-bar input { width: 100%; min-width: 0; }
+      .inst-filter-pills { justify-content: flex-start; }
+    }
+
+    /* Tabs: wrap on small screens */
+    @media (max-width:600px) {
+      .inst-tabs { gap:2px; }
+      .inst-tab  { min-width:80px; padding:8px 10px; font-size:12px; }
+    }
+
+    /* Subscription modal grid: single column on mobile */
+    @media (max-width:500px) {
+      #instSubModal .t-form-grid { grid-template-columns: 1fr; }
+      #instSubModal .t-full      { grid-column: span 1; }
+    }
+
+    /* Plan modal quick-add buttons */
+    @media (max-width:500px) {
+      #instSubDaysWrap > div[style*="flex-wrap:wrap"] { flex-direction: column; }
+      #instSubDaysWrap > div[style*="flex-wrap:wrap"] .a-btn { width: 100%; }
+    }
+
+    /* Detail modal grid: single column on mobile */
+    @media (max-width:500px) {
+      #instDetailBody > div[style*="grid-template-columns:1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+      }
+    }
+
     #adminToast { position:fixed; bottom:24px; right:24px; background:var(--dark-2,#1a1a2e); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:10px; padding:14px 20px; font-size:14px; font-weight:600; color:#fff; z-index:9999; box-shadow:0 8px 32px rgba(0,0,0,0.4); max-width:320px; }
     @media (max-width:600px) { #adminToast { bottom:12px; right:12px; left:12px; max-width:none; } }
   </style>
@@ -378,7 +441,7 @@
           <button class="a-btn a-btn-green" onclick="instOnActivate()">↻ Refresh</button>
         </div>
 
-        <div class="a-stats-grid" style="grid-template-columns:repeat(5,1fr); margin-bottom:20px;">
+        <div class="inst-stats-grid">
           <div class="a-stat-card"><div class="a-stat-icon" style="background:rgba(108,99,255,0.1);">🏫</div><div><div class="a-stat-val" id="instStatTotal">—</div><div class="a-stat-lbl">Total</div></div></div>
           <div class="a-stat-card"><div class="a-stat-icon" style="background:rgba(67,233,123,0.1);">✅</div><div><div class="a-stat-val" id="instStatActive">—</div><div class="a-stat-lbl">Active</div></div></div>
           <div class="a-stat-card"><div class="a-stat-icon" style="background:rgba(108,99,255,0.1);">🔔</div><div><div class="a-stat-val" id="instStatTrial">—</div><div class="a-stat-lbl">Trial</div></div></div>
@@ -1198,9 +1261,10 @@ async function instLoadPlans() {
         '<td>' + (p.maxTeachers === -1 ? '∞' : p.maxTeachers) + '</td>' +
         '<td>' + (p.maxStudents === -1 ? '∞' : p.maxStudents) + '</td>' +
         '<td>' + (p.isActive ? '<span class="badge badge-active">Active</span>' : '<span class="badge badge-expired">Disabled</span>') + '</td>' +
-        '<td><div style="display:flex; gap:6px;">' +
+        '<td><div style="display:flex; gap:6px; flex-wrap:wrap;">' +
           '<button class="a-btn a-btn-secondary a-btn-sm" onclick=\'instOpenPlanModal(' + JSON.stringify(p) + ')\'>✏ Edit</button>' +
           '<button class="a-btn a-btn-' + (p.isActive ? 'danger' : 'green') + ' a-btn-sm" onclick="instTogglePlan(\'' + p._id + '\')">' + (p.isActive ? 'Disable' : 'Enable') + '</button>' +
+          '<button class="a-btn a-btn-danger a-btn-sm" onclick="instDeletePlan(\'' + p._id + '\',\'' + (p.name || '').replace(/\'/g,"&#39;") + '\')">🗑 Delete</button>' +
         '</div></td>' +
       '</tr>';
     }).join('');
@@ -1269,6 +1333,27 @@ async function instSavePlan() {
       instLoadPlans(); instLoadPlansForSelect();
     } else { instToast(r.data.message || 'Failed.', 'error'); }
   } catch(e) { instToast('Network error.', 'error'); }
+}
+
+/* ---- Delete plan (root admin only) ---- */
+async function instDeletePlan(id, name) {
+  if (!confirm('Delete plan "' + name + '"?\n\nThis will permanently remove the plan.\n\nExisting schools already subscribed to this plan will keep their current expiry and access — their subscription records are preserved. The plan will simply no longer be selectable for new subscriptions.\n\nThis cannot be undone.')) {
+    return;
+  }
+  var c2 = prompt('Type YES to confirm permanent deletion:');
+  if (c2 !== 'YES') { instToast('Deletion cancelled.', 'error'); return; }
+  try {
+    var r = await instAdminApi('/subscription-plans/' + id, 'DELETE');
+    if (r.ok) {
+      instToast('Plan "' + name + '" deleted successfully.', 'success');
+      instLoadPlans();
+      instLoadPlansForSelect();
+    } else {
+      instToast(r.data.message || 'Failed to delete plan.', 'error');
+    }
+  } catch(e) {
+    instToast('Network error.', 'error');
+  }
 }
 
 async function instTogglePlan(id) {
