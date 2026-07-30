@@ -888,4 +888,99 @@ router.get(
   }
 );
 
+/* ============================================
+   ✅ PHASE 4 — INTEGRATION STATUS ENDPOINT
+
+   GET /api/qms/engine/integration-status
+   Shows which subjects are served by QMS engine
+   vs legacy Question model for a given exam type.
+   Admin-only — never called by students.
+
+   Query: examType (jamb|waec|neco|post-utme|practice|all)
+============================================ */
+router.get(
+  '/engine/integration-status',
+  adminOrPlatformStaff('question_engine'),
+  async function (req, res) {
+    try {
+      var examType = (req.query.examType || 'jamb').trim();
+      var Subject  = require('../../models/Subject.model');
+      var Question = require('../../models/Question.model');
+
+      /* Build filters matching integration logic in cbt.routes.js */
+      var qmsFilter    = { status: 'approved' };
+      var legacyFilter = { isActive: true };
+
+      if (examType !== 'all') {
+        qmsFilter.examType = { $in: [examType, 'all'] };
+        legacyFilter.$or = [
+          { examCategory: examType },
+          { examCategory: 'all' }
+        ];
+      }
+
+      var [subjects, qmsCounts, legacyCounts] = await Promise.all([
+        Subject.find({}).lean(),
+
+        QMSQuestion.aggregate([
+          { $match: qmsFilter },
+          { $group: { _id: '$subjectId', count: { $sum: 1 } } }
+        ]),
+
+        Question.aggregate([
+          { $match: legacyFilter },
+          { $group: { _id: '$subjectId', count: { $sum: 1 } } }
+        ])
+      ]);
+
+      var qmsMap    = {};
+      var legacyMap = {};
+      qmsCounts.forEach(function (r) {
+        if (r._id) qmsMap[r._id.toString()] = r.count;
+      });
+      legacyCounts.forEach(function (r) {
+        if (r._id) legacyMap[r._id.toString()] = r.count;
+      });
+
+      var result = subjects
+        .map(function (s) {
+          var sid    = s._id.toString();
+          var qms    = qmsMap[sid]    || 0;
+          var legacy = legacyMap[sid] || 0;
+          /* Source logic mirrors cbt.routes.js session/start:
+             QMS wins if it has ANY approved questions for this subject */
+          var source = qms > 0 ? 'qms' : (legacy > 0 ? 'legacy' : 'none');
+          return {
+            subjectId:   s._id,
+            subjectName: s.name,
+            qmsCount:    qms,
+            legacyCount: legacy,
+            source:      source,
+            total:       qms + legacy
+          };
+        })
+        .filter(function (s) { return s.total > 0; })
+        .sort(function (a, b) { return b.total - a.total; });
+
+      var usingQMS    = result.filter(function (s) { return s.source === 'qms';    }).length;
+      var usingLegacy = result.filter(function (s) { return s.source === 'legacy'; }).length;
+
+      return res.json({
+        success:  true,
+        examType: examType,
+        subjects: result,
+        summary: {
+          total:       result.length,
+          usingQMS:    usingQMS,
+          usingLegacy: usingLegacy
+        }
+      });
+
+    } catch (e) {
+      console.error('[QMS] GET /engine/integration-status:', e.message);
+      return res.status(500).json({ success: false, message: e.message });
+    }
+  }
+);
+
 module.exports = router;

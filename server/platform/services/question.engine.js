@@ -54,8 +54,12 @@ function shuffleArray(arr) {
 function buildFilter(params) {
   var filter = { status: 'approved' };
 
-  if (params.examType && params.examType !== 'all') {
-    filter.examType = params.examType;
+ if (params.examType && params.examType !== 'all') {
+    /* ✅ PHASE 4: Match legacy CBT behavior — questions tagged 'all' are
+       available for every exam type, just like examCategory:'all' in the
+       existing Question model. Without this, questions imported with
+       examType:'all' would not appear in any specific exam type query. */
+    filter.examType = { $in: [params.examType, 'all'] };
   }
 
   /* subjectId takes priority over departmentId */

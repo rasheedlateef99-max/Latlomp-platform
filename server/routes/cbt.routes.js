@@ -20,6 +20,31 @@ const User       = require('../models/User.model');
 const { protect } = require('../middleware/auth.middleware');
 
 /* ============================================
+   ✅ PHASE 4: QMS Integration — lazy-loaded.
+   Prevents circular dependency. Falls back
+   safely if QMS models are not yet deployed.
+   Students are never affected by QMS errors.
+============================================ */
+var _QMSQuestion = null;
+var _qmsEngine   = null;
+
+function getQMSQuestion() {
+  if (!_QMSQuestion) {
+    try { _QMSQuestion = require('../platform/models/QMSQuestion.model'); }
+    catch (e) { /* QMS not available — legacy fallback active */ }
+  }
+  return _QMSQuestion;
+}
+
+function getQMSEngine() {
+  if (!_qmsEngine) {
+    try { _qmsEngine = require('../platform/services/question.engine'); }
+    catch (e) { /* engine not available — legacy fallback active */ }
+  }
+  return _qmsEngine;
+}
+
+/* ============================================
    Fisher-Yates shuffle — question ORDER only
    Options are NOT shuffled to preserve answer
    index correctness on submission.
@@ -102,21 +127,70 @@ router.post('/session/start', protect, async (req, res) => {
     for (var i = 0; i < subjects.length; i++) {
       var subject = subjects[i];
 
-      /* Build question filter for this subject and category */
-      var qFilter = { subjectId: subject._id, isActive: true };
+     /* ✅ PHASE 4: QMS-first question source with legacy fallback.
+         The rest of the session assembly loop is unchanged.
+         Students receive identical session format regardless of source. */
+      var allSubjectQs = [];
+      var _usingQMS    = false;
 
-      if (examCategory !== 'practice') {
-        qFilter.$or = [
-          { examCategory: examCategory },
-          { examCategory: 'all' }
-        ];
+      var QMSQModel = getQMSQuestion();
+      var qmsEng    = getQMSEngine();
+
+      if (QMSQModel && qmsEng) {
+        try {
+          /* Check if QMS has approved questions for this subject + exam type.
+             Practice mode maps to examType:'practice' in QMS.
+             All other modes also include examType:'all' questions. */
+          var qmsExamTypes = (examCategory === 'practice')
+            ? ['practice', 'all']
+            : [examCategory, 'all'];
+
+          var qmsAvailable = await QMSQModel.countDocuments({
+            subjectId: subject._id,
+            status:    'approved',
+            examType:  { $in: qmsExamTypes }
+          });
+
+          if (qmsAvailable > 0) {
+            var engResult = await qmsEng.assemble({
+              subjectId: subject._id.toString(),
+              examType:  (examCategory === 'practice') ? 'practice' : examCategory,
+              count:     subject.questionCount,
+              shuffle:   true
+            });
+
+            if (engResult.success && engResult.questions.length > 0) {
+              /* Strip correctAnswer before sending to client.
+                 Engine returns it for grading, but client must not see it. */
+              allSubjectQs = engResult.questions.map(function (q) {
+                return { _id: q._id, question: q.question, options: q.options };
+              });
+              _usingQMS = true;
+            }
+          }
+        } catch (qmsErr) {
+          /* QMS error must never break a student's exam — fall through to legacy */
+          console.warn('[CBT] QMS lookup failed for subject', subject._id, '—',
+                       'falling back to legacy. Error:', qmsErr.message);
+        }
       }
-      /* Practice mode: all questions available */
 
-      /* Fetch questions — only fields needed (no correctAnswer sent to client) */
-      var allSubjectQs = await Question.find(qFilter)
-        .select('question options _id')  /* correctAnswer intentionally excluded */
-        .lean();
+      if (!_usingQMS) {
+        /* Legacy path — unchanged from original implementation */
+        var qFilter = { subjectId: subject._id, isActive: true };
+
+        if (examCategory !== 'practice') {
+          qFilter.$or = [
+            { examCategory: examCategory },
+            { examCategory: 'all' }
+          ];
+        }
+        /* Practice mode: no category filter — all questions available */
+
+        allSubjectQs = await Question.find(qFilter)
+          .select('question options _id')  /* correctAnswer intentionally excluded */
+          .lean();
+      }
 
       if (allSubjectQs.length === 0) continue;
 
@@ -203,11 +277,38 @@ router.post('/session/submit', protect, async (req, res) => {
     if (questionIds.length === 0)
       return res.status(400).json({ success: false, message: 'No answers received.' });
 
-    /* Fetch ALL answered questions WITH correct answers (server-side grading only) */
+    /* ✅ PHASE 4: Fetch questions from legacy model first.
+       Any IDs not found in legacy are looked up in QMSQuestion.
+       Both models have compatible grading fields:
+         question, options, correctAnswer, explanation, subjectId.
+       This handles mixed sessions (some legacy, some QMS) correctly. */
     var questions = await Question.find({
       _id:      { $in: questionIds },
       isActive: true
     });
+
+    var QMSQModel = getQMSQuestion();
+    if (QMSQModel && questions.length < questionIds.length) {
+      /* Find which IDs were not in the legacy collection */
+      var foundLegacy = {};
+      questions.forEach(function (q) { foundLegacy[q._id.toString()] = true; });
+      var missingIds  = questionIds.filter(function (id) { return !foundLegacy[id]; });
+
+      if (missingIds.length > 0) {
+        try {
+          var qmsFound = await QMSQModel.find({
+            _id:    { $in: missingIds },
+            status: 'approved'
+          }).lean();
+          if (qmsFound.length > 0) {
+            questions = questions.concat(qmsFound);
+          }
+        } catch (qmsErr) {
+          /* Log but don't fail — grade what we have from legacy */
+          console.warn('[CBT] QMS question lookup on submit failed:', qmsErr.message);
+        }
+      }
+    }
 
     if (questions.length === 0)
       return res.status(400).json({ success: false, message: 'Could not find the exam questions. Please try again.' });

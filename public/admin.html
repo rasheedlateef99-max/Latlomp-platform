@@ -1022,6 +1022,60 @@ Paste thousands of questions at once."></textarea>
             </div>
           </div>
 
+        <!-- ✅ PHASE 4: Integration Status Panel -->
+          <div class="a-card" style="margin-top:20px;">
+            <div class="a-card-head">
+              <h3>⚡ CBT Integration Status</h3>
+              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <select id="qmsIntegFilterExam" onchange="qmsEngLoadIntegrationStatus()"
+                  style="background:rgba(255,255,255,0.04); border:1px solid var(--border,rgba(255,255,255,0.08));
+                         border-radius:8px; padding:7px 10px; color:#fff; font-family:inherit; font-size:13px; outline:none;">
+                  <option value="jamb">JAMB</option>
+                  <option value="waec">WAEC</option>
+                  <option value="neco">NECO</option>
+                  <option value="post-utme">POST-UTME</option>
+                  <option value="practice">Practice</option>
+                  <option value="all">All Types</option>
+                </select>
+                <button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsEngLoadIntegrationStatus()">↻</button>
+              </div>
+            </div>
+
+            <!-- Summary pills -->
+            <div id="qmsIntegSummary"
+              style="display:flex; gap:10px; flex-wrap:wrap; padding:14px 20px; border-bottom:1px solid var(--border,rgba(255,255,255,0.08));">
+              <span style="font-size:13px; color:var(--text-muted,#6b6b8a);">Loading status...</span>
+            </div>
+
+            <div style="padding:12px 20px 10px; font-size:12px; color:var(--text-muted,#6b6b8a); line-height:1.7;">
+              <strong style="color:#43e97b;">🧠 Engine</strong> — subject is served by QMS Question Engine (approved questions exist in Question Bank).&nbsp;
+              <strong style="color:#a78bfa;">📁 Legacy</strong> — subject still served by the original Question model.&nbsp;
+              Subjects automatically switch to the engine once questions are imported and approved.
+            </div>
+
+            <div class="a-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Subject</th>
+                    <th>Source</th>
+                    <th>QMS Questions</th>
+                    <th>Legacy Questions</th>
+                    <th>Total</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="qmsIntegBody">
+                  <tr>
+                    <td colspan="6" style="text-align:center; padding:32px; color:var(--text-muted);">
+                      Select exam type above to check integration status.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
         </div><!-- /qmsPanelEngine -->
 
         <!-- ---- HISTORY PANEL ---- -->

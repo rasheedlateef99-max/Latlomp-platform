@@ -1145,7 +1145,7 @@ function qmsSwitchTab(tab) {
   if (tab === 'history') qmsLoadHistory();
   if (tab === 'stats')   qmsLoadStats();
   if (tab === 'bank')    qmsBankLoad(1);
-  if (tab === 'engine')  qmsEngInit();
+  if (tab === 'engine')  { qmsEngInit(); qmsEngLoadIntegrationStatus(); }
 }
 
 /* ---- Toggle paste / file input method ---- */
@@ -2344,6 +2344,94 @@ async function qmsEngQuickAssemble(examType, subjectId, subjectName) {
   _qmsEngLastAssembly = res.data;
   renderEngineAssembly(res.data);
   instToast('Assembled ' + res.data.meta.returned + ' questions from ' + subjectName + '.', 'success');
+}
+
+/* ============================================================
+   QMS PHASE 4 — CBT INTEGRATION STATUS
+   Shows per-subject engine vs legacy usage in admin UI.
+============================================================ */
+
+/* ---- Load and render integration status table ---- */
+async function qmsEngLoadIntegrationStatus() {
+  var tbody   = document.getElementById('qmsIntegBody');
+  var summary = document.getElementById('qmsIntegSummary');
+  var filterEl = document.getElementById('qmsIntegFilterExam');
+  var examType = filterEl ? filterEl.value : 'jamb';
+
+  if (!tbody) { return; }
+
+  tbody.innerHTML =
+    '<tr><td colspan="6" style="text-align:center; padding:28px; color:var(--text-muted);">' +
+    '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.2);' +
+    'border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;' +
+    'margin-right:8px;"></span>Checking...</td></tr>';
+
+  var res = await qmsApi('/engine/integration-status?examType=' + examType);
+
+  if (!res.ok) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#ff6584; padding:20px;">' +
+      (res.data.message || 'Failed to load.') + '</td></tr>';
+    return;
+  }
+
+  var data     = res.data;
+  var subjects = data.subjects || [];
+  var s        = data.summary  || {};
+
+  /* Summary pills */
+  if (summary) {
+    var pctEngine = s.total > 0 ? Math.round((s.usingQMS / s.total) * 100) : 0;
+    summary.innerHTML =
+      '<div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">' +
+        '<span style="font-size:13px; font-weight:700; color:#fff;">' + s.total + ' subject' + (s.total !== 1 ? 's' : '') + ' with questions</span>' +
+        '<span style="background:rgba(67,233,123,0.12); color:#43e97b; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700;">🧠 ' + s.usingQMS + ' Engine</span>' +
+        '<span style="background:rgba(108,99,255,0.12); color:#a78bfa; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700;">📁 ' + s.usingLegacy + ' Legacy</span>' +
+        '<span style="font-size:12px; color:var(--text-muted,#6b6b8a);">(' + pctEngine + '% migrated to engine)</span>' +
+        '<div style="flex:1; min-width:120px; background:rgba(255,255,255,0.06); border-radius:20px; height:8px; overflow:hidden;">' +
+          '<div style="background:linear-gradient(90deg,#43e97b,#38f9d7); width:' + pctEngine + '%; height:100%; border-radius:20px; transition:width 0.5s ease;"></div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  if (!subjects.length) {
+    tbody.innerHTML =
+      '<tr><td colspan="6" style="text-align:center; padding:36px; color:var(--text-muted);">' +
+      'No subjects have questions for ' + examType.toUpperCase() + ' yet.' +
+      '</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = subjects.map(function (s) {
+    var isEngine  = s.source === 'qms';
+    var isLegacy  = s.source === 'legacy';
+    var srcLabel  = isEngine
+      ? '<span style="display:inline-flex; align-items:center; gap:5px; background:rgba(67,233,123,0.1); color:#43e97b; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:800;">🧠 Engine</span>'
+      : isLegacy
+        ? '<span style="display:inline-flex; align-items:center; gap:5px; background:rgba(108,99,255,0.1); color:#a78bfa; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:800;">📁 Legacy</span>'
+        : '<span style="color:var(--text-muted,#6b6b8a); font-size:11px;">—</span>';
+
+    var qmsColour    = s.qmsCount    > 0 ? '#43e97b' : 'var(--text-muted,#6b6b8a)';
+    var legacyColour = s.legacyCount > 0 ? '#a78bfa' : 'var(--text-muted,#6b6b8a)';
+
+    var action = isLegacy
+      ? '<button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsSwitchTab(\'import\'); instToast(\'Use the Import tab to add QMS questions for this subject.\', \'info\')" style="font-size:11px;">📥 Import</button>'
+      : isEngine
+        ? '<span style="font-size:11px; color:#43e97b;">✅ Migrated</span>'
+        : '—';
+
+    return '<tr>' +
+      '<td style="font-weight:700; color:#fff;">' + esc(s.subjectName) + '</td>' +
+      '<td>' + srcLabel + '</td>' +
+      '<td style="font-weight:700; color:' + qmsColour + ';">' +
+        (s.qmsCount > 0 ? s.qmsCount.toLocaleString() : '—') +
+      '</td>' +
+      '<td style="font-weight:700; color:' + legacyColour + ';">' +
+        (s.legacyCount > 0 ? s.legacyCount.toLocaleString() : '—') +
+      '</td>' +
+      '<td style="font-weight:700; color:#fff;">' + s.total.toLocaleString() + '</td>' +
+      '<td>' + action + '</td>' +
+    '</tr>';
+  }).join('');
 }
 
 console.log('🔧 Admin Dashboard loaded');
