@@ -1136,15 +1136,16 @@ async function qmsInit() {
 
 /* ---- Sub-tab switching ---- */
 function qmsSwitchTab(tab) {
-  ['import', 'bank', 'history', 'stats'].forEach(function (t) {
+  ['import', 'bank', 'engine', 'history', 'stats'].forEach(function (t) {
     var panel = document.getElementById('qmsPanel' + t.charAt(0).toUpperCase() + t.slice(1));
     if (panel) panel.style.display = (t === tab) ? 'block' : 'none';
-    var btn = document.getElementById('qmsTab' + t.charAt(0).toUpperCase() + t.slice(1));
-    if (btn) btn.classList.toggle('active', t === tab);
+    var btn   = document.getElementById('qmsTab' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (btn)  btn.classList.toggle('active', t === tab);
   });
   if (tab === 'history') qmsLoadHistory();
   if (tab === 'stats')   qmsLoadStats();
   if (tab === 'bank')    qmsBankLoad(1);
+  if (tab === 'engine')  qmsEngInit();
 }
 
 /* ---- Toggle paste / file input method ---- */
@@ -1904,6 +1905,445 @@ async function qmsRestoreVersion(id, versionIdx) {
   } else {
     instToast(res.data.message || 'Restore failed.', 'error');
   }
+}
+
+/* ============================================================
+   QMS PHASE 3 — QUESTION ENGINE
+   Admin interface: configure, check availability,
+   assemble preview, view breakdown.
+============================================================ */
+
+var _qmsEngDeptsLoaded        = false;
+var _qmsEngAvailTimer         = null;
+var _qmsEngLastAssembly       = null; /* stores last assembled set */
+
+/* ---- Init: called when Engine tab first opens ---- */
+async function qmsEngInit() {
+  await Promise.all([
+    qmsEngLoadSummary(),
+    qmsEngLoadDepts(),
+    qmsEngLoadBreakdown()
+  ]);
+  _qmsEngDeptsLoaded = true;
+  qmsEngCheckAvailability();
+}
+
+/* ---- Load engine summary stats (top row) ---- */
+async function qmsEngLoadSummary() {
+  var row = document.getElementById('qmsEngineStatsRow');
+  if (!row) { return; }
+
+  var res = await qmsApi('/engine/summary');
+  if (!res.ok) {
+    row.innerHTML = '<div class="a-stat-card" style="grid-column:span 4;"><div style="color:#ff6584; font-size:13px; padding:8px;">Failed to load summary.</div></div>';
+    return;
+  }
+
+  var s       = res.data;
+  var byET    = s.byExamType  || {};
+  var byDiff  = s.byDifficulty || {};
+  var etKeys  = Object.keys(byET);
+
+  var etCards = etKeys.map(function (et) {
+    return '<div class="a-stat-card" style="min-width:0;">' +
+      '<div class="a-stat-icon" style="background:rgba(108,99,255,0.1); font-size:16px;">📝</div>' +
+      '<div><div class="a-stat-val" style="font-size:22px;">' + (byET[et] || 0).toLocaleString() + '</div>' +
+      '<div class="a-stat-lbl">' + et.toUpperCase() + '</div></div>' +
+    '</div>';
+  }).join('');
+
+  row.style.gridTemplateColumns = 'repeat(' + Math.max(4, etKeys.length + 1) + ', 1fr)';
+  row.innerHTML =
+    '<div class="a-stat-card">' +
+      '<div class="a-stat-icon" style="background:rgba(67,233,123,0.1);">✅</div>' +
+      '<div><div class="a-stat-val">' + (s.totalApproved || 0).toLocaleString() + '</div>' +
+      '<div class="a-stat-lbl">Total Approved</div></div>' +
+    '</div>' +
+    etCards;
+}
+
+/* ---- Load departments into engine config dropdown ---- */
+async function qmsEngLoadDepts() {
+  var examType = (document.getElementById('qmsEngExamType') || {}).value || 'jamb';
+  var res      = await qmsApi('/departments?examCategory=' + examType);
+  var sel      = document.getElementById('qmsEngDept');
+  if (!sel) { return; }
+  sel.innerHTML = '<option value="">— All Departments —</option>';
+  (res.ok ? (res.data.departments || []) : []).forEach(function (d) {
+    var opt = document.createElement('option');
+    opt.value              = d._id;
+    opt.dataset.name       = d.name || '';
+    opt.textContent        = d.name;
+    sel.appendChild(opt);
+  });
+  /* Reset subjects */
+  var subjSel = document.getElementById('qmsEngSubject');
+  if (subjSel) subjSel.innerHTML = '<option value="">— All Subjects —</option>';
+}
+
+/* ---- Load subjects for selected department ---- */
+async function qmsEngLoadSubjects() {
+  var deptSel = document.getElementById('qmsEngDept');
+  var deptId  = deptSel ? deptSel.value : '';
+  var subjSel = document.getElementById('qmsEngSubject');
+  if (!subjSel) { return; }
+  subjSel.innerHTML = '<option value="">— All Subjects —</option>';
+  if (!deptId) { return; }
+  var res = await qmsApi('/subjects?departmentId=' + deptId);
+  (res.ok ? (res.data.subjects || []) : []).forEach(function (s) {
+    var opt = document.createElement('option');
+    opt.value        = s._id;
+    opt.dataset.name = s.name || '';
+    opt.textContent  = s.name;
+    subjSel.appendChild(opt);
+  });
+}
+
+/* ---- Get current engine config ---- */
+function qmsEngGetConfig() {
+  return {
+    examType:     (document.getElementById('qmsEngExamType')   || {}).value || '',
+    departmentId: (document.getElementById('qmsEngDept')        || {}).value || '',
+    subjectId:    (document.getElementById('qmsEngSubject')     || {}).value || '',
+    difficulty:   (document.getElementById('qmsEngDifficulty')  || {}).value || '',
+    topic:        ((document.getElementById('qmsEngTopic')      || {}).value || '').trim(),
+    year:         ((document.getElementById('qmsEngYear')       || {}).value || '').trim() || null,
+    count:        parseInt((document.getElementById('qmsEngCount') || {}).value) || 40
+  };
+}
+
+/* ---- Debounced availability check (for text inputs) ---- */
+function qmsEngCheckAvailabilityDebounced() {
+  if (_qmsEngAvailTimer) { clearTimeout(_qmsEngAvailTimer); }
+  _qmsEngAvailTimer = setTimeout(qmsEngCheckAvailability, 450);
+}
+
+/* ---- Check availability with current config ---- */
+async function qmsEngCheckAvailability() {
+  var cfg     = qmsEngGetConfig();
+  var countEl = document.getElementById('qmsEngAvailCount');
+  var labelEl = document.getElementById('qmsEngAvailLabel');
+  var statEl  = document.getElementById('qmsEngAvailStatus');
+  var diffEl  = document.getElementById('qmsEngDiffSplit');
+
+  if (countEl) countEl.textContent = '…';
+  if (labelEl) labelEl.textContent = 'Checking…';
+  if (statEl)  statEl.innerHTML    = '';
+
+  var qs  = '?examType=' + encodeURIComponent(cfg.examType);
+  if (cfg.subjectId)    qs += '&subjectId='    + cfg.subjectId;
+  if (cfg.departmentId) qs += '&departmentId=' + cfg.departmentId;
+  if (cfg.difficulty)   qs += '&difficulty='   + cfg.difficulty;
+  if (cfg.topic)        qs += '&topic='        + encodeURIComponent(cfg.topic);
+  if (cfg.year)         qs += '&year='         + cfg.year;
+
+  var res = await qmsApi('/engine/availability' + qs);
+
+  if (!res.ok) {
+    if (countEl) countEl.textContent = '—';
+    if (labelEl) labelEl.textContent = 'Failed to check availability.';
+    return;
+  }
+
+  var avail = res.data.available || 0;
+  var req   = cfg.count;
+
+  if (countEl) {
+    countEl.textContent  = avail.toLocaleString();
+    countEl.style.color  = avail === 0 ? '#ff6584'
+                         : avail < req  ? '#ffa500'
+                         :                '#43e97b';
+  }
+
+  if (labelEl) {
+    var subjectOpt = document.getElementById('qmsEngSubject');
+    var subjectName = subjectOpt && subjectOpt.selectedIndex > 0
+      ? subjectOpt.options[subjectOpt.selectedIndex].text
+      : '';
+    var examType   = cfg.examType.toUpperCase();
+    labelEl.textContent = 'approved question' + (avail !== 1 ? 's' : '') +
+      ' available' + (subjectName ? ' in ' + subjectName : '') +
+      ' for ' + examType;
+  }
+
+  if (statEl) {
+    if (avail === 0) {
+      statEl.innerHTML = '<span style="font-size:12px; color:#ff6584;">⚠️ No questions available. Import questions first.</span>';
+    } else if (avail < req) {
+      statEl.innerHTML = '<span style="font-size:12px; color:#ffa500;">⚠️ Requesting ' + req + ' but only ' + avail + ' available.</span>';
+    } else {
+      statEl.innerHTML = '<span style="font-size:12px; color:#43e97b;">✅ ' + avail + ' available — requesting ' + req + '</span>';
+    }
+  }
+
+  /* Difficulty split: quick per-difficulty counts */
+  if (diffEl) {
+    var diffs = ['easy', 'medium', 'hard'];
+    var diffData = {};
+
+    await Promise.all(diffs.map(async function (d) {
+      var dQs = qs + '&difficulty=' + d;
+      var dRes = await qmsApi('/engine/availability' + dQs);
+      diffData[d] = dRes.ok ? (dRes.data.available || 0) : 0;
+    }));
+
+    var total = diffData.easy + diffData.medium + diffData.hard || 1;
+    diffEl.innerHTML = ['easy', 'medium', 'hard'].map(function (d) {
+      var pct   = Math.round((diffData[d] / total) * 100);
+      var color = d === 'easy' ? '#43e97b' : d === 'medium' ? '#ffa500' : '#ff6584';
+      return '<div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">' +
+        '<div style="font-size:12px; font-weight:700; color:' + color + '; width:50px; text-transform:capitalize;">' + d + '</div>' +
+        '<div style="flex:1; background:rgba(255,255,255,0.06); border-radius:20px; height:8px; overflow:hidden;">' +
+          '<div style="background:' + color + '; width:' + pct + '%; height:100%; border-radius:20px;"></div>' +
+        '</div>' +
+        '<div style="font-size:12px; color:#fff; font-weight:700; width:40px; text-align:right;">' + diffData[d] + '</div>' +
+      '</div>';
+    }).join('');
+  }
+}
+
+/* ---- Assemble question set (preview) ---- */
+async function qmsEngAssemble() {
+  var cfg = qmsEngGetConfig();
+  var btn = document.getElementById('qmsEngAssembleBtn');
+  var resultDiv = document.getElementById('qmsEngAssemblyResult');
+
+  if (!cfg.examType) {
+    instToast('Please select an exam type.', 'error');
+    return;
+  }
+
+  if (btn) {
+    btn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px;"></span> Assembling...';
+    btn.disabled  = true;
+  }
+
+  var res = await qmsApi('/engine/assemble', 'POST', cfg);
+
+  if (btn) { btn.innerHTML = '🎲 Assemble Question Set'; btn.disabled = false; }
+
+  if (!res.ok) {
+    instToast(res.data.message || 'Assembly failed.', 'error');
+    if (resultDiv) resultDiv.style.display = 'none';
+    return;
+  }
+
+  if (!res.data.success) {
+    instToast(res.data.message || 'No questions found.', 'error');
+    if (resultDiv) resultDiv.style.display = 'none';
+    return;
+  }
+
+  _qmsEngLastAssembly = res.data;
+  renderEngineAssembly(res.data);
+}
+
+/* ---- Render assembled question set ---- */
+function renderEngineAssembly(data) {
+  var questions  = data.questions || [];
+  var meta       = data.meta       || {};
+  var warning    = data.warning    || null;
+  var resultDiv  = document.getElementById('qmsEngAssemblyResult');
+  var titleEl    = document.getElementById('qmsEngResultTitle');
+  var warnEl     = document.getElementById('qmsEngWarningBox');
+  var tbody      = document.getElementById('qmsEngResultTable');
+  var noteEl     = document.getElementById('qmsEngResultNote');
+
+  if (!resultDiv) { return; }
+  resultDiv.style.display = 'block';
+
+  if (titleEl) {
+    titleEl.textContent =
+      'Assembled Set — ' + meta.returned + ' question' +
+      (meta.returned !== 1 ? 's' : '') +
+      ' (' + ((document.getElementById('qmsEngExamType') || {}).value || '').toUpperCase() + ')';
+  }
+
+  if (warnEl) {
+    if (warning) {
+      warnEl.textContent  = '⚠️ ' + warning;
+      warnEl.style.display = 'block';
+    } else {
+      warnEl.style.display = 'none';
+    }
+  }
+
+  if (noteEl) {
+    noteEl.textContent =
+      'Requested: ' + meta.requested + '  ·  ' +
+      'Available: ' + meta.available + '  ·  ' +
+      'Returned: '  + meta.returned  + '  ·  ' +
+      'Every reassemble generates a different random set.';
+  }
+
+  var letters       = ['A', 'B', 'C', 'D'];
+  var PREVIEW_LIMIT = 30;
+  var shown         = questions.slice(0, PREVIEW_LIMIT);
+
+  if (!tbody) { return; }
+
+  if (!shown.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-muted);">No questions returned.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = shown.map(function (q, i) {
+    var correctLetter = letters[q.correctAnswer] || '?';
+    var diffColor     = q.difficulty === 'easy' ? '#43e97b' : q.difficulty === 'hard' ? '#ff6584' : '#ffa500';
+
+    return '<tr>' +
+      '<td style="font-weight:800; color:#a78bfa;">' + (i + 1) + '</td>' +
+      '<td style="font-family:monospace; font-size:11px; color:#a78bfa; white-space:nowrap;">' +
+        (q.questionId || '—') +
+      '</td>' +
+      '<td style="max-width:320px;">' +
+        '<div style="font-size:13px; font-weight:600; color:#fff; line-height:1.4; margin-bottom:4px;">' +
+          q.question.substring(0, 80) + (q.question.length > 80 ? '…' : '') +
+        '</div>' +
+        '<div>' +
+          (q.options || []).map(function (o, idx) {
+            return '<span style="font-size:10px; padding:1px 5px; border-radius:3px; margin-right:3px;' +
+              'background:' + (idx === q.correctAnswer ? 'rgba(67,233,123,0.15)' : 'rgba(255,255,255,0.04)') + ';' +
+              'color:'      + (idx === q.correctAnswer ? '#43e97b'               : 'var(--text-secondary)') + ';">' +
+              letters[idx] + ': ' + o.substring(0, 20) + (o.length > 20 ? '…' : '') +
+              (idx === q.correctAnswer ? ' ✓' : '') +
+            '</span>';
+          }).join('') +
+        '</div>' +
+        (q.topic ? '<div style="font-size:10px; color:var(--text-muted); margin-top:2px;">📌 ' + q.topic + '</div>' : '') +
+      '</td>' +
+      '<td style="font-size:12px; color:var(--text-secondary);">' + (q.subjectName || '—') + '</td>' +
+      '<td style="font-size:12px; font-weight:700; color:' + diffColor + '; text-transform:capitalize;">' +
+        (q.difficulty || '—') +
+      '</td>' +
+      '<td>' +
+        '<span style="font-size:14px; font-weight:900; background:rgba(67,233,123,0.12); ' +
+          'color:#43e97b; padding:3px 10px; border-radius:8px;">' +
+          correctLetter +
+        '</span>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+
+  if (questions.length > PREVIEW_LIMIT) {
+    tbody.innerHTML +=
+      '<tr><td colspan="6" style="text-align:center; padding:12px; font-size:12px; color:var(--text-muted);">' +
+        '... and ' + (questions.length - PREVIEW_LIMIT) + ' more questions. All ' + questions.length + ' are assembled.' +
+      '</td></tr>';
+  }
+
+  /* Scroll to result */
+  setTimeout(function () {
+    var el = document.getElementById('qmsEngAssemblyResult');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+}
+
+/* ---- Copy assembled question IDs ---- */
+function qmsEngExportPreview() {
+  if (!_qmsEngLastAssembly || !_qmsEngLastAssembly.questions.length) {
+    instToast('No assembly to export.', 'error');
+    return;
+  }
+  var ids = _qmsEngLastAssembly.questions
+    .map(function (q) { return q.questionId || q._id; })
+    .join('\n');
+  navigator.clipboard.writeText(ids)
+    .then(function () { instToast('Question IDs copied (' + _qmsEngLastAssembly.questions.length + ' IDs).', 'success'); })
+    .catch(function () { instToast('Copy failed.', 'error'); });
+}
+
+/* ---- Load breakdown table ---- */
+async function qmsEngLoadBreakdown() {
+  var tbody    = document.getElementById('qmsBreakdownBody');
+  var filterEl = document.getElementById('qmsBreakdownFilter');
+  var examType = filterEl ? filterEl.value : 'all';
+
+  if (!tbody) { return; }
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:28px; color:var(--text-muted);">' +
+    '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:8px;"></span>Loading...</td></tr>';
+
+  var res = await qmsApi('/engine/breakdown?examType=' + examType);
+
+  if (!res.ok) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:#ff6584; padding:24px;">' +
+      (res.data.message || 'Failed to load breakdown.') + '</td></tr>';
+    return;
+  }
+
+  var rows = res.data.breakdown || [];
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:36px; color:var(--text-muted);">' +
+      'No approved questions in the Question Bank yet. Import and approve questions to see the breakdown.' +
+    '</td></tr>';
+    return;
+  }
+
+  var etColors = { jamb:'#a78bfa', waec:'#43e97b', neco:'#ffa500', 'post-utme':'#ff8e53', practice:'#38f9d7' };
+
+  tbody.innerHTML = rows.map(function (r) {
+    var etColor     = etColors[r.examType] || '#fff';
+    var totalCount  = r.count || 0;
+    var canAssemble = totalCount >= 10;
+
+    return '<tr>' +
+      '<td>' +
+        '<span style="font-size:11px; font-weight:700; background:rgba(108,99,255,0.12); color:' +
+          etColor + '; padding:2px 9px; border-radius:20px;">' +
+          r.examType.toUpperCase() +
+        '</span>' +
+      '</td>' +
+      '<td style="font-size:13px; color:var(--text-secondary,#a0a0c0);">' + r.departmentName + '</td>' +
+      '<td style="font-weight:700; color:#fff;">' + r.subjectName + '</td>' +
+      '<td style="font-weight:900; color:#fff; font-size:15px;">' + totalCount.toLocaleString() + '</td>' +
+      '<td style="color:#43e97b; font-weight:700;">' + (r.byDifficulty.easy   || 0) + '</td>' +
+      '<td style="color:#ffa500; font-weight:700;">' + (r.byDifficulty.medium || 0) + '</td>' +
+      '<td style="color:#ff6584; font-weight:700;">' + (r.byDifficulty.hard   || 0) + '</td>' +
+      '<td style="font-size:12px; color:var(--text-secondary,#a0a0c0);">' + (r.latestYear || '—') + '</td>' +
+      '<td>' +
+        (canAssemble
+          ? '<button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsEngQuickAssemble(' +
+              "'" + r.examType + "'," +
+              "'" + (r.subjectId  || '') + "'," +
+              "'" + (r.subjectName || '').replace(/'/g, '') + "'" +
+            ')">🎲 40 Qs</button>'
+          : '<span style="font-size:11px; color:var(--text-muted,#6b6b8a);">Need ≥10</span>'
+        ) +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+/* ---- Quick assemble from breakdown row ---- */
+async function qmsEngQuickAssemble(examType, subjectId, subjectName) {
+  /* Pre-fill the config panel */
+  var etEl = document.getElementById('qmsEngExamType');
+  var sjEl = document.getElementById('qmsEngSubject');
+  var cnEl = document.getElementById('qmsEngCount');
+
+  if (etEl) { etEl.value = examType; await qmsEngLoadDepts(); }
+
+  /* Quick path: directly assemble without UI config dependency */
+  var btn = document.getElementById('qmsEngAssembleBtn');
+  if (btn) { btn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px;"></span> Assembling...'; btn.disabled = true; }
+
+  var res = await qmsApi('/engine/assemble', 'POST', {
+    examType:    examType,
+    subjectId:   subjectId || null,
+    count:       cnEl ? (parseInt(cnEl.value) || 40) : 40
+  });
+
+  if (btn) { btn.innerHTML = '🎲 Assemble Question Set'; btn.disabled = false; }
+
+  if (!res.ok || !res.data.success) {
+    instToast(res.data.message || 'Assembly failed.', 'error');
+    return;
+  }
+
+  _qmsEngLastAssembly = res.data;
+  renderEngineAssembly(res.data);
+  instToast('Assembled ' + res.data.meta.returned + ' questions from ' + subjectName + '.', 'success');
 }
 
 console.log('🔧 Admin Dashboard loaded');

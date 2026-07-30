@@ -630,8 +630,9 @@
 
         <!-- Sub-tabs -->
         <div class="inst-tabs">
-          <button class="inst-tab active" id="qmsTabImport"  onclick="qmsSwitchTab('import')">📥 Import</button>
+         <button class="inst-tab active" id="qmsTabImport"  onclick="qmsSwitchTab('import')">📥 Import</button>
           <button class="inst-tab"        id="qmsTabBank"    onclick="qmsSwitchTab('bank')">📚 Question Bank</button>
+          <button class="inst-tab"        id="qmsTabEngine"  onclick="qmsSwitchTab('engine')">🧠 Question Engine</button>
           <button class="inst-tab"        id="qmsTabHistory" onclick="qmsSwitchTab('history')">📋 History</button>
           <button class="inst-tab"        id="qmsTabStats"   onclick="qmsSwitchTab('stats')">📊 Statistics</button>
         </div>
@@ -858,6 +859,170 @@ Paste thousands of questions at once."></textarea>
             <div id="qmsBankPagination" style="display:flex; justify-content:center; gap:8px; padding:16px; border-top:1px solid var(--border,rgba(255,255,255,0.08));"></div>
           </div>
         </div><!-- /qmsPanelBank -->
+
+<!-- ---- QUESTION ENGINE PANEL ---- -->
+        <div id="qmsPanelEngine" style="display:none;">
+
+          <!-- Summary stats row -->
+          <div id="qmsEngineStatsRow" style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px;">
+            <div class="a-stat-card" style="grid-column:span 4;">
+              <div style="font-size:13px; color:var(--text-muted,#6b6b8a); padding:8px 0; text-align:center; width:100%;">Loading engine summary...</div>
+            </div>
+          </div>
+
+          <!-- Two-column: config + availability -->
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; align-items:start;">
+
+            <!-- Config card -->
+            <div class="a-card">
+              <div class="a-card-head"><h3>⚙️ Engine Configuration</h3></div>
+              <div style="padding:20px; display:flex; flex-direction:column; gap:14px;">
+                <div class="t-form-group">
+                  <label>Exam Type <span style="color:#ff6584;">*</span></label>
+                  <select id="qmsEngExamType" onchange="qmsEngLoadDepts(); qmsEngCheckAvailability();">
+                    <option value="jamb">JAMB</option>
+                    <option value="waec">WAEC</option>
+                    <option value="neco">NECO</option>
+                    <option value="post-utme">POST-UTME</option>
+                    <option value="practice">Practice</option>
+                    <option value="all">All Types</option>
+                  </select>
+                </div>
+                <div class="t-form-group">
+                  <label>Department (optional)</label>
+                  <select id="qmsEngDept" onchange="qmsEngLoadSubjects(); qmsEngCheckAvailability();">
+                    <option value="">— All Departments —</option>
+                  </select>
+                </div>
+                <div class="t-form-group">
+                  <label>Subject (optional)</label>
+                  <select id="qmsEngSubject" onchange="qmsEngCheckAvailability()">
+                    <option value="">— All Subjects —</option>
+                  </select>
+                </div>
+                <div class="t-form-grid">
+                  <div class="t-form-group">
+                    <label>Difficulty</label>
+                    <select id="qmsEngDifficulty" onchange="qmsEngCheckAvailability()">
+                      <option value="">Any</option>
+                      <option value="easy">Easy</option>
+                      <option value="medium">Medium</option>
+                      <option value="hard">Hard</option>
+                    </select>
+                  </div>
+                  <div class="t-form-group">
+                    <label>Year</label>
+                    <input type="number" id="qmsEngYear" placeholder="e.g. 2023" min="1990" max="2099" oninput="qmsEngCheckAvailability()" style="background:rgba(255,255,255,0.04); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:8px; padding:11px 14px; color:#fff; font-size:14px; font-family:inherit; outline:none; width:100%;" />
+                  </div>
+                </div>
+                <div class="t-form-group">
+                  <label>Topic (optional, partial match)</label>
+                  <input type="text" id="qmsEngTopic" placeholder="e.g. Mechanics" oninput="qmsEngCheckAvailabilityDebounced()" style="background:rgba(255,255,255,0.04); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:8px; padding:11px 14px; color:#fff; font-size:14px; font-family:inherit; outline:none; width:100%;" />
+                </div>
+                <div class="t-form-group">
+                  <label>Number of Questions</label>
+                  <input type="number" id="qmsEngCount" value="40" min="1" max="500" style="background:rgba(255,255,255,0.04); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:8px; padding:11px 14px; color:#fff; font-size:14px; font-family:inherit; outline:none; width:100%;" />
+                </div>
+                <button class="a-btn a-btn-primary" id="qmsEngAssembleBtn" onclick="qmsEngAssemble()" style="width:100%; margin-top:4px;">
+                  🎲 Assemble Question Set
+                </button>
+              </div>
+            </div>
+
+            <!-- Availability + breakdown card -->
+            <div style="display:flex; flex-direction:column; gap:16px;">
+
+              <!-- Availability card -->
+              <div class="a-card">
+                <div class="a-card-head"><h3>📊 Availability</h3></div>
+                <div style="padding:20px; text-align:center;" id="qmsEngAvailBox">
+                  <div style="font-size:56px; font-weight:900; color:#fff; line-height:1;" id="qmsEngAvailCount">—</div>
+                  <div style="font-size:13px; color:var(--text-muted,#6b6b8a); margin-top:8px; line-height:1.6;" id="qmsEngAvailLabel">
+                    Configure exam type and subject to see availability
+                  </div>
+                  <div id="qmsEngAvailStatus" style="margin-top:14px;"></div>
+                </div>
+              </div>
+
+              <!-- Breakdown by difficulty mini-card -->
+              <div class="a-card">
+                <div class="a-card-head"><h3>🎯 Difficulty Split</h3></div>
+                <div id="qmsEngDiffSplit" style="padding:16px;">
+                  <div style="font-size:12px; color:var(--text-muted,#6b6b8a); text-align:center;">Check availability first</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Assembly Result (shown after assembling) -->
+          <div id="qmsEngAssemblyResult" style="display:none; margin-bottom:20px;">
+            <div class="a-card">
+              <div class="a-card-head">
+                <h3 id="qmsEngResultTitle">Assembled Question Set</h3>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                  <button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsEngAssemble()">🔄 Reassemble</button>
+                  <button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsEngExportPreview()">📋 Copy IDs</button>
+                </div>
+              </div>
+              <div id="qmsEngWarningBox" style="display:none; margin:0 20px 0; padding:10px 14px; background:rgba(255,165,0,0.08); border:1px solid rgba(255,165,0,0.2); border-radius:8px; font-size:13px; color:#ffa500; margin-bottom:12px;"></div>
+              <div class="a-table-wrap">
+                <table class="admin-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Question ID</th>
+                      <th>Question</th>
+                      <th>Subject</th>
+                      <th>Difficulty</th>
+                      <th>Answer</th>
+                    </tr>
+                  </thead>
+                  <tbody id="qmsEngResultTable"></tbody>
+                </table>
+              </div>
+              <div id="qmsEngResultNote" style="padding:12px 22px; font-size:12px; color:var(--text-muted,#6b6b8a); border-top:1px solid var(--border,rgba(255,255,255,0.08));"></div>
+            </div>
+          </div>
+
+          <!-- Breakdown Table -->
+          <div class="a-card">
+            <div class="a-card-head">
+              <h3>📋 Question Bank Breakdown</h3>
+              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <select id="qmsBreakdownFilter" onchange="qmsEngLoadBreakdown()" style="background:rgba(255,255,255,0.04); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:8px; padding:7px 10px; color:#fff; font-family:inherit; font-size:13px; outline:none;">
+                  <option value="all">All Types</option>
+                  <option value="jamb">JAMB</option>
+                  <option value="waec">WAEC</option>
+                  <option value="neco">NECO</option>
+                  <option value="post-utme">POST-UTME</option>
+                  <option value="practice">Practice</option>
+                </select>
+                <button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsEngLoadBreakdown()">↻</button>
+              </div>
+            </div>
+            <div class="a-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Exam Type</th>
+                    <th>Department</th>
+                    <th>Subject</th>
+                    <th>Total</th>
+                    <th>Easy</th>
+                    <th>Medium</th>
+                    <th>Hard</th>
+                    <th>Latest Year</th>
+                    <th>Quick Assemble</th>
+                  </tr>
+                </thead>
+                <tbody id="qmsBreakdownBody">
+                  <tr><td colspan="9" style="text-align:center; padding:32px; color:var(--text-muted);">Loading breakdown...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div><!-- /qmsPanelEngine -->
 
         <!-- ---- HISTORY PANEL ---- -->
         <div id="qmsPanelHistory" style="display:none;">

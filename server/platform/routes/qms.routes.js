@@ -26,6 +26,7 @@ const Subject     = require('../../models/Subject.model');
 const { adminOrPlatformStaff } = require('../../middleware/auth.middleware');
 const parser      = require('../utils/question.parser');
 const validator   = require('../utils/question.validator');
+const engine      = require('../services/question.engine');
 
 /* ---- Multer for file uploads ---- */
 var multer = null;
@@ -763,5 +764,128 @@ router.get('/bank/count', adminOrPlatformStaff('question_bank'), async function 
     return res.status(500).json({ success: false, message: e.message });
   }
 });
+
+/* ============================================
+   ✅ PHASE 3 — QUESTION ENGINE ROUTES
+
+   All routes use adminOrPlatformStaff('question_engine').
+   Root Admin always passes. Platform Staff need the
+   question_engine permission explicitly assigned.
+
+   These routes NEVER write to the database.
+   They only read from QMSQuestion.
+============================================ */
+
+/* ----
+   GET /api/qms/engine/availability
+   Check how many approved questions match criteria.
+   Used by admin UI to validate before assembling.
+
+   Query params: examType, subjectId, departmentId,
+                 difficulty, topic, year
+---- */
+router.get(
+  '/engine/availability',
+  adminOrPlatformStaff('question_engine'),
+  async function (req, res) {
+    try {
+      var result = await engine.getAvailability({
+        examType:     req.query.examType     || '',
+        subjectId:    req.query.subjectId    || '',
+        departmentId: req.query.departmentId || '',
+        difficulty:   req.query.difficulty   || '',
+        topic:        req.query.topic        || '',
+        year:         req.query.year         || null
+      });
+      return res.json(result);
+    } catch (e) {
+      console.error('[QMS Engine] GET /availability:', e.message);
+      return res.status(500).json({ success: false, message: e.message });
+    }
+  }
+);
+
+/* ----
+   POST /api/qms/engine/assemble
+   Assemble a question set from the bank.
+   Returns questions in a preview-safe format
+   (correctAnswer is included — admin only).
+
+   Body: { examType, subjectId, departmentId,
+           difficulty, topic, year, count, shuffle }
+---- */
+router.post(
+  '/engine/assemble',
+  adminOrPlatformStaff('question_engine'),
+  async function (req, res) {
+    try {
+      var params = {
+        examType:     (req.body.examType     || '').trim(),
+        subjectId:    (req.body.subjectId    || '').trim() || null,
+        departmentId: (req.body.departmentId || '').trim() || null,
+        difficulty:   (req.body.difficulty   || '').trim() || null,
+        topic:        (req.body.topic        || '').trim() || null,
+        year:         req.body.year          || null,
+        count:        parseInt(req.body.count)    || 40,
+        shuffle:      req.body.shuffle !== false
+      };
+
+      if (!params.examType) {
+        return res.status(400).json({ success: false, message: 'examType is required.' });
+      }
+      if (params.count < 1 || params.count > 500) {
+        return res.status(400).json({ success: false, message: 'count must be between 1 and 500.' });
+      }
+
+      var result = await engine.assemble(params);
+      return res.json(result);
+    } catch (e) {
+      console.error('[QMS Engine] POST /assemble:', e.message);
+      return res.status(500).json({ success: false, message: e.message });
+    }
+  }
+);
+
+/* ----
+   GET /api/qms/engine/breakdown
+   Returns question counts grouped by subject.
+   Used by admin to see the full picture of
+   what is available per exam type.
+
+   Query params: examType (optional, default all)
+---- */
+router.get(
+  '/engine/breakdown',
+  adminOrPlatformStaff('question_engine'),
+  async function (req, res) {
+    try {
+      var examType = (req.query.examType || '').trim() || 'all';
+      var result   = await engine.getBreakdown(examType);
+      return res.json(result);
+    } catch (e) {
+      console.error('[QMS Engine] GET /breakdown:', e.message);
+      return res.status(500).json({ success: false, message: e.message });
+    }
+  }
+);
+
+/* ----
+   GET /api/qms/engine/summary
+   Top-level stats: total approved, by exam type, by difficulty.
+   Used by the engine overview card in admin UI.
+---- */
+router.get(
+  '/engine/summary',
+  adminOrPlatformStaff('question_engine'),
+  async function (req, res) {
+    try {
+      var result = await engine.getSummaryStats();
+      return res.json(result);
+    } catch (e) {
+      console.error('[QMS Engine] GET /summary:', e.message);
+      return res.status(500).json({ success: false, message: e.message });
+    }
+  }
+);
 
 module.exports = router;
