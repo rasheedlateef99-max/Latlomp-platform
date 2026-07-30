@@ -1136,15 +1136,15 @@ async function qmsInit() {
 
 /* ---- Sub-tab switching ---- */
 function qmsSwitchTab(tab) {
-  ['import', 'history', 'stats'].forEach(function (t) {
-    var panel = document.getElementById('qmsPanelImport'.replace('Import', t.charAt(0).toUpperCase() + t.slice(1)));
-    if (!panel) panel = document.getElementById('qmsPanel' + t.charAt(0).toUpperCase() + t.slice(1));
+  ['import', 'bank', 'history', 'stats'].forEach(function (t) {
+    var panel = document.getElementById('qmsPanel' + t.charAt(0).toUpperCase() + t.slice(1));
     if (panel) panel.style.display = (t === tab) ? 'block' : 'none';
     var btn = document.getElementById('qmsTab' + t.charAt(0).toUpperCase() + t.slice(1));
     if (btn) btn.classList.toggle('active', t === tab);
   });
   if (tab === 'history') qmsLoadHistory();
   if (tab === 'stats')   qmsLoadStats();
+  if (tab === 'bank')    qmsBankLoad(1);
 }
 
 /* ---- Toggle paste / file input method ---- */
@@ -1559,6 +1559,351 @@ async function qmsLoadStats() {
     '</div>' +
     (etCards ? '<div style="margin-bottom:8px; font-size:13px; font-weight:700; color:var(--text-secondary,#a0a0c0); text-transform:uppercase; letter-spacing:0.5px;">By Exam Type</div>' +
     '<div style="display:grid; grid-template-columns:repeat(5,1fr); gap:12px; flex-wrap:wrap;">' + etCards + '</div>' : '');
+}
+
+/* ============================================================
+   QMS PHASE 2 — QUESTION BANK
+============================================================ */
+
+var _qmsBankPage       = 1;
+var _qmsBankTotal      = 0;
+var _qmsBankSelected   = {}; /* { id: true } */
+var _qmsBankSearchTimer = null;
+
+/* ---- Debounced search ---- */
+function qmsBankDebounceSearch() {
+  if (_qmsBankSearchTimer) { clearTimeout(_qmsBankSearchTimer); }
+  _qmsBankSearchTimer = setTimeout(function () { qmsBankLoad(1); }, 380);
+}
+
+/* ---- Build query string from filter controls ---- */
+function qmsBankBuildQs(page) {
+  var search = ((document.getElementById('qmsBankSearch')      || {}).value || '').trim();
+  var exam   = (document.getElementById('qmsBankFilterExam')   || {}).value || '';
+  var status = (document.getElementById('qmsBankFilterStatus') || {}).value || '';
+  var diff   = (document.getElementById('qmsBankFilterDiff')   || {}).value || '';
+  var qs     = '?page=' + (page || 1) + '&limit=25';
+  if (search) qs += '&search=' + encodeURIComponent(search);
+  if (exam)   qs += '&examType=' + exam;
+  if (status) qs += '&status='  + status;
+  if (diff)   qs += '&difficulty=' + diff;
+  return qs;
+}
+
+/* ---- Load / reload the Question Bank table ---- */
+async function qmsBankLoad(page) {
+  _qmsBankPage    = page || 1;
+  _qmsBankSelected = {};
+  qmsUpdateBulkBar();
+
+  var tbody = document.getElementById('qmsBankBody');
+  if (!tbody) { return; }
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:28px; color:var(--text-muted);"><span style="display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:8px;"></span>Loading...</td></tr>';
+
+  var res = await qmsApi('/bank' + qmsBankBuildQs(_qmsBankPage));
+  if (!res.ok) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#ff6584; padding:24px;">' + (res.data.message || 'Failed to load.') + '</td></tr>';
+    return;
+  }
+
+  var questions = res.data.questions || [];
+  _qmsBankTotal = res.data.total || 0;
+
+  var titleEl = document.getElementById('qmsBankTitle');
+  if (titleEl) titleEl.textContent = 'Question Bank (' + _qmsBankTotal.toLocaleString() + ' questions)';
+
+  var statusColors = {
+    approved:       '#43e97b',
+    pending_review: '#ffa500',
+    archived:       '#a0a0c0',
+    draft:          '#a78bfa',
+    deleted:        '#ff6584'
+  };
+
+  if (!questions.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:36px; color:var(--text-muted);">' +
+      'No questions found. Adjust filters or import questions using the Import tab.' +
+    '</td></tr>';
+  } else {
+    var letters = ['A', 'B', 'C', 'D'];
+    tbody.innerHTML = questions.map(function (q) {
+      var optPreview = (q.options || []).map(function (o, idx) {
+        return '<span style="font-size:10px; padding:1px 5px; border-radius:3px; margin-right:2px; background:' +
+          (idx === q.correctAnswer ? 'rgba(67,233,123,0.15)' : 'rgba(255,255,255,0.04)') + '; color:' +
+          (idx === q.correctAnswer ? '#43e97b' : 'var(--text-secondary)') + ';">' +
+          (letters[idx] || idx) + ': ' + o.substring(0, 18) + (o.length > 18 ? '…' : '') +
+          (idx === q.correctAnswer ? '✓' : '') + '</span>';
+      }).join('');
+      var statColor  = statusColors[q.status] || '#fff';
+      var safeId     = (q._id || '').toString();
+      var safeName   = (q.question || '').replace(/'/g, "&#39;").substring(0, 40);
+      var isChecked  = _qmsBankSelected[safeId] ? 'checked' : '';
+      return '<tr id="qmsBankRow-' + safeId + '">' +
+        '<td><input type="checkbox" ' + isChecked + ' onchange="qmsToggleRow(\'' + safeId + '\',this)" style="accent-color:#6c63ff;" /></td>' +
+        '<td style="font-size:11px; font-family:monospace; color:#a78bfa; white-space:nowrap;">' + (q.questionId || '—') + '</td>' +
+        '<td style="max-width:280px;">' +
+          '<div style="font-size:13px; font-weight:600; color:#fff; margin-bottom:4px; line-height:1.4;">' +
+            q.question.substring(0, 90) + (q.question.length > 90 ? '…' : '') +
+          '</div>' +
+          '<div>' + optPreview + '</div>' +
+          (q.topic ? '<div style="font-size:11px; color:var(--text-muted); margin-top:3px;">📌 ' + q.topic + '</div>' : '') +
+        '</td>' +
+        '<td style="font-size:12px; color:var(--text-secondary);">' + (q.subjectName || '—') + '</td>' +
+        '<td><span style="font-size:11px; font-weight:700; background:rgba(108,99,255,0.12); color:#a78bfa; padding:2px 8px; border-radius:20px;">' +
+          (q.examType || '').toUpperCase() + '</span></td>' +
+        '<td style="font-size:12px; color:var(--text-secondary); text-transform:capitalize;">' + (q.difficulty || '—') + '</td>' +
+        '<td><span style="font-size:11px; font-weight:700; color:' + statColor + ';">' + (q.status || '—').replace('_',' ').toUpperCase() + '</span></td>' +
+        '<td><div style="display:flex; gap:5px; flex-wrap:wrap;">' +
+          '<button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsOpenEdit(\'' + safeId + '\')">✏ Edit</button>' +
+          '<button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsViewVersions(\'' + safeId + '\')">📜</button>' +
+          '<button class="a-btn a-btn-danger a-btn-sm" onclick="qmsSoftDelete(\'' + safeId + '\',\'' + safeName + '\')">🗑</button>' +
+        '</div></td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  /* Pagination */
+  var pages  = res.data.pages || 1;
+  var pagDiv = document.getElementById('qmsBankPagination');
+  if (pagDiv) {
+    if (pages > 1) {
+      var btns = '';
+      var start = Math.max(1, _qmsBankPage - 3);
+      var end   = Math.min(pages, _qmsBankPage + 3);
+      if (start > 1) btns += '<button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsBankLoad(1)">« 1</button>';
+      for (var p = start; p <= end; p++) {
+        btns += '<button class="a-btn a-btn-sm ' + (p === _qmsBankPage ? 'a-btn-primary' : 'a-btn-secondary') + '" onclick="qmsBankLoad(' + p + ')">' + p + '</button>';
+      }
+      if (end < pages) btns += '<button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsBankLoad(' + pages + ')">' + pages + ' »</button>';
+      pagDiv.innerHTML = btns;
+      pagDiv.style.display = 'flex';
+    } else {
+      pagDiv.style.display = 'none';
+    }
+  }
+}
+
+/* ---- Selection management ---- */
+function qmsToggleRow(id, cb) {
+  if (cb.checked) { _qmsBankSelected[id] = true; }
+  else            { delete _qmsBankSelected[id]; }
+  qmsUpdateBulkBar();
+}
+
+function qmsToggleSelectAll(masterCb) {
+  var cbs = document.querySelectorAll('#qmsBankBody input[type="checkbox"]');
+  cbs.forEach(function (cb) {
+    var row = cb.closest('tr');
+    var id  = row ? row.id.replace('qmsBankRow-', '') : '';
+    cb.checked = masterCb.checked;
+    if (masterCb.checked && id) { _qmsBankSelected[id] = true; }
+    else if (id)                { delete _qmsBankSelected[id]; }
+  });
+  qmsUpdateBulkBar();
+}
+
+function qmsClearSelection() {
+  _qmsBankSelected = {};
+  document.querySelectorAll('#qmsBankBody input[type="checkbox"]').forEach(function (cb) { cb.checked = false; });
+  var master = document.getElementById('qmsSelectAll');
+  if (master) master.checked = false;
+  qmsUpdateBulkBar();
+}
+
+function qmsUpdateBulkBar() {
+  var count  = Object.keys(_qmsBankSelected).length;
+  var bar    = document.getElementById('qmsBulkBar');
+  var countEl = document.getElementById('qmsBulkCount');
+  if (!bar) { return; }
+  if (count > 0) {
+    bar.style.display = 'flex';
+    if (countEl) countEl.textContent = count + ' question' + (count !== 1 ? 's' : '') + ' selected';
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+/* ---- Bulk operations ---- */
+async function qmsBulkOp(operation) {
+  var ids    = Object.keys(_qmsBankSelected);
+  var count  = ids.length;
+  if (!count) { instToast('No questions selected.', 'error'); return; }
+
+  var opLabels = { approve:'Approve', archive:'Archive', delete:'Delete', restore:'Restore' };
+  var opLabel  = opLabels[operation] || operation;
+
+  if (!confirm(opLabel + ' ' + count + ' selected question' + (count !== 1 ? 's' : '') + '?')) { return; }
+
+  var res = await qmsApi('/bank/bulk', 'POST', { operation: operation, ids: ids });
+  if (res.ok) {
+    instToast(res.data.message, 'success');
+    qmsClearSelection();
+    qmsBankLoad(_qmsBankPage);
+  } else {
+    instToast(res.data.message || 'Bulk operation failed.', 'error');
+  }
+}
+
+/* ---- Soft delete single question ---- */
+async function qmsSoftDelete(id, preview) {
+  if (!confirm('Delete question "' + preview + '…"?\n\nThe question will be soft-deleted and can be restored.')) { return; }
+  var res = await qmsApi('/bank/' + id, 'DELETE');
+  if (res.ok) {
+    instToast('Question deleted.', 'success');
+    qmsBankLoad(_qmsBankPage);
+  } else {
+    instToast(res.data.message || 'Delete failed.', 'error');
+  }
+}
+
+/* ---- Open Edit modal ---- */
+async function qmsOpenEdit(id) {
+  /* Reset modal state */
+  var errEl = document.getElementById('qmsEditErrBox');
+  if (errEl) errEl.style.display = 'none';
+  document.getElementById('qmsEditModal').style.display = 'flex';
+  document.getElementById('qmsEditId').value = id;
+  document.getElementById('qmsEditTitle').textContent = 'Loading...';
+
+  var res = await qmsApi('/bank/' + id);
+  if (!res.ok) {
+    if (errEl) { errEl.textContent = res.data.message || 'Failed to load.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  var q = res.data.question;
+  document.getElementById('qmsEditTitle').textContent =
+    'Edit — ' + (q.questionId || 'Question') + (q.subjectName ? ' · ' + q.subjectName : '');
+
+  var flds = {
+    qmsEditQuestion:   q.question     || '',
+    qmsEditOptA:      (q.options[0]   || ''),
+    qmsEditOptB:      (q.options[1]   || ''),
+    qmsEditOptC:      (q.options[2]   || ''),
+    qmsEditOptD:      (q.options[3]   || ''),
+    qmsEditTopic:      q.topic        || '',
+    qmsEditExpl:       q.explanation  || '',
+    qmsEditReason:     '',
+    qmsEditYear:       q.year         || ''
+  };
+  Object.keys(flds).forEach(function (id) {
+    var el = document.getElementById(id); if (el) el.value = flds[id];
+  });
+  var correctEl = document.getElementById('qmsEditCorrect');
+  if (correctEl) correctEl.value = String(q.correctAnswer || 0);
+  var statusEl  = document.getElementById('qmsEditStatus');
+  if (statusEl)  statusEl.value  = q.status     || 'approved';
+  var diffEl    = document.getElementById('qmsEditDifficulty');
+  if (diffEl)    diffEl.value    = q.difficulty || 'medium';
+}
+
+/* ---- Save Edit ---- */
+async function qmsSaveEdit() {
+  var id     = (document.getElementById('qmsEditId')       || {}).value || '';
+  var errEl  = document.getElementById('qmsEditErrBox');
+  var btn    = document.getElementById('qmsEditSaveBtn');
+  if (!id) { return; }
+
+  if (errEl) errEl.style.display = 'none';
+
+  var optA = ((document.getElementById('qmsEditOptA') || {}).value || '').trim();
+  var optB = ((document.getElementById('qmsEditOptB') || {}).value || '').trim();
+  var optC = ((document.getElementById('qmsEditOptC') || {}).value || '').trim();
+  var optD = ((document.getElementById('qmsEditOptD') || {}).value || '').trim();
+  var opts = [optA, optB, optC, optD].filter(Boolean);
+
+  if (opts.length < 2) {
+    if (errEl) { errEl.textContent = 'At least 2 options are required.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  var payload = {
+    question:      ((document.getElementById('qmsEditQuestion')   || {}).value || '').trim(),
+    options:       opts,
+    correctAnswer: parseInt((document.getElementById('qmsEditCorrect')    || {}).value || '0'),
+    explanation:   ((document.getElementById('qmsEditExpl')               || {}).value || '').trim(),
+    topic:         ((document.getElementById('qmsEditTopic')              || {}).value || '').trim(),
+    status:        (document.getElementById('qmsEditStatus')              || {}).value || 'approved',
+    difficulty:    (document.getElementById('qmsEditDifficulty')          || {}).value || 'medium',
+    year:          parseInt((document.getElementById('qmsEditYear')       || {}).value) || null,
+    reason:        ((document.getElementById('qmsEditReason')             || {}).value || '').trim()
+  };
+
+  if (!payload.question) {
+    if (errEl) { errEl.textContent = 'Question text is required.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  if (btn) { btn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px;"></span> Saving...'; btn.disabled = true; }
+
+  var res = await qmsApi('/bank/' + id, 'PUT', payload);
+
+  if (btn) { btn.innerHTML = 'Save Changes'; btn.disabled = false; }
+
+  if (res.ok) {
+    instToast('Question updated.', 'success');
+    closeAdminModal('qmsEditModal');
+    qmsBankLoad(_qmsBankPage);
+  } else {
+    if (errEl) { errEl.textContent = res.data.message || 'Save failed.'; errEl.style.display = 'block'; }
+  }
+}
+
+/* ---- View Version History ---- */
+async function qmsViewVersions(id) {
+  if (!id) { return; }
+  document.getElementById('qmsVersionModal').style.display = 'flex';
+  var body = document.getElementById('qmsVersionsBody');
+  if (body) body.innerHTML = '<div style="text-align:center; padding:24px; color:var(--text-muted);">Loading...</div>';
+
+  var res = await qmsApi('/bank/' + id + '/versions');
+  if (!res.ok) {
+    if (body) body.innerHTML = '<p style="color:#ff6584;">' + (res.data.message || 'Failed to load.') + '</p>';
+    return;
+  }
+
+  var versions = res.data.versions || [];
+  if (!versions.length) {
+    if (body) body.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:20px;">No version history yet. Versions are created automatically when you edit a question.</p>';
+    return;
+  }
+
+  if (body) {
+    body.innerHTML =
+      '<div style="margin-bottom:12px; font-size:13px; color:var(--text-secondary);">Current: <strong style="color:#fff;">' +
+        res.data.current.substring(0, 80) + (res.data.current.length > 80 ? '…' : '') +
+      '</strong></div>' +
+      '<div style="display:flex; flex-direction:column; gap:12px;">' +
+        versions.map(function (v, idx) {
+          var ts = v.createdAt ? new Date(v.createdAt).toLocaleString('en-NG') : '—';
+          return '<div style="background:rgba(255,255,255,0.03); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:10px; padding:14px;">' +
+            '<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; flex-wrap:wrap; gap:8px;">' +
+              '<div>' +
+                '<span style="font-size:12px; font-weight:700; color:#a78bfa;">Version ' + (versions.length - idx) + '</span>' +
+                ' <span style="font-size:11px; color:var(--text-muted);">' + ts + '</span>' +
+                (v.editedBy ? ' <span style="font-size:11px; color:var(--text-muted);">by ' + v.editedBy + '</span>' : '') +
+              '</div>' +
+              '<button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsRestoreVersion(\'' + id + '\',' + idx + ')">↺ Restore</button>' +
+            '</div>' +
+            (v.reason ? '<div style="font-size:11px; color:#ffa500; margin-bottom:6px;">📝 ' + v.reason + '</div>' : '') +
+            '<div style="font-size:12px; color:var(--text-secondary); line-height:1.6;">' + v.question.substring(0, 120) + (v.question.length > 120 ? '…' : '') + '</div>' +
+          '</div>';
+        }).join('') +
+      '</div>';
+  }
+}
+
+/* ---- Restore a version ---- */
+async function qmsRestoreVersion(id, versionIdx) {
+  if (!confirm('Restore this version? The current version will be automatically saved to history.')) { return; }
+  var res = await qmsApi('/bank/' + id + '/restore/' + versionIdx, 'PUT');
+  if (res.ok) {
+    instToast('Question restored to version ' + versionIdx + '.', 'success');
+    closeAdminModal('qmsVersionModal');
+    qmsBankLoad(_qmsBankPage);
+  } else {
+    instToast(res.data.message || 'Restore failed.', 'error');
+  }
 }
 
 console.log('🔧 Admin Dashboard loaded');

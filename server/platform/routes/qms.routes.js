@@ -34,9 +34,15 @@ try {
   multer = require('multer');
   upload = multer({
     storage: multer.memoryStorage(),
-    limits:  { fileSize: 10 * 1024 * 1024 } /* 10MB */
+    limits:  { fileSize: 10 * 1024 * 1024 }, /* 10MB */
+    fileFilter: function (req, file, cb) {
+      var allowed = ['.txt', '.csv', '.docx', '.xlsx', '.xls'];
+      var ext     = '.' + (file.originalname.split('.').pop() || '').toLowerCase();
+      if (allowed.includes(ext)) { cb(null, true); }
+      else { cb(new Error('Unsupported file type: ' + ext + '. Allowed: ' + allowed.join(', '))); }
+    }
   });
-  console.log('✅ [QMS] File upload ready (multer/memory)');
+  console.log('✅ [QMS] File upload ready — supports txt, csv, docx, xlsx');
 } catch (e) {
   console.warn('⚠️  [QMS] multer not available — file upload disabled. Run: npm install multer');
 }
@@ -179,11 +185,18 @@ router.post(
         parseResult = parser.parseCsv(content);
       } else if (ext === 'txt') {
         parseResult = parser.parseText(content);
+      } else if (ext === 'docx') {
+        /* ✅ PHASE 2: DOCX support via mammoth */
+        var docxParser = require('../utils/docx.parser');
+        parseResult    = await docxParser.parseDocx(req.file.buffer);
+      } else if (ext === 'xlsx' || ext === 'xls') {
+        /* ✅ PHASE 2: XLSX support via SheetJS */
+        var xlsxParser = require('../utils/xlsx.parser');
+        parseResult    = xlsxParser.parseXlsx(req.file.buffer);
       } else {
         return res.status(400).json({
           success: false,
-          message: 'Only .txt and .csv files are supported in Phase 1. ' +
-                   'DOCX and XLSX support is coming in Phase 2.'
+          message: 'Supported formats: .txt, .csv, .docx, .xlsx'
         });
       }
 
@@ -413,6 +426,340 @@ router.get('/stats', adminOrPlatformStaff('question_import'), async function (re
     });
   } catch (e) {
     console.error('[QMS] GET /stats:', e.message);
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+/* ============================================
+   ✅ PHASE 2 — QUESTION BANK ROUTES
+============================================ */
+
+/* ----
+   GET /api/qms/bank
+   List questions with filters and pagination.
+   Guards: question_bank or question_import
+   Filters: examType, subjectId, departmentId,
+            status, difficulty, search, year
+---- */
+router.get('/bank', adminOrPlatformStaff('question_bank'), async function (req, res) {
+  try {
+    var page   = Math.max(1,   parseInt(req.query.page)   || 1);
+    var limit  = Math.min(100, parseInt(req.query.limit)  || 25);
+    var skip   = (page - 1) * limit;
+
+    var filter = {};
+
+    if (req.query.examType   && req.query.examType   !== 'all') filter.examType   = req.query.examType;
+    if (req.query.subjectId)     filter.subjectId     = req.query.subjectId;
+    if (req.query.departmentId)  filter.departmentId  = req.query.departmentId;
+    if (req.query.difficulty)    filter.difficulty    = req.query.difficulty;
+    if (req.query.year)          filter.year          = parseInt(req.query.year);
+
+    /* Status filter — default excludes deleted */
+    if (req.query.status && req.query.status !== 'all') {
+      filter.status = req.query.status;
+    } else if (!req.query.status) {
+      filter.status = { $ne: 'deleted' };
+    }
+
+    /* Text search */
+    if (req.query.search) {
+      var searchRegex = new RegExp(req.query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.$or = [
+        { question:      searchRegex },
+        { topic:         searchRegex },
+        { subjectName:   searchRegex },
+        { questionId:    searchRegex }
+      ];
+    }
+
+    var [total, questions] = await Promise.all([
+      QMSQuestion.countDocuments(filter),
+      QMSQuestion.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select('-versions') /* exclude version history from list */
+        .lean()
+    ]);
+
+    return res.json({
+      success:   true,
+      total:     total,
+      page:      page,
+      pages:     Math.ceil(total / limit),
+      questions: questions
+    });
+  } catch (e) {
+    console.error('[QMS] GET /bank:', e.message);
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+/* ----
+   GET /api/qms/bank/:id
+   Single question including version history.
+---- */
+router.get('/bank/:id', adminOrPlatformStaff('question_bank'), async function (req, res) {
+  try {
+    var q = await QMSQuestion.findById(req.params.id).lean();
+    if (!q) { return res.status(404).json({ success: false, message: 'Question not found.' }); }
+    return res.json({ success: true, question: q });
+  } catch (e) {
+    console.error('[QMS] GET /bank/:id:', e.message);
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+/* ----
+   PUT /api/qms/bank/:id
+   Edit a question. Automatically snapshots the current
+   version before applying changes.
+
+   Body: { question, options, correctAnswer, explanation,
+           topic, subtopic, difficulty, year, source,
+           keywords, status, reason }
+---- */
+router.put('/bank/:id', adminOrPlatformStaff('question_bank'), async function (req, res) {
+  try {
+    var doc = await QMSQuestion.findById(req.params.id);
+    if (!doc) { return res.status(404).json({ success: false, message: 'Question not found.' }); }
+    if (doc.status === 'deleted') {
+      return res.status(400).json({ success: false, message: 'Cannot edit a deleted question.' });
+    }
+
+    var body   = req.body;
+    var editor = callerName(req);
+
+    /* Snapshot current version BEFORE applying changes */
+    if (
+      (body.question      !== undefined && body.question      !== doc.question) ||
+      (body.options       !== undefined)                                         ||
+      (body.correctAnswer !== undefined && body.correctAnswer !== doc.correctAnswer) ||
+      (body.explanation   !== undefined && body.explanation   !== doc.explanation)
+    ) {
+      doc.versions.push({
+        question:      doc.question,
+        options:       doc.options.slice(),
+        correctAnswer: doc.correctAnswer,
+        explanation:   doc.explanation,
+        editedBy:      editor,
+        reason:        body.reason || 'Manual edit'
+      });
+      /* Keep only last 20 versions */
+      if (doc.versions.length > 20) { doc.versions = doc.versions.slice(-20); }
+    }
+
+    /* Apply updates */
+    var ALLOWED = ['question', 'options', 'correctAnswer', 'explanation',
+                   'topic', 'subtopic', 'difficulty', 'year', 'source',
+                   'keywords', 'status'];
+    ALLOWED.forEach(function (field) {
+      if (body[field] !== undefined) { doc[field] = body[field]; }
+    });
+
+    /* Validate correctAnswer range */
+    if (doc.correctAnswer < 0 || doc.correctAnswer >= doc.options.length) {
+      return res.status(400).json({ success: false, message: 'correctAnswer index out of range.' });
+    }
+
+    await doc.save();
+
+    return res.json({
+      success:  true,
+      message:  'Question updated.',
+      question: doc.toObject()
+    });
+  } catch (e) {
+    console.error('[QMS] PUT /bank/:id:', e.message);
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+/* ----
+   DELETE /api/qms/bank/:id
+   Soft delete — sets status to 'deleted'.
+   Hard delete requires an explicit ?hard=true query
+   parameter AND root admin only.
+---- */
+router.delete('/bank/:id', adminOrPlatformStaff('question_bank'), async function (req, res) {
+  try {
+    var doc = await QMSQuestion.findById(req.params.id);
+    if (!doc) { return res.status(404).json({ success: false, message: 'Question not found.' }); }
+
+    /* Hard delete — root admin only */
+    if (req.query.hard === 'true') {
+      if (!req.isRoot) {
+        return res.status(403).json({ success: false, message: 'Hard delete requires Root Administrator access.' });
+      }
+      await QMSQuestion.findByIdAndDelete(req.params.id);
+      return res.json({ success: true, message: 'Question permanently deleted.' });
+    }
+
+    /* Soft delete */
+    doc.status = 'deleted';
+    await doc.save();
+    return res.json({ success: true, message: 'Question moved to deleted state. It can be restored if needed.' });
+  } catch (e) {
+    console.error('[QMS] DELETE /bank/:id:', e.message);
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+/* ----
+   GET /api/qms/bank/:id/versions
+   Returns version history for a question.
+---- */
+router.get('/bank/:id/versions', adminOrPlatformStaff('question_bank'), async function (req, res) {
+  try {
+    var doc = await QMSQuestion.findById(req.params.id).select('questionId question versions');
+    if (!doc) { return res.status(404).json({ success: false, message: 'Question not found.' }); }
+    return res.json({
+      success:    true,
+      questionId: doc.questionId,
+      current:    doc.question,
+      versions:   doc.versions.reverse() /* newest first */
+    });
+  } catch (e) {
+    console.error('[QMS] GET /bank/:id/versions:', e.message);
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+/* ----
+   PUT /api/qms/bank/:id/restore/:versionIdx
+   Restores a previous version.
+   versionIdx is the index in the versions array
+   (0 = oldest, after the /versions endpoint reversed it:
+   0 = newest from the caller's perspective — so we re-reverse)
+---- */
+router.put('/bank/:id/restore/:versionIdx', adminOrPlatformStaff('question_bank'), async function (req, res) {
+  try {
+    var doc = await QMSQuestion.findById(req.params.id);
+    if (!doc) { return res.status(404).json({ success: false, message: 'Question not found.' }); }
+
+    var versions = doc.versions.slice().reverse(); /* newest first (matches UI index) */
+    var idx      = parseInt(req.params.versionIdx);
+
+    if (isNaN(idx) || idx < 0 || idx >= versions.length) {
+      return res.status(400).json({ success: false, message: 'Invalid version index.' });
+    }
+
+    var target = versions[idx];
+    var editor = callerName(req);
+
+    /* Snapshot current state before restore */
+    doc.versions.push({
+      question:      doc.question,
+      options:       doc.options.slice(),
+      correctAnswer: doc.correctAnswer,
+      explanation:   doc.explanation,
+      editedBy:      editor,
+      reason:        'Snapshot before restore to version ' + idx
+    });
+
+    /* Restore */
+    doc.question      = target.question;
+    doc.options       = target.options;
+    doc.correctAnswer = target.correctAnswer;
+    doc.explanation   = target.explanation;
+
+    if (doc.versions.length > 20) { doc.versions = doc.versions.slice(-20); }
+    await doc.save();
+
+    return res.json({ success: true, message: 'Question restored to version ' + idx + '.', question: doc.toObject() });
+  } catch (e) {
+    console.error('[QMS] PUT /bank/:id/restore:', e.message);
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+/* ----
+   POST /api/qms/bank/bulk
+   Bulk operations on multiple questions.
+
+   Body: { operation, ids[], payload? }
+   Operations:
+     approve  → status: 'approved'
+     archive  → status: 'archived'
+     delete   → status: 'deleted' (soft)
+     move     → change subjectId + subjectName (payload required)
+     restore  → status: 'approved' (from deleted/archived)
+---- */
+router.post('/bank/bulk', adminOrPlatformStaff('question_bank'), async function (req, res) {
+  try {
+    var operation = (req.body.operation || '').trim();
+    var ids       = req.body.ids;
+    var payload   = req.body.payload || {};
+
+    if (!operation) {
+      return res.status(400).json({ success: false, message: 'operation is required.' });
+    }
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'ids must be a non-empty array.' });
+    }
+    if (ids.length > 500) {
+      return res.status(400).json({ success: false, message: 'Maximum 500 questions per bulk operation.' });
+    }
+
+    var ALLOWED_OPS = ['approve', 'archive', 'delete', 'restore', 'move'];
+    if (!ALLOWED_OPS.includes(operation)) {
+      return res.status(400).json({ success: false, message: 'Invalid operation: ' + operation });
+    }
+
+    var update;
+
+    switch (operation) {
+      case 'approve':  update = { $set: { status: 'approved'  } }; break;
+      case 'archive':  update = { $set: { status: 'archived'  } }; break;
+      case 'delete':   update = { $set: { status: 'deleted'   } }; break;
+      case 'restore':  update = { $set: { status: 'approved'  } }; break;
+      case 'move':
+        if (!payload.subjectId) {
+          return res.status(400).json({ success: false, message: 'move operation requires payload.subjectId' });
+        }
+        update = { $set: {
+          subjectId:      payload.subjectId,
+          subjectName:    payload.subjectName    || '',
+          departmentId:   payload.departmentId   || null,
+          departmentName: payload.departmentName || ''
+        }};
+        break;
+    }
+
+    var result = await QMSQuestion.updateMany({ _id: { $in: ids } }, update);
+
+    return res.json({
+      success:  true,
+      message:  result.modifiedCount + ' question' + (result.modifiedCount !== 1 ? 's' : '') + ' updated (' + operation + ').',
+      modified: result.modifiedCount
+    });
+  } catch (e) {
+    console.error('[QMS] POST /bank/bulk:', e.message);
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+/* ----
+   GET /api/qms/bank/count
+   Fast count for dashboard overview.
+   Returns count grouped by examType and status.
+---- */
+router.get('/bank/count', adminOrPlatformStaff('question_bank'), async function (req, res) {
+  try {
+    var agg = await QMSQuestion.aggregate([
+      { $match: { status: { $ne: 'deleted' } } },
+      { $group: { _id: { examType: '$examType', status: '$status' }, count: { $sum: 1 } } }
+    ]);
+    var result = {};
+    agg.forEach(function (r) {
+      var et = r._id.examType;
+      var st = r._id.status;
+      if (!result[et]) { result[et] = {}; }
+      result[et][st] = r.count;
+    });
+    return res.json({ success: true, counts: result });
+  } catch (e) {
     return res.status(500).json({ success: false, message: e.message });
   }
 });
