@@ -193,7 +193,15 @@
       #instSubDaysWrap > div[style*="flex-wrap:wrap"] { flex-direction: column; }
       #instSubDaysWrap > div[style*="flex-wrap:wrap"] .a-btn { width: 100%; }
     }
-
+/* QMS config grid: 3-col → 1-col on mobile */
+    @media (max-width:700px) {
+      #as-qms-import [style*="grid-template-columns:1fr 1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+      }
+    }
+    @media (max-width:700px) {
+      #qmsPreviewStats { grid-template-columns: 1fr 1fr !important; }
+    }
     /* Detail modal grid: single column on mobile */
     @media (max-width:500px) {
       #instDetailBody > div[style*="grid-template-columns:1fr 1fr"] {
@@ -340,6 +348,7 @@
       <!-- ✅ FIX: onclick now calls showAdminSection AND instOnActivate -->
       <button class="sb-link admin-nav-link"         data-section="institutions"   onclick="showAdminSection('institutions'); setTimeout(instOnActivate, 200);"> <span class="sb-icon">🏫</span> Institutions    </button>
       <button class="sb-link admin-nav-link" data-section="platform-staff" onclick="showAdminSection('platform-staff'); setTimeout(loadPlatformStaff, 200);"><span class="sb-icon">👥</span> Platform Staff</button>
+      <button class="sb-link admin-nav-link" data-section="qms-import" onclick="showAdminSection('qms-import'); setTimeout(qmsInit, 200);"><span class="sb-icon">📚</span> Question Management</button>
       <a href="store.html"   class="sb-link"><span class="sb-icon">🏪</span> View Store    </a>
       <a href="teacher.html" class="sb-link"><span class="sb-icon">📚</span> Teacher Panel </a>
       <button class="sb-link" onclick="adminLogout()"><span class="sb-icon">🚪</span> Logout</button>
@@ -612,6 +621,194 @@
       </section>
 
     </div>
+
+      <!-- ===== QUESTION MANAGEMENT SYSTEM ===== -->
+      <section class="admin-section" id="as-qms-import">
+        <div class="a-page-header">
+          <div><h1>📚 Question Management System</h1><p>Import, validate and manage the platform question bank</p></div>
+        </div>
+
+        <!-- Sub-tabs -->
+        <div class="inst-tabs">
+          <button class="inst-tab active" id="qmsTabImport"  onclick="qmsSwitchTab('import')">📥 Import</button>
+          <button class="inst-tab"        id="qmsTabHistory" onclick="qmsSwitchTab('history')">📋 History</button>
+          <button class="inst-tab"        id="qmsTabStats"   onclick="qmsSwitchTab('stats')">📊 Statistics</button>
+        </div>
+
+        <!-- ---- IMPORT PANEL ---- -->
+        <div id="qmsPanelImport">
+
+          <!-- Step 1: Configuration -->
+          <div class="a-card" style="margin-bottom:16px;">
+            <div class="a-card-head"><h3>Step 1 — Configure Import</h3></div>
+            <div style="padding:20px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
+              <div class="t-form-group">
+                <label>Exam Type <span style="color:#ff6584;">*</span></label>
+                <select id="qmsExamType" onchange="qmsLoadDepts()">
+                  <option value="jamb">JAMB</option>
+                  <option value="waec">WAEC</option>
+                  <option value="neco">NECO</option>
+                  <option value="post-utme">POST-UTME</option>
+                  <option value="practice">Practice</option>
+                </select>
+              </div>
+              <div class="t-form-group">
+                <label>Department</label>
+                <select id="qmsDepartment" onchange="qmsLoadSubjectsForDept()">
+                  <option value="">— loading... —</option>
+                </select>
+              </div>
+              <div class="t-form-group">
+                <label>Subject</label>
+                <select id="qmsSubject">
+                  <option value="">— select department first —</option>
+                </select>
+              </div>
+            </div>
+            <div style="padding:0 20px 16px; font-size:12px; color:var(--text-muted,#6b6b8a);">
+              Department and Subject are optional but recommended for Question Engine filtering.
+            </div>
+          </div>
+
+          <!-- Step 2: Input method -->
+          <div class="a-card" style="margin-bottom:16px;">
+            <div class="a-card-head">
+              <h3>Step 2 — Input Method</h3>
+              <div style="display:flex; gap:8px;">
+                <button class="a-btn a-btn-primary a-btn-sm" id="qmsBtnPaste" onclick="qmsSetMethod('paste')">📋 Paste Text</button>
+                <button class="a-btn a-btn-secondary a-btn-sm" id="qmsBtnFile" onclick="qmsSetMethod('file')">📁 Upload File</button>
+              </div>
+            </div>
+
+            <!-- Paste area -->
+            <div id="qmsPasteArea" style="padding:20px;">
+              <div class="t-form-group">
+                <label>Paste Questions</label>
+                <textarea id="qmsPasteText" rows="18"
+                  style="background:rgba(255,255,255,0.03); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:8px; padding:14px; color:#fff; font-size:13px; font-family:'Courier New',monospace; line-height:1.7; width:100%; resize:vertical; outline:none;"
+                  placeholder="Paste your questions here. Supported formats:
+
+Format A — Labeled:
+Question: What is the capital of Nigeria?
+A. Lagos
+B. Abuja
+C. Kano
+D. Ibadan
+Answer: B
+
+Format B — Numbered:
+1. What is 2 + 2?
+A. 3
+B. 4
+C. 5
+D. 6
+Answer: B
+
+Separate each question with a blank line.
+Paste thousands of questions at once."></textarea>
+              </div>
+            </div>
+
+            <!-- File area -->
+            <div id="qmsFileArea" style="display:none; padding:20px;">
+              <div class="img-upload-area" onclick="document.getElementById('qmsFileInput').click()" style="border-radius:10px; padding:32px;">
+                <div style="font-size:36px; margin-bottom:10px;">📁</div>
+                <div style="font-size:15px; font-weight:700; color:var(--text-secondary,#a0a0c0);" id="qmsFileLabel">Click to upload or drag and drop</div>
+                <div style="font-size:12px; color:var(--text-muted,#6b6b8a); margin-top:6px;">Supported: .txt, .csv — Max 10MB — CSV requires columns: question, option_a, option_b, option_c, option_d, correct_answer</div>
+                <input type="file" id="qmsFileInput" accept=".txt,.csv" style="display:none;" onchange="qmsFileSelected(this)" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Validate button -->
+          <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; align-items:center;">
+            <button class="a-btn a-btn-primary" id="qmsValidateBtn" onclick="qmsPreview()" style="min-width:200px;">
+              🔍 Validate &amp; Preview
+            </button>
+            <button class="a-btn a-btn-secondary" onclick="qmsReset()">↺ Reset</button>
+            <span id="qmsValidateStatus" style="font-size:13px; color:var(--text-muted,#6b6b8a);"></span>
+          </div>
+
+          <!-- Preview panel (shown after validation) -->
+          <div id="qmsPreviewPanel" style="display:none;">
+            <!-- Stats bar -->
+            <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px;" id="qmsPreviewStats"></div>
+
+            <!-- Warnings -->
+            <div id="qmsWarningsPanel" style="display:none; margin-bottom:16px;"></div>
+
+            <!-- Valid questions preview table -->
+            <div class="a-card" style="margin-bottom:16px;">
+              <div class="a-card-head">
+                <h3 id="qmsPreviewTitle">Valid Questions Preview</h3>
+                <button class="a-btn a-btn-primary" id="qmsConfirmBtn" onclick="qmsConfirmImport()">
+                  ✅ Confirm Import
+                </button>
+              </div>
+              <div class="a-table-wrap">
+                <table class="admin-table">
+                  <thead><tr><th>#</th><th>Question</th><th>Options</th><th>Answer</th></tr></thead>
+                  <tbody id="qmsPreviewTable"></tbody>
+                </table>
+              </div>
+              <div id="qmsPreviewMoreNote" style="padding:12px 22px; font-size:12px; color:var(--text-muted,#6b6b8a);"></div>
+            </div>
+
+            <!-- Rejected questions -->
+            <div id="qmsRejectedPanel" style="display:none; margin-bottom:16px;">
+              <div class="a-card">
+                <div class="a-card-head"><h3 id="qmsRejectedTitle">Rejected Questions</h3></div>
+                <div class="a-table-wrap">
+                  <table class="admin-table">
+                    <thead><tr><th>#</th><th>Question (truncated)</th><th>Reason</th></tr></thead>
+                    <tbody id="qmsRejectedTable"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Duplicates -->
+            <div id="qmsDuplicatesPanel" style="display:none; margin-bottom:16px;">
+              <div class="a-card">
+                <div class="a-card-head"><h3 id="qmsDuplicatesTitle">Duplicate Questions (skipped)</h3></div>
+                <div class="a-table-wrap">
+                  <table class="admin-table">
+                    <thead><tr><th>#</th><th>Question (truncated)</th><th>Reason</th></tr></thead>
+                    <tbody id="qmsDuplicatesTable"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /qmsPanelImport -->
+
+        <!-- ---- HISTORY PANEL ---- -->
+        <div id="qmsPanelHistory" style="display:none;">
+          <div style="display:flex; justify-content:flex-end; margin-bottom:14px;">
+            <button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsLoadHistory()">↻ Refresh</button>
+          </div>
+          <div class="a-card">
+            <div class="a-table-wrap">
+              <table class="admin-table">
+                <thead><tr><th>Date</th><th>Imported By</th><th>Exam Type</th><th>Subject</th><th>Detected</th><th>Imported</th><th>Skipped</th><th>Status</th></tr></thead>
+                <tbody id="qmsHistoryTable">
+                  <tr><td colspan="8" style="text-align:center; padding:32px; color:var(--text-muted);">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ---- STATS PANEL ---- -->
+        <div id="qmsPanelStats" style="display:none;">
+          <div id="qmsStatsContent">
+            <div style="text-align:center; padding:40px; color:var(--text-muted);">Loading statistics...</div>
+          </div>
+        </div>
+
+      </section><!-- /as-qms-import -->
+
   </div>
 </div>
 

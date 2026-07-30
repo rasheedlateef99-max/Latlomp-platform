@@ -36,11 +36,11 @@ var SECTION_PERM_MAP = {
   'products':       ['store'],
   'cbt-management': ['cbt', 'practice'],
   'institutions':   ['institutions', 'subscriptions', 'announcements', 'audit_logs'],
-  'platform-staff': ['staff']
+  'platform-staff': ['staff'],
+  'qms-import':     ['question_import', 'question_bank', 'question_engine', 'question_stats']
   /* Future modules — add here when built:
-  ,'question-bank':    ['question_bank']
-  ,'question-engine':  ['question_engine']
   ,'payment-gateway':  ['payment_gateway']
+  ,'school-payments':  ['school_payments']
   */
 };
 
@@ -1077,6 +1077,488 @@ function getPlatformStaffDefaultPerms(role) {
     developer:      ['analytics','audit_logs','reports']
   };
   return defaults[role] || [];
+}
+
+/* ============================================================
+   QUESTION MANAGEMENT SYSTEM (QMS) — PHASE 1
+   Import → Validate → Preview → Confirm → History
+============================================================ */
+
+var _qmsPreviewData     = null; /* stores validated questions from last preview */
+var _qmsCurrentMethod   = 'paste'; /* 'paste' or 'file' */
+var _qmsSelectedFile    = null;
+var _qmsDeptsLoaded     = false;
+
+/* ---- API wrapper — uses correct token for root/staff ---- */
+async function qmsApi(path, method, body) {
+  var token = (typeof _isPlatformStaff !== 'undefined' && _isPlatformStaff)
+    ? localStorage.getItem('latlomp_platform_token')
+    : localStorage.getItem('latlomp_token');
+  var opts = {
+    method:  method || 'GET',
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+  };
+  if (body && (method || 'GET').toUpperCase() !== 'GET') opts.body = JSON.stringify(body);
+  try {
+    var res  = await fetch('/api/qms' + path, opts);
+    var data = await res.json();
+    return { ok: res.ok, status: res.status, data: data };
+  } catch (e) {
+    return { ok: false, status: 0, data: { message: 'Network error: ' + e.message } };
+  }
+}
+
+/* File upload: uses FormData (not JSON) */
+async function qmsFileApi(path, formData) {
+  var token = (typeof _isPlatformStaff !== 'undefined' && _isPlatformStaff)
+    ? localStorage.getItem('latlomp_platform_token')
+    : localStorage.getItem('latlomp_token');
+  try {
+    var res  = await fetch('/api/qms' + path, {
+      method:  'POST',
+      headers: { 'Authorization': 'Bearer ' + token },  /* no Content-Type — let browser set boundary */
+      body:    formData
+    });
+    var data = await res.json();
+    return { ok: res.ok, status: res.status, data: data };
+  } catch (e) {
+    return { ok: false, status: 0, data: { message: 'Network error: ' + e.message } };
+  }
+}
+
+/* ---- Init: called when QMS section becomes active ---- */
+async function qmsInit() {
+  if (!_qmsDeptsLoaded) {
+    await qmsLoadDepts();
+    _qmsDeptsLoaded = true;
+  }
+}
+
+/* ---- Sub-tab switching ---- */
+function qmsSwitchTab(tab) {
+  ['import', 'history', 'stats'].forEach(function (t) {
+    var panel = document.getElementById('qmsPanelImport'.replace('Import', t.charAt(0).toUpperCase() + t.slice(1)));
+    if (!panel) panel = document.getElementById('qmsPanel' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (panel) panel.style.display = (t === tab) ? 'block' : 'none';
+    var btn = document.getElementById('qmsTab' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (btn) btn.classList.toggle('active', t === tab);
+  });
+  if (tab === 'history') qmsLoadHistory();
+  if (tab === 'stats')   qmsLoadStats();
+}
+
+/* ---- Toggle paste / file input method ---- */
+function qmsSetMethod(method) {
+  _qmsCurrentMethod = method;
+  var pasteArea = document.getElementById('qmsPasteArea');
+  var fileArea  = document.getElementById('qmsFileArea');
+  var btnPaste  = document.getElementById('qmsBtnPaste');
+  var btnFile   = document.getElementById('qmsBtnFile');
+  if (pasteArea) pasteArea.style.display = (method === 'paste') ? 'block' : 'none';
+  if (fileArea)  fileArea.style.display  = (method === 'file')  ? 'block' : 'none';
+  if (btnPaste)  btnPaste.className = 'a-btn a-btn-sm ' + (method === 'paste' ? 'a-btn-primary' : 'a-btn-secondary');
+  if (btnFile)   btnFile.className  = 'a-btn a-btn-sm ' + (method === 'file'  ? 'a-btn-primary' : 'a-btn-secondary');
+  /* Reset preview on method change */
+  var pp = document.getElementById('qmsPreviewPanel');
+  if (pp) pp.style.display = 'none';
+  _qmsPreviewData = null;
+}
+
+/* Called when file is selected via input */
+function qmsFileSelected(input) {
+  _qmsSelectedFile = input.files && input.files[0];
+  var lbl = document.getElementById('qmsFileLabel');
+  if (lbl && _qmsSelectedFile) {
+    lbl.textContent = '✅ ' + _qmsSelectedFile.name + ' (' + (_qmsSelectedFile.size / 1024).toFixed(1) + ' KB)';
+  }
+}
+
+/* ---- Load departments into dropdown ---- */
+async function qmsLoadDepts() {
+  var examType = (document.getElementById('qmsExamType') || {}).value || 'jamb';
+  var res      = await qmsApi('/departments?examCategory=' + examType);
+  var sel      = document.getElementById('qmsDepartment');
+  if (!sel) { return; }
+  if (!res.ok || !res.data.departments.length) {
+    sel.innerHTML = '<option value="">— No departments for ' + examType.toUpperCase() + ' —</option>';
+    document.getElementById('qmsSubject').innerHTML = '<option value="">— select department first —</option>';
+    return;
+  }
+  sel.innerHTML = '<option value="">— Select Department (optional) —</option>' +
+    res.data.departments.map(function (d) {
+      return '<option value="' + d._id + '" data-name="' + (d.name || '').replace(/"/g, '&quot;') + '">' + d.name + '</option>';
+    }).join('');
+  /* Auto-load subjects if a dept was previously selected */
+  if (sel.value) { await qmsLoadSubjectsForDept(); }
+}
+
+/* ---- Load subjects based on selected department ---- */
+async function qmsLoadSubjectsForDept() {
+  var deptSel = document.getElementById('qmsDepartment');
+  var deptId  = deptSel ? deptSel.value : '';
+  var subjSel = document.getElementById('qmsSubject');
+  if (!subjSel) { return; }
+
+  if (!deptId) {
+    subjSel.innerHTML = '<option value="">— select department first —</option>';
+    return;
+  }
+
+  subjSel.innerHTML = '<option value="">Loading...</option>';
+  var res = await qmsApi('/subjects?departmentId=' + deptId);
+
+  if (!res.ok || !res.data.subjects.length) {
+    subjSel.innerHTML = '<option value="">— No subjects for this department —</option>';
+    return;
+  }
+  subjSel.innerHTML = '<option value="">— Select Subject (optional) —</option>' +
+    res.data.subjects.map(function (s) {
+      return '<option value="' + s._id + '" data-name="' + (s.name || '').replace(/"/g, '&quot;') + '">' + s.name + '</option>';
+    }).join('');
+}
+
+/* ---- Get selected metadata ---- */
+function qmsGetMeta() {
+  var examTypeSel  = document.getElementById('qmsExamType');
+  var deptSel      = document.getElementById('qmsDepartment');
+  var subjSel      = document.getElementById('qmsSubject');
+  var deptOpt      = deptSel && deptSel.selectedOptions[0];
+  var subjOpt      = subjSel && subjSel.selectedOptions[0];
+  return {
+    examType:       examTypeSel ? examTypeSel.value : 'jamb',
+    departmentId:   deptSel ? deptSel.value : '',
+    departmentName: deptOpt ? (deptOpt.dataset.name || deptOpt.text || '') : '',
+    subjectId:      subjSel ? subjSel.value : '',
+    subjectName:    subjOpt ? (subjOpt.dataset.name || subjOpt.text || '') : ''
+  };
+}
+
+/* ---- Validate & Preview ---- */
+async function qmsPreview() {
+  var btn    = document.getElementById('qmsValidateBtn');
+  var status = document.getElementById('qmsValidateStatus');
+  var meta   = qmsGetMeta();
+  var pp     = document.getElementById('qmsPreviewPanel');
+
+  if (pp) pp.style.display = 'none';
+  _qmsPreviewData = null;
+
+  if (btn) { btn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px;"></span> Validating...'; btn.disabled = true; }
+  if (status) status.textContent = '';
+
+  var res;
+
+  if (_qmsCurrentMethod === 'file') {
+    if (!_qmsSelectedFile) {
+      instToast('Please select a file first.', 'error');
+      if (btn) { btn.innerHTML = '🔍 Validate & Preview'; btn.disabled = false; }
+      return;
+    }
+    var fd = new FormData();
+    fd.append('file',           _qmsSelectedFile);
+    fd.append('examType',       meta.examType);
+    fd.append('departmentId',   meta.departmentId);
+    fd.append('subjectId',      meta.subjectId);
+    fd.append('subjectName',    meta.subjectName);
+    fd.append('departmentName', meta.departmentName);
+    res = await qmsFileApi('/import/preview/file', fd);
+  } else {
+    var text = (document.getElementById('qmsPasteText') || {}).value || '';
+    if (!text.trim()) {
+      instToast('Please paste some questions first.', 'error');
+      if (btn) { btn.innerHTML = '🔍 Validate & Preview'; btn.disabled = false; }
+      return;
+    }
+    res = await qmsApi('/import/preview', 'POST', {
+      text:           text,
+      examType:       meta.examType,
+      departmentId:   meta.departmentId,
+      subjectId:      meta.subjectId,
+      subjectName:    meta.subjectName,
+      departmentName: meta.departmentName
+    });
+  }
+
+  if (btn) { btn.innerHTML = '🔍 Validate & Preview'; btn.disabled = false; }
+
+  if (!res.ok) {
+    instToast(res.data.message || 'Validation failed.', 'error');
+    return;
+  }
+
+  var preview = res.data.preview;
+  _qmsPreviewData = { preview: preview, meta: meta, sourceType: _qmsCurrentMethod === 'file' ? 'file' : 'paste', filename: res.data.filename || '' };
+  renderQmsPreview(preview, meta);
+  if (status) status.textContent = 'Validation complete.';
+}
+
+/* ---- Render preview UI ---- */
+function renderQmsPreview(preview, meta) {
+  var pp = document.getElementById('qmsPreviewPanel');
+  if (!pp) { return; }
+  pp.style.display = 'block';
+
+  var stats = preview.stats || {};
+  var PREVIEW_LIMIT = 20;
+
+  /* Stats bar */
+  var statsEl = document.getElementById('qmsPreviewStats');
+  if (statsEl) {
+    statsEl.innerHTML = [
+      ['📋', stats.detected  || 0, 'Detected',   'rgba(255,255,255,0.06)'],
+      ['✅', stats.valid      || 0, 'Valid',       'rgba(67,233,123,0.1)'],
+      ['🔁', stats.duplicate  || 0, 'Duplicates',  'rgba(255,165,0,0.1)'],
+      ['❌', stats.rejected   || 0, 'Rejected',    'rgba(255,101,132,0.1)']
+    ].map(function (s) {
+      return '<div class="a-stat-card" style="background:' + s[3] + '; border-radius:12px; padding:16px;">' +
+        '<div style="font-size:20px; margin-right:12px;">' + s[0] + '</div>' +
+        '<div><div style="font-size:24px; font-weight:900; color:#fff;">' + s[1] + '</div>' +
+        '<div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">' + s[2] + '</div></div>' +
+      '</div>';
+    }).join('');
+  }
+
+  /* Warnings */
+  var wEl = document.getElementById('qmsWarningsPanel');
+  if (wEl) {
+    var warnings = preview.warnings || [];
+    if (warnings.length) {
+      wEl.style.display = 'block';
+      wEl.innerHTML = '<div style="background:rgba(255,165,0,0.08); border:1px solid rgba(255,165,0,0.2); border-radius:10px; padding:14px 16px;">' +
+        '<div style="font-size:12px; font-weight:700; color:#ffa500; margin-bottom:8px;">⚠️ Parse Warnings (' + warnings.length + ')</div>' +
+        '<div style="font-size:12px; color:var(--text-secondary); line-height:1.8;">' +
+          warnings.slice(0, 10).map(function (w) { return '• ' + w; }).join('<br>') +
+          (warnings.length > 10 ? '<br>... and ' + (warnings.length - 10) + ' more.' : '') +
+        '</div></div>';
+    } else {
+      wEl.style.display = 'none';
+    }
+  }
+
+  /* Valid questions table */
+  var validQs = preview.valid || [];
+  var titleEl = document.getElementById('qmsPreviewTitle');
+  if (titleEl) titleEl.textContent = 'Valid Questions Preview (' + validQs.length + ' ready to import)';
+
+  var confirmBtn = document.getElementById('qmsConfirmBtn');
+  if (confirmBtn) {
+    if (validQs.length > 0) {
+      confirmBtn.style.display = 'inline-flex';
+      confirmBtn.textContent   = '✅ Import ' + validQs.length + ' Question' + (validQs.length !== 1 ? 's' : '');
+    } else {
+      confirmBtn.style.display = 'none';
+    }
+  }
+
+  var tbody = document.getElementById('qmsPreviewTable');
+  var noteEl = document.getElementById('qmsPreviewMoreNote');
+  if (tbody) {
+    var letters = ['A', 'B', 'C', 'D'];
+    var shown   = validQs.slice(0, PREVIEW_LIMIT);
+    if (!shown.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:var(--text-muted);">No valid questions found. Check warnings above.</td></tr>';
+    } else {
+      tbody.innerHTML = shown.map(function (q, i) {
+        var opts = (q.options || []).map(function (o, idx) {
+          return '<span style="font-size:11px; padding:1px 6px; border-radius:4px; margin-right:3px; background:' +
+            (idx === q.correctAnswer ? 'rgba(67,233,123,0.15)' : 'rgba(255,255,255,0.04)') + '; color:' +
+            (idx === q.correctAnswer ? '#43e97b' : 'var(--text-secondary)') + ';">' +
+            letters[idx] + ': ' + o.substring(0, 30) + (o.length > 30 ? '...' : '') +
+            (idx === q.correctAnswer ? ' ✓' : '') + '</span>';
+        }).join('');
+        return '<tr>' +
+          '<td style="font-weight:700; color:#a78bfa;">' + (i + 1) + '</td>' +
+          '<td style="color:#fff; font-size:13px;">' + q.question.substring(0, 100) + (q.question.length > 100 ? '...' : '') + '</td>' +
+          '<td>' + opts + '</td>' +
+          '<td><span style="background:rgba(67,233,123,0.12); color:#43e97b; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;">' +
+            (letters[q.correctAnswer] || '?') + '</span></td>' +
+        '</tr>';
+      }).join('');
+    }
+    if (noteEl) {
+      noteEl.textContent = validQs.length > PREVIEW_LIMIT
+        ? 'Showing ' + PREVIEW_LIMIT + ' of ' + validQs.length + ' valid questions. All ' + validQs.length + ' will be imported on confirmation.'
+        : '';
+    }
+  }
+
+  /* Rejected table */
+  var rejEl  = document.getElementById('qmsRejectedPanel');
+  var rejTbl = document.getElementById('qmsRejectedTable');
+  var rejTtl = document.getElementById('qmsRejectedTitle');
+  var rejected = preview.rejected || [];
+  if (rejEl) {
+    if (rejected.length) {
+      rejEl.style.display = 'block';
+      if (rejTtl) rejTtl.textContent = 'Rejected Questions (' + rejected.length + ')';
+      if (rejTbl) {
+        rejTbl.innerHTML = rejected.map(function (r, i) {
+          return '<tr><td style="color:#ff6584; font-weight:700;">' + (i + 1) + '</td>' +
+            '<td style="font-size:12px;">' + r.question.substring(0, 80) + '</td>' +
+            '<td style="font-size:12px; color:#ffa500;">' + r.reason + '</td></tr>';
+        }).join('');
+      }
+    } else {
+      rejEl.style.display = 'none';
+    }
+  }
+
+  /* Duplicates table */
+  var dupEl  = document.getElementById('qmsDuplicatesPanel');
+  var dupTbl = document.getElementById('qmsDuplicatesTable');
+  var dupTtl = document.getElementById('qmsDuplicatesTitle');
+  var dupes  = preview.duplicates || [];
+  if (dupEl) {
+    if (dupes.length) {
+      dupEl.style.display = 'block';
+      if (dupTtl) dupTtl.textContent = 'Duplicate Questions Skipped (' + dupes.length + ')';
+      if (dupTbl) {
+        dupTbl.innerHTML = dupes.map(function (d, i) {
+          return '<tr><td style="color:#ffa500; font-weight:700;">' + (i + 1) + '</td>' +
+            '<td style="font-size:12px;">' + d.question.substring(0, 80) + '</td>' +
+            '<td style="font-size:12px; color:var(--text-muted);">' + d.reason + '</td></tr>';
+        }).join('');
+      }
+    } else {
+      dupEl.style.display = 'none';
+    }
+  }
+}
+
+/* ---- Confirm Import ---- */
+async function qmsConfirmImport() {
+  if (!_qmsPreviewData || !_qmsPreviewData.preview || !_qmsPreviewData.preview.valid.length) {
+    instToast('No valid questions to import.', 'error');
+    return;
+  }
+
+  var btn   = document.getElementById('qmsConfirmBtn');
+  var count = _qmsPreviewData.preview.valid.length;
+
+  if (!confirm('Import ' + count + ' question' + (count !== 1 ? 's' : '') + ' into the Question Bank?\n\nThis cannot be undone.')) {
+    return;
+  }
+
+  if (btn) { btn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px;"></span> Importing...'; btn.disabled = true; }
+
+  var meta     = _qmsPreviewData.meta;
+  var preview  = _qmsPreviewData.preview;
+
+  var res = await qmsApi('/import/confirm', 'POST', {
+    questions:       preview.valid,
+    examType:        meta.examType,
+    departmentId:    meta.departmentId,
+    subjectId:       meta.subjectId,
+    subjectName:     meta.subjectName,
+    departmentName:  meta.departmentName,
+    sourceType:      _qmsPreviewData.sourceType,
+    originalFilename: _qmsPreviewData.filename,
+    stats:           preview.stats
+  });
+
+  if (btn) { btn.innerHTML = '✅ Import ' + count + ' Questions'; btn.disabled = false; }
+
+  if (res.ok) {
+    instToast('✅ ' + res.data.imported + ' questions imported successfully!', 'success');
+    /* Show success message and link to history */
+    var confirmBtn = document.getElementById('qmsConfirmBtn');
+    if (confirmBtn) confirmBtn.style.display = 'none';
+    var titleEl = document.getElementById('qmsPreviewTitle');
+    if (titleEl) {
+      titleEl.innerHTML =
+        '✅ Import Complete — <span style="color:#43e97b;">' + res.data.imported + ' questions added</span>' +
+        ' &nbsp;·&nbsp; <button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsSwitchTab(\'history\')">View History</button>';
+    }
+    _qmsPreviewData = null;
+  } else {
+    instToast(res.data.message || 'Import failed.', 'error');
+  }
+}
+
+/* ---- Reset import form ---- */
+function qmsReset() {
+  var txt = document.getElementById('qmsPasteText');
+  if (txt) txt.value = '';
+  _qmsSelectedFile = null;
+  _qmsPreviewData  = null;
+  var lbl = document.getElementById('qmsFileLabel');
+  if (lbl) lbl.textContent = 'Click to upload or drag and drop';
+  var pp = document.getElementById('qmsPreviewPanel');
+  if (pp) pp.style.display = 'none';
+  var status = document.getElementById('qmsValidateStatus');
+  if (status) status.textContent = '';
+  var fileInput = document.getElementById('qmsFileInput');
+  if (fileInput) fileInput.value = '';
+}
+
+/* ---- Load import history ---- */
+async function qmsLoadHistory() {
+  var tbody = document.getElementById('qmsHistoryTable');
+  if (!tbody) { return; }
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:28px; color:var(--text-muted);">Loading...</td></tr>';
+
+  var res = await qmsApi('/import/history?limit=30');
+  if (!res.ok) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#ff6584; padding:20px;">' + (res.data.message || 'Failed to load.') + '</td></tr>';
+    return;
+  }
+
+  var jobs = res.data.jobs || [];
+  if (!jobs.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:32px; color:var(--text-muted);">No imports yet. Use the Import tab to add questions.</td></tr>';
+    return;
+  }
+
+  var statusColors = { completed: '#43e97b', partial: '#ffa500', failed: '#ff6584', processing: '#a78bfa' };
+
+  tbody.innerHTML = jobs.map(function (j) {
+    var date       = new Date(j.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' });
+    var timeStr    = new Date(j.createdAt).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' });
+    var statusCol  = statusColors[j.status] || '#fff';
+    var skipped    = (j.stats.duplicate || 0) + (j.stats.rejected || 0);
+    return '<tr>' +
+      '<td style="font-size:12px; color:var(--text-secondary);">' + date + '<br><span style="color:var(--text-muted); font-size:11px;">' + timeStr + '</span></td>' +
+      '<td style="font-size:12px;">' + (j.importedBy || '—') + '</td>' +
+      '<td><span style="font-size:11px; background:rgba(108,99,255,0.12); color:#a78bfa; padding:2px 8px; border-radius:20px; font-weight:700;">' + (j.examType || '—').toUpperCase() + '</span></td>' +
+      '<td style="font-size:12px; color:var(--text-secondary);">' + (j.subjectName || '—') + '</td>' +
+      '<td style="font-weight:700; color:#fff;">' + (j.stats.detected || 0) + '</td>' +
+      '<td style="font-weight:700; color:#43e97b;">' + (j.stats.imported || 0) + '</td>' +
+      '<td style="font-size:12px; color:#ffa500;">' + skipped + '</td>' +
+      '<td><span style="font-size:11px; font-weight:700; color:' + statusCol + ';">' + (j.status || '—').toUpperCase() + '</span></td>' +
+    '</tr>';
+  }).join('');
+}
+
+/* ---- Load statistics ---- */
+async function qmsLoadStats() {
+  var el = document.getElementById('qmsStatsContent');
+  if (!el) { return; }
+  el.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-muted);">Loading...</div>';
+
+  var res = await qmsApi('/stats');
+  if (!res.ok) {
+    el.innerHTML = '<div style="text-align:center; padding:40px; color:#ff6584;">' + (res.data.message || 'Failed to load stats.') + '</div>';
+    return;
+  }
+
+  var s    = res.data.stats || {};
+  var byET = s.byExamType || {};
+  var etCards = Object.keys(byET).map(function (et) {
+    return '<div class="a-stat-card"><div class="a-stat-icon">📝</div><div>' +
+      '<div class="a-stat-val">' + byET[et] + '</div>' +
+      '<div class="a-stat-lbl">' + et.toUpperCase() + '</div>' +
+    '</div></div>';
+  }).join('');
+
+  el.innerHTML =
+    '<div class="a-stats-grid" style="margin-bottom:20px;">' +
+      '<div class="a-stat-card"><div class="a-stat-icon">📚</div><div><div class="a-stat-val">' + (s.total || 0) + '</div><div class="a-stat-lbl">Total Questions</div></div></div>' +
+      '<div class="a-stat-card"><div class="a-stat-icon" style="background:rgba(67,233,123,0.1);">✅</div><div><div class="a-stat-val">' + (s.approved || 0) + '</div><div class="a-stat-lbl">Approved</div></div></div>' +
+      '<div class="a-stat-card"><div class="a-stat-icon" style="background:rgba(255,165,0,0.1);">⏳</div><div><div class="a-stat-val">' + (s.pending || 0) + '</div><div class="a-stat-lbl">Pending Review</div></div></div>' +
+      '<div class="a-stat-card"><div class="a-stat-icon" style="background:rgba(255,101,132,0.1);">📋</div><div><div class="a-stat-val">' + (s.totalJobs || 0) + '</div><div class="a-stat-lbl">Import Jobs</div></div></div>' +
+    '</div>' +
+    (etCards ? '<div style="margin-bottom:8px; font-size:13px; font-weight:700; color:var(--text-secondary,#a0a0c0); text-transform:uppercase; letter-spacing:0.5px;">By Exam Type</div>' +
+    '<div style="display:grid; grid-template-columns:repeat(5,1fr); gap:12px; flex-wrap:wrap;">' + etCards + '</div>' : '');
 }
 
 console.log('🔧 Admin Dashboard loaded');

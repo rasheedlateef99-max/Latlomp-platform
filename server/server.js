@@ -90,6 +90,15 @@ app.use("/api/platform-auth",  require("./platform/routes/platform.auth.routes")
 app.use("/api/platform-staff", require("./platform/routes/platform.staff.routes"));
 
 /* ============================================
+   QUESTION MANAGEMENT SYSTEM
+   Lives inside Platform Administration.
+   Uses adminOrPlatformStaff('question_import') guard.
+   Platform Staff require explicit permission.
+   Root Admin always has access.
+============================================ */
+app.use("/api/qms", require("./platform/routes/qms.routes"));
+
+/* ============================================
    HEALTH CHECK
 ============================================ */
 app.get("/api/health", function (req, res) {

@@ -100,46 +100,47 @@ var PERMISSION_REGISTRY = [
     category: 'communication'
   }
 
-  /* ── FUTURE MODULES ──────────────────────────────────────
-     Uncomment when the module is built. No other files need
-     changing — the registry propagates automatically.
-
+  /* ── QMS MODULES (Phase 1 delivered) ───────────────────── */
+  ,{
+    key:      'question_import',
+    label:    'Question Import',
+    icon:     '📥',
+    desc:     'Import questions into the platform question bank',
+    category: 'qms'
+  }
   ,{
     key:      'question_bank',
     label:    'Question Bank',
     icon:     '📚',
-    desc:     'Manage the central question repository',
-    category: 'content'
+    desc:     'Browse, edit, and manage all stored questions',
+    category: 'qms'
   }
   ,{
     key:      'question_engine',
     label:    'Question Engine',
     icon:     '🧠',
-    desc:     'Configure intelligent question delivery',
-    category: 'content'
+    desc:     'Configure intelligent question delivery for CBT',
+    category: 'qms'
   }
   ,{
-    key:      'payment_gateway',
-    label:    'Payment Gateway',
-    icon:     '💰',
-    desc:     'Manage platform payment gateway settings',
-    category: 'commerce'
+    key:      'question_stats',
+    label:    'Question Statistics',
+    icon:     '📊',
+    desc:     'View import history and question bank analytics',
+    category: 'qms'
   }
-  ,{
-    key:      'school_payments',
-    label:    'School Payment Records',
-    icon:     '🏦',
-    desc:     'View and manage school payment history',
-    category: 'commerce'
-  }
-  ── END FUTURE MODULES ─────────────────────────────────── */
+
 ];
+/* ── FUTURE MODULES ──────────────────────────────────────*/
+
+
 
 /* ---- Role defaults — applied on invitation acceptance ---- */
 var ROLE_DEFAULT_PERMISSIONS = {
-  platform_admin: [
+ platform_admin: [
     'institutions', 'subscriptions', 'cbt', 'staff',
-    'analytics', 'reports', 'announcements', 'audit_logs', 'store'
+    'analytics', 'reports', 'announcements', 'audit_logs', 'store',
+    'question_import', 'question_bank', 'question_engine', 'question_stats'
   ],
   support_admin:  ['institutions', 'analytics', 'announcements', 'audit_logs'],
   finance_admin:  ['institutions', 'subscriptions', 'reports', 'analytics'],
