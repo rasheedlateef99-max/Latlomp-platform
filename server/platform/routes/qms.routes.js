@@ -48,7 +48,7 @@ try {
   console.warn('⚠️  [QMS] multer not available — file upload disabled. Run: npm install multer');
 }
 
-<div style="font-size:12px; color:var(--text-muted,#6b6b8a); margin-top:6px;">Supported: .txt, .csv, .docx, .xlsx — Max 10MB — CSV/XLSX requires columns: question, option_a, option_b, option_c, option_d, correct_answer</div>
+
 
 /* ---- Question ID generator ---- */
 async function generateQuestionId(examType, subjectName) {
