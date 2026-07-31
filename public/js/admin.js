@@ -1534,32 +1534,242 @@ async function qmsLoadHistory() {
 async function qmsLoadStats() {
   var el = document.getElementById('qmsStatsContent');
   if (!el) { return; }
-  el.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-muted);">Loading...</div>';
+  el.innerHTML = '<div style="text-align:center; padding:32px; color:var(--text-muted);">Loading...</div>';
 
   var res = await qmsApi('/stats');
   if (!res.ok) {
-    el.innerHTML = '<div style="text-align:center; padding:40px; color:#ff6584;">' + (res.data.message || 'Failed to load stats.') + '</div>';
+    el.innerHTML = '<div style="text-align:center; padding:40px; color:#ff6584;">' + (res.data.message || 'Failed to load.') + '</div>';
     return;
   }
 
   var s    = res.data.stats || {};
-  var byET = s.byExamType || {};
+  var byET = s.byExamType   || {};
   var etCards = Object.keys(byET).map(function (et) {
     return '<div class="a-stat-card"><div class="a-stat-icon">📝</div><div>' +
-      '<div class="a-stat-val">' + byET[et] + '</div>' +
+      '<div class="a-stat-val">' + Number(byET[et]).toLocaleString() + '</div>' +
       '<div class="a-stat-lbl">' + et.toUpperCase() + '</div>' +
     '</div></div>';
   }).join('');
 
   el.innerHTML =
     '<div class="a-stats-grid" style="margin-bottom:20px;">' +
-      '<div class="a-stat-card"><div class="a-stat-icon">📚</div><div><div class="a-stat-val">' + (s.total || 0) + '</div><div class="a-stat-lbl">Total Questions</div></div></div>' +
-      '<div class="a-stat-card"><div class="a-stat-icon" style="background:rgba(67,233,123,0.1);">✅</div><div><div class="a-stat-val">' + (s.approved || 0) + '</div><div class="a-stat-lbl">Approved</div></div></div>' +
-      '<div class="a-stat-card"><div class="a-stat-icon" style="background:rgba(255,165,0,0.1);">⏳</div><div><div class="a-stat-val">' + (s.pending || 0) + '</div><div class="a-stat-lbl">Pending Review</div></div></div>' +
-      '<div class="a-stat-card"><div class="a-stat-icon" style="background:rgba(255,101,132,0.1);">📋</div><div><div class="a-stat-val">' + (s.totalJobs || 0) + '</div><div class="a-stat-lbl">Import Jobs</div></div></div>' +
+      '<div class="a-stat-card"><div class="a-stat-icon">📚</div>' +
+        '<div><div class="a-stat-val">' + Number(s.total    || 0).toLocaleString() + '</div><div class="a-stat-lbl">Total Questions</div></div></div>' +
+      '<div class="a-stat-card"><div class="a-stat-icon" style="background:rgba(67,233,123,0.1);">✅</div>' +
+        '<div><div class="a-stat-val">' + Number(s.approved || 0).toLocaleString() + '</div><div class="a-stat-lbl">Approved</div></div></div>' +
+      '<div class="a-stat-card"><div class="a-stat-icon" style="background:rgba(255,165,0,0.1);">⏳</div>' +
+        '<div><div class="a-stat-val">' + Number(s.pending  || 0).toLocaleString() + '</div><div class="a-stat-lbl">Pending Review</div></div></div>' +
+      '<div class="a-stat-card"><div class="a-stat-icon" style="background:rgba(255,101,132,0.1);">📋</div>' +
+        '<div><div class="a-stat-val">' + Number(s.totalJobs|| 0).toLocaleString() + '</div><div class="a-stat-lbl">Import Jobs</div></div></div>' +
     '</div>' +
-    (etCards ? '<div style="margin-bottom:8px; font-size:13px; font-weight:700; color:var(--text-secondary,#a0a0c0); text-transform:uppercase; letter-spacing:0.5px;">By Exam Type</div>' +
-    '<div style="display:grid; grid-template-columns:repeat(5,1fr); gap:12px; flex-wrap:wrap;">' + etCards + '</div>' : '');
+    (Object.keys(byET).length
+      ? '<div style="margin-bottom:8px; font-size:13px; font-weight:700; color:var(--text-secondary); ' +
+          'text-transform:uppercase; letter-spacing:0.5px;">Approved by Exam Type</div>' +
+        '<div style="display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:4px;">' +
+          etCards + '</div>'
+      : '');
+
+  /* Load advanced analytics after summary */
+  qmsLoadAdvancedStats();
+  qmsLoadTags();
+}
+
+/* ---- Advanced analytics (charts) ---- */
+async function qmsLoadAdvancedStats() {
+  var res = await qmsApi('/analytics');
+  if (!res.ok) { return; }
+  var a = res.data.analytics || {};
+
+  /* Import trend chart */
+  renderImportTrendChart(a.importTrend || []);
+
+  /* Top subjects */
+  renderTopSubjectsChart(a.topSubjects || []);
+
+  /* Difficulty dist */
+  renderDiffDistChart(a.diffDist || {});
+
+  /* Year distribution */
+  renderYearDistChart(a.yearDist || []);
+
+  /* Source dist */
+  renderSourceDistChart(a.sourceDist || []);
+}
+
+function renderImportTrendChart(trend) {
+  var el = document.getElementById('qmsImportTrendChart');
+  if (!el) { return; }
+  if (!trend.length) { el.innerHTML = '<div style="color:var(--text-muted); font-size:13px; text-align:center;">No import activity in the last 30 days.</div>'; return; }
+
+  var maxImported = Math.max(1, Math.max.apply(null, trend.map(function (d) { return d.imported; })));
+
+  el.innerHTML =
+    '<div style="display:flex; align-items:flex-end; gap:3px; height:100px; overflow-x:auto; padding-bottom:6px;">' +
+    trend.map(function (d) {
+      var h    = Math.max(2, Math.round((d.imported / maxImported) * 90));
+      var date = d.date.substring(5); /* MM-DD */
+      var isToday = d.date === new Date().toISOString().substring(0, 10);
+      return '<div style="display:flex; flex-direction:column; align-items:center; gap:3px; flex:1; min-width:14px;" title="' + d.date + ': ' + d.imported + ' imported">' +
+        '<div style="font-size:9px; color:var(--text-muted); white-space:nowrap; writing-mode:vertical-rl; transform:rotate(180deg); max-height:32px; overflow:hidden;">' +
+          (d.imported > 0 ? d.imported : '') +
+        '</div>' +
+        '<div style="width:100%; height:' + h + 'px; border-radius:3px 3px 0 0; background:' +
+          (isToday ? 'linear-gradient(180deg,#43e97b,#38f9d7)' : 'rgba(108,99,255,0.5)') + ';' +
+          'min-height:2px;"></div>' +
+      '</div>';
+    }).join('') +
+    '</div>' +
+    '<div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted); margin-top:4px; padding:0 2px;">' +
+      '<span>' + trend[0].date.substring(5) + '</span>' +
+      '<span>' + trend[trend.length - 1].date.substring(5) + '</span>' +
+    '</div>';
+}
+
+function renderTopSubjectsChart(subjects) {
+  var el = document.getElementById('qmsTopSubjectsChart');
+  if (!el) { return; }
+  if (!subjects.length) { el.innerHTML = '<div style="color:var(--text-muted); font-size:13px; text-align:center;">No data yet.</div>'; return; }
+
+  var maxCount = Math.max(1, subjects[0].count);
+  el.innerHTML = subjects.map(function (s, i) {
+    var pct    = Math.round((s.count / maxCount) * 100);
+    var color  = i < 3 ? '#43e97b' : i < 6 ? '#6c63ff' : '#a0a0c0';
+    return '<div style="margin-bottom:10px;">' +
+      '<div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">' +
+        '<span style="color:#fff; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:65%;">' + esc(s.subjectName) + '</span>' +
+        '<span style="color:' + color + '; font-weight:700;">' + s.count.toLocaleString() + '</span>' +
+      '</div>' +
+      '<div style="background:rgba(255,255,255,0.06); border-radius:20px; height:7px;">' +
+        '<div style="background:' + color + '; width:' + pct + '%; height:100%; border-radius:20px; transition:width 0.6s ease;"></div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function renderDiffDistChart(diff) {
+  var el = document.getElementById('qmsDiffDistChart');
+  if (!el) { return; }
+  var total = (diff.easy || 0) + (diff.medium || 0) + (diff.hard || 0) + (diff.mixed || 0) || 1;
+  var rows  = [
+    { label:'Easy',   val: diff.easy   || 0, color:'#43e97b' },
+    { label:'Medium', val: diff.medium || 0, color:'#ffa500' },
+    { label:'Hard',   val: diff.hard   || 0, color:'#ff6584' },
+    { label:'Mixed',  val: diff.mixed  || 0, color:'#a78bfa' }
+  ];
+  el.innerHTML = rows.map(function (r) {
+    var pct = Math.round((r.val / total) * 100);
+    return '<div style="margin-bottom:14px;">' +
+      '<div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:6px;">' +
+        '<span style="font-weight:700; color:' + r.color + ';">' + r.label + '</span>' +
+        '<span style="color:#fff; font-weight:700;">' + r.val.toLocaleString() + ' &nbsp;<span style="color:var(--text-muted); font-size:11px;">(' + pct + '%)</span></span>' +
+      '</div>' +
+      '<div style="background:rgba(255,255,255,0.06); border-radius:20px; height:10px;">' +
+        '<div style="background:' + r.color + '; width:' + pct + '%; height:100%; border-radius:20px;"></div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function renderYearDistChart(yearDist) {
+  var el = document.getElementById('qmsYearDistChart');
+  if (!el) { return; }
+  if (!yearDist.length) { el.innerHTML = '<div style="color:var(--text-muted); font-size:13px; text-align:center;">No year data available.</div>'; return; }
+
+  var maxCount = Math.max(1, Math.max.apply(null, yearDist.map(function (y) { return y.count; })));
+  el.innerHTML =
+    '<div style="display:flex; align-items:flex-end; gap:4px; height:90px; overflow-x:auto;">' +
+    yearDist.map(function (y) {
+      var h = Math.max(4, Math.round((y.count / maxCount) * 80));
+      return '<div style="display:flex; flex-direction:column; align-items:center; gap:2px; flex:0 0 auto; min-width:28px;" title="' + y.year + ': ' + y.count + ' questions">' +
+        '<div style="font-size:10px; color:var(--text-muted);">' + y.count + '</div>' +
+        '<div style="width:22px; height:' + h + 'px; background:rgba(108,99,255,0.6); border-radius:3px 3px 0 0;"></div>' +
+        '<div style="font-size:10px; color:var(--text-muted); white-space:nowrap;">' + y.year + '</div>' +
+      '</div>';
+    }).join('') +
+    '</div>';
+}
+
+function renderSourceDistChart(sources) {
+  var el = document.getElementById('qmsSourceDistChart');
+  if (!el) { return; }
+  if (!sources.length) { el.innerHTML = '<div style="color:var(--text-muted); font-size:13px; text-align:center;">No import source data yet.</div>'; return; }
+
+  var icons   = { paste:'📋', txt:'📄', csv:'📊', xlsx:'📊', docx:'📝' };
+  var maxImported = Math.max(1, Math.max.apply(null, sources.map(function (s) { return s.imported; })));
+
+  el.innerHTML = sources.map(function (s) {
+    var icon = icons[s._id] || '📁';
+    var pct  = Math.round((s.imported / maxImported) * 100);
+    return '<div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">' +
+      '<div style="font-size:20px; width:28px; text-align:center; flex-shrink:0;">' + icon + '</div>' +
+      '<div style="flex:1;">' +
+        '<div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">' +
+          '<span style="font-weight:700; color:#fff; text-transform:uppercase;">' + esc(s._id || 'Unknown') + '</span>' +
+          '<span style="color:var(--text-secondary);">' + s.imported.toLocaleString() + ' questions · ' + s.jobs + ' job' + (s.jobs !== 1 ? 's' : '') + '</span>' +
+        '</div>' +
+        '<div style="background:rgba(255,255,255,0.06); border-radius:20px; height:6px;">' +
+          '<div style="background:#6c63ff; width:' + pct + '%; height:100%; border-radius:20px;"></div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+/* ---- Tag Manager ---- */
+async function qmsLoadTags() {
+  var cloudEl  = document.getElementById('qmsTagCloud');
+  var filterEl = document.getElementById('qmsTagFilterExam');
+  var examType = filterEl ? filterEl.value : '';
+  if (!cloudEl) { return; }
+  cloudEl.innerHTML = '<div style="color:var(--text-muted); font-size:13px;">Loading...</div>';
+
+  var qs  = examType ? '?examType=' + examType : '';
+  var res = await qmsApi('/tags' + qs);
+  if (!res.ok) { cloudEl.innerHTML = '<div style="color:#ff6584; font-size:13px;">Failed to load tags.</div>'; return; }
+
+  var topics = res.data.topics || [];
+  if (!topics.length) {
+    cloudEl.innerHTML = '<div style="color:var(--text-muted); font-size:13px; padding:8px;">No topics found. Add topics when importing or editing questions.</div>';
+    /* Also populate topic dropdown in bank filter */
+    qmsPopulateTopicFilter([]);
+    return;
+  }
+
+  /* Render tag cloud with size variation */
+  var maxCount = topics[0].count || 1;
+  cloudEl.innerHTML = topics.map(function (t) {
+    var size  = 11 + Math.round((t.count / maxCount) * 6);
+    var alpha = 0.1 + (t.count / maxCount) * 0.25;
+    return '<button onclick="qmsFilterByTopic(\'' + esc(t.topic).replace(/'/g, "\\'") + '\')" ' +
+      'title="' + t.count + ' questions" ' +
+      'style="padding:5px 12px; border-radius:20px; font-size:' + size + 'px; font-weight:700; cursor:pointer; ' +
+      'font-family:inherit; background:rgba(108,99,255,' + alpha.toFixed(2) + '); ' +
+      'border:1px solid rgba(108,99,255,0.3); color:#a78bfa; transition:all 0.15s;">' +
+      esc(t.topic) + ' <span style="font-size:10px; opacity:0.7;">(' + t.count + ')</span>' +
+    '</button>';
+  }).join('');
+
+  qmsPopulateTopicFilter(topics);
+}
+
+/* Populate topic dropdown in bank filter */
+function qmsPopulateTopicFilter(topics) {
+  var sel = document.getElementById('qmsBankFilterTopic');
+  if (!sel) { return; }
+  var current = sel.value;
+  sel.innerHTML = '<option value="">All Topics</option>' +
+    topics.map(function (t) {
+      return '<option value="' + esc(t.topic) + '">' + esc(t.topic) + ' (' + t.count + ')</option>';
+    }).join('');
+  if (current) { sel.value = current; }
+}
+
+/* Click topic chip → jump to bank tab filtered by that topic */
+function qmsFilterByTopic(topic) {
+  qmsSwitchTab('bank');
+  var topicSel = document.getElementById('qmsBankFilterTopic');
+  if (topicSel) { topicSel.value = topic; }
+  qmsBankLoad(1);
 }
 
 /* ============================================================
@@ -1579,15 +1789,23 @@ function qmsBankDebounceSearch() {
 
 /* ---- Build query string from filter controls ---- */
 function qmsBankBuildQs(page) {
-  var search = ((document.getElementById('qmsBankSearch')      || {}).value || '').trim();
-  var exam   = (document.getElementById('qmsBankFilterExam')   || {}).value || '';
-  var status = (document.getElementById('qmsBankFilterStatus') || {}).value || '';
-  var diff   = (document.getElementById('qmsBankFilterDiff')   || {}).value || '';
-  var qs     = '?page=' + (page || 1) + '&limit=25';
-  if (search) qs += '&search=' + encodeURIComponent(search);
-  if (exam)   qs += '&examType=' + exam;
-  if (status) qs += '&status='  + status;
-  if (diff)   qs += '&difficulty=' + diff;
+  var search    = ((document.getElementById('qmsBankSearch')       || {}).value || '').trim();
+  var exam      = (document.getElementById('qmsBankFilterExam')    || {}).value || '';
+  var status    = (document.getElementById('qmsBankFilterStatus')  || {}).value || '';
+  var diff      = (document.getElementById('qmsBankFilterDiff')    || {}).value || '';
+  /* ✅ PHASE 5: year range + topic */
+  var yearFrom  = ((document.getElementById('qmsBankYearFrom')     || {}).value || '').trim();
+  var yearTo    = ((document.getElementById('qmsBankYearTo')       || {}).value || '').trim();
+  var topic     = (document.getElementById('qmsBankFilterTopic')   || {}).value || '';
+
+  var qs = '?page=' + (page || 1) + '&limit=25';
+  if (search)   qs += '&search='     + encodeURIComponent(search);
+  if (exam)     qs += '&examType='   + exam;
+  if (status)   qs += '&status='     + status;
+  if (diff)     qs += '&difficulty=' + diff;
+  if (topic)    qs += '&search='     + encodeURIComponent(topic);   /* topic reuses search (index match) */
+  if (yearFrom) qs += '&yearFrom='   + yearFrom;
+  if (yearTo)   qs += '&yearTo='     + yearTo;
   return qs;
 }
 
@@ -2432,6 +2650,155 @@ async function qmsEngLoadIntegrationStatus() {
       '<td>' + action + '</td>' +
     '</tr>';
   }).join('');
+}
+
+/* ============================================================
+   QMS PHASE 5 — BULK MOVE + BULK TAG MODALS
+============================================================ */
+
+/* ---- Open Bulk Move Modal ---- */
+async function qmsOpenBulkMoveModal() {
+  var count = Object.keys(_qmsBankSelected).length;
+  if (!count) { instToast('No questions selected.', 'error'); return; }
+
+  var infoEl = document.getElementById('qmsBulkMoveInfo');
+  if (infoEl) {
+    infoEl.innerHTML = '<strong style="color:#fff;">' + count +
+      ' question' + (count !== 1 ? 's' : '') + ' selected</strong> — choose destination:';
+  }
+
+  /* Load departments for default exam type */
+  await qmsMoveLoadDepts();
+  document.getElementById('qmsBulkMoveModal').style.display = 'flex';
+}
+
+async function qmsMoveLoadDepts() {
+  var examType = (document.getElementById('qmsMoveExamType') || {}).value || 'jamb';
+  var res      = await qmsApi('/departments?examCategory=' + examType);
+  var sel      = document.getElementById('qmsMoveDept');
+  if (!sel) { return; }
+  sel.innerHTML = '<option value="">— Select Department (optional) —</option>' +
+    (res.ok ? (res.data.departments || []) : []).map(function (d) {
+      return '<option value="' + d._id + '" data-name="' + esc(d.name) + '">' + d.name + '</option>';
+    }).join('');
+  /* Reset subjects */
+  var sj = document.getElementById('qmsMoveSubject');
+  if (sj) sj.innerHTML = '<option value="">— Select Department first —</option>';
+}
+
+async function qmsMoveLoadSubjects() {
+  var deptId  = (document.getElementById('qmsMoveDept')    || {}).value || '';
+  var subjSel = document.getElementById('qmsMoveSubject');
+  if (!subjSel) { return; }
+  subjSel.innerHTML = '<option value="">— All Subjects in Department —</option>';
+  if (!deptId) { return; }
+  var res = await qmsApi('/subjects?departmentId=' + deptId);
+  (res.ok ? (res.data.subjects || []) : []).forEach(function (s) {
+    var opt = document.createElement('option');
+    opt.value        = s._id;
+    opt.dataset.name = s.name;
+    opt.textContent  = s.name;
+    subjSel.appendChild(opt);
+  });
+}
+
+async function qmsConfirmBulkMove() {
+  var ids    = Object.keys(_qmsBankSelected);
+  var count  = ids.length;
+  if (!count) { return; }
+
+  var examTypeSel = document.getElementById('qmsMoveExamType');
+  var deptSel     = document.getElementById('qmsMoveDept');
+  var subjSel     = document.getElementById('qmsMoveSubject');
+  var deptOpt     = deptSel && deptSel.selectedOptions[0];
+  var subjOpt     = subjSel && subjSel.selectedOptions[0];
+
+  var payload = {
+    subjectId:      subjSel  && subjSel.value  ? subjSel.value               : null,
+    subjectName:    subjOpt  && subjOpt.value  ? (subjOpt.dataset.name || '') : '',
+    departmentId:   deptSel  && deptSel.value  ? deptSel.value               : null,
+    departmentName: deptOpt  && deptOpt.value  ? (deptOpt.dataset.name || '') : '',
+    examType:       examTypeSel ? examTypeSel.value : 'jamb'
+  };
+
+  if (!confirm('Move ' + count + ' question' + (count !== 1 ? 's' : '') + ' to ' +
+               (payload.subjectName || 'the selected destination') + '?')) { return; }
+
+  var btn = document.getElementById('qmsBulkMoveConfirmBtn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span style="display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px;"></span>Moving...'; }
+
+  var res = await qmsApi('/bank/bulk', 'POST', { operation: 'move', ids: ids, payload: payload });
+
+  if (btn) { btn.disabled = false; btn.innerHTML = '📦 Move Questions'; }
+
+  if (res.ok) {
+    instToast(res.data.message, 'success');
+    closeAdminModal('qmsBulkMoveModal');
+    qmsClearSelection();
+    qmsBankLoad(_qmsBankPage);
+  } else {
+    instToast(res.data.message || 'Move failed.', 'error');
+  }
+}
+
+/* ---- Open Bulk Tag Modal ---- */
+function qmsOpenBulkTagModal() {
+  var count = Object.keys(_qmsBankSelected).length;
+  if (!count) { instToast('No questions selected.', 'error'); return; }
+
+  var infoEl = document.getElementById('qmsBulkTagInfo');
+  if (infoEl) {
+    infoEl.innerHTML = '<strong style="color:#fff;">' + count +
+      ' question' + (count !== 1 ? 's' : '') + ' selected.</strong>' +
+      ' Fill in only the fields you want to update. Leave blank to keep existing values.';
+  }
+
+  /* Clear inputs */
+  ['qmsTagTopic', 'qmsTagYear'].forEach(function (id) {
+    var el = document.getElementById(id); if (el) el.value = '';
+  });
+  var diffEl = document.getElementById('qmsTagDifficulty');
+  if (diffEl) diffEl.value = '';
+
+  document.getElementById('qmsBulkTagModal').style.display = 'flex';
+}
+
+async function qmsConfirmBulkTag() {
+  var ids    = Object.keys(_qmsBankSelected);
+  var count  = ids.length;
+  if (!count) { return; }
+
+  var topic    = ((document.getElementById('qmsTagTopic')      || {}).value || '').trim();
+  var diff     = (document.getElementById('qmsTagDifficulty')  || {}).value || '';
+  var yearVal  = ((document.getElementById('qmsTagYear')       || {}).value || '').trim();
+
+  if (!topic && !diff && !yearVal) {
+    instToast('Fill in at least one field to apply tags.', 'error');
+    return;
+  }
+
+  var payload = {};
+  if (topic)   payload.topic      = topic;
+  if (diff)    payload.difficulty = diff;
+  if (yearVal) payload.year       = parseInt(yearVal) || null;
+
+  if (!confirm('Apply tags to ' + count + ' question' + (count !== 1 ? 's' : '') + '?')) { return; }
+
+  var btn = document.getElementById('qmsBulkTagConfirmBtn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span style="display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px;"></span>Tagging...'; }
+
+  var res = await qmsApi('/bank/bulk', 'POST', { operation: 'tag', ids: ids, payload: payload });
+
+  if (btn) { btn.disabled = false; btn.innerHTML = '🏷️ Apply Tags'; }
+
+  if (res.ok) {
+    instToast(res.data.message, 'success');
+    closeAdminModal('qmsBulkTagModal');
+    qmsClearSelection();
+    qmsBankLoad(_qmsBankPage);
+  } else {
+    instToast(res.data.message || 'Tagging failed.', 'error');
+  }
 }
 
 console.log('🔧 Admin Dashboard loaded');

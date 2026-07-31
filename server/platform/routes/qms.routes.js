@@ -48,6 +48,7 @@ try {
   console.warn('⚠️  [QMS] multer not available — file upload disabled. Run: npm install multer');
 }
 
+
 /* ---- Question ID generator ---- */
 async function generateQuestionId(examType, subjectName) {
   var prefix = (examType || 'GEN').toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 8);
@@ -703,7 +704,7 @@ router.post('/bank/bulk', adminOrPlatformStaff('question_bank'), async function 
       return res.status(400).json({ success: false, message: 'Maximum 500 questions per bulk operation.' });
     }
 
-    var ALLOWED_OPS = ['approve', 'archive', 'delete', 'restore', 'move'];
+    var ALLOWED_OPS = ['approve', 'archive', 'delete', 'restore', 'move', 'tag'];
     if (!ALLOWED_OPS.includes(operation)) {
       return res.status(400).json({ success: false, message: 'Invalid operation: ' + operation });
     }
@@ -725,6 +726,18 @@ router.post('/bank/bulk', adminOrPlatformStaff('question_bank'), async function 
           departmentId:   payload.departmentId   || null,
           departmentName: payload.departmentName || ''
         }};
+        break;
+      case 'tag':
+        /* ✅ PHASE 5: Bulk assign topic/difficulty/year to selected questions */
+        if (!payload.topic && !payload.difficulty && payload.year === undefined) {
+          return res.status(400).json({ success: false,
+            message: 'tag operation requires at least one of: payload.topic, payload.difficulty, payload.year' });
+        }
+        var tagSet = {};
+        if (payload.topic      !== undefined) tagSet.topic      = payload.topic;
+        if (payload.difficulty !== undefined) tagSet.difficulty = payload.difficulty;
+        if (payload.year       !== undefined) tagSet.year       = payload.year ? parseInt(payload.year) : null;
+        update = { $set: tagSet };
         break;
     }
 
@@ -982,5 +995,227 @@ router.get(
     }
   }
 );
+
+/* ============================================
+   ✅ PHASE 5 — TAG MANAGER ENDPOINT
+
+   GET /api/qms/tags
+   Returns all unique topics with question counts.
+   Powers the Tag Manager panel in the admin UI.
+
+   Query params:
+     examType  — filter by exam type (optional)
+     minCount  — minimum count to include (default 1)
+     limit     — max topics returned (default 100)
+============================================ */
+router.get('/tags', adminOrPlatformStaff('question_bank'), async function (req, res) {
+  try {
+    var examType = (req.query.examType || '').trim();
+    var minCount = parseInt(req.query.minCount) || 1;
+    var limit    = Math.min(200, parseInt(req.query.limit) || 100);
+
+    var matchFilter = { status: { $ne: 'deleted' }, topic: { $ne: '', $exists: true } };
+    if (examType && examType !== 'all') {
+      matchFilter.examType = examType;
+    }
+
+    var [topics, keywords] = await Promise.all([
+      /* Topic aggregation */
+      QMSQuestion.aggregate([
+        { $match: matchFilter },
+        { $group: {
+          _id:        '$topic',
+          count:      { $sum: 1 },
+          examTypes:  { $addToSet: '$examType' },
+          subjects:   { $addToSet: '$subjectName' }
+        }},
+        { $match: { count: { $gte: minCount } } },
+        { $sort:  { count: -1 } },
+        { $limit: limit }
+      ]),
+
+      /* Keyword aggregation — flatten keywords array */
+      QMSQuestion.aggregate([
+        { $match: { status: { $ne: 'deleted' }, keywords: { $exists: true, $ne: [] } } },
+        { $unwind: '$keywords' },
+        { $match: { keywords: { $ne: '' } } },
+        { $group: { _id: '$keywords', count: { $sum: 1 } } },
+        { $sort:  { count: -1 } },
+        { $limit: 50 }
+      ])
+    ]);
+
+    return res.json({
+      success:  true,
+      topics:   topics.map(function (t) {
+        return {
+          topic:     t._id,
+          count:     t.count,
+          examTypes: t.examTypes.filter(Boolean),
+          subjects:  t.subjects.filter(Boolean).slice(0, 5)
+        };
+      }),
+      keywords: keywords.map(function (k) {
+        return { keyword: k._id, count: k.count };
+      })
+    });
+  } catch (e) {
+    console.error('[QMS] GET /tags:', e.message);
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+/* ============================================
+   ✅ PHASE 5 — ADVANCED ANALYTICS ENDPOINT
+
+   GET /api/qms/analytics
+   Comprehensive statistics for the admin UI.
+
+   Returns:
+     importTrend   — daily import activity (last 30 days)
+     topSubjects   — top 10 subjects by question count
+     yearDist      — question count by year
+     diffDist      — question count by difficulty
+     sourceDist    — questions by import source type
+     statusDist    — question count by status
+     weeklyVelocity — questions added per week (last 8 weeks)
+============================================ */
+router.get('/analytics', adminOrPlatformStaff('question_stats'), async function (req, res) {
+  try {
+    var thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    var eightWeeksAgo = new Date(Date.now() - 56 * 24 * 60 * 60 * 1000);
+
+    var [
+      importTrend,
+      topSubjects,
+      yearDist,
+      diffDist,
+      sourceDist,
+      statusDist,
+      weeklyVelocity,
+      examTypeDist
+    ] = await Promise.all([
+
+      /* Daily import job activity */
+      ImportJob.aggregate([
+        { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+        { $group: {
+          _id:      { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          jobs:     { $sum: 1 },
+          imported: { $sum: '$stats.imported' },
+          rejected: { $sum: '$stats.rejected' }
+        }},
+        { $sort: { _id: 1 } }
+      ]),
+
+      /* Top 10 subjects by approved question count */
+      QMSQuestion.aggregate([
+        { $match: { status: 'approved' } },
+        { $group: {
+          _id:         { subjectId: '$subjectId', subjectName: '$subjectName' },
+          count:       { $sum: 1 },
+          examTypes:   { $addToSet: '$examType' }
+        }},
+        { $sort:  { count: -1 } },
+        { $limit: 10 }
+      ]),
+
+      /* Year distribution */
+      QMSQuestion.aggregate([
+        { $match: { status: { $ne: 'deleted' }, year: { $ne: null, $gt: 1989, $lt: 2100 } } },
+        { $group: { _id: '$year', count: { $sum: 1 } } },
+        { $sort:  { _id: 1 } }
+      ]),
+
+      /* Difficulty distribution (non-deleted) */
+      QMSQuestion.aggregate([
+        { $match: { status: { $ne: 'deleted' } } },
+        { $group: { _id: '$difficulty', count: { $sum: 1 } } }
+      ]),
+
+      /* Source type distribution from ImportJobs */
+      ImportJob.aggregate([
+        { $match: { status: 'completed' } },
+        { $group: {
+          _id:      '$sourceType',
+          jobs:     { $sum: 1 },
+          imported: { $sum: '$stats.imported' }
+        }},
+        { $sort: { imported: -1 } }
+      ]),
+
+      /* Status distribution */
+      QMSQuestion.aggregate([
+        { $group: { _id: '$status', count: { $sum: 1 } } }
+      ]),
+
+      /* Weekly velocity — questions added per week */
+      QMSQuestion.aggregate([
+        { $match: { createdAt: { $gte: eightWeeksAgo }, status: { $ne: 'deleted' } } },
+        { $group: {
+          _id:   { $dateToString: { format: '%Y-W%V', date: '$createdAt' } },
+          count: { $sum: 1 }
+        }},
+        { $sort: { _id: 1 } },
+        { $limit: 8 }
+      ]),
+
+      /* Exam type distribution */
+      QMSQuestion.aggregate([
+        { $match: { status: 'approved' } },
+        { $group: { _id: '$examType', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ])
+    ]);
+
+    /* Build daily map with zeroes for missing days */
+    var dailyMap = {};
+    importTrend.forEach(function (d) { dailyMap[d._id] = d; });
+    var trendFilled = [];
+    for (var i = 29; i >= 0; i--) {
+      var d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+      var key = d.toISOString().substring(0, 10);
+      trendFilled.push({
+        date:     key,
+        jobs:     dailyMap[key] ? dailyMap[key].jobs     : 0,
+        imported: dailyMap[key] ? dailyMap[key].imported : 0,
+        rejected: dailyMap[key] ? dailyMap[key].rejected : 0
+      });
+    }
+
+    var diffMap   = {};
+    diffDist.forEach(function (d) { diffMap[d._id] = d.count; });
+
+    var statusMap = {};
+    statusDist.forEach(function (d) { statusMap[d._id] = d.count; });
+
+    var etMap = {};
+    examTypeDist.forEach(function (e) { etMap[e._id] = e.count; });
+
+    return res.json({
+      success: true,
+      analytics: {
+        importTrend:    trendFilled,
+        topSubjects:    topSubjects.map(function (s) {
+          return { subjectName: s._id.subjectName || '(Unassigned)', count: s.count, examTypes: s.examTypes };
+        }),
+        yearDist:       yearDist.map(function (y) { return { year: y._id, count: y.count }; }),
+        diffDist:       {
+          easy:   diffMap['easy']   || 0,
+          medium: diffMap['medium'] || 0,
+          hard:   diffMap['hard']   || 0,
+          mixed:  diffMap['mixed']  || 0
+        },
+        sourceDist:     sourceDist,
+        statusDist:     statusMap,
+        weeklyVelocity: weeklyVelocity,
+        examTypeDist:   etMap
+      }
+    });
+  } catch (e) {
+    console.error('[QMS] GET /analytics:', e.message);
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
 
 module.exports = router;
