@@ -99,6 +99,17 @@ app.use("/api/platform-staff", require("./platform/routes/platform.staff.routes"
 app.use("/api/qms", require("./platform/routes/qms.routes"));
 
 /* ============================================
+   EXAMINATION CORE ENGINE (ECE)
+   Shared examination infrastructure.
+   Scope-isolated: each system configures only itself.
+   /api/ece/config/cbt         → Root Admin only
+   /api/ece/config/institution → Institution Admin only
+   /api/ece/config/teacher     → Teacher only
+   /api/ece/session-config/*   → Public (exam pages)
+============================================ */
+app.use("/api/ece", require("./ece/routes/ece.config.routes"));
+
+/* ============================================
    HEALTH CHECK
 ============================================ */
 app.get("/api/health", function (req, res) {

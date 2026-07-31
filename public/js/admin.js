@@ -37,7 +37,8 @@ var SECTION_PERM_MAP = {
   'cbt-management': ['cbt', 'practice'],
   'institutions':   ['institutions', 'subscriptions', 'announcements', 'audit_logs'],
   'platform-staff': ['staff'],
-  'qms-import':     ['question_import', 'question_bank', 'question_engine', 'question_stats']
+  'qms-import':     ['question_import', 'question_bank', 'question_engine', 'question_stats'],
+  'ece':            ['ece_admin', 'ece_read']
   /* Future modules — add here when built:
   ,'payment-gateway':  ['payment_gateway']
   ,'school-payments':  ['school_payments']
@@ -2798,6 +2799,432 @@ async function qmsConfirmBulkTag() {
     qmsBankLoad(_qmsBankPage);
   } else {
     instToast(res.data.message || 'Tagging failed.', 'error');
+  }
+}
+
+/* ============================================================
+   EXAMINATION CORE ENGINE — ADMIN INTERFACE
+   Phase 1: Foundation, Dashboard, Registry, CBT Config, Audit
+============================================================ */
+
+var _eceCbtConfig   = null;   /* current CBT ECEConfig from server */
+var _eceRegistry    = null;   /* capability registry from server */
+var _eceAvailData   = {};     /* global availability state */
+var _eceCbtSubTab   = 'security'; /* which CBT sub-tab is active */
+var _eceAuditPage   = 1;
+
+/* API wrapper */
+async function eceApi(path, method, body) {
+  var token = (typeof _isPlatformStaff !== 'undefined' && _isPlatformStaff)
+    ? localStorage.getItem('latlomp_platform_token')
+    : localStorage.getItem('latlomp_token');
+  var opts = {
+    method:  method || 'GET',
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+  };
+  if (body && (method || 'GET').toUpperCase() !== 'GET') opts.body = JSON.stringify(body);
+  try {
+    var res  = await fetch('/api/ece' + path, opts);
+    var data = await res.json();
+    return { ok: res.ok, status: res.status, data: data };
+  } catch (e) {
+    return { ok: false, status: 0, data: { message: 'Network error: ' + e.message } };
+  }
+}
+
+/* ---- Init: called when ECE section opens ---- */
+async function eceAdminInit() {
+  await Promise.all([eceLoadRegistry(), eceLoadDashboard()]);
+}
+
+/* ---- Sub-tab switching ---- */
+function eceSwitchTab(tab) {
+  ['dashboard', 'registry', 'cbt', 'availability', 'audit'].forEach(function (t) {
+    var panel = document.getElementById('ecePanel' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (panel) panel.style.display = (t === tab) ? 'block' : 'none';
+    var btn   = document.getElementById('eceTab' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (btn)  btn.classList.toggle('active', t === tab);
+  });
+  if (tab === 'audit')        { eceLoadAuditLog(); }
+  if (tab === 'cbt')          { eceLoadCbtConfig(); }
+  if (tab === 'availability') { eceLoadAvailability(); }
+}
+
+/* ---- DASHBOARD ---- */
+async function eceLoadDashboard() {
+  var el = document.getElementById('eceDashboardContent');
+  if (!el) { return; }
+  el.innerHTML = '<div style="text-align:center; padding:32px; color:var(--text-muted);">Loading...</div>';
+
+  var res = await eceApi('/dashboard');
+  if (!res.ok) {
+    el.innerHTML = '<div style="text-align:center; color:#ff6584; padding:24px;">' +
+      (res.data.message || 'Failed to load dashboard.') + '</div>';
+    return;
+  }
+
+  var d       = res.data.dashboard || {};
+  var systems = d.systems || [];
+
+  var systemCards = systems.map(function (s) {
+    var statusColor = s.enabled !== false ? '#43e97b' : '#ff6584';
+    var statusLabel = s.enabled !== false ? 'Active' : 'Disabled';
+    return '<div class="a-stat-card" style="flex-direction:column; align-items:flex-start; gap:8px;">' +
+      '<div style="display:flex; align-items:center; justify-content:space-between; width:100%;">' +
+        '<div style="font-weight:800; font-size:14px; color:#fff;">' + esc(s.label) + '</div>' +
+        '<span style="font-size:11px; font-weight:700; color:' + statusColor + ';">' + statusLabel + '</span>' +
+      '</div>' +
+      '<div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px;">Scope: ' + esc(s.scope) + '</div>' +
+      (s.enabledCapabilities !== undefined
+        ? '<div style="font-size:13px; color:var(--text-secondary);">' + s.enabledCapabilities + ' capabilities enabled</div>'
+        : '<div style="font-size:12px; color:var(--text-muted);">' + (s.configuredCount || 0) + ' instances configured</div>') +
+    '</div>';
+  }).join('');
+
+  var recentChanges = d.recentChanges || [];
+  var changesHtml = recentChanges.length
+    ? recentChanges.map(function (r) {
+        return '<div style="padding:10px 0; border-bottom:1px solid var(--border,rgba(255,255,255,0.06)); font-size:13px;">' +
+          '<div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;">' +
+            '<span style="color:#fff; font-weight:600;">' + esc(r.description || r.action) + '</span>' +
+            '<span style="font-size:11px; color:var(--text-muted);">' + new Date(r.createdAt).toLocaleString('en-NG') + '</span>' +
+          '</div>' +
+          '<div style="font-size:11px; color:var(--text-muted); margin-top:2px;">by ' + esc(r.actor) + ' · ' + esc(r.scope) + '</div>' +
+        '</div>';
+      }).join('')
+    : '<div style="color:var(--text-muted); font-size:13px; padding:8px 0;">No configuration changes yet.</div>';
+
+  el.innerHTML =
+    '<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px;">' +
+      systemCards +
+    '</div>' +
+    '<div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">' +
+      '<div class="a-card">' +
+        '<div class="a-card-head"><h3>📋 Recent Changes</h3>' +
+          '<button class="a-btn a-btn-secondary a-btn-sm" onclick="eceSwitchTab(\'audit\')">View All</button></div>' +
+        '<div style="padding:16px 20px;">' + changesHtml + '</div>' +
+      '</div>' +
+      '<div class="a-card">' +
+        '<div class="a-card-head"><h3>ℹ️ Engine Status</h3></div>' +
+        '<div style="padding:20px; font-size:13px; color:var(--text-secondary); line-height:1.8;">' +
+          '<div>Version: <strong style="color:#fff;">' + esc(d.version || '1.0.0') + '</strong></div>' +
+          '<div>Phase: <strong style="color:#a78bfa;">' + esc(d.phase || 'Phase 1 — Foundation') + '</strong></div>' +
+          '<div style="margin-top:14px; font-size:12px; color:var(--text-muted); line-height:1.7;">' +
+            'The Examination Core Engine provides shared examination capabilities to all three examination systems. ' +
+            'Each system configures only its own examination environment.' +
+          '</div>' +
+          '<div style="margin-top:12px; display:flex; flex-wrap:wrap; gap:8px;">' +
+            '<button class="a-btn a-btn-secondary a-btn-sm" onclick="eceSwitchTab(\'cbt\')">⚡ Configure CBT</button>' +
+            '<button class="a-btn a-btn-secondary a-btn-sm" onclick="eceSwitchTab(\'registry\')">📋 View Registry</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+}
+
+/* ---- CAPABILITY REGISTRY ---- */
+async function eceLoadRegistry() {
+  if (_eceRegistry) { renderEceRegistry(); return; }
+  var res = await eceApi('/registry');
+  if (!res.ok) { return; }
+  _eceRegistry = res.data.registry || {};
+  renderEceRegistry();
+}
+
+function renderEceRegistry() {
+  var el = document.getElementById('eceRegistryContent');
+  if (!el || !_eceRegistry) { return; }
+
+  var phaseColors = {
+    1: '#43e97b', 2: '#43e97b', 3: '#43e97b', 4: '#43e97b',
+    5: '#ffa500', 6: '#ffa500', 7: '#ffa500', 8: '#ffa500',
+    'future': '#6b6b8a'
+  };
+
+  el.innerHTML = Object.keys(_eceRegistry).map(function (groupKey) {
+    var group = _eceRegistry[groupKey];
+    return '<div class="a-card" style="margin-bottom:16px;">' +
+      '<div class="a-card-head">' +
+        '<h3>' + esc(group.icon) + ' ' + esc(group.label) + '</h3>' +
+        '<span style="font-size:12px; color:var(--text-muted);">' + group.capabilities.length + ' capabilities</span>' +
+      '</div>' +
+      '<div style="padding:14px 20px; font-size:12px; color:var(--text-muted); margin-bottom:4px; border-bottom:1px solid var(--border,rgba(255,255,255,0.06));">' +
+        esc(group.desc) +
+      '</div>' +
+      '<div style="padding:12px;">' +
+        group.capabilities.map(function (cap) {
+          var isFuture = cap.phase === 'future';
+          var phaseNum = typeof cap.phase === 'number' ? cap.phase : null;
+          var pColor   = phaseColors[cap.phase] || '#6b6b8a';
+          var phaseLabel = isFuture ? 'Future'
+                         : phaseNum ? 'Phase ' + phaseNum
+                         : 'Phase 1';
+          var pClass = isFuture ? 'ece-phase-future'
+                     : phaseNum && phaseNum > 4 ? 'ece-phase-soon'
+                     : 'ece-phase-live';
+          return '<div class="ece-cap-row' + (isFuture ? ' future-cap' : '') + '">' +
+            '<div style="flex:1;">' +
+              '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">' +
+                '<span style="font-size:14px; font-weight:700; color:#fff;">' + esc(cap.label) + '</span>' +
+                '<span class="ece-phase-badge ' + pClass + '">' + phaseLabel + '</span>' +
+                '<span style="font-family:monospace; font-size:10px; color:#a78bfa; background:rgba(108,99,255,0.1); padding:1px 6px; border-radius:4px;">' + esc(cap.key) + '</span>' +
+              '</div>' +
+              '<div style="font-size:12px; color:var(--text-secondary); margin-top:3px;">' + esc(cap.desc) + '</div>' +
+            '</div>' +
+          '</div>';
+        }).join('') +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+/* ---- CBT CONFIGURATION ---- */
+async function eceLoadCbtConfig() {
+  var formEl = document.getElementById('eceCbtConfigForm');
+  if (!formEl) { return; }
+  if (!_eceRegistry) { await eceLoadRegistry(); }
+  formEl.innerHTML = '<div style="text-align:center; padding:24px; color:var(--text-muted);">Loading...</div>';
+
+  var res = await eceApi('/config/cbt');
+  if (!res.ok) {
+    formEl.innerHTML = '<div style="color:#ff6584; padding:16px;">' + (res.data.message || 'Failed.') + '</div>';
+    return;
+  }
+  _eceCbtConfig = res.data.config;
+  renderEceCbtSubTab(_eceCbtSubTab);
+}
+
+function eceCbtSubTab(tab) {
+  _eceCbtSubTab = tab;
+  ['security', 'rendering', 'navigation', 'rules', 'modes'].forEach(function (t) {
+    var btn = document.getElementById('eceCbtTab' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (btn) btn.classList.toggle('active', t === tab);
+  });
+  renderEceCbtSubTab(tab);
+}
+
+/* Map sub-tab names to ECEConfig capability group keys */
+var ECE_TAB_GROUP_MAP = {
+  security:   'security',
+  rendering:  'rendering',
+  navigation: 'navigation',
+  rules:      'rules',
+  modes:      'examination_modes'
+};
+
+function renderEceCbtSubTab(tab) {
+  var formEl   = document.getElementById('eceCbtConfigForm');
+  if (!formEl || !_eceCbtConfig || !_eceRegistry) { return; }
+
+  var groupKey = ECE_TAB_GROUP_MAP[tab];
+  var group    = _eceRegistry[groupKey] || { capabilities: [] };
+  var caps     = (_eceCbtConfig.capabilities || {})[groupKey] || {};
+
+  var phaseColors = { 1:'#43e97b', 2:'#43e97b', 3:'#43e97b', 4:'#43e97b', 5:'#ffa500', 6:'#ffa500' };
+
+  formEl.innerHTML =
+    '<div style="font-size:13px; color:var(--text-muted); margin-bottom:14px; line-height:1.7;">' +
+      esc(group.desc || '') +
+    '</div>' +
+    group.capabilities.map(function (cap) {
+      var isFuture  = cap.phase === 'future';
+      var isEnabled = caps[cap.key] === true;
+      var pColor    = phaseColors[cap.phase] || '#6b6b8a';
+      var pLabel    = isFuture ? 'Future' : (typeof cap.phase === 'number' ? 'Phase ' + cap.phase : 'Phase 1');
+      var pClass    = isFuture ? 'ece-phase-future' : (typeof cap.phase === 'number' && cap.phase > 4 ? 'ece-phase-soon' : 'ece-phase-live');
+      return '<div class="ece-cap-row' + (isEnabled ? ' enabled' : '') + (isFuture ? ' future-cap' : '') +
+             '" id="ece-row-' + cap.key + '" onclick="' + (isFuture ? '' : 'eceToggleCap(\'' + groupKey + '\',\'' + cap.key + '\')') + '">' +
+        '<input type="checkbox" id="ece-cb-' + cap.key + '" ' + (isEnabled ? 'checked' : '') +
+               (isFuture ? ' disabled' : '') +
+               ' onclick="event.stopPropagation(); eceToggleCap(\'' + groupKey + '\',\'' + cap.key + '\')" ' +
+               'style="margin-top:3px; accent-color:#6c63ff; width:16px; height:16px; flex-shrink:0; cursor:pointer;" />' +
+        '<div style="flex:1;">' +
+          '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:3px;">' +
+            '<span style="font-size:14px; font-weight:700; color:#fff;">' + esc(cap.label) + '</span>' +
+            '<span class="ece-phase-badge ' + pClass + '">' + pLabel + '</span>' +
+          '</div>' +
+          '<div style="font-size:12px; color:var(--text-secondary);">' + esc(cap.desc) + '</div>' +
+          (isFuture ? '<div style="font-size:11px; color:var(--text-muted); margin-top:2px; font-style:italic;">This capability is planned for a future phase and cannot be enabled yet.</div>' : '') +
+        '</div>' +
+      '</div>';
+    }).join('');
+}
+
+function eceToggleCap(group, key) {
+  if (!_eceCbtConfig || !_eceCbtConfig.capabilities) { return; }
+  if (!_eceCbtConfig.capabilities[group]) { _eceCbtConfig.capabilities[group] = {}; }
+  _eceCbtConfig.capabilities[group][key] = !(_eceCbtConfig.capabilities[group][key]);
+  var cb  = document.getElementById('ece-cb-' + key);
+  var row = document.getElementById('ece-row-' + key);
+  if (cb)  cb.checked = _eceCbtConfig.capabilities[group][key];
+  if (row) row.classList.toggle('enabled', _eceCbtConfig.capabilities[group][key]);
+}
+
+async function eceAdminSaveCbtConfig() {
+  if (!_eceCbtConfig) { instToast('Load configuration first.', 'error'); return; }
+  var statusEl = document.getElementById('eceCbtSaveStatus');
+  if (statusEl) statusEl.textContent = 'Saving...';
+
+  var res = await eceApi('/config/cbt', 'PUT', { capabilities: _eceCbtConfig.capabilities });
+  if (res.ok) {
+    instToast('CBT ECE configuration saved.', 'success');
+    if (statusEl) statusEl.textContent = 'Saved at ' + new Date().toLocaleTimeString('en-NG');
+    _eceCbtConfig = res.data.config;
+  } else {
+    instToast(res.data.message || 'Save failed.', 'error');
+    if (statusEl) statusEl.textContent = '';
+  }
+}
+
+async function eceAdminResetCbt() {
+  if (!confirm('Reset CBT ECE configuration to factory defaults?\n\nAll custom capability settings will be lost.')) { return; }
+  var res = await eceApi('/config/cbt/reset', 'POST');
+  if (res.ok) {
+    instToast('CBT configuration reset to defaults.', 'success');
+    _eceCbtConfig = res.data.config;
+    renderEceCbtSubTab(_eceCbtSubTab);
+  } else {
+    instToast(res.data.message || 'Reset failed.', 'error');
+  }
+}
+
+/* ---- GLOBAL AVAILABILITY ---- */
+async function eceLoadAvailability() {
+  var el = document.getElementById('eceAvailabilityContent');
+  if (!el) { return; }
+  if (!_eceRegistry) { await eceLoadRegistry(); }
+  el.innerHTML = '<div style="text-align:center; padding:24px; color:var(--text-muted);">Loading...</div>';
+
+  var res = await eceApi('/availability');
+  if (!res.ok) { el.innerHTML = '<div style="color:#ff6584; padding:16px;">' + (res.data.message || 'Failed.') + '</div>'; return; }
+  _eceAvailData = res.data.availability || {};
+  renderAvailabilityUI();
+}
+
+function renderAvailabilityUI() {
+  var el = document.getElementById('eceAvailabilityContent');
+  if (!el || !_eceRegistry) { return; }
+
+  /* Show only capabilities relevant for institution and teacher (not cbt-only) */
+  var showGroups = ['security', 'navigation', 'rendering', 'rules', 'qie', 'examination_modes'];
+
+  el.innerHTML = showGroups.map(function (groupKey) {
+    var group = _eceRegistry[groupKey];
+    if (!group) { return ''; }
+    return '<div class="a-card" style="margin-bottom:14px;">' +
+      '<div class="a-card-head"><h3>' + esc(group.icon) + ' ' + esc(group.label) + '</h3></div>' +
+      '<div style="padding:12px;">' +
+        group.capabilities.filter(function (c) { return c.phase !== 'future'; }).map(function (cap) {
+          var isAvail = _eceAvailData[cap.key] !== false; /* default: available */
+          return '<div class="ece-cap-row' + (isAvail ? ' enabled' : '') +
+                 '" id="ecea-row-' + cap.key + '" onclick="eceToggleAvail(\'' + cap.key + '\')">' +
+            '<input type="checkbox" id="ecea-cb-' + cap.key + '" ' + (isAvail ? 'checked' : '') +
+                   ' onclick="event.stopPropagation(); eceToggleAvail(\'' + cap.key + '\')" ' +
+                   'style="margin-top:3px; accent-color:#6c63ff; width:16px; height:16px; flex-shrink:0; cursor:pointer;" />' +
+            '<div style="flex:1;">' +
+              '<div style="font-size:14px; font-weight:700; color:#fff; margin-bottom:2px;">' + esc(cap.label) + '</div>' +
+              '<div style="font-size:12px; color:var(--text-secondary);">' + esc(cap.desc) + '</div>' +
+              '<div style="font-size:11px; color:' + (isAvail ? '#43e97b' : '#ff6584') + '; margin-top:3px; font-weight:700;">' +
+                (isAvail ? '✅ Available to Institution & Teacher systems' : '⛔ Blocked — Institution & Teacher cannot enable this') +
+              '</div>' +
+            '</div>' +
+          '</div>';
+        }).join('') +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function eceToggleAvail(key) {
+  _eceAvailData[key] = !(_eceAvailData[key] !== false);
+  var cb  = document.getElementById('ecea-cb-' + key);
+  var row = document.getElementById('ecea-row-' + key);
+  if (cb)  cb.checked = _eceAvailData[key];
+  if (row) row.classList.toggle('enabled', _eceAvailData[key]);
+  var info = row && row.querySelector('div:last-child div:last-child');
+  if (info) {
+    info.style.color    = _eceAvailData[key] ? '#43e97b' : '#ff6584';
+    info.textContent    = _eceAvailData[key]
+      ? '✅ Available to Institution & Teacher systems'
+      : '⛔ Blocked — Institution & Teacher cannot enable this';
+  }
+}
+
+async function eceAdminSaveAvailability() {
+  var res = await eceApi('/availability', 'PUT', _eceAvailData);
+  if (res.ok) {
+    instToast('Global availability settings saved.', 'success');
+    _eceAvailData = res.data.availability;
+  } else {
+    instToast(res.data.message || 'Save failed.', 'error');
+  }
+}
+
+/* ---- AUDIT LOG ---- */
+async function eceLoadAuditLog() {
+  var tbody    = document.getElementById('eceAuditBody');
+  var filterEl = document.getElementById('eceAuditScopeFilter');
+  var scope    = filterEl ? filterEl.value : '';
+  if (!tbody) { return; }
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color:var(--text-muted);">Loading...</td></tr>';
+
+  var qs  = '?page=' + _eceAuditPage + '&limit=20';
+  if (scope) qs += '&scope=' + scope;
+
+  var res = await eceApi('/audit' + qs);
+  if (!res.ok) { tbody.innerHTML = '<tr><td colspan="5" style="color:#ff6584; text-align:center; padding:16px;">Failed to load.</td></tr>'; return; }
+
+  var logs  = res.data.logs  || [];
+  var total = res.data.total || 0;
+  var pages = res.data.pages || 1;
+
+  if (!logs.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:32px; color:var(--text-muted);">No ECE configuration changes recorded yet.</td></tr>';
+    return;
+  }
+
+  var actionColors = {
+    capability_changed:           '#a78bfa',
+    config_reset:                 '#ffa500',
+    global_availability_changed:  '#ff8e53',
+    scope_enabled:                '#43e97b',
+    scope_disabled:               '#ff6584',
+    config_created:               '#38f9d7'
+  };
+
+  tbody.innerHTML = logs.map(function (l) {
+    var color = actionColors[l.action] || '#fff';
+    return '<tr>' +
+      '<td style="font-size:12px; color:var(--text-secondary);">' +
+        new Date(l.createdAt).toLocaleDateString('en-NG', { day:'numeric', month:'short', year:'numeric' }) +
+        '<br><span style="color:var(--text-muted); font-size:11px;">' +
+        new Date(l.createdAt).toLocaleTimeString('en-NG') + '</span>' +
+      '</td>' +
+      '<td style="font-size:12px;"><span style="color:#fff; font-weight:600;">' + esc(l.actor) + '</span>' +
+        '<br><span style="font-size:11px; color:var(--text-muted);">' + esc(l.actorRole || '') + '</span>' +
+      '</td>' +
+      '<td><span style="font-size:11px; font-weight:700; background:rgba(108,99,255,0.12); color:#a78bfa; padding:2px 8px; border-radius:20px;">' +
+        esc(l.scope) + (l.scopeLabel && l.scopeLabel !== l.scope ? ' · ' + esc(l.scopeLabel) : '') +
+      '</span></td>' +
+      '<td style="font-size:12px; font-weight:700; color:' + color + '; white-space:nowrap;">' +
+        esc((l.action || '').replace(/_/g, ' ').toUpperCase()) +
+      '</td>' +
+      '<td style="font-size:12px; color:var(--text-secondary);">' + esc(l.description || '—') + '</td>' +
+    '</tr>';
+  }).join('');
+
+  /* Pagination */
+  var pagDiv = document.getElementById('eceAuditPagination');
+  if (pagDiv && pages > 1) {
+    var btns = '';
+    for (var p = 1; p <= Math.min(pages, 8); p++) {
+      btns += '<button class="a-btn a-btn-sm ' + (p === _eceAuditPage ? 'a-btn-primary' : 'a-btn-secondary') +
+              '" onclick="_eceAuditPage=' + p + '; eceLoadAuditLog();">' + p + '</button>';
+    }
+    pagDiv.innerHTML = btns;
+    pagDiv.style.display = 'flex';
+  } else if (pagDiv) {
+    pagDiv.style.display = 'none';
   }
 }
 

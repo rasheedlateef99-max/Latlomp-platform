@@ -100,6 +100,22 @@ var PERMISSION_REGISTRY = [
     category: 'communication'
   }
 
+/* ── ECE MODULES (Phase 1 delivered) ───────────────────── */
+  ,{
+    key:      'ece_admin',
+    label:    'ECE Administration',
+    icon:     '🎓',
+    desc:     'Configure the Examination Core Engine for all exam systems',
+    category: 'ece'
+  }
+  ,{
+    key:      'ece_read',
+    label:    'ECE Read Access',
+    icon:     '👁',
+    desc:     'View ECE configuration and audit logs (read-only)',
+    category: 'ece'
+  }
+
   /* ── QMS MODULES (Phase 1 delivered) ───────────────────── */
   ,{
     key:      'question_import',

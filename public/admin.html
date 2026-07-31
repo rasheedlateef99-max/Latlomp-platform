@@ -199,6 +199,24 @@
         grid-template-columns: 1fr !important;
       }
     }
+
+/* ECE config toggle grid */
+    @media (max-width:600px) {
+      #as-ece .t-form-grid { grid-template-columns: 1fr; }
+    }
+    .ece-cap-row {
+      display:flex; align-items:flex-start; gap:12px; padding:12px 16px;
+      border-radius:10px; border:1px solid var(--border,rgba(255,255,255,0.08));
+      margin-bottom:8px; transition:all 0.2s; cursor:pointer;
+    }
+    .ece-cap-row:hover { background:rgba(255,255,255,0.03); }
+    .ece-cap-row.enabled { border-color:rgba(108,99,255,0.3); background:rgba(108,99,255,0.07); }
+    .ece-cap-row.future-cap { opacity:0.45; cursor:not-allowed; }
+    .ece-phase-badge { font-size:10px; padding:1px 7px; border-radius:20px; font-weight:700; }
+    .ece-phase-live   { background:rgba(67,233,123,0.12); color:#43e97b; }
+    .ece-phase-future { background:rgba(255,255,255,0.06); color:var(--text-muted,#6b6b8a); }
+    .ece-phase-soon   { background:rgba(255,165,0,0.12); color:#ffa500; }
+
     @media (max-width:700px) {
       #qmsPreviewStats { grid-template-columns: 1fr 1fr !important; }
     }
@@ -349,6 +367,7 @@
       <button class="sb-link admin-nav-link"         data-section="institutions"   onclick="showAdminSection('institutions'); setTimeout(instOnActivate, 200);"> <span class="sb-icon">🏫</span> Institutions    </button>
       <button class="sb-link admin-nav-link" data-section="platform-staff" onclick="showAdminSection('platform-staff'); setTimeout(loadPlatformStaff, 200);"><span class="sb-icon">👥</span> Platform Staff</button>
       <button class="sb-link admin-nav-link" data-section="qms-import" onclick="showAdminSection('qms-import'); setTimeout(qmsInit, 200);"><span class="sb-icon">📚</span> Question Management</button>
+      <button class="sb-link admin-nav-link" data-section="ece" onclick="showAdminSection('ece'); setTimeout(eceAdminInit, 200);"><span class="sb-icon">🎓</span> Exam Core Engine</button>
       <a href="store.html"   class="sb-link"><span class="sb-icon">🏪</span> View Store    </a>
       <a href="teacher.html" class="sb-link"><span class="sb-icon">📚</span> Teacher Panel </a>
       <button class="sb-link" onclick="adminLogout()"><span class="sb-icon">🚪</span> Logout</button>
@@ -621,6 +640,110 @@
       </section>
 
     </div>
+
+      <!-- ===== EXAMINATION CORE ENGINE ===== -->
+      <section class="admin-section" id="as-ece">
+        <div class="a-page-header">
+          <div>
+            <h1>🎓 Examination Core Engine</h1>
+            <p>Shared examination infrastructure for Platform CBT, Institution and Teacher systems</p>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <span id="eceVersionBadge" style="font-size:11px; background:rgba(108,99,255,0.12); color:#a78bfa; padding:3px 10px; border-radius:20px; font-weight:700;">v1.0 — Phase 1</span>
+            <button class="a-btn a-btn-secondary a-btn-sm" onclick="eceAdminInit()">↻ Refresh</button>
+          </div>
+        </div>
+
+        <!-- Sub-tabs -->
+        <div class="inst-tabs">
+          <button class="inst-tab active" id="eceTabDashboard"  onclick="eceSwitchTab('dashboard')">📊 Dashboard</button>
+          <button class="inst-tab"        id="eceTabRegistry"   onclick="eceSwitchTab('registry')">📋 Capability Registry</button>
+          <button class="inst-tab"        id="eceTabCbt"        onclick="eceSwitchTab('cbt')">⚡ Platform CBT</button>
+          <button class="inst-tab"        id="eceTabAvailability" onclick="eceSwitchTab('availability')">🔓 Global Availability</button>
+          <button class="inst-tab"        id="eceTabAudit"      onclick="eceSwitchTab('audit')">📋 Audit Log</button>
+        </div>
+
+        <!-- ─── DASHBOARD ─── -->
+        <div id="ecePanelDashboard">
+          <div id="eceDashboardContent">
+            <div style="text-align:center; padding:40px; color:var(--text-muted);">Loading ECE dashboard...</div>
+          </div>
+        </div>
+
+        <!-- ─── CAPABILITY REGISTRY ─── -->
+        <div id="ecePanelRegistry" style="display:none;">
+          <div style="margin-bottom:14px; font-size:13px; color:var(--text-muted,#6b6b8a); line-height:1.7;">
+            All available ECE capabilities. Each examination system independently decides which capabilities to enable.
+            Phase numbers indicate when the capability becomes functional.
+          </div>
+          <div id="eceRegistryContent">
+            <div style="text-align:center; padding:32px; color:var(--text-muted);">Loading registry...</div>
+          </div>
+        </div>
+
+        <!-- ─── PLATFORM CBT CONFIGURATION ─── -->
+        <div id="ecePanelCbt" style="display:none;">
+          <div class="inst-tabs" style="margin-bottom:16px;">
+            <button class="inst-tab active" id="eceCbtTabSecurity"  onclick="eceCbtSubTab('security')">🔒 Security</button>
+            <button class="inst-tab"        id="eceCbtTabRendering" onclick="eceCbtSubTab('rendering')">🎨 Rendering</button>
+            <button class="inst-tab"        id="eceCbtTabNav"       onclick="eceCbtSubTab('navigation')">🧭 Navigation</button>
+            <button class="inst-tab"        id="eceCbtTabRules"     onclick="eceCbtSubTab('rules')">⚙️ Rules</button>
+            <button class="inst-tab"        id="eceCbtTabModes"     onclick="eceCbtSubTab('modes')">📋 Modes</button>
+          </div>
+
+          <div id="eceCbtConfigForm">
+            <div style="text-align:center; padding:32px; color:var(--text-muted);">Loading CBT configuration...</div>
+          </div>
+
+          <div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; align-items:center;">
+            <button class="a-btn a-btn-primary" onclick="eceAdminSaveCbtConfig()">💾 Save CBT Configuration</button>
+            <button class="a-btn a-btn-danger"  onclick="eceAdminResetCbt()">↺ Reset to Defaults</button>
+            <span id="eceCbtSaveStatus" style="font-size:12px; color:var(--text-muted);"></span>
+          </div>
+        </div>
+
+        <!-- ─── GLOBAL AVAILABILITY ─── -->
+        <div id="ecePanelAvailability" style="display:none;">
+          <div style="background:rgba(108,99,255,0.08); border:1px solid rgba(108,99,255,0.2); border-radius:10px; padding:14px 18px; margin-bottom:16px; font-size:13px; line-height:1.7; color:var(--text-secondary,#a0a0c0);">
+            <strong style="color:#fff;">Global Availability</strong> — As Root Administrator, you control which ECE capabilities
+            Institution and Teacher systems are permitted to enable. Setting a capability to
+            <strong style="color:#43e97b;">Available</strong> allows those systems to enable it in their own configuration.
+            Setting it to <strong style="color:#ff6584;">Blocked</strong> prevents them from using it regardless of their own settings.
+          </div>
+          <div id="eceAvailabilityContent">
+            <div style="text-align:center; padding:32px; color:var(--text-muted);">Loading availability settings...</div>
+          </div>
+          <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="a-btn a-btn-primary" onclick="eceAdminSaveAvailability()">💾 Save Availability Settings</button>
+          </div>
+        </div>
+
+        <!-- ─── AUDIT LOG ─── -->
+        <div id="ecePanelAudit" style="display:none;">
+          <div style="display:flex; justify-content:flex-end; margin-bottom:14px; gap:8px; flex-wrap:wrap;">
+            <select id="eceAuditScopeFilter" onchange="eceLoadAuditLog()"
+              style="background:rgba(255,255,255,0.04); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:8px; padding:8px 10px; color:#fff; font-family:inherit; font-size:13px; outline:none;">
+              <option value="">All Scopes</option>
+              <option value="cbt">Platform CBT</option>
+              <option value="institution">Institution</option>
+              <option value="teacher">Teacher</option>
+            </select>
+            <button class="a-btn a-btn-secondary a-btn-sm" onclick="eceLoadAuditLog()">↻ Refresh</button>
+          </div>
+          <div class="a-card">
+            <div class="a-table-wrap">
+              <table class="admin-table">
+                <thead><tr><th>Date</th><th>Actor</th><th>Scope</th><th>Action</th><th>Description</th></tr></thead>
+                <tbody id="eceAuditBody">
+                  <tr><td colspan="5" style="text-align:center; padding:28px; color:var(--text-muted);">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div id="eceAuditPagination" style="display:flex; justify-content:center; gap:8px; padding:16px; border-top:1px solid var(--border,rgba(255,255,255,0.08));"></div>
+          </div>
+        </div>
+
+      </section><!-- /as-ece -->
 
       <!-- ===== QUESTION MANAGEMENT SYSTEM ===== -->
       <section class="admin-section" id="as-qms-import">
