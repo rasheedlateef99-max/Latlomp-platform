@@ -26,7 +26,8 @@ const Subject     = require('../../models/Subject.model');
 const { adminOrPlatformStaff } = require('../../middleware/auth.middleware');
 const parser      = require('../utils/question.parser');
 const validator   = require('../utils/question.validator');
-const engine      = require('../services/question.engine');
+const engine               = require('../services/question.engine');
+const ExaminationBlueprint = require('../models/ExaminationBlueprint.model');
 
 /* ---- Multer for file uploads ---- */
 var multer = null;
@@ -260,6 +261,9 @@ router.post('/import/confirm', adminOrPlatformStaff('question_import'), async fu
     var origFilename   = req.body.originalFilename || '';
     var stats          = req.body.stats            || {};
     var importedBy     = callerName(req);
+    /* ✅ STAGE 1: Question type for the entire batch.
+       Defaults to 'objective' for full backward compatibility. */
+    var questionType   = (req.body.questionType || 'objective').trim();
 
     if (!questions.length) {
       return res.status(400).json({ success: false, message: 'No questions to import.' });
@@ -318,6 +322,7 @@ router.post('/import/confirm', adminOrPlatformStaff('question_import'), async fu
           options:        q.options,
           correctAnswer:  q.correctAnswer,
           explanation:    q.explanation   || '',
+          questionType:   questionType,
           topic:          q.topic         || '',
           difficulty:     q.difficulty    || 'medium',
           year:           q.year          || null,
@@ -552,6 +557,212 @@ router.get('/bank/count', adminOrPlatformStaff('question_bank'), async function 
     });
     return res.json({ success: true, counts: result });
   } catch (e) {
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+/* ============================================
+   ✅ STAGE 1 — ORPHAN QUESTION ROUTES
+   Questions imported without a subject assigned.
+   Must be registered BEFORE /bank/:id to prevent
+   Express treating 'orphans' as an ObjectId.
+============================================ */
+
+/* ----
+   GET /api/qms/bank/orphans
+   Returns QMSQuestions with no subjectId assigned.
+   Paginated. Used by the Orphan Cleanup tool.
+---- */
+router.get('/bank/orphans', adminOrPlatformStaff('question_bank'), async function (req, res) {
+  try {
+    var page  = Math.max(1,   parseInt(req.query.page)  || 1);
+    var limit = Math.min(100, parseInt(req.query.limit) || 25);
+    var skip  = (page - 1) * limit;
+
+    var filter = {
+      $or: [
+        { subjectId: null },
+        { subjectId: { $exists: false } }
+      ],
+      status: { $ne: 'deleted' }
+    };
+
+    if (req.query.examType && req.query.examType !== 'all') {
+      filter.examType = req.query.examType;
+    }
+
+    var [total, questions] = await Promise.all([
+      QMSQuestion.countDocuments(filter),
+      QMSQuestion.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select('questionId question options correctAnswer examType questionType difficulty topic status importJobId createdAt')
+        .lean()
+    ]);
+
+    return res.json({
+      success:   true,
+      total:     total,
+      page:      page,
+      pages:     Math.ceil(total / limit),
+      questions: questions
+    });
+  } catch (e) {
+    console.error('[QMS] GET /bank/orphans:', e.message);
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+/* ----
+   POST /api/qms/bank/orphans/assign
+   Assigns a set of orphaned questions to a Subject.
+   Validates that the Subject exists in CBT Management first.
+
+   Body: {
+     ids:            [ObjectId],
+     subjectId:      string,
+     subjectName:    string,
+     departmentId:   string,
+     departmentName: string,
+     examType:       string (optional — overrides existing)
+     questionType:   string (optional — defaults to 'objective')
+   }
+---- */
+router.post('/bank/orphans/assign', adminOrPlatformStaff('question_bank'), async function (req, res) {
+  try {
+    var ids            = req.body.ids            || [];
+    var subjectId      = (req.body.subjectId     || '').trim() || null;
+    var subjectName    = (req.body.subjectName   || '').trim();
+    var departmentId   = (req.body.departmentId  || '').trim() || null;
+    var departmentName = (req.body.departmentName|| '').trim();
+    var examType       = (req.body.examType      || '').trim()       || null;
+    var questionType   = (req.body.questionType  || 'objective').trim();
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'ids array is required.' });
+    }
+    if (ids.length > 500) {
+      return res.status(400).json({ success: false, message: 'Maximum 500 questions per assignment.' });
+    }
+    if (!subjectId) {
+      return res.status(400).json({ success: false, message: 'subjectId is required.' });
+    }
+
+    /* Validate Subject existence — architecture requires structures to pre-exist */
+    var Subject = require('../../models/Subject.model');
+    var subject = await Subject.findById(subjectId).select('name department').lean();
+    if (!subject) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subject not found. Please create this Subject inside CBT Management before assigning questions.'
+      });
+    }
+
+    var update = {
+      subjectId:      subjectId,
+      subjectName:    subjectName || subject.name || '',
+      departmentId:   departmentId,
+      departmentName: departmentName,
+      questionType:   questionType
+    };
+
+    /* Only update examType if explicitly provided */
+    if (examType) { update.examType = examType; }
+
+    var result = await QMSQuestion.updateMany(
+      { _id: { $in: ids } },
+      { $set: update }
+    );
+
+    return res.json({
+      success:  true,
+      message:  result.modifiedCount + ' question' + (result.modifiedCount !== 1 ? 's' : '') +
+                ' assigned to ' + (update.subjectName) + '.',
+      modified: result.modifiedCount
+    });
+  } catch (e) {
+    console.error('[QMS] POST /bank/orphans/assign:', e.message);
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+/* ----
+   POST /api/qms/bank
+   Create a single question directly.
+   Used by the CBT Management "Add Question" flow.
+   Identical field shape to import/confirm but for one question.
+   Must be registered before /bank/:id.
+
+   Body: { question, options[], correctAnswer, explanation,
+           examType, questionType, subjectId, subjectName,
+           departmentId, departmentName, topic, difficulty,
+           year, source, status }
+---- */
+router.post('/bank', adminOrPlatformStaff('question_bank'), async function (req, res) {
+  try {
+    var body           = req.body;
+    var examType       = (body.examType       || 'jamb').trim();
+    var questionType   = (body.questionType   || 'objective').trim();
+    var subjectId      = (body.subjectId      || '').trim() || null;
+    var subjectName    = (body.subjectName    || '').trim();
+    var departmentId   = (body.departmentId   || '').trim() || null;
+    var departmentName = (body.departmentName || '').trim();
+    var createdBy      = callerName(req);
+
+    /* Field validation */
+    if (!body.question || !body.question.trim()) {
+      return res.status(400).json({ success: false, message: 'Question text is required.' });
+    }
+    if (!Array.isArray(body.options) || body.options.length < 2) {
+      return res.status(400).json({ success: false, message: 'At least 2 options are required.' });
+    }
+    var correctAnswer = parseInt(body.correctAnswer);
+    if (isNaN(correctAnswer) || correctAnswer === undefined) {
+      return res.status(400).json({ success: false, message: 'Correct answer index is required.' });
+    }
+    if (correctAnswer < 0 || correctAnswer >= body.options.length) {
+      return res.status(400).json({
+        success: false,
+        message: 'Correct answer index (' + correctAnswer + ') is out of range — only ' + body.options.length + ' options provided.'
+      });
+    }
+
+    /* Generate unique question ID */
+    var batchIds = await generateBatchIds(examType, subjectName, 1);
+
+    var doc = await QMSQuestion.create({
+      questionId:     batchIds[0],
+      examType:       examType,
+      questionType:   questionType,
+      subjectId:      subjectId,
+      departmentId:   departmentId,
+      subjectName:    subjectName,
+      departmentName: departmentName,
+      question:       body.question.trim(),
+      options:        body.options.map(function (o) { return (o || '').trim(); }).filter(Boolean),
+      correctAnswer:  correctAnswer,
+      explanation:    (body.explanation || '').trim(),
+      topic:          (body.topic       || '').trim(),
+      subtopic:       (body.subtopic    || '').trim(),
+      difficulty:     body.difficulty   || 'medium',
+      year:           body.year ? parseInt(body.year) : null,
+      source:         (body.source || '').trim(),
+      keywords:       Array.isArray(body.keywords) ? body.keywords : [],
+      status:         body.status       || 'approved',
+      createdBy:      createdBy,
+      approvedBy:     createdBy,
+      approvedAt:     new Date(),
+      versions:       []
+    });
+
+    return res.json({
+      success:  true,
+      message:  'Question created.',
+      question: doc.toObject()
+    });
+  } catch (e) {
+    console.error('[QMS] POST /bank:', e.message);
     return res.status(500).json({ success: false, message: e.message });
   }
 });
@@ -957,7 +1168,9 @@ router.get(
       var Question = require('../../models/Question.model');
 
       /* Build filters matching integration logic in cbt.routes.js */
-      var qmsFilter    = { status: 'approved' };
+      /* ✅ STAGE 1: Filter to objective only for integration status
+         (legacy system only has objective questions) */
+      var qmsFilter    = { status: 'approved', questionType: 'objective' };
       var legacyFilter = { isActive: true };
 
       if (examType !== 'all') {
@@ -1409,5 +1622,286 @@ router.get('/bank/legacy', adminOrPlatformStaff('question_bank'), async function
     return res.status(500).json({ success: false, message: e.message });
   }
 });
+
+/* ============================================
+   ✅ STAGE 1 — EXAMINATION BLUEPRINT ROUTES
+
+   POST /api/qms/blueprint/pool-health-batch
+   GET  /api/qms/blueprint/pool-health/:subjectId
+   GET  /api/qms/blueprint/subject/:subjectId
+   PUT  /api/qms/blueprint/subject/:subjectId
+   DELETE /api/qms/blueprint/:blueprintId
+
+   Blueprint = the configuration for how a Subject's
+   Question Pool is used during an examination session.
+   Stage 1: admin-interface only.
+   Stage 4: session/start will read these directly.
+============================================ */
+
+/* ----
+   POST /api/qms/blueprint/pool-health-batch
+   Returns question pool counts for multiple subjects in one call.
+   Used by CBT Management subject list to show pool sizes.
+   Body: { subjectIds: [string, ...] }
+---- */
+router.post(
+  '/blueprint/pool-health-batch',
+  adminOrPlatformStaff('question_bank'),
+  async function (req, res) {
+    try {
+      var subjectIds = req.body.subjectIds || [];
+      if (!subjectIds.length) {
+        return res.json({ success: true, health: {} });
+      }
+
+      var mongoose  = require('mongoose');
+      var objectIds = subjectIds.map(function (id) {
+        try { return mongoose.Types.ObjectId(id); }
+        catch (e) { return null; }
+      }).filter(Boolean);
+
+      var [agg, bps] = await Promise.all([
+        QMSQuestion.aggregate([
+          {
+            $match: {
+              subjectId: { $in: objectIds },
+              status:    'approved'
+            }
+          },
+          {
+            $group: {
+              _id:   { subjectId: '$subjectId', questionType: '$questionType' },
+              count: { $sum: 1 }
+            }
+          }
+        ]),
+        ExaminationBlueprint.find({
+          subjectId: { $in: subjectIds }
+        }).select('subjectId examType questionType count status').lean()
+      ]);
+
+      var health = {};
+
+      agg.forEach(function (r) {
+        var sid = r._id.subjectId.toString();
+        var qt  = r._id.questionType || 'objective';
+        if (!health[sid]) { health[sid] = { total: 0 }; }
+        health[sid][qt]   = r.count;
+        health[sid].total = (health[sid].total || 0) + r.count;
+      });
+
+      /* Attach blueprint status per subject */
+      bps.forEach(function (bp) {
+        var sid = bp.subjectId.toString();
+        if (!health[sid]) { health[sid] = { total: 0 }; }
+        if (!health[sid]._blueprints) { health[sid]._blueprints = []; }
+        health[sid]._blueprints.push({
+          examType:     bp.examType,
+          questionType: bp.questionType,
+          count:        bp.count,
+          status:       bp.status
+        });
+      });
+
+      return res.json({ success: true, health: health });
+    } catch (e) {
+      console.error('[QMS Blueprint] pool-health-batch:', e.message);
+      return res.status(500).json({ success: false, message: e.message });
+    }
+  }
+);
+
+/* ----
+   GET /api/qms/blueprint/pool-health/:subjectId
+   Full pool health for a single subject.
+   Returns pool counts per questionType and blueprint status.
+---- */
+router.get(
+  '/blueprint/pool-health/:subjectId',
+  adminOrPlatformStaff('question_bank'),
+  async function (req, res) {
+    try {
+      var mongoose = require('mongoose');
+      var sid;
+      try { sid = mongoose.Types.ObjectId(req.params.subjectId); }
+      catch (e) { return res.status(400).json({ success: false, message: 'Invalid subjectId.' }); }
+
+      var [agg, blueprints] = await Promise.all([
+        QMSQuestion.aggregate([
+          { $match: { subjectId: sid, status: 'approved' } },
+          { $group: { _id: '$questionType', count: { $sum: 1 } } }
+        ]),
+        ExaminationBlueprint.find({ subjectId: req.params.subjectId }).lean()
+      ]);
+
+      var poolCounts = {};
+      agg.forEach(function (r) { poolCounts[r._id || 'objective'] = r.count; });
+
+      var bpMap = {};
+      blueprints.forEach(function (bp) {
+        var key = bp.examType + '_' + bp.questionType;
+        bpMap[key] = bp;
+      });
+
+      var questionTypes   = ['objective', 'theory', 'practical', 'oral'];
+      var typeHealth      = {};
+      questionTypes.forEach(function (qt) {
+        var available = poolCounts[qt] || 0;
+        /* Use 'all' blueprint as default fallback */
+        var bp = bpMap['all_' + qt] || null;
+        var required = bp ? bp.count : 0;
+        typeHealth[qt] = {
+          available: available,
+          required:  required,
+          ready:     required > 0 && available >= required,
+          blueprint: bp
+        };
+      });
+
+      return res.json({
+        success:    true,
+        subjectId:  req.params.subjectId,
+        poolCounts: poolCounts,
+        total:      Object.values(poolCounts).reduce(function (s, c) { return s + c; }, 0),
+        typeHealth: typeHealth,
+        blueprints: blueprints
+      });
+    } catch (e) {
+      console.error('[QMS Blueprint] pool-health/:id:', e.message);
+      return res.status(500).json({ success: false, message: e.message });
+    }
+  }
+);
+
+/* ----
+   GET /api/qms/blueprint/subject/:subjectId
+   Returns all blueprints for a subject.
+   Used by the Blueprint editor modal.
+---- */
+router.get(
+  '/blueprint/subject/:subjectId',
+  adminOrPlatformStaff('question_bank'),
+  async function (req, res) {
+    try {
+      var blueprints = await ExaminationBlueprint.find({
+        subjectId: req.params.subjectId
+      }).lean();
+
+      return res.json({ success: true, blueprints: blueprints });
+    } catch (e) {
+      console.error('[QMS Blueprint] GET subject/:id:', e.message);
+      return res.status(500).json({ success: false, message: e.message });
+    }
+  }
+);
+
+/* ----
+   PUT /api/qms/blueprint/subject/:subjectId
+   Upsert (create or update) a blueprint.
+   Body: { examType, questionType, count, duration, passMark,
+           difficultyDistribution, randomize, shuffleOptions,
+           instructions, securityOptions }
+---- */
+router.put(
+  '/blueprint/subject/:subjectId',
+  adminOrPlatformStaff('question_bank'),
+  async function (req, res) {
+    try {
+      var body         = req.body;
+      var subjectId    = req.params.subjectId;
+      var examType     = (body.examType    || 'all').trim();
+      var questionType = (body.questionType|| 'objective').trim();
+
+      /* Validate subject exists */
+      var Subject = require('../../models/Subject.model');
+      var subject = await Subject.findById(subjectId)
+        .populate('department', 'name').lean();
+      if (!subject) {
+        return res.status(404).json({ success: false, message: 'Subject not found.' });
+      }
+
+      var deptName = subject.department ? subject.department.name : '';
+
+      /* Build update fields */
+      var update = {
+        subjectName:    subject.name,
+        departmentName: deptName,
+        lastModifiedBy: callerName(req),
+        lastModifiedAt: new Date()
+      };
+
+      var ALLOWED = [
+        'count', 'duration', 'passMark', 'difficultyDistribution',
+        'randomize', 'shuffleOptions', 'instructions', 'securityOptions'
+      ];
+      ALLOWED.forEach(function (f) {
+        if (body[f] !== undefined) { update[f] = body[f]; }
+      });
+
+      /* Validate difficulty distribution */
+      if (update.difficultyDistribution) {
+        var dd = update.difficultyDistribution;
+        var sum = (dd.easy || 0) + (dd.medium || 0) + (dd.hard || 0);
+        if (sum < 95 || sum > 105) {
+          return res.status(400).json({
+            success: false,
+            message: 'Difficulty distribution must total 100% (got ' + sum + '%).'
+          });
+        }
+      }
+
+      /* Compute status: check if pool has enough questions */
+      var poolCount = await QMSQuestion.countDocuments({
+        subjectId:    subjectId,
+        questionType: questionType,
+        examType:     { $in: [examType, 'all'] },
+        status:       'approved'
+      });
+      var requiredCount = update.count || 40;
+      update.status = poolCount >= requiredCount ? 'ready'
+                    : poolCount > 0              ? 'incomplete'
+                    :                              'draft';
+
+      var bp = await ExaminationBlueprint.findOneAndUpdate(
+        { subjectId: subjectId, examType: examType, questionType: questionType },
+        { $set: update },
+        { new: true, upsert: true, runValidators: true }
+      );
+
+      return res.json({
+        success:   true,
+        message:   'Blueprint saved. Status: ' + bp.status + '.',
+        blueprint: bp
+      });
+    } catch (e) {
+      console.error('[QMS Blueprint] PUT subject/:id:', e.message);
+      return res.status(500).json({ success: false, message: e.message });
+    }
+  }
+);
+
+/* ----
+   DELETE /api/qms/blueprint/:blueprintId
+   Remove a blueprint. Subject and question pool are unaffected.
+---- */
+router.delete(
+  '/blueprint/:blueprintId',
+  adminOrPlatformStaff('question_bank'),
+  async function (req, res) {
+    try {
+      var bp = await ExaminationBlueprint.findByIdAndDelete(req.params.blueprintId);
+      if (!bp) {
+        return res.status(404).json({ success: false, message: 'Blueprint not found.' });
+      }
+      return res.json({
+        success: true,
+        message: 'Blueprint deleted. The question pool is unchanged.'
+      });
+    } catch (e) {
+      console.error('[QMS Blueprint] DELETE /:id:', e.message);
+      return res.status(500).json({ success: false, message: e.message });
+    }
+  }
+);
 
 module.exports = router;

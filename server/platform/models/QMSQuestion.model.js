@@ -49,6 +49,18 @@ const qmsQuestionSchema = new mongoose.Schema(
       index:    true
     },
 
+    /* ---- Question type for multi-modal examination support ----
+       ✅ STAGE 1: All existing questions default to 'objective'.
+       Fully backward compatible — the engine already filters by subjectId
+       and examType; questionType is an additive filter only.
+       Stage 4 will use this to separate objective and theory question pools. */
+    questionType: {
+      type:    String,
+      enum:    ['objective', 'theory', 'practical', 'oral'],
+      default: 'objective',
+      index:   true
+    },
+
     /* ---- Links to existing CBT structure ---- */
     subjectId: {
       type:    mongoose.Schema.Types.ObjectId,
@@ -119,8 +131,9 @@ const qmsQuestionSchema = new mongoose.Schema(
 );
 
 /* ---- Indexes for Question Engine queries (Phase 3) ---- */
-qmsQuestionSchema.index({ examType: 1, subjectId: 1,    status: 1 });
+qmsQuestionSchema.index({ examType: 1, subjectId: 1,    questionType: 1, status: 1 });
 qmsQuestionSchema.index({ examType: 1, departmentId: 1, status: 1 });
-qmsQuestionSchema.index({ status: 1,  createdAt: -1 });
+qmsQuestionSchema.index({ subjectId: 1, questionType: 1, status: 1 });
+qmsQuestionSchema.index({ status: 1,   createdAt: -1 });
 
 module.exports = mongoose.model('QMSQuestion', qmsQuestionSchema);

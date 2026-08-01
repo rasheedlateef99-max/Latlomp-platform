@@ -628,6 +628,7 @@ async function deleteCbtDept(id, name) {
 }
 
 /* ---- SUBJECTS ---- */
+
 async function loadCbtSubjects() {
   var panel = document.getElementById('cbtSubjPanel');
   if (!_cbtSelDept) return;
@@ -646,26 +647,66 @@ async function loadCbtSubjects() {
     return;
   }
 
-  panel.innerHTML = _cbtSubjects.map(function(s) {
+  /* ✅ STAGE 1: Fetch Question Pool health for all subjects in one call */
+  var poolHealth = {};
+  try {
+    var subjectIds = _cbtSubjects.map(function(s) { return s._id; });
+    var healthRes  = await qmsApi('/blueprint/pool-health-batch', 'POST', { subjectIds: subjectIds });
+    if (healthRes.ok) { poolHealth = healthRes.data.health || {}; }
+  } catch (e) {
+    /* Pool health is non-critical — subject list still renders */
+    console.warn('[CBT] Pool health fetch failed:', e.message);
+  }
+
+  panel.innerHTML = _cbtSubjects.map(function (s) {
     var isSelected = _cbtSelSubj && _cbtSelSubj._id === s._id;
+    var ph         = poolHealth[s._id] || { total: 0 };
+    var poolCount  = ph.total || 0;
+
+    var poolBadge = poolCount > 0
+      ? '<span style="font-size:10px; font-weight:700; background:rgba(67,233,123,0.1); color:#43e97b; padding:1px 7px; border-radius:20px; margin-left:6px;">' +
+          poolCount.toLocaleString() + ' approved' +
+        '</span>'
+      : '<span style="font-size:10px; color:var(--text-muted); margin-left:6px;">No questions yet</span>';
+
+    var safeName = (s.name || '').replace(/'/g, '');
+    var safeDept = (_cbtSelDept ? _cbtSelDept.name : '').replace(/'/g, '');
+
     return '<div class="cbt-list-item' + (isSelected ? ' selected' : '') + '" ' +
-      'onclick="selectCbtSubj(\'' + s._id + '\',\'' + (s.name || '').replace(/'/g, '') + '\')">' +
+      'onclick="selectCbtSubj(\'' + s._id + '\',\'' + safeName + '\')">' +
       '<div style="flex:1; min-width:0;">' +
-        '<div class="cbt-list-item-name">' + (s.name || '') + '</div>' +
-        '<div class="cbt-list-item-meta">' +
-          (s.totalQuestions || 0) + ' questions · ' +
-          (s.timeLimit || 0) + ' mins · ' +
-          (s.questionCount || 0) + ' per session' +
+        '<div style="display:flex; align-items:center; flex-wrap:wrap;">' +
+          '<span class="cbt-list-item-name">' + (s.name || '') + '</span>' +
+          poolBadge +
+        '</div>' +
+        '<div class="cbt-list-item-meta" style="margin-top:3px;">' +
+          (s.timeLimit || 0) + ' mins · ' + (s.questionCount || 0) + ' per session' +
         '</div>' +
       '</div>' +
-      '<div style="display:flex; gap:4px; flex-shrink:0;">' +
+      '<div style="display:flex; gap:4px; flex-shrink:0; flex-wrap:wrap;">' +
         '<button onclick="event.stopPropagation(); openCbtSubjModal(\'' + s._id + '\')" ' +
-          'style="padding:3px 8px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer; font-family:inherit; background:rgba(108,99,255,0.1); border:1px solid rgba(108,99,255,0.25); color:#a78bfa;">Edit</button>' +
-        '<button onclick="event.stopPropagation(); deleteCbtSubj(\'' + s._id + '\',\'' + (s.name || '').replace(/'/g, '') + '\')" ' +
-          'style="padding:3px 8px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer; font-family:inherit; background:rgba(255,101,132,0.08); border:1px solid rgba(255,101,132,0.25); color:#ff6584;">✕</button>' +
+          'style="padding:3px 7px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer; font-family:inherit; background:rgba(108,99,255,0.1); border:1px solid rgba(108,99,255,0.25); color:#a78bfa;">✏ Edit</button>' +
+        '<button onclick="event.stopPropagation(); qmsBlueprintOpen(\'' + s._id + '\',\'' + safeName + '\',\'' + safeDept + '\')" ' +
+          'style="padding:3px 7px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer; font-family:inherit; background:rgba(56,249,215,0.08); border:1px solid rgba(56,249,215,0.25); color:#38f9d7;" ' +
+          'title="Configure Examination Blueprint">📋</button>' +
+        '<button onclick="event.stopPropagation(); qmsOpenBankForSubject(\'' + s._id + '\',\'' + safeName + '\')" ' +
+          'style="padding:3px 7px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer; font-family:inherit; background:rgba(67,233,123,0.08); border:1px solid rgba(67,233,123,0.25); color:#43e97b;" ' +
+          'title="Manage questions for this subject">📚</button>' +
+        '<button onclick="event.stopPropagation(); deleteCbtSubj(\'' + s._id + '\',\'' + safeName + '\')" ' +
+          'style="padding:3px 7px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer; font-family:inherit; background:rgba(255,101,132,0.08); border:1px solid rgba(255,101,132,0.25); color:#ff6584;">✕</button>' +
       '</div>' +
     '</div>';
   }).join('');
+}
+
+/* Navigate to QMS Bank filtered to this subject */
+function qmsOpenBankForSubject(subjectId, subjectName) {
+  qmsBankFilterBySubject(subjectId, subjectName);
+  showAdminSection('qms-import');
+  setTimeout(function () {
+    qmsSwitchTab('bank');
+    qmsBankLoad(1);
+  }, 200);
 }
 
 function selectCbtSubj(id, name) {
@@ -793,63 +834,123 @@ async function loadCbtQuestions() {
   var panel   = document.getElementById('cbtQPanel');
   var countEl = document.getElementById('cbtQCount');
 
-  if (!_cbtSelSubj) return;
-  if (panel) panel.innerHTML = '<div style="color:var(--text-muted); font-size:14px; text-align:center; padding:24px;">Loading...</div>';
+  if (!_cbtSelSubj) { return; }
+  if (panel) panel.innerHTML =
+    '<div style="color:var(--text-muted); font-size:14px; text-align:center; padding:24px;">' +
+    '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:8px;"></span>' +
+    'Loading...</div>';
 
-  var res = await apiRequest('/exams/admin/subjects/' + _cbtSelSubj._id + '/questions');
-  if (!res.ok) { adminToast('Failed to load questions', 'error'); return; }
+  /* ✅ STAGE 2: Primary path — QMS Question Bank */
+  var qs = '?subjectId=' + _cbtSelSubj._id + '&limit=50';
+  if (_cbtCat && _cbtCat !== 'all') qs += '&examType=' + _cbtCat;
 
-  _cbtQuestions = res.data.questions || [];
-  if (countEl) countEl.textContent = _cbtQuestions.length + ' question' + (_cbtQuestions.length !== 1 ? 's' : '');
-  if (!panel) return;
+  var res = await qmsApi('/bank' + qs);
 
-  if (_cbtQuestions.length === 0) {
-    panel.innerHTML = '<div style="color:var(--text-muted); font-size:14px; text-align:center; padding:24px; line-height:1.7;">No questions yet.<br>Click "+ Add Question".</div>';
+  if (!res.ok) {
+    if (panel) panel.innerHTML =
+      '<div style="color:#ff6584; font-size:14px; text-align:center; padding:24px;">' +
+      'Failed to load questions. ' + (res.data.message || '') + '</div>';
+    return;
+  }
+
+  var questions = res.data.questions || [];
+  var total     = res.data.total     || 0;
+  _cbtQuestions = questions; /* keep reference for backward compat */
+
+  if (countEl) countEl.textContent = total.toLocaleString() + ' question' + (total !== 1 ? 's' : '');
+  if (!panel) { return; }
+
+  if (questions.length === 0) {
+    panel.innerHTML =
+      '<div style="color:var(--text-muted); font-size:14px; text-align:center; padding:28px; line-height:1.9;">' +
+        '<div style="font-size:28px; margin-bottom:10px;">📭</div>' +
+        '<strong style="color:var(--text-secondary,#a0a0c0);">No questions yet for this subject</strong><br>' +
+        '<span style="font-size:13px;">Click <strong>+ Add Question</strong> to create the first one,<br>' +
+        'or use the <strong>📚 Manage Pool</strong> button to bulk import.</span>' +
+      '</div>';
     return;
   }
 
   var letters = ['A', 'B', 'C', 'D'];
 
-  panel.innerHTML = _cbtQuestions.map(function(q, i) {
-    var opts = (q.options || []).map(function(opt, idx) {
+  panel.innerHTML = questions.map(function (q, i) {
+    var opts = (q.options || []).map(function (opt, idx) {
       var isCorrect = idx === q.correctAnswer;
       return '<span style="font-size:11px; padding:2px 7px; border-radius:4px; margin-right:4px; margin-bottom:4px; display:inline-block;' +
         'background:' + (isCorrect ? 'rgba(67,233,123,0.15)' : 'rgba(255,255,255,0.04)') + ';' +
-        'color:' + (isCorrect ? '#43e97b' : 'var(--text-secondary)') + ';' +
+        'color:'       + (isCorrect ? '#43e97b'               : 'var(--text-secondary)') + ';' +
         'border:1px solid ' + (isCorrect ? 'rgba(67,233,123,0.3)' : 'var(--border,rgba(255,255,255,0.08))') + ';">' +
-        letters[idx] + ': ' + opt + (isCorrect ? ' ✓' : '') +
+        (letters[idx] || idx) + ': ' + opt + (isCorrect ? ' ✓' : '') +
       '</span>';
     }).join('');
 
-    /* Category badge */
-    var catBadge = q.examCategory && q.examCategory !== 'all'
-      ? '<span style="font-size:10px; font-weight:700; padding:1px 6px; border-radius:10px; background:rgba(108,99,255,0.12); color:#a78bfa; margin-left:6px;">' + q.examCategory.toUpperCase() + '</span>'
+    var qtBadge = (q.questionType && q.questionType !== 'objective')
+      ? '<span style="font-size:10px; font-weight:700; background:rgba(108,99,255,0.12); color:#a78bfa; padding:1px 6px; border-radius:20px; margin-left:6px;">' + q.questionType + '</span>'
       : '';
+
+    var safeId = (q._id || '').toString();
 
     return '<div class="cbt-q-item">' +
       '<div style="display:flex; align-items:flex-start; gap:12px;">' +
-        '<span style="width:24px; height:24px; border-radius:6px; background:rgba(67,233,123,0.1); color:#43e97b; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px; flex-shrink:0;">' + (i+1) + '</span>' +
+        '<span style="width:24px; height:24px; border-radius:6px; background:rgba(67,233,123,0.1); color:#43e97b; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px; flex-shrink:0; margin-top:2px;">' + (i + 1) + '</span>' +
         '<div style="flex:1; min-width:0;">' +
-          '<div style="font-size:13px; font-weight:600; color:#fff; margin-bottom:6px; line-height:1.5;">' + q.question + catBadge + '</div>' +
+          '<div style="font-size:13px; font-weight:600; color:#fff; margin-bottom:6px; line-height:1.5;">' +
+            q.question + qtBadge +
+          '</div>' +
           '<div style="display:flex; flex-wrap:wrap; gap:2px; margin-bottom:4px;">' + opts + '</div>' +
           (q.explanation ? '<div style="font-size:11px; color:var(--text-muted); font-style:italic; margin-top:4px;">💡 ' + q.explanation + '</div>' : '') +
+          (q.topic ? '<div style="font-size:11px; color:var(--text-muted); margin-top:2px;">📌 ' + q.topic + '</div>' : '') +
         '</div>' +
-        '<button onclick="deleteCbtQuestion(\'' + q._id + '\')" ' +
-          'style="padding:4px 8px; border-radius:6px; font-size:12px; cursor:pointer; font-family:inherit; background:rgba(255,101,132,0.08); border:1px solid rgba(255,101,132,0.25); color:#ff6584; flex-shrink:0;">🗑</button>' +
+        '<div style="display:flex; gap:4px; flex-shrink:0;">' +
+          '<button onclick="qmsOpenEdit(\'' + safeId + '\')" ' +
+            'style="padding:4px 8px; border-radius:6px; font-size:12px; cursor:pointer; font-family:inherit; background:rgba(108,99,255,0.1); border:1px solid rgba(108,99,255,0.25); color:#a78bfa;" ' +
+            'title="Edit this question">✏</button>' +
+          '<button onclick="qmsSoftDeleteFromCbt(\'' + safeId + '\')" ' +
+            'style="padding:4px 8px; border-radius:6px; font-size:12px; cursor:pointer; font-family:inherit; background:rgba(255,101,132,0.08); border:1px solid rgba(255,101,132,0.25); color:#ff6584;" ' +
+            'title="Remove from pool (soft delete)">🗑</button>' +
+        '</div>' +
       '</div>' +
     '</div>';
   }).join('');
+
+  /* Show "view all" link when pool exceeds display limit */
+  if (total > 50) {
+    panel.innerHTML +=
+      '<div style="padding:10px 16px; font-size:12px; color:var(--text-muted); text-align:center; border-top:1px solid var(--border,rgba(255,255,255,0.06));">' +
+        'Showing 50 of <strong style="color:#fff;">' + total.toLocaleString() + '</strong> questions. ' +
+        '<button class="a-btn a-btn-secondary a-btn-sm" ' +
+          'onclick="qmsOpenBankForSubject(\'' + _cbtSelSubj._id + '\',\'' + (_cbtSelSubj.name || '').replace(/'/g, '') + '\')" ' +
+          'style="margin-left:8px;">View all ' + total.toLocaleString() + ' →</button>' +
+      '</div>';
+  }
 }
 
 /* Question modal */
+/* ✅ STAGE 2: openCbtQModal() now delegates to the QMS editor.
+   The legacy modal (cbtQModal) is kept as emergency fallback only.
+   Access via openCbtQModalLegacy() if absolutely needed. */
 function openCbtQModal() {
+  qmsCreateForSubject();
+}
+
+/* Emergency legacy question editor — kept for rollback safety.
+   Creates questions in the legacy Question model.
+   Not accessible from the default UI after Stage 2.    */
+function openCbtQModalLegacy() {
   if (!_cbtSelSubj) { adminToast('Select a subject first.', 'error'); return; }
+
+  if (!confirm(
+    '⚠️ Legacy Editor\n\n' +
+    'This creates questions in the legacy CBT system, not in the QMS Question Bank.\n\n' +
+    'This editor exists only as an emergency fallback during migration.\n\n' +
+    'Are you sure you want to continue?'
+  )) { return; }
 
   var form = document.getElementById('cbtQForm');
   if (form) form.reset();
 
   var h = document.getElementById('cbtQModalTitle');
-  if (h) h.textContent = 'Add Question — ' + (_cbtSelSubj.name || '') + ' (' + _cbtCat.toUpperCase() + ')';
+  if (h) h.textContent = 'Add Question (Legacy) — ' + (_cbtSelSubj.name || '') + ' (' + _cbtCat.toUpperCase() + ')';
 
   /* Pre-select current category */
   var catEl = document.getElementById('cbtQCat');
@@ -1138,7 +1239,7 @@ async function qmsInit() {
 /* ---- Sub-tab switching ---- */
 
 function qmsSwitchTab(tab) {
-  ['import', 'bank', 'sources', 'engine', 'history', 'stats'].forEach(function (t) {
+  ['import', 'bank', 'sources', 'orphans', 'engine', 'history', 'stats'].forEach(function (t) {
     var panel = document.getElementById('qmsPanel' + t.charAt(0).toUpperCase() + t.slice(1));
     if (panel) panel.style.display = (t === tab) ? 'block' : 'none';
     var btn   = document.getElementById('qmsTab' + t.charAt(0).toUpperCase() + t.slice(1));
@@ -1148,6 +1249,7 @@ function qmsSwitchTab(tab) {
   if (tab === 'stats')   qmsLoadStats();
   if (tab === 'bank')    qmsBankLoad(1);
   if (tab === 'sources') qmsSourceInit();
+  if (tab === 'orphans') qmsOrphanLoad(1);
   if (tab === 'engine')  { qmsEngInit(); }
 }
 
@@ -1223,13 +1325,15 @@ async function qmsLoadSubjectsForDept() {
 
 /* ---- Get selected metadata ---- */
 function qmsGetMeta() {
-  var examTypeSel  = document.getElementById('qmsExamType');
-  var deptSel      = document.getElementById('qmsDepartment');
-  var subjSel      = document.getElementById('qmsSubject');
-  var deptOpt      = deptSel && deptSel.selectedOptions[0];
-  var subjOpt      = subjSel && subjSel.selectedOptions[0];
+  var examTypeSel    = document.getElementById('qmsExamType');
+  var deptSel        = document.getElementById('qmsDepartment');
+  var subjSel        = document.getElementById('qmsSubject');
+  var qTypeSel       = document.getElementById('qmsQuestionType');
+  var deptOpt        = deptSel && deptSel.selectedOptions[0];
+  var subjOpt        = subjSel && subjSel.selectedOptions[0];
   return {
     examType:       examTypeSel ? examTypeSel.value : 'jamb',
+    questionType:   qTypeSel ? (qTypeSel.value || 'objective') : 'objective',
     departmentId:   deptSel ? deptSel.value : '',
     departmentName: deptOpt ? (deptOpt.dataset.name || deptOpt.text || '') : '',
     subjectId:      subjSel ? subjSel.value : '',
@@ -1449,15 +1553,16 @@ async function qmsConfirmImport() {
   var preview  = _qmsPreviewData.preview;
 
   var res = await qmsApi('/import/confirm', 'POST', {
-    questions:       preview.valid,
-    examType:        meta.examType,
-    departmentId:    meta.departmentId,
-    subjectId:       meta.subjectId,
-    subjectName:     meta.subjectName,
-    departmentName:  meta.departmentName,
-    sourceType:      _qmsPreviewData.sourceType,
+    questions:        preview.valid,
+    examType:         meta.examType,
+    questionType:     meta.questionType,
+    departmentId:     meta.departmentId,
+    subjectId:        meta.subjectId,
+    subjectName:      meta.subjectName,
+    departmentName:   meta.departmentName,
+    sourceType:       _qmsPreviewData.sourceType,
     originalFilename: _qmsPreviewData.filename,
-    stats:           preview.stats
+    stats:            preview.stats
   });
 
   if (btn) { btn.innerHTML = '✅ Import ' + count + ' Questions'; btn.disabled = false; }
@@ -1786,10 +1891,12 @@ function qmsFilterByTopic(topic) {
    QMS PHASE 2 — QUESTION BANK
 ============================================================ */
 
-var _qmsBankPage       = 1;
-var _qmsBankTotal      = 0;
-var _qmsBankSelected   = {}; /* { id: true } */
-var _qmsBankSearchTimer = null;
+var _qmsBankPage          = 1;
+var _qmsBankTotal         = 0;
+var _qmsBankSelected      = {}; /* { id: true } */
+var _qmsBankSearchTimer   = null;
+var _qmsBankSubjectId     = null; /* set when navigated from CBT Management */
+var _qmsBankSubjectLabel  = '';
 
 /* ---- Debounced search ---- */
 function qmsBankDebounceSearch() {
@@ -1809,21 +1916,44 @@ function qmsBankBuildQs(page) {
   var topic     = (document.getElementById('qmsBankFilterTopic')   || {}).value || '';
 
   var qs = '?page=' + (page || 1) + '&limit=25';
-  if (search)   qs += '&search='     + encodeURIComponent(search);
-  if (exam)     qs += '&examType='   + exam;
-  if (status)   qs += '&status='     + status;
-  if (diff)     qs += '&difficulty=' + diff;
-  if (topic)    qs += '&search='     + encodeURIComponent(topic);   /* topic reuses search (index match) */
-  if (yearFrom) qs += '&yearFrom='   + yearFrom;
-  if (yearTo)   qs += '&yearTo='     + yearTo;
+  if (search)            qs += '&search='     + encodeURIComponent(search);
+  if (exam)              qs += '&examType='   + exam;
+  if (status)            qs += '&status='     + status;
+  if (diff)              qs += '&difficulty=' + diff;
+  if (topic)             qs += '&search='     + encodeURIComponent(topic);
+  if (yearFrom)          qs += '&yearFrom='   + yearFrom;
+  if (yearTo)            qs += '&yearTo='     + yearTo;
+  if (_qmsBankSubjectId) qs += '&subjectId='  + _qmsBankSubjectId;
   return qs;
 }
 
 /* ---- Load / reload the Question Bank table ---- */
+/* ---- Set subject filter from CBT Management ---- */
+function qmsBankFilterBySubject(subjectId, subjectLabel) {
+  _qmsBankSubjectId    = subjectId;
+  _qmsBankSubjectLabel = subjectLabel;
+  var banner = document.getElementById('qmsBankSubjectBanner');
+  var label  = document.getElementById('qmsBankSubjectLabel');
+  if (banner) banner.style.display = _qmsBankSubjectId ? 'flex' : 'none';
+  if (label)  label.textContent    = subjectLabel || '';
+}
+
+/* ---- Clear subject filter ---- */
+function qmsBankClearSubjectFilter() {
+  _qmsBankSubjectId    = null;
+  _qmsBankSubjectLabel = '';
+  var banner = document.getElementById('qmsBankSubjectBanner');
+  if (banner) banner.style.display = 'none';
+  qmsBankLoad(1);
+}
+
 async function qmsBankLoad(page) {
-  _qmsBankPage    = page || 1;
+  _qmsBankPage     = page || 1;
   _qmsBankSelected = {};
   qmsUpdateBulkBar();
+  /* Sync subject banner visibility */
+  var banner = document.getElementById('qmsBankSubjectBanner');
+  if (banner) banner.style.display = _qmsBankSubjectId ? 'flex' : 'none';
 
   var tbody = document.getElementById('qmsBankBody');
   if (!tbody) { return; }
@@ -1987,6 +2117,20 @@ async function qmsSoftDelete(id, preview) {
 
 /* ---- Open Edit modal ---- */
 async function qmsOpenEdit(id) {
+  /* ✅ STAGE 2: Reset create mode state — we are editing, not creating */
+  _qmsCreateMode = false;
+  _qmsCreateOpts = null;
+
+  /* Restore save button and version history button to edit defaults */
+  var saveBtn = document.getElementById('qmsEditSaveBtn');
+  if (saveBtn) { saveBtn.textContent = 'Save Changes'; }
+  var versionBtns = document.querySelectorAll('#qmsEditModal .t-modal-footer .a-btn-secondary');
+  versionBtns.forEach(function (btn) {
+    if (btn.onclick && btn.onclick.toString().indexOf('qmsViewVersions') !== -1) {
+      btn.style.display = 'inline-flex';
+    }
+  });
+
   /* Reset modal state */
   var errEl = document.getElementById('qmsEditErrBox');
   if (errEl) errEl.style.display = 'none';
@@ -2026,12 +2170,12 @@ async function qmsOpenEdit(id) {
   if (diffEl)    diffEl.value    = q.difficulty || 'medium';
 }
 
-/* ---- Save Edit ---- */
+/* ---- Save Edit / Create ---- */
 async function qmsSaveEdit() {
-  var id     = (document.getElementById('qmsEditId')       || {}).value || '';
-  var errEl  = document.getElementById('qmsEditErrBox');
-  var btn    = document.getElementById('qmsEditSaveBtn');
-  if (!id) { return; }
+  var id       = (document.getElementById('qmsEditId') || {}).value || '';
+  var errEl    = document.getElementById('qmsEditErrBox');
+  var btn      = document.getElementById('qmsEditSaveBtn');
+  var isCreate = (id === '');  /* empty id = create mode (Stage 2) */
 
   if (errEl) errEl.style.display = 'none';
 
@@ -2049,32 +2193,80 @@ async function qmsSaveEdit() {
   var payload = {
     question:      ((document.getElementById('qmsEditQuestion')   || {}).value || '').trim(),
     options:       opts,
-    correctAnswer: parseInt((document.getElementById('qmsEditCorrect')    || {}).value || '0'),
-    explanation:   ((document.getElementById('qmsEditExpl')               || {}).value || '').trim(),
-    topic:         ((document.getElementById('qmsEditTopic')              || {}).value || '').trim(),
-    status:        (document.getElementById('qmsEditStatus')              || {}).value || 'approved',
-    difficulty:    (document.getElementById('qmsEditDifficulty')          || {}).value || 'medium',
-    year:          parseInt((document.getElementById('qmsEditYear')       || {}).value) || null,
-    reason:        ((document.getElementById('qmsEditReason')             || {}).value || '').trim()
+    correctAnswer: parseInt((document.getElementById('qmsEditCorrect')     || {}).value || '0'),
+    explanation:   ((document.getElementById('qmsEditExpl')                || {}).value || '').trim(),
+    topic:         ((document.getElementById('qmsEditTopic')               || {}).value || '').trim(),
+    status:        (document.getElementById('qmsEditStatus')               || {}).value || 'approved',
+    difficulty:    (document.getElementById('qmsEditDifficulty')           || {}).value || 'medium',
+    year:          parseInt((document.getElementById('qmsEditYear')        || {}).value) || null,
+    reason:        ((document.getElementById('qmsEditReason')              || {}).value || '').trim()
   };
+
+  /* ✅ STAGE 2: Attach subject/exam context for create mode */
+  if (isCreate) {
+    if (!_qmsCreateOpts) {
+      if (errEl) { errEl.textContent = 'Create context lost — please close and try again.'; errEl.style.display = 'block'; }
+      return;
+    }
+    payload.examType       = _qmsCreateOpts.examType       || 'jamb';
+    payload.questionType   = _qmsCreateOpts.questionType   || 'objective';
+    payload.subjectId      = _qmsCreateOpts.subjectId      || null;
+    payload.subjectName    = _qmsCreateOpts.subjectName    || '';
+    payload.departmentId   = _qmsCreateOpts.departmentId   || null;
+    payload.departmentName = _qmsCreateOpts.departmentName || '';
+  }
 
   if (!payload.question) {
     if (errEl) { errEl.textContent = 'Question text is required.'; errEl.style.display = 'block'; }
     return;
   }
 
-  if (btn) { btn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px;"></span> Saving...'; btn.disabled = true; }
+  var spinnerHtml = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px;"></span>';
+  if (btn) {
+    btn.innerHTML = spinnerHtml + (isCreate ? 'Creating...' : 'Saving...');
+    btn.disabled  = true;
+  }
 
-  var res = await qmsApi('/bank/' + id, 'PUT', payload);
+  var res = isCreate
+    ? await qmsApi('/bank', 'POST', payload)
+    : await qmsApi('/bank/' + id, 'PUT', payload);
 
-  if (btn) { btn.innerHTML = 'Save Changes'; btn.disabled = false; }
+  if (btn) {
+    btn.innerHTML = isCreate ? 'Create Question' : 'Save Changes';
+    btn.disabled  = false;
+  }
 
   if (res.ok) {
-    instToast('Question updated.', 'success');
+    instToast(isCreate ? '✅ Question created and added to pool.' : 'Question updated.', 'success');
     closeAdminModal('qmsEditModal');
-    qmsBankLoad(_qmsBankPage);
+
+    /* Determine which view to refresh */
+    var cbtActive = document.getElementById('as-cbt-management') &&
+                    document.getElementById('as-cbt-management').classList.contains('active');
+
+    if (isCreate) {
+      _qmsCreateMode = false;
+      _qmsCreateOpts = null;
+      if (cbtActive && _cbtSelSubj) {
+        /* Reload both questions and subject list (pool count update) */
+        await loadCbtQuestions();
+        loadCbtSubjects();
+      } else {
+        qmsBankLoad(_qmsBankPage);
+      }
+    } else {
+      if (cbtActive && _cbtSelSubj) {
+        loadCbtQuestions();
+      } else {
+        qmsBankLoad(_qmsBankPage);
+      }
+    }
+
   } else {
-    if (errEl) { errEl.textContent = res.data.message || 'Save failed.'; errEl.style.display = 'block'; }
+    if (errEl) {
+      errEl.textContent  = res.data.message || (isCreate ? 'Create failed.' : 'Save failed.');
+      errEl.style.display = 'block';
+    }
   }
 }
 
@@ -3515,6 +3707,612 @@ async function qmsSourceLoad(page) {
   } else if (pagDiv) {
     pagDiv.style.display = 'none';
   }
+}
+
+/* ============================================================
+   ✅ STAGE 1 — EXAMINATION BLUEPRINT ADMIN FUNCTIONS
+============================================================ */
+
+var _bpSubjectId   = null;
+var _bpSubjectName = '';
+var _bpDeptName    = '';
+var _bpHealthData  = null;   /* pool health for current subject */
+var _bpCurrentType = 'objective';
+var _bpBlueprintMap = {};    /* { 'examType_questionType': blueprint } */
+
+/* ---- Open the blueprint modal for a subject ---- */
+async function qmsBlueprintOpen(subjectId, subjectName, deptName) {
+  _bpSubjectId   = subjectId;
+  _bpSubjectName = subjectName;
+  _bpDeptName    = deptName;
+  _bpBlueprintMap = {};
+  _bpCurrentType = 'objective';
+
+  document.getElementById('bpSubjectId').value    = subjectId;
+  document.getElementById('bpCurrentType').value  = 'objective';
+  document.getElementById('bpCurrentBlueprintId').value = '';
+  document.getElementById('qmsBlueprintTitle').textContent =
+    'Blueprint — ' + subjectName + ' (' + deptName + ')';
+  document.getElementById('qmsBlueprintSubjectInfo').innerHTML =
+    '<span style="color:#fff; font-weight:700;">' + esc(subjectName) + '</span>' +
+    ' in <span style="color:var(--text-muted);">' + esc(deptName) + '</span>' +
+    '<div style="font-size:12px; margin-top:4px; color:var(--text-muted); line-height:1.7;">' +
+      'Configure examination parameters for each question type. ' +
+      'Blueprints are used by the Question Engine during Stage 4 activation.' +
+    '</div>';
+
+  document.getElementById('qmsBlueprintModal').style.display = 'flex';
+
+  /* Load pool health + existing blueprints in parallel */
+  await qmsBlueprintLoadForExamType();
+}
+
+/* ---- Load blueprints for the selected exam type ---- */
+async function qmsBlueprintLoadForExamType() {
+  var examType = (document.getElementById('bpExamType') || {}).value || 'all';
+  var infoEl   = document.getElementById('bpPoolStatusDisplay');
+  if (infoEl) infoEl.innerHTML = '<span style="color:var(--text-muted); font-size:12px;">Loading pool...</span>';
+
+  var [healthRes, bpRes] = await Promise.all([
+    qmsApi('/blueprint/pool-health/' + _bpSubjectId),
+    qmsApi('/blueprint/subject/' + _bpSubjectId)
+  ]);
+
+  _bpHealthData = healthRes.ok ? healthRes.data : null;
+
+  if (bpRes.ok) {
+    _bpBlueprintMap = {};
+    (bpRes.data.blueprints || []).forEach(function (bp) {
+      var key = bp.examType + '_' + bp.questionType;
+      _bpBlueprintMap[key] = bp;
+    });
+  }
+
+  var totalApproved = _bpHealthData ? (_bpHealthData.total || 0) : 0;
+  if (infoEl) {
+    infoEl.innerHTML = totalApproved > 0
+      ? '<span style="color:#43e97b; font-weight:700; font-size:13px;">✅ ' + totalApproved.toLocaleString() + ' approved questions in pool</span>'
+      : '<span style="color:var(--text-muted); font-size:13px;">No approved questions yet — import first.</span>';
+  }
+
+  qmsBlueprintSwitchType(_bpCurrentType);
+}
+
+/* ---- Switch between question type tabs ---- */
+function qmsBlueprintSwitchType(type) {
+  _bpCurrentType = type;
+  document.getElementById('bpCurrentType').value = type;
+  ['objective','theory','practical','oral'].forEach(function (t) {
+    var btn = document.getElementById('bpTab' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (btn) btn.classList.toggle('active', t === type);
+  });
+
+  var examType = (document.getElementById('bpExamType') || {}).value || 'all';
+  var key      = examType + '_' + type;
+  var existing = _bpBlueprintMap[key] || null;
+
+  /* Pool availability for this type */
+  var available = _bpHealthData && _bpHealthData.typeHealth
+    ? (_bpHealthData.typeHealth[type] ? _bpHealthData.typeHealth[type].available : 0)
+    : (_bpHealthData ? (_bpHealthData.poolCounts || {})[type] || 0 : 0);
+
+  /* Populate form fields */
+  var count    = existing ? existing.count    : 40;
+  var duration = existing ? existing.duration : 30;
+  var passMark = existing ? existing.passMark : 50;
+  var dd       = existing ? (existing.difficultyDistribution || {}) : {};
+  var easy     = dd.easy   !== undefined ? dd.easy   : 33;
+  var medium   = dd.medium !== undefined ? dd.medium : 34;
+  var hard     = dd.hard   !== undefined ? dd.hard   : 33;
+  var randomize     = existing ? String(existing.randomize !== false) : 'true';
+  var instructions  = existing ? (existing.instructions || '') : '';
+  var blueprintId   = existing ? (existing._id || '') : '';
+
+  function setVal(id, val) { var el = document.getElementById(id); if (el) el.value = val; }
+  setVal('bpCount',        count);
+  setVal('bpDuration',     duration);
+  setVal('bpPassMark',     passMark);
+  setVal('bpDiffEasy',     easy);
+  setVal('bpDiffMedium',   medium);
+  setVal('bpDiffHard',     hard);
+  setVal('bpRandomize',    randomize);
+  setVal('bpInstructions', instructions);
+  document.getElementById('bpCurrentBlueprintId').value = blueprintId;
+
+  /* Status and delete button */
+  var statusColor = existing
+    ? (existing.status === 'ready'      ? '#43e97b'
+     : existing.status === 'incomplete' ? '#ffa500'
+     :                                    'var(--text-muted)')
+    : 'var(--text-muted)';
+  var statusLabel = existing
+    ? existing.status.charAt(0).toUpperCase() + existing.status.slice(1)
+    : 'Not configured';
+
+  var deleteBtn = document.getElementById('bpDeleteBtn');
+  if (deleteBtn) deleteBtn.style.display = blueprintId ? 'inline-flex' : 'none';
+
+  /* Show availability below form */
+  var warn = document.getElementById('bpDiffWarning');
+  if (warn) warn.style.display = 'none';
+
+  /* Show pool count beside the type tab */
+  var formWrap = document.getElementById('qmsBlueprintFormWrap');
+  if (formWrap) {
+    formWrap.style.opacity = type === 'theory' || type === 'practical' || type === 'oral'
+      ? '0.9' : '1';
+  }
+}
+
+/* ---- Validate difficulty distribution ---- */
+function qmsBpDiffCheck() {
+  var easy   = parseInt((document.getElementById('bpDiffEasy')   || {}).value) || 0;
+  var medium = parseInt((document.getElementById('bpDiffMedium') || {}).value) || 0;
+  var hard   = parseInt((document.getElementById('bpDiffHard')   || {}).value) || 0;
+  var sum    = easy + medium + hard;
+  var warn   = document.getElementById('bpDiffWarning');
+  var warnTxt = document.getElementById('bpDiffWarnText');
+  if (!warn) return;
+  if (sum !== 100) {
+    warn.style.display = 'block';
+    if (warnTxt) warnTxt.textContent = 'Easy + Medium + Hard = ' + sum + '%. Total must equal 100%.';
+  } else {
+    warn.style.display = 'none';
+  }
+}
+
+/* ---- Save the blueprint ---- */
+async function qmsBlueprintSave() {
+  var subjectId    = document.getElementById('bpSubjectId').value;
+  var examType     = (document.getElementById('bpExamType') || {}).value || 'all';
+  var questionType = document.getElementById('bpCurrentType').value || 'objective';
+  var btn          = document.getElementById('bpSaveBtn');
+
+  var easy   = parseInt((document.getElementById('bpDiffEasy')   || {}).value) || 0;
+  var medium = parseInt((document.getElementById('bpDiffMedium') || {}).value) || 0;
+  var hard   = parseInt((document.getElementById('bpDiffHard')   || {}).value) || 0;
+
+  if (easy + medium + hard !== 100) {
+    instToast('Difficulty distribution must total 100%.', 'error');
+    return;
+  }
+
+  if (btn) { btn.innerHTML = '<span style="display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px;"></span> Saving...'; btn.disabled = true; }
+
+  var payload = {
+    examType:     examType,
+    questionType: questionType,
+    count:        parseInt((document.getElementById('bpCount')       || {}).value) || 40,
+    duration:     parseInt((document.getElementById('bpDuration')    || {}).value) || 30,
+    passMark:     parseInt((document.getElementById('bpPassMark')    || {}).value) || 50,
+    randomize:    (document.getElementById('bpRandomize') || {}).value !== 'false',
+    instructions: ((document.getElementById('bpInstructions') || {}).value || '').trim(),
+    difficultyDistribution: { easy: easy, medium: medium, hard: hard }
+  };
+
+  var res = await qmsApi('/blueprint/subject/' + subjectId, 'PUT', payload);
+
+  if (btn) { btn.innerHTML = '💾 Save Blueprint'; btn.disabled = false; }
+
+  if (res.ok) {
+    var bp = res.data.blueprint;
+    var key = examType + '_' + questionType;
+    _bpBlueprintMap[key] = bp;
+    document.getElementById('bpCurrentBlueprintId').value = bp._id;
+
+    var statusColors = { ready:'#43e97b', incomplete:'#ffa500', draft:'var(--text-muted)' };
+    var statusColor  = statusColors[bp.status] || 'var(--text-muted)';
+
+    instToast('Blueprint saved — Status: ' +
+      '<span style="color:' + statusColor + '; font-weight:700;">' +
+      bp.status.toUpperCase() + '</span>', 'success');
+
+    var deleteBtn = document.getElementById('bpDeleteBtn');
+    if (deleteBtn) deleteBtn.style.display = 'inline-flex';
+
+    /* Refresh pool health display */
+    await qmsBlueprintLoadForExamType();
+  } else {
+    instToast(res.data.message || 'Failed to save blueprint.', 'error');
+  }
+}
+
+/* ---- Delete current blueprint ---- */
+async function qmsBlueprintDelete() {
+  var blueprintId = document.getElementById('bpCurrentBlueprintId').value;
+  if (!blueprintId) { instToast('No blueprint to delete.', 'error'); return; }
+  if (!confirm('Delete this blueprint?\n\nThe question pool is not affected — only the configuration is removed.')) { return; }
+
+  var res = await qmsApi('/blueprint/' + blueprintId, 'DELETE');
+  if (res.ok) {
+    var examType     = (document.getElementById('bpExamType') || {}).value || 'all';
+    var questionType = document.getElementById('bpCurrentType').value;
+    var key          = examType + '_' + questionType;
+    delete _bpBlueprintMap[key];
+    document.getElementById('bpCurrentBlueprintId').value = '';
+    document.getElementById('bpDeleteBtn').style.display  = 'none';
+    instToast('Blueprint deleted.', 'success');
+    qmsBlueprintSwitchType(questionType);
+  } else {
+    instToast(res.data.message || 'Delete failed.', 'error');
+  }
+}
+
+/* ============================================================
+   ✅ STAGE 1 — ORPHAN CLEANUP FUNCTIONS
+   Questions without a Subject assignment.
+============================================================ */
+
+var _qmsOrphanPage     = 1;
+var _qmsOrphanSelected = {};
+
+function qmsOrphanToggleAll(masterCb) {
+  document.querySelectorAll('#qmsOrphanBody input[type="checkbox"]').forEach(function (cb) {
+    var row = cb.closest('tr');
+    var id  = row ? row.id.replace('qmsOrphanRow-', '') : '';
+    cb.checked = masterCb.checked;
+    if (masterCb.checked && id) { _qmsOrphanSelected[id] = true; }
+    else if (id)                { delete _qmsOrphanSelected[id]; }
+  });
+  qmsOrphanUpdateBtn();
+}
+
+function qmsOrphanToggleRow(id, cb) {
+  if (cb.checked) { _qmsOrphanSelected[id] = true; }
+  else            { delete _qmsOrphanSelected[id]; }
+  qmsOrphanUpdateBtn();
+}
+
+function qmsOrphanUpdateBtn() {
+  var count = Object.keys(_qmsOrphanSelected).length;
+  var btn   = document.getElementById('qmsOrphanAssignBtn');
+  if (btn)  {
+    btn.style.display = count > 0 ? 'inline-flex' : 'none';
+    btn.textContent   = count > 0 ? '📌 Assign ' + count + ' Selected' : '📌 Assign Selected';
+  }
+}
+
+async function qmsOrphanLoad(page) {
+  _qmsOrphanPage     = page || 1;
+  _qmsOrphanSelected = {};
+  qmsOrphanUpdateBtn();
+
+  var tbody    = document.getElementById('qmsOrphanBody');
+  var countEl  = document.getElementById('qmsOrphanCount');
+  var titleEl  = document.getElementById('qmsOrphanTitle');
+  if (!tbody) { return; }
+
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:28px; color:var(--text-muted);">' +
+    '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:8px;"></span>Scanning...</td></tr>';
+
+  var filterExam = (document.getElementById('qmsOrphanFilterExam') || {}).value || '';
+  var qs = '?page=' + _qmsOrphanPage + '&limit=25';
+  if (filterExam) qs += '&examType=' + filterExam;
+
+  var res = await qmsApi('/bank/orphans' + qs);
+  if (!res.ok) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#ff6584; padding:20px;">' +
+      (res.data.message || 'Failed to load.') + '</td></tr>';
+    return;
+  }
+
+  var questions = res.data.questions || [];
+  var total     = res.data.total     || 0;
+
+  if (countEl) countEl.textContent = total > 0 ? total + ' unassigned question' + (total !== 1 ? 's' : '') + ' found' : '';
+  if (titleEl) titleEl.textContent = total > 0 ? 'Unassigned Questions (' + total + ')' : 'Unassigned Questions';
+
+  if (!questions.length) {
+    tbody.innerHTML =
+      '<tr><td colspan="6" style="text-align:center; padding:36px;">' +
+        '<div style="font-size:28px; margin-bottom:10px;">✅</div>' +
+        '<div style="font-size:15px; font-weight:700; color:#43e97b;">All questions are assigned!</div>' +
+        '<div style="font-size:13px; color:var(--text-muted); margin-top:6px;">Every question in the bank has a Subject.</div>' +
+      '</td></tr>';
+    document.getElementById('qmsOrphanPagination').style.display = 'none';
+    return;
+  }
+
+  var letters = ['A','B','C','D'];
+  tbody.innerHTML = questions.map(function (q) {
+    var safeId   = q._id.toString();
+    var isChecked = _qmsOrphanSelected[safeId] ? 'checked' : '';
+    var qtBadge  = '<span style="font-size:10px; font-weight:700; background:rgba(108,99,255,0.12); color:#a78bfa; padding:1px 7px; border-radius:20px;">' +
+      (q.questionType || 'objective').toUpperCase() + '</span>';
+    var etBadge  = '<span style="font-size:10px; font-weight:700; background:rgba(255,165,0,0.1); color:#ffa500; padding:1px 7px; border-radius:20px;">' +
+      (q.examType || '?').toUpperCase() + '</span>';
+    return '<tr id="qmsOrphanRow-' + safeId + '">' +
+      '<td><input type="checkbox" ' + isChecked + ' onchange="qmsOrphanToggleRow(\'' + safeId + '\',this)" style="accent-color:#6c63ff;" /></td>' +
+      '<td style="max-width:320px; font-size:13px; font-weight:600; color:#fff; line-height:1.4;">' +
+        (q.question || '').substring(0, 90) + (q.question && q.question.length > 90 ? '…' : '') +
+      '</td>' +
+      '<td>' + etBadge + '</td>' +
+      '<td>' + qtBadge + '</td>' +
+      '<td style="font-size:12px; text-transform:capitalize; color:var(--text-secondary);">' + (q.difficulty || '—') + '</td>' +
+      '<td style="font-size:11px; color:var(--text-muted);">' +
+        (q.createdAt ? new Date(q.createdAt).toLocaleDateString('en-NG') : '—') +
+      '</td>' +
+    '</tr>';
+  }).join('');
+
+  /* Pagination */
+  var pages  = res.data.pages || 1;
+  var pagDiv = document.getElementById('qmsOrphanPagination');
+  if (pagDiv && pages > 1) {
+    var btns = '';
+    for (var p = 1; p <= Math.min(pages, 8); p++) {
+      btns += '<button class="a-btn a-btn-sm ' + (p === _qmsOrphanPage ? 'a-btn-primary' : 'a-btn-secondary') +
+              '" onclick="qmsOrphanLoad(' + p + ')">' + p + '</button>';
+    }
+    pagDiv.innerHTML    = btns;
+    pagDiv.style.display = 'flex';
+  } else if (pagDiv) {
+    pagDiv.style.display = 'none';
+  }
+}
+
+/* ---- Open Assign modal ---- */
+async function qmsOrphanOpenAssign() {
+  var count = Object.keys(_qmsOrphanSelected).length;
+  if (!count) { instToast('Select questions first.', 'error'); return; }
+
+  var infoEl = document.getElementById('qmsOrphanAssignInfo');
+  if (infoEl) infoEl.innerHTML =
+    '<strong style="color:#fff;">' + count + ' question' + (count !== 1 ? 's' : '') + ' selected.</strong> ' +
+    'Choose the Department and Subject to assign them to. ' +
+    '<strong style="color:#ffa500;">The Subject must already exist in CBT Management.</strong>';
+
+  var errEl = document.getElementById('qmsOrphanAssignErr');
+  if (errEl) errEl.style.display = 'none';
+
+  await qmsOrphanLoadAssignDepts();
+  document.getElementById('qmsOrphanAssignModal').style.display = 'flex';
+}
+
+async function qmsOrphanLoadAssignDepts() {
+  var examType = (document.getElementById('qmsOrphanExamType') || {}).value || 'jamb';
+  var sel      = document.getElementById('qmsOrphanDept');
+  if (!sel) { return; }
+  sel.innerHTML = '<option value="">Loading...</option>';
+
+  var res = await qmsApi('/departments?examCategory=' + examType);
+  var depts = res.ok ? (res.data.departments || []) : [];
+  sel.innerHTML = '<option value="">— Select Department —</option>' +
+    depts.map(function (d) {
+      return '<option value="' + d._id + '" data-name="' + esc(d.name) + '">' + d.name + '</option>';
+    }).join('');
+
+  var sj = document.getElementById('qmsOrphanSubject');
+  if (sj) sj.innerHTML = '<option value="">— Select Department first —</option>';
+}
+
+async function qmsOrphanLoadAssignSubjects() {
+  var deptSel  = document.getElementById('qmsOrphanDept');
+  var deptId   = deptSel ? deptSel.value : '';
+  var subjSel  = document.getElementById('qmsOrphanSubject');
+  if (!subjSel) { return; }
+  subjSel.innerHTML = '<option value="">— All Subjects in Department —</option>';
+  if (!deptId) { return; }
+  var res = await qmsApi('/subjects?departmentId=' + deptId);
+  (res.ok ? (res.data.subjects || []) : []).forEach(function (s) {
+    var opt = document.createElement('option');
+    opt.value        = s._id;
+    opt.dataset.name = s.name;
+    opt.textContent  = s.name;
+    subjSel.appendChild(opt);
+  });
+}
+
+async function qmsOrphanConfirmAssign() {
+  var ids    = Object.keys(_qmsOrphanSelected);
+  if (!ids.length) { return; }
+
+  var examTypeSel = document.getElementById('qmsOrphanExamType');
+  var qtypeSel    = document.getElementById('qmsOrphanQType');
+  var deptSel     = document.getElementById('qmsOrphanDept');
+  var subjSel     = document.getElementById('qmsOrphanSubject');
+  var errEl       = document.getElementById('qmsOrphanAssignErr');
+  var btn         = document.getElementById('qmsOrphanConfirmAssignBtn');
+
+  var subjId   = subjSel ? subjSel.value : '';
+  var subjOpt  = subjSel && subjSel.selectedOptions[0];
+  var deptOpt  = deptSel && deptSel.selectedOptions[0];
+  var examType = examTypeSel ? examTypeSel.value : 'jamb';
+  var qType    = qtypeSel ? qtypeSel.value : 'objective';
+
+  if (errEl) errEl.style.display = 'none';
+
+  if (!subjId) {
+    if (errEl) { errEl.textContent = 'Please select a Subject.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span style="display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px;"></span>Assigning...'; }
+
+  var payload = {
+    ids:            ids,
+    subjectId:      subjId,
+    subjectName:    subjOpt ? (subjOpt.dataset.name || subjOpt.text || '') : '',
+    departmentId:   deptSel ? deptSel.value : '',
+    departmentName: deptOpt ? (deptOpt.dataset.name || deptOpt.text || '') : '',
+    examType:       examType,
+    questionType:   qType
+  };
+
+  var res = await qmsApi('/bank/orphans/assign', 'POST', payload);
+
+  if (btn) { btn.disabled = false; btn.innerHTML = '📌 Assign Questions'; }
+
+  if (res.ok) {
+    instToast(res.data.message, 'success');
+    closeAdminModal('qmsOrphanAssignModal');
+    _qmsOrphanSelected = {};
+    qmsOrphanUpdateBtn();
+    qmsOrphanLoad(1);
+  } else {
+    if (errEl) { errEl.textContent = res.data.message || 'Assignment failed.'; errEl.style.display = 'block'; }
+  }
+}
+
+/* ============================================================
+   ✅ STAGE 2 — QUESTION EDITOR CONSOLIDATION
+   Single QMS question editor for CBT Management.
+   Legacy model is preserved but no longer the default path.
+============================================================ */
+
+/* Global create-mode state — set by qmsOpenCreate(), cleared by qmsSaveEdit() */
+var _qmsCreateMode = false;
+var _qmsCreateOpts = null;
+
+/* ---- Called from CBT Management "Add Question" button ---- */
+function qmsCreateForSubject() {
+  if (!_cbtSelSubj) {
+    adminToast('Select a subject first.', 'error');
+    return;
+  }
+  qmsOpenCreate({
+    subjectId:      _cbtSelSubj._id,
+    subjectName:    _cbtSelSubj.name,
+    examType:       _cbtCat   || 'jamb',
+    questionType:   'objective',
+    departmentId:   _cbtSelDept ? _cbtSelDept._id  : '',
+    departmentName: _cbtSelDept ? _cbtSelDept.name : ''
+  });
+}
+
+/* ---- Open qmsEditModal in create mode ---- */
+function qmsOpenCreate(opts) {
+  _qmsCreateMode = true;
+  _qmsCreateOpts = opts;
+
+  /* Clear any previous error */
+  var errEl = document.getElementById('qmsEditErrBox');
+  if (errEl) errEl.style.display = 'none';
+
+  /* Empty all fields */
+  ['qmsEditQuestion', 'qmsEditOptA', 'qmsEditOptB', 'qmsEditOptC', 'qmsEditOptD',
+   'qmsEditTopic', 'qmsEditExpl', 'qmsEditReason', 'qmsEditYear'].forEach(function (fid) {
+    var el = document.getElementById(fid);
+    if (el) el.value = '';
+  });
+
+  /* Set sensible defaults */
+  var correctEl = document.getElementById('qmsEditCorrect');
+  if (correctEl) correctEl.value = '0';
+  var statusEl = document.getElementById('qmsEditStatus');
+  if (statusEl) statusEl.value = 'approved';
+  var diffEl = document.getElementById('qmsEditDifficulty');
+  if (diffEl) diffEl.value = 'medium';
+
+  /* Clear ID — this signals create mode to qmsSaveEdit() */
+  var idEl = document.getElementById('qmsEditId');
+  if (idEl) idEl.value = '';
+
+  /* Update modal title and save button */
+  var titleEl = document.getElementById('qmsEditTitle');
+  if (titleEl) {
+    titleEl.textContent = 'Create Question — ' + esc(opts.subjectName || '') +
+      (opts.examType ? ' (' + opts.examType.toUpperCase() + ')' : '');
+  }
+  var saveBtn = document.getElementById('qmsEditSaveBtn');
+  if (saveBtn) saveBtn.textContent = 'Create Question';
+
+  /* Hide "Version History" button — does not apply to new questions */
+  var footerBtns = document.querySelectorAll('#qmsEditModal .t-modal-footer button');
+  footerBtns.forEach(function (btn) {
+    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').indexOf('qmsViewVersions') !== -1) {
+      btn.style.display = 'none';
+    }
+  });
+
+  document.getElementById('qmsEditModal').style.display = 'flex';
+
+  /* Focus the question textarea */
+  setTimeout(function () {
+    var ta = document.getElementById('qmsEditQuestion');
+    if (ta) ta.focus();
+  }, 120);
+}
+
+/* ---- Soft delete a question from CBT Management view ---- */
+async function qmsSoftDeleteFromCbt(id) {
+  if (!confirm(
+    'Remove this question from the pool?\n\n' +
+    'The question will be soft-deleted and can be restored from the Question Bank tab.'
+  )) { return; }
+
+  var res = await qmsApi('/bank/' + id, 'DELETE');
+  if (res.ok) {
+    instToast('Question removed from pool.', 'success');
+    /* Refresh both question panel and subject pool count */
+    loadCbtQuestions();
+    loadCbtSubjects();
+  } else {
+    instToast(res.data.message || 'Delete failed.', 'error');
+  }
+}
+
+/* ---- Emergency: load legacy questions from the old Question model ----
+   Only accessible via the 📁 Legacy button in CBT Management.
+   Does not modify any data. Read-only display.            */
+async function loadCbtQuestionsLegacy() {
+  var panel   = document.getElementById('cbtQPanel');
+  var countEl = document.getElementById('cbtQCount');
+
+  if (!_cbtSelSubj) { return; }
+  if (panel) panel.innerHTML =
+    '<div style="color:var(--text-muted); font-size:14px; text-align:center; padding:24px;">Loading legacy questions...</div>';
+
+  var res = await apiRequest('/exams/admin/subjects/' + _cbtSelSubj._id + '/questions');
+  if (!res.ok) { adminToast('Failed to load legacy questions.', 'error'); return; }
+
+  var questions = res.data.questions || [];
+  if (countEl) countEl.textContent = questions.length + ' legacy question' + (questions.length !== 1 ? 's' : '');
+
+  if (!panel) { return; }
+
+  var backBtn = '<button class="a-btn a-btn-secondary a-btn-sm" onclick="loadCbtQuestions()" style="margin-left:auto;">← Back to QMS Questions</button>';
+
+  if (!questions.length) {
+    panel.innerHTML =
+      '<div style="background:rgba(255,165,0,0.08); border-bottom:1px solid rgba(255,165,0,0.2); padding:10px 16px; font-size:12px; color:#ffa500; display:flex; align-items:center; gap:8px;">' +
+        '<span>📁 Legacy view — no legacy questions for this subject.</span>' + backBtn +
+      '</div>' +
+      '<div style="color:var(--text-muted); font-size:13px; text-align:center; padding:28px;">No legacy questions found.</div>';
+    return;
+  }
+
+  var letters = ['A', 'B', 'C', 'D'];
+
+  panel.innerHTML =
+    '<div style="background:rgba(255,165,0,0.08); border-bottom:1px solid rgba(255,165,0,0.2); padding:10px 16px; font-size:12px; color:#ffa500; display:flex; align-items:center; flex-wrap:wrap; gap:8px;">' +
+      '<span>📁 <strong>Legacy View</strong> — showing <strong>' + questions.length + ' legacy questions</strong>. These are read-only during migration. New questions are created in QMS.</span>' +
+      backBtn +
+    '</div>' +
+    questions.map(function (q, i) {
+      var opts = (q.options || []).map(function (opt, idx) {
+        var isCorrect = idx === q.correctAnswer;
+        return '<span style="font-size:11px; padding:2px 7px; border-radius:4px; margin-right:4px; margin-bottom:4px; display:inline-block;' +
+          'background:' + (isCorrect ? 'rgba(67,233,123,0.15)' : 'rgba(255,255,255,0.04)') + ';' +
+          'color:'       + (isCorrect ? '#43e97b'               : 'var(--text-secondary)') + ';">' +
+          (letters[idx] || idx) + ': ' + opt + (isCorrect ? ' ✓' : '') +
+        '</span>';
+      }).join('');
+
+      return '<div class="cbt-q-item" style="opacity:0.85;">' +
+        '<div style="display:flex; align-items:flex-start; gap:12px;">' +
+          '<span style="width:24px; height:24px; border-radius:6px; background:rgba(255,165,0,0.1); color:#ffa500; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px; flex-shrink:0;">' + (i + 1) + '</span>' +
+          '<div style="flex:1; min-width:0;">' +
+            '<div style="font-size:13px; font-weight:600; color:#fff; margin-bottom:6px; line-height:1.5;">' + q.question + '</div>' +
+            '<div style="display:flex; flex-wrap:wrap; gap:2px; margin-bottom:4px;">' + opts + '</div>' +
+            (q.explanation ? '<div style="font-size:11px; color:var(--text-muted); font-style:italic; margin-top:4px;">💡 ' + q.explanation + '</div>' : '') +
+          '</div>' +
+          '<button onclick="deleteCbtQuestion(\'' + q._id + '\')" ' +
+            'style="padding:4px 8px; border-radius:6px; font-size:12px; cursor:pointer; font-family:inherit; background:rgba(255,101,132,0.08); border:1px solid rgba(255,101,132,0.25); color:#ff6584; flex-shrink:0;" ' +
+            'title="Delete legacy question permanently">🗑</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
 }
 
 console.log('🔧 Admin Dashboard loaded');

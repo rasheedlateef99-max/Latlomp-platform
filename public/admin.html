@@ -452,10 +452,12 @@
           <div class="a-card" id="cbtQCard" style="flex:2; min-width:260px; display:none; overflow:visible;">
             <div class="a-card-head">
               <h3 id="cbtQCardTitle">Questions</h3>
-              <div style="display:flex; gap:8px; align-items:center;">
-                <span id="cbtQCount" style="font-size:12px; color:var(--text-muted);"></span>
-                <button class="a-btn a-btn-green a-btn-sm" onclick="openCbtQModal()">+ Add Question</button>
-              </div>
+              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <span id="cbtQCount" style="font-size:12px; color:var(--text-muted);"></span>
+              <button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsOpenBankForSubject(_cbtSelSubj ? _cbtSelSubj._id : '', _cbtSelSubj ? _cbtSelSubj.name : '')" title="Open full Question Bank for this subject">📚 Manage Pool</button>
+              <button class="a-btn a-btn-green a-btn-sm" onclick="qmsCreateForSubject()">+ Add Question</button>
+              <button class="a-btn a-btn-secondary a-btn-sm" id="cbtLegacyQBtn" onclick="loadCbtQuestionsLegacy()" style="font-size:11px; opacity:0.55;" title="Emergency: view legacy questions">📁 Legacy</button>
+            </div>
             </div>
             <div id="cbtQPanel"><div style="color:var(--text-muted); font-size:14px; text-align:center; padding:24px;">Select a subject first</div></div>
           </div>
@@ -757,6 +759,7 @@
           <button class="inst-tab"        id="qmsTabBank"    onclick="qmsSwitchTab('bank')">📚 Question Bank</button>
           <button class="inst-tab"        id="qmsTabSources" onclick="qmsSwitchTab('sources')">📑 Question Sources</button>
           <button class="inst-tab"        id="qmsTabEngine"  onclick="qmsSwitchTab('engine')">🧠 Question Engine</button>
+          <button class="inst-tab"        id="qmsTabOrphans" onclick="qmsSwitchTab('orphans')">🔗 Unassigned</button>
           <button class="inst-tab"        id="qmsTabHistory" onclick="qmsSwitchTab('history')">📋 History</button>
           <button class="inst-tab"        id="qmsTabStats"   onclick="qmsSwitchTab('stats')">📊 Statistics</button>
         </div>
@@ -791,8 +794,22 @@
                 </select>
               </div>
             </div>
-            <div style="padding:0 20px 16px; font-size:12px; color:var(--text-muted,#6b6b8a);">
-              Department and Subject are optional but recommended for Question Engine filtering.
+            <div style="padding:0 20px 16px 20px; display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+              <div class="t-form-group">
+                <label>Question Type</label>
+                <select id="qmsQuestionType">
+                  <option value="objective">Objective (MCQ)</option>
+                  <option value="theory">Theory / Essay</option>
+                  <option value="practical">Practical</option>
+                  <option value="oral">Oral</option>
+                </select>
+              </div>
+              <div style="display:flex; align-items:flex-end;">
+                <div style="font-size:12px; color:var(--text-muted,#6b6b8a); line-height:1.7; padding-bottom:4px;">
+                  Department and Subject are optional but recommended.
+                  Question Type defaults to Objective for all existing imports.
+                </div>
+              </div>
             </div>
           </div>
 
@@ -950,7 +967,12 @@ Paste thousands of questions at once."></textarea>
             </select>
             <button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsBankLoad(1)">↻ Refresh</button>
           </div>
-
+<!-- Subject filter banner (shown when navigated from CBT Management) -->
+          <div id="qmsBankSubjectBanner" style="display:none; background:rgba(108,99,255,0.1); border:1px solid rgba(108,99,255,0.3); border-radius:10px; padding:11px 16px; margin-bottom:14px; display:none; align-items:center; gap:10px; flex-wrap:wrap;">
+            <span style="font-size:13px; color:#a78bfa; font-weight:700;">📚 Showing questions for:</span>
+            <span id="qmsBankSubjectLabel" style="font-size:13px; font-weight:800; color:#fff;"></span>
+            <button class="a-btn a-btn-secondary a-btn-sm" style="margin-left:auto;" onclick="qmsBankClearSubjectFilter()">✕ Clear Filter</button>
+          </div>
           <!-- Bulk Operations Bar (shown when selections exist) -->
           <div id="qmsBulkBar" style="display:none; background:rgba(108,99,255,0.1); border:1px solid rgba(108,99,255,0.3); border-radius:10px; padding:12px 16px; margin-bottom:14px; display:none; align-items:center; flex-wrap:wrap; gap:10px;">
             <span id="qmsBulkCount" style="font-size:13px; font-weight:700; color:#a78bfa;">0 selected</span>
@@ -996,6 +1018,63 @@ Paste thousands of questions at once."></textarea>
             <div id="qmsBankPagination" style="display:flex; justify-content:center; gap:8px; padding:16px; border-top:1px solid var(--border,rgba(255,255,255,0.08));"></div>
           </div>
         </div><!-- /qmsPanelBank -->
+
+<!-- ---- ORPHAN CLEANUP PANEL ---- -->
+        <div id="qmsPanelOrphans" style="display:none;">
+
+          <div style="background:rgba(255,165,0,0.08); border:1px solid rgba(255,165,0,0.2); border-radius:10px; padding:14px 18px; margin-bottom:16px; font-size:13px; line-height:1.7; color:var(--text-secondary,#a0a0c0);">
+            <strong style="color:#ffa500;">⚠️ Unassigned Questions</strong> — These questions were imported without a Department or Subject.
+            They exist in the Question Bank but cannot be served by the Question Engine until they are assigned.
+            Use this tool to assign them to the correct Subject.
+            <strong style="color:#fff;">The Subject must already exist in CBT Management.</strong>
+          </div>
+
+          <!-- Filter + Actions -->
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px;">
+            <select id="qmsOrphanFilterExam" onchange="qmsOrphanLoad(1)"
+              style="background:rgba(255,255,255,0.04); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:8px; padding:10px 12px; color:#fff; font-family:inherit; outline:none;">
+              <option value="">All Exam Types</option>
+              <option value="jamb">JAMB</option>
+              <option value="waec">WAEC</option>
+              <option value="neco">NECO</option>
+              <option value="post-utme">POST-UTME</option>
+              <option value="practice">Practice</option>
+            </select>
+            <button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsOrphanLoad(1)">↻ Refresh</button>
+            <span id="qmsOrphanCount" style="font-size:13px; color:var(--text-muted); margin-left:4px;"></span>
+            <button class="a-btn a-btn-primary a-btn-sm" style="margin-left:auto;" id="qmsOrphanAssignBtn"
+              onclick="qmsOrphanOpenAssign()" style="display:none;">
+              📌 Assign Selected
+            </button>
+          </div>
+
+          <!-- Orphan table -->
+          <div class="a-card">
+            <div class="a-card-head">
+              <h3 id="qmsOrphanTitle">Unassigned Questions</h3>
+              <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-muted); cursor:pointer;">
+                <input type="checkbox" id="qmsOrphanSelectAll" onchange="qmsOrphanToggleAll(this)" style="accent-color:#6c63ff;" />
+                Select all
+              </label>
+            </div>
+            <div class="a-table-wrap">
+              <table class="admin-table">
+                <thead><tr>
+                  <th style="width:32px;"></th>
+                  <th>Question</th>
+                  <th>Exam Type</th>
+                  <th>Question Type</th>
+                  <th>Difficulty</th>
+                  <th>Imported</th>
+                </tr></thead>
+                <tbody id="qmsOrphanBody">
+                  <tr><td colspan="6" style="text-align:center; padding:32px; color:var(--text-muted);">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div id="qmsOrphanPagination" style="display:flex; justify-content:center; gap:8px; padding:16px; border-top:1px solid var(--border,rgba(255,255,255,0.08));"></div>
+          </div>
+        </div><!-- /qmsPanelOrphans -->
 
 <!-- ---- QUESTION SOURCES PANEL ---- -->
         <div id="qmsPanelSources" style="display:none;">
@@ -1794,6 +1873,147 @@ Paste thousands of questions at once."></textarea>
     <div class="t-modal-footer">
       <button type="button" class="a-btn a-btn-secondary" onclick="closeAdminModal('qmsBulkTagModal')">Cancel</button>
       <button type="button" class="a-btn a-btn-primary" id="qmsBulkTagConfirmBtn" onclick="qmsConfirmBulkTag()">🏷️ Apply Tags</button>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ STAGE 1: EXAMINATION BLUEPRINT MODAL -->
+<div class="t-modal-overlay" id="qmsBlueprintModal" style="display:none;">
+  <div class="t-modal-box" style="max-width:660px;">
+    <div class="t-modal-header">
+      <h2 id="qmsBlueprintTitle">Examination Blueprint</h2>
+      <button class="t-modal-close" onclick="closeAdminModal('qmsBlueprintModal')">✕</button>
+    </div>
+
+    <div id="qmsBlueprintSubjectInfo" style="background:rgba(108,99,255,0.08); border:1px solid rgba(108,99,255,0.2); border-radius:10px; padding:12px 16px; margin-bottom:16px; font-size:13px; color:var(--text-secondary,#a0a0c0); line-height:1.7;"></div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div class="t-form-group">
+        <label>Exam Type</label>
+        <select id="bpExamType" onchange="qmsBlueprintLoadForExamType()">
+          <option value="all">All Types (Default)</option>
+          <option value="jamb">JAMB</option>
+          <option value="waec">WAEC</option>
+          <option value="neco">NECO</option>
+          <option value="post-utme">POST-UTME</option>
+          <option value="practice">Practice</option>
+        </select>
+      </div>
+      <div id="bpPoolStatusDisplay" style="display:flex; align-items:flex-end; padding-bottom:4px; font-size:13px; color:var(--text-secondary);"></div>
+    </div>
+
+    <!-- Question type tabs -->
+    <div class="inst-tabs" style="margin-bottom:16px;">
+      <button class="inst-tab active" id="bpTabObjective"  onclick="qmsBlueprintSwitchType('objective')">📝 Objective</button>
+      <button class="inst-tab"        id="bpTabTheory"     onclick="qmsBlueprintSwitchType('theory')">✍️ Theory</button>
+      <button class="inst-tab"        id="bpTabPractical"  onclick="qmsBlueprintSwitchType('practical')">🔬 Practical</button>
+      <button class="inst-tab"        id="bpTabOral"       onclick="qmsBlueprintSwitchType('oral')">🎤 Oral</button>
+    </div>
+
+    <div id="qmsBlueprintFormWrap">
+      <div class="t-form-grid">
+        <div class="t-form-group">
+          <label>Questions per Session</label>
+          <input type="number" id="bpCount" min="1" max="500" value="40" />
+        </div>
+        <div class="t-form-group">
+          <label>Duration (minutes)</label>
+          <input type="number" id="bpDuration" min="1" max="600" value="30" />
+        </div>
+        <div class="t-form-group">
+          <label>Pass Mark (%)</label>
+          <input type="number" id="bpPassMark" min="0" max="100" value="50" />
+        </div>
+        <div class="t-form-group">
+          <label>Randomize Question Order</label>
+          <select id="bpRandomize">
+            <option value="true">Yes — Different order per student</option>
+            <option value="false">No — Fixed order</option>
+          </select>
+        </div>
+        <div class="t-form-group t-full">
+          <label>Difficulty Distribution (Easy + Medium + Hard = 100%)</label>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-top:8px;">
+            <div>
+              <div style="font-size:11px; font-weight:700; color:#43e97b; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.4px;">Easy %</div>
+              <input type="number" id="bpDiffEasy" min="0" max="100" value="33" oninput="qmsBpDiffCheck()"
+                style="width:100%; background:rgba(67,233,123,0.06); border:1px solid rgba(67,233,123,0.2); border-radius:8px; padding:12px; color:#fff; font-family:inherit; outline:none; font-size:18px; font-weight:700; text-align:center;" />
+            </div>
+            <div>
+              <div style="font-size:11px; font-weight:700; color:#ffa500; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.4px;">Medium %</div>
+              <input type="number" id="bpDiffMedium" min="0" max="100" value="34" oninput="qmsBpDiffCheck()"
+                style="width:100%; background:rgba(255,165,0,0.06); border:1px solid rgba(255,165,0,0.2); border-radius:8px; padding:12px; color:#fff; font-family:inherit; outline:none; font-size:18px; font-weight:700; text-align:center;" />
+            </div>
+            <div>
+              <div style="font-size:11px; font-weight:700; color:#ff6584; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.4px;">Hard %</div>
+              <input type="number" id="bpDiffHard" min="0" max="100" value="33" oninput="qmsBpDiffCheck()"
+                style="width:100%; background:rgba(255,101,132,0.06); border:1px solid rgba(255,101,132,0.2); border-radius:8px; padding:12px; color:#fff; font-family:inherit; outline:none; font-size:18px; font-weight:700; text-align:center;" />
+            </div>
+          </div>
+          <div id="bpDiffWarning" style="font-size:12px; margin-top:8px; display:none; padding:8px 12px; background:rgba(255,165,0,0.08); border-radius:8px; color:#ffa500;">⚠️ <span id="bpDiffWarnText"></span></div>
+        </div>
+        <div class="t-form-group t-full">
+          <label>Instructions (shown to student before exam)</label>
+          <textarea id="bpInstructions" rows="3" placeholder="Optional instructions shown to the student..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <input type="hidden" id="bpSubjectId" />
+    <input type="hidden" id="bpCurrentType" value="objective" />
+    <input type="hidden" id="bpCurrentBlueprintId" value="" />
+
+    <div class="t-modal-footer">
+      <button type="button" class="a-btn a-btn-danger a-btn-sm" id="bpDeleteBtn" onclick="qmsBlueprintDelete()" style="margin-right:auto; display:none;">🗑 Delete This Blueprint</button>
+      <button type="button" class="a-btn a-btn-secondary" onclick="closeAdminModal('qmsBlueprintModal')">Close</button>
+      <button type="button" class="a-btn a-btn-primary" id="bpSaveBtn" onclick="qmsBlueprintSave()">💾 Save Blueprint</button>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ STAGE 1: ORPHAN ASSIGN MODAL -->
+<div class="t-modal-overlay" id="qmsOrphanAssignModal" style="display:none;">
+  <div class="t-modal-box" style="max-width:520px;">
+    <div class="t-modal-header">
+      <h2>📌 Assign to Subject</h2>
+      <button class="t-modal-close" onclick="closeAdminModal('qmsOrphanAssignModal')">✕</button>
+    </div>
+    <div id="qmsOrphanAssignInfo" style="background:rgba(255,165,0,0.08); border:1px solid rgba(255,165,0,0.2); border-radius:10px; padding:12px 16px; margin-bottom:16px; font-size:13px; color:var(--text-secondary);"></div>
+    <div class="t-form-grid">
+      <div class="t-form-group t-full">
+        <label>Target Exam Type <span style="color:#ff6584;">*</span></label>
+        <select id="qmsOrphanExamType" onchange="qmsOrphanLoadAssignDepts()">
+          <option value="jamb">JAMB</option><option value="waec">WAEC</option>
+          <option value="neco">NECO</option><option value="post-utme">POST-UTME</option>
+          <option value="practice">Practice</option>
+        </select>
+      </div>
+      <div class="t-form-group t-full">
+        <label>Question Type <span style="color:#ff6584;">*</span></label>
+        <select id="qmsOrphanQType">
+          <option value="objective">Objective (MCQ)</option>
+          <option value="theory">Theory / Essay</option>
+          <option value="practical">Practical</option>
+          <option value="oral">Oral</option>
+        </select>
+      </div>
+      <div class="t-form-group t-full">
+        <label>Department <span style="color:#ff6584;">*</span></label>
+        <select id="qmsOrphanDept" onchange="qmsOrphanLoadAssignSubjects()">
+          <option value="">Loading...</option>
+        </select>
+      </div>
+      <div class="t-form-group t-full">
+        <label>Subject <span style="color:#ff6584;">*</span></label>
+        <select id="qmsOrphanSubject">
+          <option value="">— Select Department first —</option>
+        </select>
+      </div>
+    </div>
+    <div id="qmsOrphanAssignErr" style="display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:#ff6584; padding:10px; border-radius:8px; font-size:13px; margin-top:8px;"></div>
+    <div class="t-modal-footer">
+      <button type="button" class="a-btn a-btn-secondary" onclick="closeAdminModal('qmsOrphanAssignModal')">Cancel</button>
+      <button type="button" class="a-btn a-btn-primary" id="qmsOrphanConfirmAssignBtn" onclick="qmsOrphanConfirmAssign()">📌 Assign Questions</button>
     </div>
   </div>
 </div>
