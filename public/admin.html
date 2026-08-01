@@ -755,6 +755,7 @@
         <div class="inst-tabs">
          <button class="inst-tab active" id="qmsTabImport"  onclick="qmsSwitchTab('import')">📥 Import</button>
           <button class="inst-tab"        id="qmsTabBank"    onclick="qmsSwitchTab('bank')">📚 Question Bank</button>
+          <button class="inst-tab"        id="qmsTabSources" onclick="qmsSwitchTab('sources')">📑 Question Sources</button>
           <button class="inst-tab"        id="qmsTabEngine"  onclick="qmsSwitchTab('engine')">🧠 Question Engine</button>
           <button class="inst-tab"        id="qmsTabHistory" onclick="qmsSwitchTab('history')">📋 History</button>
           <button class="inst-tab"        id="qmsTabStats"   onclick="qmsSwitchTab('stats')">📊 Statistics</button>
@@ -840,7 +841,7 @@ Paste thousands of questions at once."></textarea>
                 <div style="font-size:36px; margin-bottom:10px;">📁</div>
                 <div style="font-size:15px; font-weight:700; color:var(--text-secondary,#a0a0c0);" id="qmsFileLabel">Click to upload or drag and drop</div>
                 <div style="font-size:12px; color:var(--text-muted,#6b6b8a); margin-top:6px;">Supported: .txt, .csv, .docx, .xlsx — Max 10MB — CSV/XLSX requires columns: question, option_a, option_b, option_c, option_d, correct_answer</div>
-                <input type="file" id="qmsFileInput" accept=".txt,.csv" style="display:none;" onchange="qmsFileSelected(this)" />
+                <input type="file" id="qmsFileInput" accept=".txt,.csv,.docx,.xlsx,.xls" style="display:none;" onchange="qmsFileSelected(this)" />
               </div>
             </div>
           </div>
@@ -872,7 +873,7 @@ Paste thousands of questions at once."></textarea>
               </div>
               <div class="a-table-wrap">
                 <table class="admin-table">
-                  <thead><tr><th>#</th><th>Question</th><th>Options</th><th>Answer</th></tr></thead>
+                  <thead><tr><th>#</th><th>Question</th><th>Options</th><th>Answer</th><th>Explanation</th></tr></thead>
                   <tbody id="qmsPreviewTable"></tbody>
                 </table>
               </div>
@@ -996,10 +997,89 @@ Paste thousands of questions at once."></textarea>
           </div>
         </div><!-- /qmsPanelBank -->
 
-<!-- ---- QUESTION ENGINE PANEL ---- -->
+<!-- ---- QUESTION SOURCES PANEL ---- -->
+        <div id="qmsPanelSources" style="display:none;">
+          <div style="background:rgba(108,99,255,0.08); border:1px solid rgba(108,99,255,0.2); border-radius:10px; padding:14px 18px; margin-bottom:16px; font-size:13px; line-height:1.7; color:var(--text-secondary,#a0a0c0);">
+            <strong style="color:#fff;">Unified Question View</strong> — This shows questions from both the
+            <strong style="color:#43e97b;">QMS Question Bank</strong> (imported via QMS) and the
+            <strong style="color:#a78bfa;">Legacy CBT System</strong> (manually created via CBT Management).
+            Both are part of the same CBT platform. No existing questions are hidden.
+          </div>
+
+          <!-- Source summary cards -->
+          <div id="qmsSourceSummary" style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
+            <div class="a-card">
+              <div class="a-card-head"><h3>🧠 QMS Question Bank</h3><span id="qmsSourceQmsCount" style="font-size:13px; font-weight:700; color:#43e97b;">—</span></div>
+              <div style="padding:12px 20px; font-size:13px; color:var(--text-muted,#6b6b8a);">Imported via Question Management System. Managed, versioned and searchable.</div>
+            </div>
+            <div class="a-card">
+              <div class="a-card-head"><h3>📁 Legacy CBT Questions</h3><span id="qmsSourceLegacyCount" style="font-size:13px; font-weight:700; color:#a78bfa;">—</span></div>
+              <div style="padding:12px 20px; font-size:13px; color:var(--text-muted,#6b6b8a);">Created via CBT Management. Continue to power existing exams unchanged.</div>
+            </div>
+          </div>
+
+          <!-- Filters -->
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px;">
+            <select id="qmsSourceFilterType" onchange="qmsSourceLoad(1)"
+              style="background:rgba(255,255,255,0.04); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:8px; padding:10px 12px; color:#fff; font-family:inherit; outline:none;">
+              <option value="all">Both Sources</option>
+              <option value="qms">QMS Bank Only</option>
+              <option value="legacy">Legacy Only</option>
+            </select>
+            <select id="qmsSourceFilterExam" onchange="qmsSourceLoad(1)"
+              style="background:rgba(255,255,255,0.04); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:8px; padding:10px 12px; color:#fff; font-family:inherit; outline:none;">
+              <option value="all">All Exam Types</option>
+              <option value="jamb">JAMB</option>
+              <option value="waec">WAEC</option>
+              <option value="neco">NECO</option>
+              <option value="post-utme">POST-UTME</option>
+              <option value="practice">Practice</option>
+            </select>
+            <input type="text" id="qmsSourceSearch" placeholder="Search questions..."
+              oninput="qmsSourceDebounce()"
+              style="flex:1; min-width:180px; max-width:280px; background:rgba(255,255,255,0.04); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:8px; padding:10px 12px; color:#fff; font-family:inherit; outline:none;" />
+            <button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsSourceLoad(1)">↻ Refresh</button>
+          </div>
+
+          <!-- Table -->
+          <div class="a-card">
+            <div class="a-card-head">
+              <h3 id="qmsSourceTitle">All Questions</h3>
+            </div>
+            <div class="a-table-wrap">
+              <table class="admin-table">
+                <thead><tr>
+                  <th>Source</th>
+                  <th>Question</th>
+                  <th>Subject</th>
+                  <th>Exam Type</th>
+                  <th>Answer</th>
+                  <th>Explanation</th>
+                </tr></thead>
+                <tbody id="qmsSourceBody">
+                  <tr><td colspan="6" style="text-align:center; padding:32px; color:var(--text-muted);">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div id="qmsSourcePagination" style="display:flex; justify-content:center; gap:8px; padding:16px; border-top:1px solid var(--border,rgba(255,255,255,0.08));"></div>
+          </div>
+        </div><!-- /qmsPanelSources -->
+
+        <!-- ---- QUESTION ENGINE PANEL ---- -->
         <div id="qmsPanelEngine" style="display:none;">
 
-          <!-- Summary stats row -->
+          <!-- ✅ STABILIZATION: Operational Health Dashboard -->
+          <div id="qmsEngHealthDashboard" style="margin-bottom:20px;">
+            <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:16px;" id="qmsEngHealthRow">
+              <div class="a-stat-card" style="grid-column:span 4; justify-content:center;">
+                <div style="font-size:13px; color:var(--text-muted); text-align:center; width:100%;">Loading engine health...</div>
+              </div>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;" id="qmsEngHealthDetails">
+            </div>
+          </div>
+
+          <!-- Summary stats row (now secondary — used for exam type breakdown) -->
           <div id="qmsEngineStatsRow" style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px;">
             <div class="a-stat-card" style="grid-column:span 4;">
               <div style="font-size:13px; color:var(--text-muted,#6b6b8a); padding:8px 0; text-align:center; width:100%;">Loading engine summary...</div>

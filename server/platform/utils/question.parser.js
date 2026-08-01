@@ -42,7 +42,7 @@
 
 var OPTION_RE  = /^([A-Da-d])\s*[.)]\s+(.+)$|^\(([A-Da-d])\)\s*(.+)$/;
 var ANSWER_RE  = /^(?:answer|ans|correct|key|solution|answer key)\s*[:\-=]\s*\(?([A-Da-d1-4])\)?/i;
-var EXPL_RE    = /^(?:explanation|expl|reason|note)\s*[:=]\s*(.+)/i;
+var EXPL_RE    = /^(?:explanation|expl|exp|reason|note|solution|workings?|hint|remark)\s*[:=]\s*(.+)/i;
 var Q_LABEL_RE = /^(?:question|q)\s*\d*\s*[:.)]\s*(.+)/i;
 var Q_NUM_RE   = /^\d+\s*[.)]\s*(.+)/;
 

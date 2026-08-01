@@ -50,14 +50,22 @@ try {
 
 
 
-/* ---- Question ID generator ---- */
-async function generateQuestionId(examType, subjectName) {
-  var prefix = (examType || 'GEN').toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 8);
-  var subj   = (subjectName || 'GEN').toUpperCase().replace(/[^A-Z]/g, '').substring(0, 3);
-  /* Count existing questions for this exam type to build sequence number */
-  var count  = await QMSQuestion.countDocuments({ examType: examType });
-  var seq    = String(count + 1).padStart(8, '0');
-  return prefix + '-' + subj + '-' + seq;
+/* ---- Question ID generator — BATCH SAFE ----
+   Computes the starting sequence number ONCE before
+   building the document array. All IDs in the same
+   batch get unique sequential values.
+   Call generateBatchIds(examType, subjectName, count)
+   instead of calling generateQuestionId in a loop. ---- */
+async function generateBatchIds(examType, subjectName, count) {
+  var prefix   = (examType    || 'GEN').toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 8);
+  var subj     = (subjectName || 'GEN').toUpperCase().replace(/[^A-Z]/g,    '').substring(0, 3);
+  /* One DB query for the entire batch — avoids collision */
+  var existing = await QMSQuestion.countDocuments({ examType: examType });
+  var ids      = [];
+  for (var i = 0; i < count; i++) {
+    ids.push(prefix + '-' + subj + '-' + String(existing + i + 1).padStart(8, '0'));
+  }
+  return ids;
 }
 
 /* ---- Caller identity from req.user ---- */
@@ -280,14 +288,25 @@ router.post('/import/confirm', adminOrPlatformStaff('question_import'), async fu
       }
     });
 
-    /* Build document array */
+    /* Build document array — generate ALL IDs in one DB call */
     var docs   = [];
     var errors = [];
+
+    var batchIds = [];
+    try {
+      batchIds = await generateBatchIds(examType, subjectName, questions.length);
+    } catch (idErr) {
+      /* Fallback: use timestamp-based IDs if count query fails */
+      var ts = Date.now();
+      for (var k = 0; k < questions.length; k++) {
+        batchIds.push('GEN-GEN-' + String(ts + k).slice(-8).padStart(8, '0'));
+      }
+    }
 
     for (var i = 0; i < questions.length; i++) {
       var q = questions[i];
       try {
-        var qId = await generateQuestionId(examType, subjectName);
+        var qId = batchIds[i];
         docs.push({
           questionId:     qId,
           examType:       examType,
@@ -315,44 +334,57 @@ router.post('/import/confirm', adminOrPlatformStaff('question_import'), async fu
       }
     }
 
-    /* Bulk insert with partial failure tolerance */
-    var inserted = 0;
+   /* Bulk insert with partial failure tolerance */
+    var inserted   = 0;
+    var writeErrors = [];
+
     if (docs.length > 0) {
       try {
         var result = await QMSQuestion.insertMany(docs, { ordered: false });
         inserted   = result.length;
       } catch (insertErr) {
-        /* ordered:false → partial inserts possible */
-        if (insertErr.insertedDocs) { inserted = insertErr.insertedDocs.length; }
+        /* ordered:false returns insertedDocs for the docs that succeeded */
+        if (insertErr.insertedDocs) {
+          inserted = insertErr.insertedDocs.length;
+        } else if (insertErr.result && insertErr.result.insertedCount) {
+          inserted = insertErr.result.insertedCount;
+        }
         if (insertErr.writeErrors) {
           insertErr.writeErrors.forEach(function (we) {
+            writeErrors.push({ index: we.index, error: we.errmsg });
             errors.push({ index: we.index, error: we.errmsg });
           });
         }
       }
     }
 
-    /* Update job record */
-    var finalStatus = inserted === docs.length ? 'completed'
-                    : inserted > 0             ? 'partial'
-                    :                            'failed';
+    var idCollisions  = writeErrors.filter(function (e) { return e.error && e.error.includes('E11000'); }).length;
+    var otherErrors   = writeErrors.length - idCollisions;
+    var finalStatus   = inserted === docs.length ? 'completed'
+                      : inserted > 0             ? 'partial'
+                      :                            'failed';
 
     await ImportJob.findByIdAndUpdate(job._id, {
       $set: {
-        status:           finalStatus,
-        'stats.imported': inserted,
-        processingMs:     Date.now() - startTime
+        status:            finalStatus,
+        'stats.imported':  inserted,
+        'stats.rejected':  (stats.rejected || 0) + otherErrors,
+        processingMs:      Date.now() - startTime,
+        errorMessage:      idCollisions > 0
+          ? idCollisions + ' questions skipped due to ID conflicts (likely re-import of same batch)'
+          : ''
       }
     });
 
     return res.json({
-      success:    true,
-      message:    inserted + ' question' + (inserted !== 1 ? 's' : '') + ' imported successfully.',
-      imported:   inserted,
-      total:      docs.length,
-      errors:     errors.length,
-      jobId:      job._id,
-      status:     finalStatus
+      success:     true,
+      message:     inserted + ' question' + (inserted !== 1 ? 's' : '') + ' imported successfully.',
+      imported:    inserted,
+      total:       docs.length,
+      errors:      errors.length,
+      idCollisions: idCollisions,
+      jobId:       job._id,
+      status:      finalStatus
     });
 
   } catch (e) {
@@ -495,6 +527,31 @@ router.get('/bank', adminOrPlatformStaff('question_bank'), async function (req, 
     });
   } catch (e) {
     console.error('[QMS] GET /bank:', e.message);
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+/* ----
+   GET /api/qms/bank/count
+   ✅ MUST be registered before /bank/:id or Express
+   treats 'count' as an ObjectId and throws CastError.
+   Fast count grouped by examType and status.
+---- */
+router.get('/bank/count', adminOrPlatformStaff('question_bank'), async function (req, res) {
+  try {
+    var agg = await QMSQuestion.aggregate([
+      { $match: { status: { $ne: 'deleted' } } },
+      { $group: { _id: { examType: '$examType', status: '$status' }, count: { $sum: 1 } } }
+    ]);
+    var result = {};
+    agg.forEach(function (r) {
+      var et = r._id.examType;
+      var st = r._id.status;
+      if (!result[et]) { result[et] = {}; }
+      result[et][st] = r.count;
+    });
+    return res.json({ success: true, counts: result });
+  } catch (e) {
     return res.status(500).json({ success: false, message: e.message });
   }
 });
@@ -755,29 +812,7 @@ router.post('/bank/bulk', adminOrPlatformStaff('question_bank'), async function 
   }
 });
 
-/* ----
-   GET /api/qms/bank/count
-   Fast count for dashboard overview.
-   Returns count grouped by examType and status.
----- */
-router.get('/bank/count', adminOrPlatformStaff('question_bank'), async function (req, res) {
-  try {
-    var agg = await QMSQuestion.aggregate([
-      { $match: { status: { $ne: 'deleted' } } },
-      { $group: { _id: { examType: '$examType', status: '$status' }, count: { $sum: 1 } } }
-    ]);
-    var result = {};
-    agg.forEach(function (r) {
-      var et = r._id.examType;
-      var st = r._id.status;
-      if (!result[et]) { result[et] = {}; }
-      result[et][st] = r.count;
-    });
-    return res.json({ success: true, counts: result });
-  } catch (e) {
-    return res.status(500).json({ success: false, message: e.message });
-  }
-});
+/* /bank/count moved ABOVE /bank/:id — see earlier in this file */
 
 /* ============================================
    ✅ PHASE 3 — QUESTION ENGINE ROUTES
@@ -966,7 +1001,7 @@ router.get(
           var source = qms > 0 ? 'qms' : (legacy > 0 ? 'legacy' : 'none');
           return {
             subjectId:   s._id,
-            subjectName: s.name,
+            subjectName: s.name || '(Unnamed Subject)',   /* always a string — prevents esc() TypeError */
             qmsCount:    qms,
             legacyCount: legacy,
             source:      source,
@@ -1134,9 +1169,9 @@ router.get('/analytics', adminOrPlatformStaff('question_stats'), async function 
         { $group: { _id: '$difficulty', count: { $sum: 1 } } }
       ]),
 
-      /* Source type distribution from ImportJobs */
+     /* Source type distribution — include partial jobs (common when Issue 1 occurred) */
       ImportJob.aggregate([
-        { $match: { status: 'completed' } },
+        { $match: { status: { $in: ['completed', 'partial'] } } },
         { $group: {
           _id:      '$sourceType',
           jobs:     { $sum: 1 },
@@ -1150,15 +1185,15 @@ router.get('/analytics', adminOrPlatformStaff('question_stats'), async function 
         { $group: { _id: '$status', count: { $sum: 1 } } }
       ]),
 
-      /* Weekly velocity — questions added per week */
+     /* Daily velocity (last 56 days = 8 weeks) — safer than %Y-W%V which needs MongoDB 4.4+ */
       QMSQuestion.aggregate([
         { $match: { createdAt: { $gte: eightWeeksAgo }, status: { $ne: 'deleted' } } },
         { $group: {
-          _id:   { $dateToString: { format: '%Y-W%V', date: '$createdAt' } },
+          _id:   { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
           count: { $sum: 1 }
         }},
         { $sort: { _id: 1 } },
-        { $limit: 8 }
+        { $limit: 56 }
       ]),
 
       /* Exam type distribution */
@@ -1215,6 +1250,162 @@ router.get('/analytics', adminOrPlatformStaff('question_stats'), async function 
     });
   } catch (e) {
     console.error('[QMS] GET /analytics:', e.message);
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+/* ============================================
+   ✅ STABILIZATION — ENGINE HEALTH ENDPOINT
+
+   GET /api/qms/engine/health
+   Operational health data for the engine dashboard.
+   Returns Question Health, Coverage and Engine Status.
+   Never writes to DB.
+============================================ */
+router.get('/engine/health', adminOrPlatformStaff('question_engine'), async function (req, res) {
+  try {
+    var Question = require('../../models/Question.model');
+
+    var nonDeleted = { status: { $ne: 'deleted' } };
+
+    var [
+      totalQMS, approvedQMS, draftQMS, archivedQMS, deletedQMS,
+      withTopics, withExpl, totalLegacy,
+      lastJob, totalSubjects, subjectsWithQMS, assemblyReadyAgg
+    ] = await Promise.all([
+      QMSQuestion.countDocuments(nonDeleted),
+      QMSQuestion.countDocuments({ status: 'approved' }),
+      QMSQuestion.countDocuments({ status: 'draft' }),
+      QMSQuestion.countDocuments({ status: 'archived' }),
+      QMSQuestion.countDocuments({ status: 'deleted' }),
+      QMSQuestion.countDocuments({ status: { $ne: 'deleted' }, topic: { $ne: '', $exists: true } }),
+      QMSQuestion.countDocuments({ status: { $ne: 'deleted' }, explanation: { $ne: '', $exists: true } }),
+      Question.countDocuments({ isActive: true }),
+      ImportJob.findOne({}).sort({ createdAt: -1 }).lean(),
+      Subject.countDocuments({}),
+      QMSQuestion.distinct('subjectId', { status: 'approved' }),
+      QMSQuestion.aggregate([
+        { $match: { status: 'approved' } },
+        { $group: { _id: '$subjectId', count: { $sum: 1 } } },
+        { $match: { count: { $gte: 40 } } },
+        { $count: 'ready' }
+      ])
+    ]);
+
+    var activeQMS         = totalQMS - deletedQMS;
+    var missingTopics     = activeQMS - withTopics;
+    var missingExpl       = activeQMS - withExpl;
+    var qmsSubjectCount   = subjectsWithQMS.filter(Boolean).length;
+    var assemblyReady     = assemblyReadyAgg.length > 0 ? assemblyReadyAgg[0].ready : 0;
+    var coveragePct       = totalSubjects > 0 ? Math.round((qmsSubjectCount / totalSubjects) * 100) : 0;
+
+    return res.json({
+      success: true,
+      health: {
+        questionBank: {
+          total:               activeQMS,
+          approved:            approvedQMS,
+          draft:               draftQMS,
+          archived:            archivedQMS,
+          deleted:             deletedQMS,
+          withTopics:          withTopics,
+          missingTopics:       missingTopics,
+          withExplanations:    withExpl,
+          missingExplanations: missingExpl,
+          legacy:              totalLegacy
+        },
+        coverage: {
+          totalSubjects:    totalSubjects,
+          subjectsWithQMS:  qmsSubjectCount,
+          coveragePct:      coveragePct
+        },
+        engine: {
+          assemblyReadySubjects: assemblyReady,
+          status:               approvedQMS > 0 ? 'operational' : 'no_questions',
+          lastImport:           lastJob ? {
+            date:     lastJob.createdAt,
+            status:   lastJob.status,
+            imported: lastJob.stats ? (lastJob.stats.imported || 0) : 0,
+            examType: lastJob.examType || '—'
+          } : null
+        }
+      }
+    });
+  } catch (e) {
+    console.error('[QMS] GET /engine/health:', e.message);
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+/* ============================================
+   ✅ STABILIZATION — LEGACY QUESTION BANK
+
+   GET /api/qms/bank/legacy
+   Lists legacy Question model documents so Root
+   Admin can see both question sources in one UI.
+   Read-only — never modifies legacy questions.
+
+   Query: page, limit, subjectId, examCategory, search
+============================================ */
+router.get('/bank/legacy', adminOrPlatformStaff('question_bank'), async function (req, res) {
+  try {
+    var Question = require('../../models/Question.model');
+
+    var page  = Math.max(1,   parseInt(req.query.page)  || 1);
+    var limit = Math.min(100, parseInt(req.query.limit) || 25);
+    var skip  = (page - 1) * limit;
+
+    var filter = { isActive: true };
+
+    if (req.query.subjectId) {
+      filter.subjectId = req.query.subjectId;
+    }
+    if (req.query.examCategory && req.query.examCategory !== 'all') {
+      filter.$or = [
+        { examCategory: req.query.examCategory },
+        { examCategory: 'all' }
+      ];
+    }
+    if (req.query.search) {
+      var searchRegex = new RegExp(
+        req.query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'
+      );
+      filter.question = searchRegex;
+    }
+
+    var [total, questions] = await Promise.all([
+      Question.countDocuments(filter),
+      Question.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select('question options correctAnswer explanation examCategory subjectId isActive createdAt')
+        .lean()
+    ]);
+
+    /* Enrich with subject names */
+    var subjectIds = [...new Set(questions.map(function (q) { return q.subjectId; }).filter(Boolean))];
+    var subjects   = await Subject.find({ _id: { $in: subjectIds } }).select('name').lean();
+    var subjMap    = {};
+    subjects.forEach(function (s) { subjMap[s._id.toString()] = s.name; });
+
+    var enriched = questions.map(function (q) {
+      return Object.assign({}, q, {
+        subjectName: q.subjectId ? (subjMap[q.subjectId.toString()] || '—') : '—',
+        source:      'legacy'
+      });
+    });
+
+    return res.json({
+      success:   true,
+      source:    'legacy',
+      total:     total,
+      page:      page,
+      pages:     Math.ceil(total / limit),
+      questions: enriched
+    });
+  } catch (e) {
+    console.error('[QMS] GET /bank/legacy:', e.message);
     return res.status(500).json({ success: false, message: e.message });
   }
 });

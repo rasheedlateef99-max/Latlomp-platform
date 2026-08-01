@@ -1136,8 +1136,9 @@ async function qmsInit() {
 }
 
 /* ---- Sub-tab switching ---- */
+
 function qmsSwitchTab(tab) {
-  ['import', 'bank', 'engine', 'history', 'stats'].forEach(function (t) {
+  ['import', 'bank', 'sources', 'engine', 'history', 'stats'].forEach(function (t) {
     var panel = document.getElementById('qmsPanel' + t.charAt(0).toUpperCase() + t.slice(1));
     if (panel) panel.style.display = (t === tab) ? 'block' : 'none';
     var btn   = document.getElementById('qmsTab' + t.charAt(0).toUpperCase() + t.slice(1));
@@ -1146,7 +1147,8 @@ function qmsSwitchTab(tab) {
   if (tab === 'history') qmsLoadHistory();
   if (tab === 'stats')   qmsLoadStats();
   if (tab === 'bank')    qmsBankLoad(1);
-  if (tab === 'engine')  { qmsEngInit(); qmsEngLoadIntegrationStatus(); }
+  if (tab === 'sources') qmsSourceInit();
+  if (tab === 'engine')  { qmsEngInit(); }
 }
 
 /* ---- Toggle paste / file input method ---- */
@@ -1577,24 +1579,24 @@ async function qmsLoadStats() {
 
 /* ---- Advanced analytics (charts) ---- */
 async function qmsLoadAdvancedStats() {
+  var chartIds = ['qmsImportTrendChart','qmsTopSubjectsChart','qmsDiffDistChart','qmsYearDistChart','qmsSourceDistChart'];
+
   var res = await qmsApi('/analytics');
-  if (!res.ok) { return; }
+  if (!res.ok) {
+    /* Show graceful empty state instead of leaving "Loading..." */
+    var emptyMsg = '<div style="color:var(--text-muted); font-size:13px; text-align:center; padding:16px;">No data yet. Charts will populate as questions are imported.</div>';
+    chartIds.forEach(function (id) {
+      var el = document.getElementById(id); if (el) el.innerHTML = emptyMsg;
+    });
+    return;
+  }
   var a = res.data.analytics || {};
 
-  /* Import trend chart */
-  renderImportTrendChart(a.importTrend || []);
-
-  /* Top subjects */
-  renderTopSubjectsChart(a.topSubjects || []);
-
-  /* Difficulty dist */
-  renderDiffDistChart(a.diffDist || {});
-
-  /* Year distribution */
-  renderYearDistChart(a.yearDist || []);
-
-  /* Source dist */
-  renderSourceDistChart(a.sourceDist || []);
+  renderImportTrendChart(a.importTrend  || []);
+  renderTopSubjectsChart(a.topSubjects  || []);
+  renderDiffDistChart(a.diffDist        || {});
+  renderYearDistChart(a.yearDist        || []);
+  renderSourceDistChart(a.sourceDist    || []);
 }
 
 function renderImportTrendChart(trend) {
@@ -1730,8 +1732,15 @@ async function qmsLoadTags() {
 
   var topics = res.data.topics || [];
   if (!topics.length) {
-    cloudEl.innerHTML = '<div style="color:var(--text-muted); font-size:13px; padding:8px;">No topics found. Add topics when importing or editing questions.</div>';
-    /* Also populate topic dropdown in bank filter */
+    cloudEl.innerHTML =
+      '<div style="color:var(--text-muted); font-size:13px; padding:8px 0; line-height:1.8;">' +
+        '<strong style="color:var(--text-secondary,#a0a0c0);">No topics yet.</strong> Topics appear here when questions have a topic assigned.<br>' +
+        '<span style="font-size:12px;">To add topics: ' +
+          '① Add a <code style="background:rgba(255,255,255,0.06); padding:1px 5px; border-radius:4px;">topic</code> column to your CSV/XLSX import file, ' +
+          '② or edit individual questions in the Question Bank and fill in the Topic field, ' +
+          '③ or use Bulk Tag to assign topics to selected questions.' +
+        '</span>' +
+      '</div>';
     qmsPopulateTopicFilter([]);
     return;
   }
@@ -2138,13 +2147,112 @@ var _qmsEngLastAssembly       = null; /* stores last assembled set */
 
 /* ---- Init: called when Engine tab first opens ---- */
 async function qmsEngInit() {
+  /* Load health + summary + breakdown concurrently */
   await Promise.all([
+    qmsEngLoadHealth(),
     qmsEngLoadSummary(),
     qmsEngLoadDepts(),
-    qmsEngLoadBreakdown()
+    qmsEngLoadBreakdown(),
+    qmsEngLoadIntegrationStatus()
   ]);
   _qmsEngDeptsLoaded = true;
   qmsEngCheckAvailability();
+}
+
+/* ---- Engine Health Dashboard ---- */
+async function qmsEngLoadHealth() {
+  var healthRow     = document.getElementById('qmsEngHealthRow');
+  var healthDetails = document.getElementById('qmsEngHealthDetails');
+  if (!healthRow) { return; }
+
+  var res = await qmsApi('/engine/health');
+  if (!res.ok) {
+    healthRow.innerHTML = '<div class="a-stat-card" style="grid-column:span 4;"><div style="color:#ff6584; font-size:13px;">Failed to load engine health.</div></div>';
+    return;
+  }
+
+  var h  = res.data.health  || {};
+  var qb = h.questionBank   || {};
+  var cv = h.coverage       || {};
+  var eg = h.engine         || {};
+
+  /* Top row: key health numbers */
+  var engineStatusColor = eg.status === 'operational' ? '#43e97b' : '#ff6584';
+  var engineStatusLabel = eg.status === 'operational' ? '✅ Operational' : '⚠️ No Questions';
+  var coverageColor     = cv.coveragePct >= 80 ? '#43e97b' : cv.coveragePct >= 40 ? '#ffa500' : '#ff6584';
+
+  healthRow.style.gridTemplateColumns = 'repeat(4, 1fr)';
+  healthRow.innerHTML = [
+    ['📚', (qb.total || 0).toLocaleString(),           'QMS Questions',          'rgba(108,99,255,0.1)', '#a78bfa'],
+    ['✅', (qb.approved || 0).toLocaleString(),         'Approved',               'rgba(67,233,123,0.1)', '#43e97b'],
+    ['🎯', (eg.assemblyReadySubjects || 0).toLocaleString(), 'Assembly-Ready Subjects', 'rgba(56,249,215,0.1)', '#38f9d7'],
+    ['📁', (qb.legacy || 0).toLocaleString(),           'Legacy Questions',        'rgba(255,165,0,0.1)',  '#ffa500']
+  ].map(function (c) {
+    return '<div class="a-stat-card" style="background:' + c[3] + ';">' +
+      '<div class="a-stat-icon" style="font-size:20px; background:transparent;">' + c[0] + '</div>' +
+      '<div>' +
+        '<div class="a-stat-val" style="color:' + c[4] + '; font-size:22px;">' + c[1] + '</div>' +
+        '<div class="a-stat-lbl">' + c[2] + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  /* Detail cards */
+  var lastImportHtml = eg.lastImport
+    ? '<div style="font-size:12px; color:var(--text-secondary,#a0a0c0); line-height:1.8;">' +
+        '<div>' + eg.lastImport.examType.toUpperCase() + ' · ' + eg.lastImport.imported + ' questions</div>' +
+        '<div style="font-size:11px; color:var(--text-muted);">' + new Date(eg.lastImport.date).toLocaleDateString('en-NG') + '</div>' +
+        '<div style="font-size:11px; font-weight:700; color:' + (eg.lastImport.status === 'completed' ? '#43e97b' : '#ffa500') + ';">' + eg.lastImport.status.toUpperCase() + '</div>' +
+      '</div>'
+    : '<div style="font-size:12px; color:var(--text-muted);">No imports yet</div>';
+
+  healthDetails.innerHTML =
+    /* Question Health card */
+    '<div class="a-card">' +
+      '<div class="a-card-head"><h3>🏥 Question Health</h3></div>' +
+      '<div style="padding:14px 18px;">' +
+        _healthRow('Draft',              qb.draft || 0,               '#ffa500') +
+        _healthRow('Archived',           qb.archived || 0,            '#a0a0c0') +
+        _healthRow('Missing Topics',     qb.missingTopics || 0,       qb.missingTopics > 0 ? '#ffa500' : '#43e97b') +
+        _healthRow('Missing Explanations', qb.missingExplanations || 0, qb.missingExplanations > 0 ? '#ffa500' : '#43e97b') +
+      '</div>' +
+    '</div>' +
+
+    /* Coverage card */
+    '<div class="a-card">' +
+      '<div class="a-card-head"><h3>🗺️ Subject Coverage</h3>' +
+        '<span style="font-size:13px; font-weight:700; color:' + coverageColor + ';">' + cv.coveragePct + '%</span>' +
+      '</div>' +
+      '<div style="padding:14px 18px;">' +
+        _healthRow('Total Subjects',      cv.totalSubjects || 0,    '#fff') +
+        _healthRow('Using QMS Engine',    cv.subjectsWithQMS || 0,  '#43e97b') +
+        _healthRow('Remaining (Legacy)',  (cv.totalSubjects || 0) - (cv.subjectsWithQMS || 0), '#a78bfa') +
+        '<div style="background:rgba(255,255,255,0.06); border-radius:20px; height:8px; overflow:hidden; margin-top:10px;">' +
+          '<div style="background:linear-gradient(90deg,#43e97b,#38f9d7); width:' + cv.coveragePct + '%; height:100%; border-radius:20px;"></div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+
+    /* Engine Status card */
+    '<div class="a-card">' +
+      '<div class="a-card-head"><h3>⚡ Engine Status</h3>' +
+        '<span style="font-size:11px; font-weight:700; color:' + engineStatusColor + ';">' + engineStatusLabel + '</span>' +
+      '</div>' +
+      '<div style="padding:14px 18px;">' +
+        '<div style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:10px;">Last Import</div>' +
+        lastImportHtml +
+        '<div style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.4px; margin:12px 0 8px;">Randomization</div>' +
+        '<div style="font-size:12px; color:#43e97b; font-weight:700;">✅ Enabled (MongoDB $sample)</div>' +
+        '<div style="font-size:11px; color:var(--text-muted); margin-top:3px;">Every exam session gets a unique random question set.</div>' +
+      '</div>' +
+    '</div>';
+}
+
+function _healthRow(label, value, color) {
+  return '<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.04);">' +
+    '<span style="font-size:13px; color:var(--text-secondary,#a0a0c0);">' + label + '</span>' +
+    '<span style="font-size:13px; font-weight:700; color:' + color + ';">' + value.toLocaleString() + '</span>' +
+  '</div>';
 }
 
 /* ---- Load engine summary stats (top row) ---- */
@@ -2620,6 +2728,8 @@ async function qmsEngLoadIntegrationStatus() {
     return;
   }
 
+  
+  try {
   tbody.innerHTML = subjects.map(function (s) {
     var isEngine  = s.source === 'qms';
     var isLegacy  = s.source === 'legacy';
@@ -2651,6 +2761,13 @@ async function qmsEngLoadIntegrationStatus() {
       '<td>' + action + '</td>' +
     '</tr>';
   }).join('');
+  } catch (renderErr) {
+    /* Render error should show instead of freezing on "Checking..." */
+    console.error('[QMS] Integration status render error:', renderErr.message);
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#ff6584; padding:20px;">' +
+      'Display error: ' + renderErr.message + '. Please refresh.' +
+    '</td></tr>';
+  }
 }
 
 /* ============================================================
@@ -3222,6 +3339,178 @@ async function eceLoadAuditLog() {
               '" onclick="_eceAuditPage=' + p + '; eceLoadAuditLog();">' + p + '</button>';
     }
     pagDiv.innerHTML = btns;
+    pagDiv.style.display = 'flex';
+  } else if (pagDiv) {
+    pagDiv.style.display = 'none';
+  }
+}
+
+/* ============================================================
+   QMS STABILIZATION — PREVIEW EXPLANATION DISPLAY
+   Patch renderQmsPreview to show explanation column
+============================================================ */
+var _origRenderQmsPreview = renderQmsPreview;
+renderQmsPreview = function(preview, meta) {
+  _origRenderQmsPreview(preview, meta);
+  /* Patch: add explanation to each row after original render */
+  var tbody = document.getElementById('qmsPreviewTable');
+  if (!tbody) { return; }
+  var validQs = preview.valid || [];
+  var PREVIEW_LIMIT = 20;
+  var shown = validQs.slice(0, PREVIEW_LIMIT);
+  if (!shown.length) { return; }
+  var letters = ['A', 'B', 'C', 'D'];
+  /* Re-render with explanation column */
+  tbody.innerHTML = shown.map(function (q, i) {
+    var opts = (q.options || []).map(function (o, idx) {
+      return '<span style="font-size:11px; padding:1px 6px; border-radius:4px; margin-right:3px; background:' +
+        (idx === q.correctAnswer ? 'rgba(67,233,123,0.15)' : 'rgba(255,255,255,0.04)') + '; color:' +
+        (idx === q.correctAnswer ? '#43e97b' : 'var(--text-secondary)') + ';">' +
+        letters[idx] + ': ' + o.substring(0, 30) + (o.length > 30 ? '...' : '') +
+        (idx === q.correctAnswer ? ' ✓' : '') + '</span>';
+    }).join('');
+    var explHtml = q.explanation
+      ? '<span style="font-size:11px; color:#43e97b;">✓ ' + q.explanation.substring(0, 60) + (q.explanation.length > 60 ? '...' : '') + '</span>'
+      : '<span style="font-size:11px; color:var(--text-muted,#6b6b8a);">—</span>';
+    return '<tr>' +
+      '<td style="font-weight:700; color:#a78bfa;">' + (i + 1) + '</td>' +
+      '<td style="color:#fff; font-size:13px;">' + q.question.substring(0, 100) + (q.question.length > 100 ? '...' : '') + '</td>' +
+      '<td>' + opts + '</td>' +
+      '<td><span style="background:rgba(67,233,123,0.12); color:#43e97b; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;">' +
+        (letters[q.correctAnswer] || '?') + '</span></td>' +
+      '<td>' + explHtml + '</td>' +
+    '</tr>';
+  }).join('');
+};
+
+/* ============================================================
+   QMS STABILIZATION — QUESTION SOURCES (UNIFIED VIEW)
+   Shows both QMS and Legacy questions in one interface.
+============================================================ */
+
+var _qmsSourcePage    = 1;
+var _qmsSourceTimer   = null;
+var _qmsSourceInited  = false;
+
+function qmsSourceDebounce() {
+  if (_qmsSourceTimer) { clearTimeout(_qmsSourceTimer); }
+  _qmsSourceTimer = setTimeout(function () { qmsSourceLoad(1); }, 380);
+}
+
+async function qmsSourceInit() {
+  if (!_qmsSourceInited) {
+    await qmsSourceLoadSummary();
+    _qmsSourceInited = true;
+  }
+  qmsSourceLoad(1);
+}
+
+/* Load summary counts for the two source cards */
+async function qmsSourceLoadSummary() {
+  var res = await qmsApi('/engine/health');
+  if (!res.ok) { return; }
+  var qb = (res.data.health || {}).questionBank || {};
+  var qmsEl    = document.getElementById('qmsSourceQmsCount');
+  var legacyEl = document.getElementById('qmsSourceLegacyCount');
+  if (qmsEl)    qmsEl.textContent    = (qb.approved || 0).toLocaleString() + ' approved';
+  if (legacyEl) legacyEl.textContent = (qb.legacy   || 0).toLocaleString() + ' active';
+}
+
+/* Load the unified question list */
+async function qmsSourceLoad(page) {
+  _qmsSourcePage = page || 1;
+  var tbody     = document.getElementById('qmsSourceBody');
+  var titleEl   = document.getElementById('qmsSourceTitle');
+  if (!tbody) { return; }
+
+  var filterType = (document.getElementById('qmsSourceFilterType') || {}).value || 'all';
+  var filterExam = (document.getElementById('qmsSourceFilterExam') || {}).value || 'all';
+  var search     = ((document.getElementById('qmsSourceSearch')    || {}).value || '').trim();
+
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:28px; color:var(--text-muted);">' +
+    '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:8px;"></span>Loading...</td></tr>';
+
+  /* Fetch from one or both sources in parallel */
+  var qmsQs     = [];
+  var legacyQs  = [];
+  var qmsTotal  = 0;
+  var legTotal  = 0;
+
+  var qsBankQs = '?page=' + _qmsSourcePage + '&limit=25';
+  if (filterExam !== 'all') qsBankQs += '&examType=' + filterExam;
+  if (search)               qsBankQs += '&search=' + encodeURIComponent(search);
+
+  var qsLeg = '?page=' + _qmsSourcePage + '&limit=25';
+  if (filterExam !== 'all') qsLeg += '&examCategory=' + filterExam;
+  if (search)               qsLeg += '&search=' + encodeURIComponent(search);
+
+  try {
+    var fetches = [];
+    if (filterType === 'all' || filterType === 'qms') {
+      fetches.push(qmsApi('/bank' + qsBankQs).then(function (r) {
+        if (r.ok) { qmsQs = r.data.questions || []; qmsTotal = r.data.total || 0; }
+      }));
+    }
+    if (filterType === 'all' || filterType === 'legacy') {
+      fetches.push(qmsApi('/bank/legacy' + qsLeg).then(function (r) {
+        if (r.ok) { legacyQs = r.data.questions || []; legTotal = r.data.total || 0; }
+      }));
+    }
+    await Promise.all(fetches);
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#ff6584; padding:20px;">Failed to load. ' + e.message + '</td></tr>';
+    return;
+  }
+
+  var combined = [];
+  qmsQs.forEach(function    (q) { combined.push(Object.assign({}, q, { _source: 'qms' }));    });
+  legacyQs.forEach(function (q) { combined.push(Object.assign({}, q, { _source: 'legacy' })); });
+
+  var total = qmsTotal + legTotal;
+  if (titleEl) {
+    titleEl.textContent = 'All Questions — ' + total.toLocaleString() + ' total (' +
+      qmsTotal.toLocaleString() + ' QMS + ' + legTotal.toLocaleString() + ' Legacy)';
+  }
+
+  if (!combined.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:36px; color:var(--text-muted);">No questions found.</td></tr>';
+    document.getElementById('qmsSourcePagination').style.display = 'none';
+    return;
+  }
+
+  var letters = ['A', 'B', 'C', 'D'];
+  tbody.innerHTML = combined.map(function (q) {
+    var isQms    = q._source === 'qms';
+    var srcBadge = isQms
+      ? '<span style="font-size:10px; font-weight:800; background:rgba(67,233,123,0.1); color:#43e97b; padding:2px 8px; border-radius:20px; white-space:nowrap;">🧠 QMS</span>'
+      : '<span style="font-size:10px; font-weight:800; background:rgba(108,99,255,0.1); color:#a78bfa; padding:2px 8px; border-radius:20px; white-space:nowrap;">📁 Legacy</span>';
+    var examLabel  = (q.examType || q.examCategory || 'all').toUpperCase();
+    var correctLet = letters[q.correctAnswer] !== undefined ? letters[q.correctAnswer] : '?';
+    var explHtml   = q.explanation
+      ? '<span style="font-size:11px; color:#43e97b;">✓ ' + q.explanation.substring(0, 50) + (q.explanation.length > 50 ? '...' : '') + '</span>'
+      : '<span style="font-size:11px; color:var(--text-muted);">—</span>';
+    return '<tr>' +
+      '<td>' + srcBadge + '</td>' +
+      '<td style="max-width:280px; font-size:13px; font-weight:600; color:#fff; line-height:1.4;">' +
+        (q.question || '').substring(0, 90) + (q.question && q.question.length > 90 ? '…' : '') +
+      '</td>' +
+      '<td style="font-size:12px; color:var(--text-secondary);">' + (q.subjectName || '—') + '</td>' +
+      '<td><span style="font-size:11px; font-weight:700; background:rgba(108,99,255,0.12); color:#a78bfa; padding:2px 8px; border-radius:20px;">' + examLabel + '</span></td>' +
+      '<td><span style="font-size:13px; font-weight:900; background:rgba(67,233,123,0.12); color:#43e97b; padding:2px 10px; border-radius:8px;">' + correctLet + '</span></td>' +
+      '<td>' + explHtml + '</td>' +
+    '</tr>';
+  }).join('');
+
+  /* Simple pagination for QMS portion */
+  var pages  = Math.ceil(Math.max(qmsTotal, legTotal) / 25);
+  var pagDiv = document.getElementById('qmsSourcePagination');
+  if (pagDiv && pages > 1) {
+    var btns = '';
+    for (var p = 1; p <= Math.min(pages, 8); p++) {
+      btns += '<button class="a-btn a-btn-sm ' + (p === _qmsSourcePage ? 'a-btn-primary' : 'a-btn-secondary') +
+              '" onclick="qmsSourceLoad(' + p + ')">' + p + '</button>';
+    }
+    pagDiv.innerHTML    = btns;
     pagDiv.style.display = 'flex';
   } else if (pagDiv) {
     pagDiv.style.display = 'none';
