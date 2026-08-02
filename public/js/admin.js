@@ -54,6 +54,24 @@ var PS_ROLE_LABELS_ADMIN = {
 };
 
 /* ============================================
+   UTILITY — HTML ENTITY ESCAPER
+   Prevents XSS when inserting dynamic content
+   into innerHTML. Called as esc(str) throughout
+   the admin dashboard.
+   Defined here so it is available globally to all
+   admin.js functions regardless of call order.
+============================================ */
+function esc(str) {
+  if (str === null || str === undefined) { return ''; }
+  return String(str)
+    .replace(/&/g,  '&amp;')
+    .replace(/</g,  '&lt;')
+    .replace(/>/g,  '&gt;')
+    .replace(/"/g,  '&quot;')
+    .replace(/'/g,  '&#39;');
+}
+
+/* ============================================
    ADMIN LOGIN
 ============================================ */
 async function submitAdminLogin() {
@@ -1685,24 +1703,43 @@ async function qmsLoadStats() {
 
 /* ---- Advanced analytics (charts) ---- */
 async function qmsLoadAdvancedStats() {
-  var chartIds = ['qmsImportTrendChart','qmsTopSubjectsChart','qmsDiffDistChart','qmsYearDistChart','qmsSourceDistChart'];
+  var chartIds = [
+    'qmsImportTrendChart', 'qmsTopSubjectsChart',
+    'qmsDiffDistChart',    'qmsYearDistChart', 'qmsSourceDistChart'
+  ];
+
+  var emptyMsg = '<div style="color:var(--text-muted); font-size:13px; text-align:center; padding:16px;">No data yet. Charts will populate as questions are imported.</div>';
+  var errMsg   = function (msg) {
+    return '<div style="color:var(--text-muted); font-size:12px; text-align:center; padding:12px;">' +
+      '⚠️ ' + (msg || 'Could not load chart data.') + '</div>';
+  };
 
   var res = await qmsApi('/analytics');
   if (!res.ok) {
-    /* Show graceful empty state instead of leaving "Loading..." */
-    var emptyMsg = '<div style="color:var(--text-muted); font-size:13px; text-align:center; padding:16px;">No data yet. Charts will populate as questions are imported.</div>';
     chartIds.forEach(function (id) {
-      var el = document.getElementById(id); if (el) el.innerHTML = emptyMsg;
+      var el = document.getElementById(id);
+      if (el) el.innerHTML = errMsg(res.data.message || 'Analytics endpoint returned an error.');
     });
     return;
   }
+
   var a = res.data.analytics || {};
 
-  renderImportTrendChart(a.importTrend  || []);
-  renderTopSubjectsChart(a.topSubjects  || []);
-  renderDiffDistChart(a.diffDist        || {});
-  renderYearDistChart(a.yearDist        || []);
-  renderSourceDistChart(a.sourceDist    || []);
+  /* Wrap each render individually — one chart error must not block others */
+  function safeRender(fn, id, data) {
+    try { fn(data); }
+    catch (e) {
+      var el = document.getElementById(id);
+      if (el) el.innerHTML = errMsg('Render error: ' + e.message);
+      console.warn('[QMS Analytics] render error in', id, ':', e.message);
+    }
+  }
+
+  safeRender(renderImportTrendChart, 'qmsImportTrendChart', a.importTrend  || []);
+  safeRender(renderTopSubjectsChart, 'qmsTopSubjectsChart', a.topSubjects  || []);
+  safeRender(renderDiffDistChart,    'qmsDiffDistChart',    a.diffDist     || {});
+  safeRender(renderYearDistChart,    'qmsYearDistChart',    a.yearDist     || []);
+  safeRender(renderSourceDistChart,  'qmsSourceDistChart',  a.sourceDist   || []);
 }
 
 function renderImportTrendChart(trend) {
@@ -4426,19 +4463,56 @@ async function qmsMigrationDryRun() {
     '<span style="display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:8px;"></span>' +
     'Scanning legacy questions — this may take a moment...</div>';
 
-  var res = await qmsApi('/migrate/dry-run');
+  /* ✅ FIX: Add a 45-second timeout. Without this, if the backend
+     hangs (e.g. MongoDB Atlas slow query), the UI freezes forever.
+     The qmsApi catch handles network errors; this handles hangs. */
+  var timeoutPromise = new Promise(function (resolve) {
+    setTimeout(function () {
+      resolve({ ok: false, status: 0, data: { message: 'Request timed out after 45 seconds. Please check the server logs and try again.' } });
+    }, 45000);
+  });
 
-  if (btn) { btn.innerHTML = '🔍 Run Analysis'; btn.disabled = false; }
+  var res = await Promise.race([qmsApi('/migrate/dry-run'), timeoutPromise]);
+
+ if (btn) { btn.innerHTML = '🔍 Run Analysis'; btn.disabled = false; }
 
   if (!res.ok) {
-    content.innerHTML = '<div style="color:#ff6584; padding:16px; font-size:13px;">' +
-      (res.data.message || 'Analysis failed.') + '</div>';
+    content.innerHTML =
+      '<div style="background:rgba(255,101,132,0.08); border:1px solid rgba(255,101,132,0.25); ' +
+      'border-radius:10px; padding:16px; font-size:13px; color:#ff6584; line-height:1.7;">' +
+      '❌ <strong>Analysis failed:</strong> ' + esc(res.data.message || 'Unknown error.') + '<br>' +
+      '<span style="font-size:12px; color:var(--text-muted);">Check the Railway server logs for more details. ' +
+      'Common causes: MongoDB connection timeout, missing permissions.</span>' +
+      '</div>';
+    return;
+  }
+
+  /* ✅ FIX: Guard against undefined analysis (edge case where server
+     returns ok:true but no analysis object). */
+  if (!res.data || !res.data.analysis) {
+    content.innerHTML =
+      '<div style="color:#ffa500; padding:16px; font-size:13px;">' +
+      '⚠️ Analysis returned no data. Please check server logs and try again.</div>';
     return;
   }
 
   _migDryRunData = res.data.analysis;
-  qmsMigrationRenderDryRun(_migDryRunData);
-  _migrationUnlockCommit(_migDryRunData);
+
+  try {
+    qmsMigrationRenderDryRun(_migDryRunData);
+  } catch (renderErr) {
+    console.error('[Migration] Render error:', renderErr.message);
+    content.innerHTML =
+      '<div style="color:#ff6584; padding:16px; font-size:13px;">' +
+      'Display error: ' + esc(renderErr.message) + '</div>';
+    return;
+  }
+
+  try {
+    _migrationUnlockCommit(_migDryRunData);
+  } catch (unlockErr) {
+    console.error('[Migration] Unlock error:', unlockErr.message);
+  }
 
   /* Highlight step badges */
   var s1 = document.getElementById('migStep1Badge');
@@ -4541,6 +4615,16 @@ function _migrationUnlockCommit(analysis) {
   var commitContent = document.getElementById('qmsMigCommitContent');
   var lockEl        = document.getElementById('qmsMigCommitLock');
   var step3         = document.getElementById('migStep3Badge');
+
+  /* ✅ FIX: Guard against null/undefined analysis */
+  if (!analysis || !analysis.summary) {
+    if (commitContent) {
+      commitContent.innerHTML =
+        '<div style="color:var(--text-muted); font-size:13px; padding:16px; text-align:center;">' +
+        'Run the dry-run analysis to unlock this step.</div>';
+    }
+    return;
+  }
 
   if (lockEl) lockEl.style.display = 'none';
   if (step3) {

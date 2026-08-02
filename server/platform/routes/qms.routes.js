@@ -768,6 +768,76 @@ router.post('/bank', adminOrPlatformStaff('question_bank'), async function (req,
 });
 
 /* ----
+   GET /api/qms/bank/legacy
+   ✅ MUST be registered before /bank/:id.
+   Express treats 'legacy' as an ObjectId string and throws
+   CastError if this route is placed after /bank/:id.
+   Route was misplaced in Stage 3 — fixed here.
+---- */
+router.get('/bank/legacy', adminOrPlatformStaff('question_bank'), async function (req, res) {
+  try {
+    var Question = require('../../models/Question.model');
+
+    var page  = Math.max(1,   parseInt(req.query.page)  || 1);
+    var limit = Math.min(100, parseInt(req.query.limit) || 25);
+    var skip  = (page - 1) * limit;
+
+    var filter = { isActive: true };
+
+    if (req.query.subjectId) {
+      filter.subjectId = req.query.subjectId;
+    }
+    if (req.query.examCategory && req.query.examCategory !== 'all') {
+      filter.$or = [
+        { examCategory: req.query.examCategory },
+        { examCategory: 'all' }
+      ];
+    }
+    if (req.query.search) {
+      var searchRegex = new RegExp(
+        req.query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'
+      );
+      filter.question = searchRegex;
+    }
+
+    var [total, questions] = await Promise.all([
+      Question.countDocuments(filter),
+      Question.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select('question options correctAnswer explanation examCategory subjectId isActive createdAt')
+        .lean()
+    ]);
+
+    /* Enrich with subject names */
+    var subjectIds = [...new Set(questions.map(function (q) { return q.subjectId; }).filter(Boolean))];
+    var subjects   = await Subject.find({ _id: { $in: subjectIds } }).select('name').lean();
+    var subjMap    = {};
+    subjects.forEach(function (s) { subjMap[s._id.toString()] = s.name; });
+
+    var enriched = questions.map(function (q) {
+      return Object.assign({}, q, {
+        subjectName: q.subjectId ? (subjMap[q.subjectId.toString()] || '—') : '—',
+        source:      'legacy'
+      });
+    });
+
+    return res.json({
+      success:   true,
+      source:    'legacy',
+      total:     total,
+      page:      page,
+      pages:     Math.ceil(total / limit),
+      questions: enriched
+    });
+  } catch (e) {
+    console.error('[QMS] GET /bank/legacy:', e.message);
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+/* ----
    GET /api/qms/bank/:id
    Single question including version history.
 ---- */
@@ -1382,7 +1452,9 @@ router.get('/analytics', adminOrPlatformStaff('question_stats'), async function 
         { $group: { _id: '$difficulty', count: { $sum: 1 } } }
       ]),
 
-     /* Source type distribution — include partial jobs (common when Issue 1 occurred) */
+     /* Source type distribution — include partial jobs.
+         All jobs from before the batch ID fix have status:'partial'.
+         Excluding them would hide all import history. */
       ImportJob.aggregate([
         { $match: { status: { $in: ['completed', 'partial'] } } },
         { $group: {
@@ -1398,7 +1470,9 @@ router.get('/analytics', adminOrPlatformStaff('question_stats'), async function 
         { $group: { _id: '$status', count: { $sum: 1 } } }
       ]),
 
-     /* Daily velocity (last 56 days = 8 weeks) — safer than %Y-W%V which needs MongoDB 4.4+ */
+     /* Daily question additions over last 56 days (8 weeks).
+         %Y-W%V requires MongoDB 4.4+ and is not safe for Atlas clusters.
+         Using %Y-%m-%d is fully compatible with all MongoDB versions. */
       QMSQuestion.aggregate([
         { $match: { createdAt: { $gte: eightWeeksAgo }, status: { $ne: 'deleted' } } },
         { $group: {
@@ -1551,77 +1625,10 @@ router.get('/engine/health', adminOrPlatformStaff('question_engine'), async func
 });
 
 /* ============================================
-   ✅ STABILIZATION — LEGACY QUESTION BANK
-
-   GET /api/qms/bank/legacy
-   Lists legacy Question model documents so Root
-   Admin can see both question sources in one UI.
-   Read-only — never modifies legacy questions.
-
-   Query: page, limit, subjectId, examCategory, search
+   /bank/legacy was moved BEFORE /bank/:id to prevent
+   Express treating 'legacy' as an ObjectId (CastError).
+   See the correctly-positioned route above /bank/:id.
 ============================================ */
-router.get('/bank/legacy', adminOrPlatformStaff('question_bank'), async function (req, res) {
-  try {
-    var Question = require('../../models/Question.model');
-
-    var page  = Math.max(1,   parseInt(req.query.page)  || 1);
-    var limit = Math.min(100, parseInt(req.query.limit) || 25);
-    var skip  = (page - 1) * limit;
-
-    var filter = { isActive: true };
-
-    if (req.query.subjectId) {
-      filter.subjectId = req.query.subjectId;
-    }
-    if (req.query.examCategory && req.query.examCategory !== 'all') {
-      filter.$or = [
-        { examCategory: req.query.examCategory },
-        { examCategory: 'all' }
-      ];
-    }
-    if (req.query.search) {
-      var searchRegex = new RegExp(
-        req.query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'
-      );
-      filter.question = searchRegex;
-    }
-
-    var [total, questions] = await Promise.all([
-      Question.countDocuments(filter),
-      Question.find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .select('question options correctAnswer explanation examCategory subjectId isActive createdAt')
-        .lean()
-    ]);
-
-    /* Enrich with subject names */
-    var subjectIds = [...new Set(questions.map(function (q) { return q.subjectId; }).filter(Boolean))];
-    var subjects   = await Subject.find({ _id: { $in: subjectIds } }).select('name').lean();
-    var subjMap    = {};
-    subjects.forEach(function (s) { subjMap[s._id.toString()] = s.name; });
-
-    var enriched = questions.map(function (q) {
-      return Object.assign({}, q, {
-        subjectName: q.subjectId ? (subjMap[q.subjectId.toString()] || '—') : '—',
-        source:      'legacy'
-      });
-    });
-
-    return res.json({
-      success:   true,
-      source:    'legacy',
-      total:     total,
-      page:      page,
-      pages:     Math.ceil(total / limit),
-      questions: enriched
-    });
-  } catch (e) {
-    console.error('[QMS] GET /bank/legacy:', e.message);
-    return res.status(500).json({ success: false, message: e.message });
-  }
-});
 
 /* ============================================
    ✅ STAGE 1 — EXAMINATION BLUEPRINT ROUTES
@@ -1939,9 +1946,20 @@ function normText(text) {
 router.get('/migrate/dry-run', adminOrPlatformStaff('question_bank'), async function (req, res) {
   try {
     var Question = require('../../models/Question.model');
+    var startMs  = Date.now();
 
-    /* 1. Load all legacy questions */
-    var legacyAll = await Question.find({}).lean();
+    console.log('[QMS Migrate] dry-run started by', callerName(req));
+
+    /* Load only the fields needed for analysis.
+       maxTimeMS prevents the query from hanging indefinitely
+       if MongoDB Atlas has a slow moment. */
+    var legacyAll = await Question
+      .find({})
+      .select('question examCategory subjectId isActive')
+      .maxTimeMS(15000)
+      .lean();
+
+    console.log('[QMS Migrate] loaded', legacyAll.length, 'legacy questions in', Date.now() - startMs, 'ms');
 
     if (legacyAll.length === 0) {
       return res.json({
@@ -1958,9 +1976,13 @@ router.get('/migrate/dry-run', adminOrPlatformStaff('question_bank'), async func
       });
     }
 
-    /* 2. Load subject map for name lookups */
+    /* Load subject map for name lookups */
     var subjectDocs = await Subject.find({})
-      .populate('department', 'name').lean();
+      .select('name department')
+      .populate('department', 'name')
+      .maxTimeMS(10000)
+      .lean();
+    console.log('[QMS Migrate] loaded', subjectDocs.length, 'subjects');
     var subjMap = {};
     subjectDocs.forEach(function (s) {
       subjMap[s._id.toString()] = {
@@ -1970,10 +1992,14 @@ router.get('/migrate/dry-run', adminOrPlatformStaff('question_bank'), async func
       };
     });
 
-    /* 3. Load normalised QMS question texts for dedup
-          Key: normText(question) + '|' + subjectId */
-    var qmsTexts = await QMSQuestion.find({ status: { $ne: 'deleted' } })
-      .select('question subjectId').lean();
+    /* Load only question text + subjectId for dedup check.
+       Key: normText(question) + '|' + subjectId */
+    var qmsTexts = await QMSQuestion
+      .find({ status: { $ne: 'deleted' } })
+      .select('question subjectId')
+      .maxTimeMS(15000)
+      .lean();
+    console.log('[QMS Migrate] loaded', qmsTexts.length, 'QMS questions for dedup in', Date.now() - startMs, 'ms');
     var qmsSet = new Set();
     qmsTexts.forEach(function (q) {
       var key = normText(q.question) + '|' + (q.subjectId ? q.subjectId.toString() : 'none');
