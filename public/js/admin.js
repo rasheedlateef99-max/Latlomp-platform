@@ -1239,7 +1239,7 @@ async function qmsInit() {
 /* ---- Sub-tab switching ---- */
 
 function qmsSwitchTab(tab) {
-  ['import', 'bank', 'sources', 'orphans', 'engine', 'history', 'stats'].forEach(function (t) {
+  ['import', 'bank', 'sources', 'orphans', 'migration', 'engine', 'history', 'stats'].forEach(function (t) {
     var panel = document.getElementById('qmsPanel' + t.charAt(0).toUpperCase() + t.slice(1));
     if (panel) panel.style.display = (t === tab) ? 'block' : 'none';
     var btn   = document.getElementById('qmsTab' + t.charAt(0).toUpperCase() + t.slice(1));
@@ -1248,9 +1248,10 @@ function qmsSwitchTab(tab) {
   if (tab === 'history') qmsLoadHistory();
   if (tab === 'stats')   qmsLoadStats();
   if (tab === 'bank')    qmsBankLoad(1);
-  if (tab === 'sources') qmsSourceInit();
-  if (tab === 'orphans') qmsOrphanLoad(1);
-  if (tab === 'engine')  { qmsEngInit(); }
+  if (tab === 'sources')   qmsSourceInit();
+  if (tab === 'orphans')   qmsOrphanLoad(1);
+  if (tab === 'engine')    { qmsEngInit(); }
+  if (tab === 'migration') { qmsMigrationLoadStatus(); }
 }
 
 /* ---- Toggle paste / file input method ---- */
@@ -4313,6 +4314,384 @@ async function loadCbtQuestionsLegacy() {
         '</div>' +
       '</div>';
     }).join('');
+}
+
+/* ============================================================
+   ✅ STAGE 3 — LEGACY MIGRATION TOOL
+   Dry-run analysis → verify → commit.
+   Legacy model never deleted. Idempotent.
+============================================================ */
+
+var _migDryRunData = null; /* stores last dry-run result */
+
+/* ---- Load and render migration status ---- */
+async function qmsMigrationLoadStatus() {
+  var el = document.getElementById('qmsMigStatusContent');
+  if (!el) { return; }
+  el.innerHTML = '<div style="text-align:center; padding:12px; color:var(--text-muted);">Loading...</div>';
+
+  var res = await qmsApi('/migrate/status');
+  if (!res.ok) {
+    el.innerHTML = '<div style="color:#ff6584; font-size:13px; padding:8px;">' +
+      (res.data.message || 'Failed to load status.') + '</div>';
+    return;
+  }
+
+  var s       = res.data.status;
+  var legacy  = s.legacy   || {};
+  var qms     = s.qms      || {};
+  var jobs    = s.jobs     || [];
+  var migPct  = legacy.total > 0
+    ? Math.round((qms.migrated / legacy.total) * 100)
+    : 0;
+
+  var statusColor = s.isMigrated ? '#43e97b' : '#ffa500';
+  var statusLabel = s.isMigrated ? '✅ Migration Completed' : '⏳ Not Yet Migrated';
+
+  el.innerHTML =
+    '<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:16px;">' +
+      _migStatCard('📁', legacy.total.toLocaleString(),    'Legacy Questions (Total)', 'rgba(255,165,0,0.1)',  '#ffa500') +
+      _migStatCard('✅', legacy.active.toLocaleString(),   'Legacy Active',            'rgba(108,99,255,0.1)', '#a78bfa') +
+      _migStatCard('🧠', qms.migrated.toLocaleString(),    'Migrated to QMS',          'rgba(67,233,123,0.1)', '#43e97b') +
+    '</div>' +
+
+    '<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">' +
+      '<div style="background:rgba(255,255,255,0.03); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:12px; padding:16px;">' +
+        '<div style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:10px;">Migration Progress</div>' +
+        '<div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">' +
+          '<div style="font-size:28px; font-weight:900; color:' + statusColor + ';">' + migPct + '%</div>' +
+          '<div style="font-size:13px; font-weight:700; color:' + statusColor + ';">' + statusLabel + '</div>' +
+        '</div>' +
+        '<div style="background:rgba(255,255,255,0.06); border-radius:20px; height:10px; overflow:hidden;">' +
+          '<div style="background:linear-gradient(90deg,#43e97b,#38f9d7); width:' + migPct + '%; height:100%; border-radius:20px; transition:width 0.5s;"></div>' +
+        '</div>' +
+        '<div style="font-size:12px; color:var(--text-muted); margin-top:8px;">' +
+          qms.migrated.toLocaleString() + ' of ' + legacy.total.toLocaleString() + ' legacy questions in QMS' +
+        '</div>' +
+      '</div>' +
+
+      '<div style="background:rgba(255,255,255,0.03); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:12px; padding:16px;">' +
+        '<div style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:10px;">QMS Question Bank</div>' +
+        _migInfoRow('Total in Bank',  qms.total.toLocaleString(),    '#fff') +
+        _migInfoRow('Approved',       qms.approved.toLocaleString(), '#43e97b') +
+        _migInfoRow('From Migration', qms.migrated.toLocaleString(), '#a78bfa') +
+      '</div>' +
+    '</div>' +
+
+    (jobs.length
+      ? '<div style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:8px;">Migration History</div>' +
+        '<div style="background:rgba(255,255,255,0.02); border-radius:10px; overflow:hidden;">' +
+        jobs.map(function (j) {
+          var jColor = j.status === 'completed' ? '#43e97b' : j.status === 'partial' ? '#ffa500' : '#ff6584';
+          return '<div style="display:flex; align-items:center; gap:12px; padding:10px 14px; border-bottom:1px solid var(--border,rgba(255,255,255,0.06)); flex-wrap:wrap;">' +
+            '<span style="font-size:11px; color:var(--text-muted); white-space:nowrap;">' + new Date(j.createdAt).toLocaleString('en-NG') + '</span>' +
+            '<span style="font-size:12px; color:#fff; font-weight:700;">By: ' + esc(j.importedBy || '—') + '</span>' +
+            '<span style="font-size:12px; color:#43e97b; margin-left:auto; font-weight:700;">' + (j.stats.imported || 0).toLocaleString() + ' migrated</span>' +
+            '<span style="font-size:11px; font-weight:700; color:' + jColor + ';">' + (j.status || '').toUpperCase() + '</span>' +
+          '</div>';
+        }).join('') + '</div>'
+      : '<div style="font-size:13px; color:var(--text-muted); padding:8px 0;">No migration runs yet.</div>');
+}
+
+function _migStatCard(icon, val, label, bg, color) {
+  return '<div style="background:' + bg + '; border-radius:12px; padding:16px; display:flex; align-items:center; gap:12px;">' +
+    '<div style="font-size:22px;">' + icon + '</div>' +
+    '<div>' +
+      '<div style="font-size:22px; font-weight:900; color:' + color + '; line-height:1;">' + val + '</div>' +
+      '<div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px; margin-top:3px;">' + label + '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+function _migInfoRow(label, val, color) {
+  return '<div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.04);">' +
+    '<span style="font-size:12px; color:var(--text-secondary);">' + label + '</span>' +
+    '<span style="font-size:12px; font-weight:700; color:' + color + ';">' + val + '</span>' +
+  '</div>';
+}
+
+/* ---- Run Dry-Run Analysis ---- */
+async function qmsMigrationDryRun() {
+  var btn     = document.getElementById('qmsMigDryRunBtn');
+  var content = document.getElementById('qmsMigDryRunContent');
+  if (!content) { return; }
+
+  if (btn) {
+    btn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px;"></span> Analysing...';
+    btn.disabled  = true;
+  }
+
+  content.innerHTML =
+    '<div style="text-align:center; padding:20px; color:var(--text-muted);">' +
+    '<span style="display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:8px;"></span>' +
+    'Scanning legacy questions — this may take a moment...</div>';
+
+  var res = await qmsApi('/migrate/dry-run');
+
+  if (btn) { btn.innerHTML = '🔍 Run Analysis'; btn.disabled = false; }
+
+  if (!res.ok) {
+    content.innerHTML = '<div style="color:#ff6584; padding:16px; font-size:13px;">' +
+      (res.data.message || 'Analysis failed.') + '</div>';
+    return;
+  }
+
+  _migDryRunData = res.data.analysis;
+  qmsMigrationRenderDryRun(_migDryRunData);
+  _migrationUnlockCommit(_migDryRunData);
+
+  /* Highlight step badges */
+  var s1 = document.getElementById('migStep1Badge');
+  var s2 = document.getElementById('migStep2Badge');
+  if (s1) { s1.style.background = 'rgba(67,233,123,0.12)'; s1.style.borderColor = 'rgba(67,233,123,0.3)'; s1.querySelector('span:first-child').style.color = '#43e97b'; s1.querySelector('span:last-child').style.color = '#43e97b'; }
+  if (s2) { s2.style.background = 'rgba(255,165,0,0.1)';   s2.style.borderColor = 'rgba(255,165,0,0.3)';   s2.querySelector('span:first-child').style.color = '#ffa500'; s2.querySelector('span:last-child').style.color = '#ffa500'; }
+}
+
+/* ---- Render dry-run report ---- */
+function qmsMigrationRenderDryRun(analysis) {
+  var content = document.getElementById('qmsMigDryRunContent');
+  if (!content || !analysis) { return; }
+
+  var s   = analysis.summary;
+  var rows = analysis.bySubject || [];
+
+  /* Status colour helper */
+  var statusColors = { ready: '#43e97b', partial: '#ffa500', all_duplicate: '#a0a0c0', no_subject: '#ff6584' };
+  var statusLabels = { ready: '✅ Ready', partial: '⚠️ Partial', all_duplicate: '🔁 All Duplicate', no_subject: '❌ No Subject' };
+
+  var orphanHtml = '';
+  if (analysis.orphans && analysis.orphans.count > 0) {
+    var sample = analysis.orphans.sample || [];
+    orphanHtml =
+      '<div style="background:rgba(255,101,132,0.08); border:1px solid rgba(255,101,132,0.2); border-radius:10px; padding:14px 16px; margin-bottom:16px;">' +
+        '<div style="font-size:13px; font-weight:700; color:#ff6584; margin-bottom:6px;">' +
+          '⚠️ ' + analysis.orphans.count + ' Orphan Question' + (analysis.orphans.count !== 1 ? 's' : '') +
+          ' — will NOT be migrated (no Subject assigned)' +
+        '</div>' +
+        '<div style="font-size:12px; color:var(--text-secondary); line-height:1.7;">' +
+          'These questions exist in the legacy model but have no Subject assigned. ' +
+          'Use the <strong style="color:#fff;">🔗 Unassigned</strong> tab to assign legacy questions before migration, ' +
+          'or migrate after using the orphan cleanup tool.' +
+        '</div>' +
+        (sample.length
+          ? '<div style="margin-top:10px; font-size:11px; color:var(--text-muted);">Sample: ' +
+              sample.slice(0, 3).map(function (q) { return '"' + esc(q.question) + '"'; }).join(', ') +
+            (analysis.orphans.count > 3 ? '... and more' : '') + '</div>'
+          : '') +
+      '</div>';
+  }
+
+  content.innerHTML =
+
+    /* Summary row */
+    '<div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;">' +
+      _migStatCard('📋', s.totalLegacy.toLocaleString(),  'Legacy Total',    'rgba(255,255,255,0.04)', '#fff') +
+      _migStatCard('✅', s.toMigrate.toLocaleString(),    'Will Migrate',    'rgba(67,233,123,0.1)',  '#43e97b') +
+      _migStatCard('🔁', s.alreadyInQMS.toLocaleString(), 'Already in QMS',  'rgba(255,165,0,0.1)',   '#ffa500') +
+      _migStatCard('⚠️', s.orphanCount.toLocaleString(),  'No Subject',      'rgba(255,101,132,0.1)', '#ff6584') +
+    '</div>' +
+
+    orphanHtml +
+
+    /* Exam type breakdown */
+    (Object.keys(analysis.examTypeBreakdown || {}).length
+      ? '<div style="background:rgba(255,255,255,0.03); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:10px; padding:12px 16px; margin-bottom:16px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">' +
+          '<span style="font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px;">By Exam Type:</span>' +
+          Object.keys(analysis.examTypeBreakdown).map(function (et) {
+            return '<span style="font-size:12px; font-weight:700; background:rgba(108,99,255,0.12); color:#a78bfa; padding:2px 10px; border-radius:20px;">' +
+              et.toUpperCase() + ': ' + analysis.examTypeBreakdown[et] + '</span>';
+          }).join('') +
+        '</div>'
+      : '') +
+
+    /* Subject breakdown table */
+    '<div class="a-card">' +
+      '<div class="a-card-head"><h3>Subject Breakdown (' + rows.length + ' subjects)</h3></div>' +
+      '<div class="a-table-wrap">' +
+        '<table class="admin-table">' +
+          '<thead><tr>' +
+            '<th>Subject</th><th>Department</th><th>Legacy</th>' +
+            '<th>Will Migrate</th><th>Already in QMS</th><th>Inactive</th><th>Status</th>' +
+          '</tr></thead>' +
+          '<tbody>' +
+          (rows.length
+            ? rows.map(function (r) {
+                var sc = statusColors[r.status] || '#fff';
+                var sl = statusLabels[r.status] || r.status;
+                return '<tr>' +
+                  '<td style="font-weight:700; color:#fff;">' + esc(r.subjectName) + '</td>' +
+                  '<td style="font-size:12px; color:var(--text-secondary);">' + esc(r.departmentName) + '</td>' +
+                  '<td style="font-weight:700; color:#fff;">'   + r.legacyCount + '</td>' +
+                  '<td style="font-weight:700; color:#43e97b;">' + r.toMigrate   + '</td>' +
+                  '<td style="color:#ffa500;">'                  + r.alreadyInQMS + '</td>' +
+                  '<td style="color:var(--text-muted);">'        + r.inactive    + '</td>' +
+                  '<td><span style="font-size:11px; font-weight:700; color:' + sc + ';">' + sl + '</span></td>' +
+                '</tr>';
+              }).join('')
+            : '<tr><td colspan="7" style="text-align:center; padding:28px; color:var(--text-muted);">No legacy questions with subjects found.</td></tr>'
+          ) +
+          '</tbody>' +
+        '</table>' +
+      '</div>' +
+    '</div>';
+}
+
+/* ---- Unlock commit step after dry-run ---- */
+function _migrationUnlockCommit(analysis) {
+  var commitContent = document.getElementById('qmsMigCommitContent');
+  var lockEl        = document.getElementById('qmsMigCommitLock');
+  var step3         = document.getElementById('migStep3Badge');
+
+  if (lockEl) lockEl.style.display = 'none';
+  if (step3) {
+    step3.style.background   = 'rgba(255,165,0,0.1)';
+    step3.style.borderColor  = 'rgba(255,165,0,0.3)';
+    step3.querySelector('span:first-child').style.color = '#ffa500';
+    step3.querySelector('span:last-child').style.color  = '#ffa500';
+  }
+
+  if (!commitContent) { return; }
+
+  var s         = analysis.summary;
+  var canMigrate = s.toMigrate > 0;
+
+  commitContent.innerHTML =
+    '<div style="background:rgba(255,255,255,0.03); border:1px solid var(--border,rgba(255,255,255,0.08)); border-radius:12px; padding:18px; margin-bottom:16px;">' +
+      '<div style="font-size:14px; font-weight:700; color:#fff; margin-bottom:12px;">Migration Summary</div>' +
+      _migInfoRow('Questions to migrate',       s.toMigrate.toLocaleString(),    '#43e97b') +
+      _migInfoRow('Already in QMS (will skip)', s.alreadyInQMS.toLocaleString(), '#ffa500') +
+      _migInfoRow('Orphans (will skip)',         s.orphanCount.toLocaleString(),  '#ff6584') +
+      _migInfoRow('Missing subjects (will skip)',String(s.missingSubjects),       '#ff6584') +
+      '<div style="margin-top:14px; font-size:12px; color:var(--text-muted); line-height:1.7;">' +
+        '• The legacy Question model will <strong style="color:#fff;">NOT be modified or deleted</strong>.<br>' +
+        '• Migrated questions get <code style="background:rgba(255,255,255,0.06); padding:0 4px; border-radius:3px;">source: \'legacy_migration\'</code>.<br>' +
+        '• You can run the migration multiple times safely — duplicates are always skipped.<br>' +
+        '• After migration, run the dry-run again to verify the result.' +
+      '</div>' +
+    '</div>' +
+
+    (canMigrate
+      ? '<div id="qmsMigConfirmRow" style="background:rgba(255,101,132,0.06); border:1px solid rgba(255,101,132,0.2); border-radius:10px; padding:14px 16px; margin-bottom:14px;">' +
+          '<div style="font-size:13px; color:#ff6584; font-weight:700; margin-bottom:6px;">⚠️ Confirm Before Proceeding</div>' +
+          '<div style="font-size:12px; color:var(--text-secondary); margin-bottom:10px; line-height:1.7;">' +
+            'You are about to migrate <strong style="color:#fff;">' + s.toMigrate.toLocaleString() + ' questions</strong> ' +
+            'into the QMS Question Bank. This is safe and reversible through the legacy model, but may take a moment.' +
+          '</div>' +
+          '<label style="display:flex; align-items:center; gap:8px; cursor:pointer;">' +
+            '<input type="checkbox" id="qmsMigConfirmCheck" style="accent-color:#ff6584; width:16px; height:16px;" />' +
+            '<span style="font-size:13px; font-weight:700; color:#fff;">I have reviewed the dry-run report and want to proceed</span>' +
+          '</label>' +
+        '</div>' +
+        '<button class="a-btn a-btn-primary" id="qmsMigCommitBtn" onclick="qmsMigrationCommit()" ' +
+          'style="width:100%; font-size:15px; padding:14px;">' +
+          '⚡ Commit Migration (' + s.toMigrate.toLocaleString() + ' questions)' +
+        '</button>'
+      : '<div style="text-align:center; padding:20px; font-size:14px; color:#43e97b; font-weight:700;">' +
+          '✅ All legacy questions are already in QMS. No migration needed.' +
+        '</div>');
+}
+
+/* ---- Execute the migration ---- */
+async function qmsMigrationCommit() {
+  var checkEl = document.getElementById('qmsMigConfirmCheck');
+  if (!checkEl || !checkEl.checked) {
+    instToast('Please check the confirmation checkbox to proceed.', 'error');
+    return;
+  }
+
+  if (!confirm(
+    'BEGIN MIGRATION?\n\n' +
+    'This will copy ' + (_migDryRunData ? _migDryRunData.summary.toMigrate.toLocaleString() : 'all eligible') + ' legacy questions into the QMS Question Bank.\n\n' +
+    'The legacy model will NOT be modified.\n\n' +
+    'Continue?'
+  )) { return; }
+
+  var btn     = document.getElementById('qmsMigCommitBtn');
+  var content = document.getElementById('qmsMigCommitContent');
+
+  if (btn) {
+    btn.innerHTML = '<span style="display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:8px;"></span> Migrating — please wait...';
+    btn.disabled  = true;
+  }
+
+  var res = await qmsApi('/migrate/commit', 'POST', { confirm: true });
+
+  if (btn) { btn.innerHTML = '⚡ Commit Migration'; btn.disabled = false; }
+
+  if (!res.ok) {
+    instToast(res.data.message || 'Migration failed.', 'error');
+    return;
+  }
+
+  var r = res.data.results;
+  qmsMigrationRenderCommitResult(res.data);
+
+  /* Step 3 badge: complete */
+  var step3 = document.getElementById('migStep3Badge');
+  if (step3) {
+    step3.style.background  = 'rgba(67,233,123,0.12)';
+    step3.style.borderColor = 'rgba(67,233,123,0.3)';
+    step3.querySelector('span:first-child').style.color = '#43e97b';
+    step3.querySelector('span:last-child').style.color  = '#43e97b';
+  }
+
+  instToast('✅ Migration complete — ' + r.migrated.toLocaleString() + ' questions migrated.', 'success');
+
+  /* Refresh status card */
+  setTimeout(qmsMigrationLoadStatus, 800);
+}
+
+/* ---- Render commit result ---- */
+function qmsMigrationRenderCommitResult(data) {
+  var content = document.getElementById('qmsMigCommitContent');
+  if (!content) { return; }
+
+  var r  = data.results || {};
+  var by = data.bySubject || [];
+
+  var statusColor = r.status === 'completed' ? '#43e97b' : r.status === 'partial' ? '#ffa500' : '#ff6584';
+
+  content.innerHTML =
+    '<div style="background:rgba(67,233,123,0.08); border:1px solid rgba(67,233,123,0.25); border-radius:12px; padding:18px; margin-bottom:16px;">' +
+      '<div style="font-size:16px; font-weight:800; color:#43e97b; margin-bottom:12px;">✅ Migration ' + (r.status === 'completed' ? 'Complete' : r.status === 'partial' ? 'Partially Complete' : 'Complete') + '</div>' +
+      '<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:12px;">' +
+        _migStatCard('✅', r.migrated.toLocaleString(),  'Migrated',        'rgba(67,233,123,0.1)',  '#43e97b') +
+        _migStatCard('🔁', r.duplicate.toLocaleString(), 'Skipped (Dup)',   'rgba(255,165,0,0.1)',   '#ffa500') +
+        _migStatCard('⚠️', (r.orphan + r.noSubject).toLocaleString(), 'Skipped (No Sub)', 'rgba(255,101,132,0.1)', '#ff6584') +
+      '</div>' +
+      '<div style="font-size:12px; color:var(--text-muted); line-height:1.8;">' +
+        'Job ID: <code style="color:#a78bfa;">' + (r.jobId || '—') + '</code>' +
+        ' &nbsp;·&nbsp; Processing time: ' + Math.round((r.processingMs || 0) / 1000) + 's' +
+        ' &nbsp;·&nbsp; Status: <strong style="color:' + statusColor + ';">' + (r.status || '').toUpperCase() + '</strong>' +
+      '</div>' +
+    '</div>' +
+
+    (by.length
+      ? '<div class="a-card">' +
+          '<div class="a-card-head"><h3>Migration Results by Subject</h3></div>' +
+          '<div class="a-table-wrap">' +
+            '<table class="admin-table">' +
+              '<thead><tr><th>Subject</th><th>Migrated</th><th>Skipped (Dup)</th><th>Skipped (No Sub)</th><th>Errors</th></tr></thead>' +
+              '<tbody>' +
+              by.map(function (r) {
+                return '<tr>' +
+                  '<td style="font-weight:700; color:#fff;">' + esc(r.subjectName) + '</td>' +
+                  '<td style="color:#43e97b; font-weight:700;">' + r.migrated   + '</td>' +
+                  '<td style="color:#ffa500;">'                  + r.duplicate  + '</td>' +
+                  '<td style="color:var(--text-muted);">'        + (r.noSubject || 0) + '</td>' +
+                  '<td style="color:' + (r.errors > 0 ? '#ff6584' : 'var(--text-muted)') + ';">' + r.errors + '</td>' +
+                '</tr>';
+              }).join('') +
+              '</tbody>' +
+            '</table>' +
+          '</div>' +
+        '</div>'
+      : '') +
+
+    '<div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">' +
+      '<button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsMigrationDryRun()">🔍 Run Dry-Run Again (verify)</button>' +
+      '<button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsSwitchTab(\'bank\')">📚 View Question Bank</button>' +
+    '</div>';
 }
 
 console.log('🔧 Admin Dashboard loaded');

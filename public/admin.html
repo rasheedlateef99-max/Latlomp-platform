@@ -759,8 +759,9 @@
           <button class="inst-tab"        id="qmsTabBank"    onclick="qmsSwitchTab('bank')">📚 Question Bank</button>
           <button class="inst-tab"        id="qmsTabSources" onclick="qmsSwitchTab('sources')">📑 Question Sources</button>
           <button class="inst-tab"        id="qmsTabEngine"  onclick="qmsSwitchTab('engine')">🧠 Question Engine</button>
-          <button class="inst-tab"        id="qmsTabOrphans" onclick="qmsSwitchTab('orphans')">🔗 Unassigned</button>
-          <button class="inst-tab"        id="qmsTabHistory" onclick="qmsSwitchTab('history')">📋 History</button>
+          <button class="inst-tab"        id="qmsTabOrphans"    onclick="qmsSwitchTab('orphans')">🔗 Unassigned</button>
+          <button class="inst-tab"        id="qmsTabMigration"  onclick="qmsSwitchTab('migration')">🔄 Migration</button>
+          <button class="inst-tab"        id="qmsTabHistory"    onclick="qmsSwitchTab('history')">📋 History</button>
           <button class="inst-tab"        id="qmsTabStats"   onclick="qmsSwitchTab('stats')">📊 Statistics</button>
         </div>
 
@@ -1018,6 +1019,86 @@ Paste thousands of questions at once."></textarea>
             <div id="qmsBankPagination" style="display:flex; justify-content:center; gap:8px; padding:16px; border-top:1px solid var(--border,rgba(255,255,255,0.08));"></div>
           </div>
         </div><!-- /qmsPanelBank -->
+
+<!-- ---- MIGRATION PANEL ---- -->
+        <div id="qmsPanelMigration" style="display:none;">
+
+          <!-- Warning banner -->
+          <div style="background:rgba(255,165,0,0.08); border:1px solid rgba(255,165,0,0.25); border-radius:12px; padding:16px 20px; margin-bottom:20px;">
+            <div style="font-size:15px; font-weight:800; color:#ffa500; margin-bottom:8px;">⚠️ Legacy Question Migration</div>
+            <div style="font-size:13px; color:var(--text-secondary,#a0a0c0); line-height:1.8;">
+              This tool migrates all questions from the <strong style="color:#fff;">Legacy CBT Question model</strong> into the
+              <strong style="color:#43e97b;">QMS Question Bank</strong>. After migration, both sources power the platform
+              while verification is completed. The legacy model is <strong style="color:#fff;">never deleted</strong> — it remains
+              available as a rollback mechanism.<br>
+              <strong style="color:#ffa500;">Run the Dry-Run Analysis first. Verify the report. Then commit.</strong>
+            </div>
+          </div>
+
+          <!-- Step indicator -->
+          <div style="display:flex; gap:8px; align-items:center; margin-bottom:24px; flex-wrap:wrap;">
+            <div id="migStep1Badge" style="display:flex; align-items:center; gap:6px; padding:6px 14px; border-radius:20px; background:rgba(108,99,255,0.15); border:1px solid rgba(108,99,255,0.3);">
+              <span style="font-weight:800; color:#a78bfa;">1</span>
+              <span style="font-size:13px; font-weight:700; color:#a78bfa;">Dry-Run Analysis</span>
+            </div>
+            <span style="color:var(--text-muted,#6b6b8a);">→</span>
+            <div id="migStep2Badge" style="display:flex; align-items:center; gap:6px; padding:6px 14px; border-radius:20px; background:rgba(255,255,255,0.04); border:1px solid var(--border,rgba(255,255,255,0.08));">
+              <span style="font-weight:800; color:var(--text-muted,#6b6b8a);">2</span>
+              <span style="font-size:13px; font-weight:700; color:var(--text-muted,#6b6b8a);">Verify Report</span>
+            </div>
+            <span style="color:var(--text-muted,#6b6b8a);">→</span>
+            <div id="migStep3Badge" style="display:flex; align-items:center; gap:6px; padding:6px 14px; border-radius:20px; background:rgba(255,255,255,0.04); border:1px solid var(--border,rgba(255,255,255,0.08));">
+              <span style="font-weight:800; color:var(--text-muted,#6b6b8a);">3</span>
+              <span style="font-size:13px; font-weight:700; color:var(--text-muted,#6b6b8a);">Commit Migration</span>
+            </div>
+          </div>
+
+          <!-- Current Status Card -->
+          <div class="a-card" style="margin-bottom:20px;">
+            <div class="a-card-head">
+              <h3>📊 Current Migration Status</h3>
+              <button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsMigrationLoadStatus()">↻ Refresh</button>
+            </div>
+            <div id="qmsMigStatusContent" style="padding:20px;">
+              <div style="text-align:center; padding:16px; color:var(--text-muted);">Loading status...</div>
+            </div>
+          </div>
+
+          <!-- Dry-Run Card -->
+          <div class="a-card" style="margin-bottom:20px;" id="qmsMigDryRunCard">
+            <div class="a-card-head">
+              <h3>🔍 Step 1 — Dry-Run Analysis</h3>
+              <button class="a-btn a-btn-primary" id="qmsMigDryRunBtn" onclick="qmsMigrationDryRun()">
+                🔍 Run Analysis
+              </button>
+            </div>
+            <div style="padding:14px 20px; font-size:13px; color:var(--text-muted,#6b6b8a); border-bottom:1px solid var(--border,rgba(255,255,255,0.08));">
+              Analyses all legacy questions and shows exactly what will be migrated. No data is changed.
+            </div>
+            <div id="qmsMigDryRunContent" style="padding:20px;">
+              <div style="text-align:center; color:var(--text-muted); font-size:13px; padding:16px;">
+                Click "Run Analysis" to begin dry-run. This may take a moment for large question banks.
+              </div>
+            </div>
+          </div>
+
+          <!-- Commit Card (locked until dry-run passes) -->
+          <div class="a-card" id="qmsMigCommitCard">
+            <div class="a-card-head">
+              <h3>⚡ Step 2 — Commit Migration</h3>
+              <div id="qmsMigCommitLock" style="font-size:12px; color:var(--text-muted);">🔒 Run Dry-Run first</div>
+            </div>
+            <div style="padding:14px 20px; font-size:13px; color:var(--text-muted,#6b6b8a); border-bottom:1px solid var(--border,rgba(255,255,255,0.08));">
+              Copies all eligible legacy questions into the QMS Question Bank. The legacy model is preserved and untouched.
+            </div>
+            <div id="qmsMigCommitContent" style="padding:20px;">
+              <div style="text-align:center; color:var(--text-muted); font-size:13px; padding:16px;">
+                Complete the dry-run analysis to unlock this step.
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /qmsPanelMigration -->
 
 <!-- ---- ORPHAN CLEANUP PANEL ---- -->
         <div id="qmsPanelOrphans" style="display:none;">

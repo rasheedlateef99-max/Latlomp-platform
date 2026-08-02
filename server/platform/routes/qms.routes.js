@@ -1904,4 +1904,443 @@ router.delete(
   }
 );
 
+/* ============================================
+   ✅ STAGE 3 — LEGACY MIGRATION ROUTES
+
+   GET  /api/qms/migrate/dry-run   — read-only analysis
+   POST /api/qms/migrate/commit    — execute migration
+   GET  /api/qms/migrate/status    — check prior migrations
+
+   SAFETY GUARANTEES:
+     dry-run:  zero DB writes. Safe to run repeatedly.
+     commit:   idempotent. Running twice never duplicates questions.
+               Dedup check: normalised question text per subject.
+     Both:     never touch legacy Question model. Read-only.
+     Both:     never touch cbt.routes.js session flow.
+============================================ */
+
+/* ---- Normalise text for dedup comparison ---- */
+function normText(text) {
+  return (text || '').toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/[^\w\s]/g, '')
+    .trim();
+}
+
+/* ----
+   GET /api/qms/migrate/dry-run
+   Analyses all legacy Question documents and reports what would
+   happen if migration were run right now.
+
+   Returns: summary, bySubject[], orphans{count, sample[]},
+            examTypeBreakdown{}, missingSubjects[]
+   ZERO DB WRITES.
+---- */
+router.get('/migrate/dry-run', adminOrPlatformStaff('question_bank'), async function (req, res) {
+  try {
+    var Question = require('../../models/Question.model');
+
+    /* 1. Load all legacy questions */
+    var legacyAll = await Question.find({}).lean();
+
+    if (legacyAll.length === 0) {
+      return res.json({
+        success: true,
+        analysis: {
+          summary: {
+            totalLegacy: 0, activeCount: 0, inactiveCount: 0,
+            orphanCount: 0, withSubject: 0,
+            alreadyInQMS: 0, toMigrate: 0, missingSubjects: 0
+          },
+          bySubject: [], orphans: { count: 0, sample: [] },
+          examTypeBreakdown: {}
+        }
+      });
+    }
+
+    /* 2. Load subject map for name lookups */
+    var subjectDocs = await Subject.find({})
+      .populate('department', 'name').lean();
+    var subjMap = {};
+    subjectDocs.forEach(function (s) {
+      subjMap[s._id.toString()] = {
+        name:       s.name,
+        deptName:   s.department ? s.department.name : '—',
+        deptId:     s.department ? s.department._id  : null
+      };
+    });
+
+    /* 3. Load normalised QMS question texts for dedup
+          Key: normText(question) + '|' + subjectId */
+    var qmsTexts = await QMSQuestion.find({ status: { $ne: 'deleted' } })
+      .select('question subjectId').lean();
+    var qmsSet = new Set();
+    qmsTexts.forEach(function (q) {
+      var key = normText(q.question) + '|' + (q.subjectId ? q.subjectId.toString() : 'none');
+      qmsSet.add(key);
+    });
+
+    /* 4. Analyse */
+    var orphans   = [];
+    var bySubject = {};
+    var examTypes = {};
+    var activeCount   = 0;
+    var inactiveCount = 0;
+
+    legacyAll.forEach(function (q) {
+      if (q.isActive) activeCount++; else inactiveCount++;
+
+      var et = q.examCategory || 'all';
+      examTypes[et] = (examTypes[et] || 0) + 1;
+
+      if (!q.subjectId) {
+        orphans.push({
+          _id:          q._id,
+          question:     (q.question || '').substring(0, 80),
+          examCategory: et,
+          isActive:     q.isActive
+        });
+        return;
+      }
+
+      var sid       = q.subjectId.toString();
+      var norm      = normText(q.question);
+      var dedupeKey = norm + '|' + sid;
+      var isDupe    = qmsSet.has(dedupeKey);
+      var subjInfo  = subjMap[sid];
+
+      if (!bySubject[sid]) {
+        bySubject[sid] = {
+          subjectId:     sid,
+          subjectName:   subjInfo ? subjInfo.name    : '(Unknown Subject)',
+          departmentName:subjInfo ? subjInfo.deptName : '—',
+          subjectExists: !!subjInfo,
+          legacyCount:   0,
+          active:        0,
+          inactive:      0,
+          alreadyInQMS:  0,
+          toMigrate:     0,
+          examTypes:     {}
+        };
+      }
+
+      bySubject[sid].legacyCount++;
+      if (q.isActive) { bySubject[sid].active++; }
+      else            { bySubject[sid].inactive++; }
+      if (isDupe) { bySubject[sid].alreadyInQMS++; }
+      else        { bySubject[sid].toMigrate++; }
+      bySubject[sid].examTypes[et] = (bySubject[sid].examTypes[et] || 0) + 1;
+    });
+
+    var subjectRows    = Object.values(bySubject).sort(function (a, b) { return b.legacyCount - a.legacyCount; });
+    var alreadyInQMS   = subjectRows.reduce(function (s, r) { return s + r.alreadyInQMS; }, 0);
+    var toMigrate      = subjectRows.reduce(function (s, r) { return s + r.toMigrate;    }, 0);
+    var missingSubjects = subjectRows.filter(function (r) { return !r.subjectExists; }).length;
+
+    /* Assign per-subject status label */
+    subjectRows.forEach(function (r) {
+      r.status = !r.subjectExists              ? 'no_subject'
+               : r.toMigrate === 0             ? 'all_duplicate'
+               : r.alreadyInQMS > 0            ? 'partial'
+               :                                 'ready';
+    });
+
+    return res.json({
+      success: true,
+      analysis: {
+        summary: {
+          totalLegacy:     legacyAll.length,
+          activeCount:     activeCount,
+          inactiveCount:   inactiveCount,
+          orphanCount:     orphans.length,
+          withSubject:     legacyAll.length - orphans.length,
+          alreadyInQMS:    alreadyInQMS,
+          toMigrate:       toMigrate,
+          missingSubjects: missingSubjects
+        },
+        bySubject:         subjectRows,
+        orphans:           { count: orphans.length, sample: orphans.slice(0, 10) },
+        examTypeBreakdown: examTypes
+      }
+    });
+
+  } catch (e) {
+    console.error('[QMS Migrate] dry-run:', e.message);
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+/* ----
+   POST /api/qms/migrate/commit
+   Migrates legacy Question documents into QMSQuestion.
+
+   Safety:
+     - Idempotent: dedup by normalised text per subject
+     - Orphans skipped (no subjectId) — reported, not lost
+     - Missing subjects skipped — reported
+     - Inactive questions migrated as status:'archived'
+     - Creates one ImportJob per commit as audit record
+     - NEVER deletes legacy documents
+
+   Body: { confirm: true }   (safety gate — must send explicitly)
+---- */
+router.post('/migrate/commit', adminOrPlatformStaff('question_bank'), async function (req, res) {
+  var startTime = Date.now();
+  try {
+    if (req.body.confirm !== true) {
+      return res.status(400).json({
+        success: false,
+        message: 'Send { confirm: true } to execute migration. Run dry-run first to verify.'
+      });
+    }
+
+    var Question  = require('../../models/Question.model');
+    var migratedBy = callerName(req);
+
+    /* Load all legacy questions */
+    var legacyAll = await Question.find({}).lean();
+    if (legacyAll.length === 0) {
+      return res.json({ success: true, message: 'No legacy questions to migrate.', results: { attempted: 0, migrated: 0 } });
+    }
+
+    /* Subject map */
+    var subjectDocs = await Subject.find({})
+      .populate('department', 'name _id').lean();
+    var subjMap = {};
+    subjectDocs.forEach(function (s) {
+      subjMap[s._id.toString()] = {
+        name:    s.name,
+        deptName:s.department ? s.department.name  : '',
+        deptId:  s.department ? s.department._id   : null
+      };
+    });
+
+    /* Existing QMS normalised texts for dedup */
+    var qmsTexts = await QMSQuestion.find({ status: { $ne: 'deleted' } })
+      .select('question subjectId').lean();
+    var qmsSet = new Set();
+    qmsTexts.forEach(function (q) {
+      qmsSet.add(normText(q.question) + '|' + (q.subjectId ? q.subjectId.toString() : 'none'));
+    });
+
+    /* Create migration audit ImportJob */
+    var migJob = await ImportJob.create({
+      importedBy:       migratedBy,
+      sourceType:       'paste',          /* closest available enum value */
+      originalFilename: 'legacy_migration',
+      examType:         'all',
+      status:           'processing',
+      stats:            {
+        detected:  legacyAll.length,
+        valid:     0, duplicate: 0, rejected: 0, imported: 0
+      }
+    });
+
+    /* Process in batches of 100 */
+    var BATCH = 100;
+    var totalMigrated   = 0;
+    var totalDuplicate  = 0;
+    var totalOrphan     = 0;
+    var totalNoSubject  = 0;
+    var totalErrors     = 0;
+    var bySubjectResult = {};
+
+    /* Group by subject for batch ID generation efficiency */
+    var grouped = {};        /* sid → [questions] */
+    var orphansList = [];
+
+    legacyAll.forEach(function (q) {
+      if (!q.subjectId) {
+        orphansList.push(q);
+        return;
+      }
+      var sid = q.subjectId.toString();
+      if (!grouped[sid]) { grouped[sid] = []; }
+
+      var dedupeKey = normText(q.question) + '|' + sid;
+      if (qmsSet.has(dedupeKey)) {
+        if (!bySubjectResult[sid]) { bySubjectResult[sid] = { migrated:0, duplicate:0, errors:0 }; }
+        bySubjectResult[sid].duplicate++;
+        totalDuplicate++;
+      } else {
+        grouped[sid].push(q);
+      }
+    });
+
+    totalOrphan = orphansList.length;
+
+    /* Migrate each subject's questions */
+    var sids = Object.keys(grouped);
+    for (var si = 0; si < sids.length; si++) {
+      var sid       = sids[si];
+      var qs        = grouped[sid];
+      var subjInfo  = subjMap[sid];
+
+      if (!subjInfo) {
+        /* Subject doesn't exist in CBT Management — skip */
+        totalNoSubject += qs.length;
+        if (!bySubjectResult[sid]) { bySubjectResult[sid] = { migrated:0, duplicate:0, errors:0 }; }
+        bySubjectResult[sid].noSubject = qs.length;
+        continue;
+      }
+
+      if (!bySubjectResult[sid]) { bySubjectResult[sid] = { migrated:0, duplicate:0, errors:0 }; }
+
+      /* Process in batches */
+      for (var bStart = 0; bStart < qs.length; bStart += BATCH) {
+        var batch = qs.slice(bStart, bStart + BATCH);
+
+        /* Generate IDs for this batch */
+        var batchIds;
+        try {
+          batchIds = await generateBatchIds(batch[0].examCategory || 'all', subjInfo.name, batch.length);
+        } catch (idErr) {
+          var ts = Date.now();
+          batchIds = batch.map(function (_, idx) {
+            return 'MIG-MIG-' + String(ts + idx).slice(-8).padStart(8, '0');
+          });
+        }
+
+        var docs = batch.map(function (q, idx) {
+          return {
+            questionId:     batchIds[idx],
+            examType:       q.examCategory || 'all',
+            questionType:   'objective',
+            subjectId:      q.subjectId,
+            departmentId:   subjInfo.deptId   || null,
+            subjectName:    subjInfo.name      || '',
+            departmentName: subjInfo.deptName  || '',
+            question:       q.question,
+            options:        q.options,
+            correctAnswer:  q.correctAnswer,
+            explanation:    q.explanation      || '',
+            topic:          '',
+            difficulty:     'medium',
+            year:           null,
+            source:         'legacy_migration',
+            status:         q.isActive ? 'approved' : 'archived',
+            importJobId:    migJob._id,
+            createdBy:      migratedBy,
+            approvedBy:     migratedBy,
+            approvedAt:     new Date(),
+            versions:       []
+          };
+        });
+
+        try {
+          var insertResult = await QMSQuestion.insertMany(docs, { ordered: false });
+          var insertedCount = insertResult.length;
+          bySubjectResult[sid].migrated += insertedCount;
+          totalMigrated                 += insertedCount;
+
+          /* Add newly migrated texts to dedup set */
+          docs.forEach(function (d) {
+            qmsSet.add(normText(d.question) + '|' + (d.subjectId ? d.subjectId.toString() : 'none'));
+          });
+        } catch (insertErr) {
+          var success = insertErr.insertedDocs ? insertErr.insertedDocs.length : 0;
+          var errCount = batch.length - success;
+          bySubjectResult[sid].migrated += success;
+          bySubjectResult[sid].errors   += errCount;
+          totalMigrated                 += success;
+          totalErrors                   += errCount;
+        }
+      }
+    }
+
+    var processingMs = Date.now() - startTime;
+    var finalStatus  = totalErrors > 0 ? 'partial' : 'completed';
+
+    /* Update migration ImportJob */
+    await ImportJob.findByIdAndUpdate(migJob._id, {
+      $set: {
+        status:            finalStatus,
+        'stats.imported':  totalMigrated,
+        'stats.duplicate': totalDuplicate,
+        'stats.rejected':  totalOrphan + totalNoSubject + totalErrors,
+        processingMs:      processingMs
+      }
+    });
+
+    /* Build per-subject result rows */
+    var resultRows = Object.keys(bySubjectResult).map(function (sid) {
+      var r       = bySubjectResult[sid];
+      var subjInf = subjMap[sid];
+      return {
+        subjectId:   sid,
+        subjectName: subjInf ? subjInf.name : '(Unknown)',
+        migrated:    r.migrated    || 0,
+        duplicate:   r.duplicate   || 0,
+        noSubject:   r.noSubject   || 0,
+        errors:      r.errors      || 0
+      };
+    }).sort(function (a, b) { return b.migrated - a.migrated; });
+
+    return res.json({
+      success: true,
+      message: totalMigrated + ' question' + (totalMigrated !== 1 ? 's' : '') +
+               ' migrated from legacy CBT into the QMS Question Bank.',
+      results: {
+        attempted:   legacyAll.length,
+        migrated:    totalMigrated,
+        duplicate:   totalDuplicate,
+        orphan:      totalOrphan,
+        noSubject:   totalNoSubject,
+        errors:      totalErrors,
+        processingMs:processingMs,
+        jobId:       migJob._id,
+        status:      finalStatus
+      },
+      bySubject: resultRows
+    });
+
+  } catch (e) {
+    console.error('[QMS Migrate] commit:', e.message);
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+/* ----
+   GET /api/qms/migrate/status
+   Returns the history of migration jobs and current
+   counts in both legacy and QMS models.
+---- */
+router.get('/migrate/status', adminOrPlatformStaff('question_bank'), async function (req, res) {
+  try {
+    var Question = require('../../models/Question.model');
+
+    var [
+      legacyTotal, legacyActive, legacyInactive,
+      qmsTotal, qmsMigrated, qmsApproved,
+      migrationJobs
+    ] = await Promise.all([
+      Question.countDocuments({}),
+      Question.countDocuments({ isActive: true }),
+      Question.countDocuments({ isActive: false }),
+      QMSQuestion.countDocuments({ status: { $ne: 'deleted' } }),
+      QMSQuestion.countDocuments({ source: 'legacy_migration', status: { $ne: 'deleted' } }),
+      QMSQuestion.countDocuments({ status: 'approved' }),
+      ImportJob.find({ originalFilename: 'legacy_migration' })
+        .sort({ createdAt: -1 }).limit(10).lean()
+    ]);
+
+    var isMigrated = migrationJobs.some(function (j) {
+      return j.status === 'completed' || j.status === 'partial';
+    });
+
+    return res.json({
+      success: true,
+      status: {
+        isMigrated:      isMigrated,
+        legacy:  { total: legacyTotal, active: legacyActive, inactive: legacyInactive },
+        qms:     { total: qmsTotal, migrated: qmsMigrated, approved: qmsApproved },
+        jobs:    migrationJobs
+      }
+    });
+  } catch (e) {
+    console.error('[QMS Migrate] status:', e.message);
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
 module.exports = router;
