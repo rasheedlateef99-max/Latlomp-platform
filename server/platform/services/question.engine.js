@@ -85,6 +85,12 @@ function buildFilter(params) {
     filter.keywords = { $in: [new RegExp(params.keywords, 'i')] };
   }
 
+  /* ✅ STAGE 4: Filter by question type (objective/theory/practical/oral).
+     Not set = all types returned (backward compatible with Phase 3 engine calls). */
+  if (params.questionType) {
+    filter.questionType = params.questionType;
+  }
+
   return filter;
 }
 
@@ -295,10 +301,181 @@ async function getSummaryStats() {
   }
 }
 
+/* ============================================
+   assembleFromBlueprint(subjectId, examType, questionType, blueprint, doShuffle)
+
+   ✅ STAGE 4: Blueprint-driven assembly.
+   Uses difficultyDistribution to sample proportionally
+   from each difficulty tier. Fills any shortfall from
+   whichever difficulty has surplus questions.
+
+   blueprint: { count, difficultyDistribution: { easy, medium, hard }, randomize }
+   Returns same shape as assemble() for full compatibility.
+============================================ */
+async function assembleFromBlueprint(subjectId, examType, questionType, blueprint, doShuffle) {
+  try {
+    var count        = Math.max(1, Math.min(500, parseInt(blueprint.count) || 40));
+    var dist         = blueprint.difficultyDistribution || { easy: 33, medium: 34, hard: 33 };
+    var useRandomize = blueprint.randomize !== false;
+    doShuffle        = (doShuffle !== false) && useRandomize;
+    questionType     = questionType || 'objective';
+
+    /* ---- Base filter ---- */
+    var baseFilter = { status: 'approved', questionType: questionType };
+
+    if (subjectId) {
+      baseFilter.subjectId = subjectId;
+    }
+    if (examType && examType !== 'all') {
+      baseFilter.examType = { $in: [examType, 'all'] };
+    }
+
+    /* ---- Project — strip correctAnswer from engine assembly output ----
+       session/start strips it again before sending to client, but
+       keeping it consistent here matches assemble(). */
+    var PROJECT = {
+      _id:            1,
+      questionId:     1,
+      question:       1,
+      options:        1,
+      correctAnswer:  1,
+      explanation:    1,
+      examType:       1,
+      questionType:   1,
+      subjectId:      1,
+      subjectName:    1,
+      departmentId:   1,
+      departmentName: 1,
+      topic:          1,
+      difficulty:     1,
+      year:           1,
+      source:         1
+    };
+
+    /* ---- Proportional difficulty counts ----
+       Easy and hard are floored; medium takes the remainder so
+       the three values always sum exactly to count. */
+    var pctTotal    = (dist.easy || 0) + (dist.medium || 0) + (dist.hard || 0);
+    var safePct     = pctTotal > 0 ? pctTotal : 100;
+    var easyCount   = Math.floor(count * (dist.easy   || 0) / safePct);
+    var hardCount   = Math.floor(count * (dist.hard   || 0) / safePct);
+    var mediumCount = count - easyCount - hardCount;   /* takes remainder */
+
+    /* ---- Sample each difficulty tier in parallel ---- */
+    var _diffShortfall = { easy: 0, medium: 0, hard: 0 };
+
+    async function sampleDiff(difficulty, needed) {
+      if (needed <= 0) { return []; }
+      var f         = Object.assign({ difficulty: difficulty }, baseFilter);
+      var available = await QMSQuestion.countDocuments(f);
+      var take      = Math.min(needed, available);
+      _diffShortfall[difficulty] = needed - take;
+      if (take === 0) { return []; }
+      return QMSQuestion.aggregate([
+        { $match:   f },
+        { $sample:  { size: take } },
+        { $project: PROJECT }
+      ]);
+    }
+
+    var easyQs, mediumQs, hardQs;
+    try {
+      var diffResults = await Promise.all([
+        sampleDiff('easy',   easyCount),
+        sampleDiff('medium', mediumCount),
+        sampleDiff('hard',   hardCount)
+      ]);
+      easyQs   = diffResults[0];
+      mediumQs = diffResults[1];
+      hardQs   = diffResults[2];
+    } catch (diffErr) {
+      /* If parallel difficulty fetch fails, fall back to standard assemble */
+      console.warn('[Engine] assembleFromBlueprint difficulty fetch failed, falling back:', diffErr.message);
+      return assemble({
+        subjectId:    subjectId,
+        examType:     examType,
+        questionType: questionType,
+        count:        count,
+        shuffle:      doShuffle
+      });
+    }
+
+    var combined = [].concat(easyQs, mediumQs, hardQs);
+
+    /* ---- Fill shortfall from any available questions ----
+       If any tier returned fewer than needed, fill the gap from
+       the remaining approved pool (excluding already selected). */
+    if (combined.length < count) {
+      var needed     = count - combined.length;
+      var usedIds    = combined.map(function (q) { return q._id; });
+      var fillFilter = Object.assign({ _id: { $nin: usedIds } }, baseFilter);
+
+      try {
+        var fillAvail = await QMSQuestion.countDocuments(fillFilter);
+        var fillTake  = Math.min(needed, fillAvail);
+        if (fillTake > 0) {
+          var fill = await QMSQuestion.aggregate([
+            { $match:   fillFilter },
+            { $sample:  { size: fillTake } },
+            { $project: PROJECT }
+          ]);
+          combined = combined.concat(fill);
+        }
+      } catch (fillErr) {
+        console.warn('[Engine] assembleFromBlueprint fill step failed:', fillErr.message);
+        /* Combined is partially filled — still usable */
+      }
+    }
+
+    if (combined.length === 0) {
+      return {
+        success:   false,
+        message:   'No approved questions found for this subject, exam type, and question type.',
+        questions: [],
+        meta:      { requested: count, available: 0, returned: 0 }
+      };
+    }
+
+    if (doShuffle) {
+      combined = shuffleArray(combined);
+    }
+
+    var totalAvailable = await QMSQuestion.countDocuments(baseFilter);
+
+    return {
+      success:   true,
+      questions: combined,
+      warning:   combined.length < count
+        ? 'Only ' + combined.length + ' of ' + count + ' requested questions available.' : null,
+      meta: {
+        requested:   count,
+        available:   totalAvailable,
+        returned:    combined.length,
+        blueprint:   true,
+        distribution: {
+          easy:   easyQs.length,
+          medium: mediumQs.length,
+          hard:   hardQs.length,
+          fill:   combined.length - easyQs.length - mediumQs.length - hardQs.length
+        }
+      }
+    };
+
+  } catch (err) {
+    return {
+      success:   false,
+      message:   'Blueprint assembly failed: ' + err.message,
+      questions: [],
+      meta:      { requested: 0, available: 0, returned: 0 }
+    };
+  }
+}
+
 module.exports = {
-  assemble:       assemble,
-  getAvailability: getAvailability,
-  getBreakdown:   getBreakdown,
-  getSummaryStats: getSummaryStats,
-  buildFilter:    buildFilter
+  assemble:             assemble,
+  assembleFromBlueprint:assembleFromBlueprint,
+  getAvailability:      getAvailability,
+  getBreakdown:         getBreakdown,
+  getSummaryStats:      getSummaryStats,
+  buildFilter:          buildFilter
 };

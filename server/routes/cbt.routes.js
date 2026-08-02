@@ -39,9 +39,21 @@ function getQMSQuestion() {
 function getQMSEngine() {
   if (!_qmsEngine) {
     try { _qmsEngine = require('../platform/services/question.engine'); }
-    catch (e) { /* engine not available — legacy fallback active */ }
+    catch (e) { /* engine not available */ }
   }
   return _qmsEngine;
+}
+
+/* ✅ STAGE 4: ExaminationBlueprint lazy-loader.
+   Blueprint configures count, duration, passMark and
+   difficulty distribution for each subject + examType. */
+var _ExamBlueprint = null;
+function getExaminationBlueprint() {
+  if (!_ExamBlueprint) {
+    try { _ExamBlueprint = require('../platform/models/ExaminationBlueprint.model'); }
+    catch (e) { /* blueprint model not available — use subject defaults */ }
+  }
+  return _ExamBlueprint;
 }
 
 /* ============================================
@@ -127,102 +139,148 @@ router.post('/session/start', protect, async (req, res) => {
     for (var i = 0; i < subjects.length; i++) {
       var subject = subjects[i];
 
-     /* ✅ PHASE 4: QMS-first question source with legacy fallback.
-         The rest of the session assembly loop is unchanged.
-         Students receive identical session format regardless of source. */
-      var allSubjectQs = [];
-      var _usingQMS    = false;
+     /* ✅ STAGE 4: Blueprint-driven QMS-only assembly.
+         Legacy Question.find() fallback is removed.
+         ExaminationBlueprint drives count, duration, passMark
+         and difficulty distribution when configured.
+         Subject defaults are used when no blueprint exists.
+         If QMS returns no questions, the subject is skipped.       */
 
-      var QMSQModel = getQMSQuestion();
-      var qmsEng    = getQMSEngine();
+      var allSubjectQs     = [];
+      var questionType     = req.body.questionType || 'objective';
+      var blueprintUsed    = null;
+      var assemblyCount    = subject.questionCount;  /* subject default */
+      var assemblyTime     = subject.timeLimit;       /* subject default */
+      var assemblyPassMark = 50;                      /* platform default */
+      var diffDistribution = null;
 
-      if (QMSQModel && qmsEng) {
+      /* ---- 1. Load ExaminationBlueprint ---- */
+      var ExamBP = getExaminationBlueprint();
+      if (ExamBP) {
         try {
-          /* Check if QMS has approved questions for this subject + exam type.
-             Practice mode maps to examType:'practice' in QMS.
-             All other modes also include examType:'all' questions. */
-          var qmsExamTypes = (examCategory === 'practice')
-            ? ['practice', 'all']
-            : [examCategory, 'all'];
+          /* Look for exam-specific blueprint (e.g. Biology + JAMB + objective) */
+          var bp = await ExamBP.findOne({
+            subjectId:    subject._id,
+            questionType: questionType,
+            examType:     examCategory
+          }).lean();
 
-          var qmsAvailable = await QMSQModel.countDocuments({
-            subjectId: subject._id,
-            status:    'approved',
-            examType:  { $in: qmsExamTypes }
-          });
+          /* Fall back to 'all' blueprint if no exam-specific one exists */
+          if (!bp) {
+            bp = await ExamBP.findOne({
+              subjectId:    subject._id,
+              questionType: questionType,
+              examType:     'all'
+            }).lean();
+          }
 
-          if (qmsAvailable > 0) {
-            var engResult = await qmsEng.assemble({
-              subjectId: subject._id.toString(),
-              examType:  (examCategory === 'practice') ? 'practice' : examCategory,
-              count:     subject.questionCount,
-              shuffle:   true
-            });
+          if (bp) {
+            blueprintUsed    = bp;
+            assemblyCount    = bp.count    || subject.questionCount;
+            assemblyTime     = bp.duration || subject.timeLimit;
+            assemblyPassMark = bp.passMark !== undefined ? bp.passMark : 50;
 
-            if (engResult.success && engResult.questions.length > 0) {
-              /* Strip correctAnswer before sending to client.
-                 Engine returns it for grading, but client must not see it. */
-              allSubjectQs = engResult.questions.map(function (q) {
-                return { _id: q._id, question: q.question, options: q.options };
-              });
-              _usingQMS = true;
+            /* Only use difficulty distribution when percentages sum to ~100% */
+            var dd  = bp.difficultyDistribution;
+            var sum = dd ? ((dd.easy || 0) + (dd.medium || 0) + (dd.hard || 0)) : 0;
+            if (dd && sum >= 95 && sum <= 105) {
+              diffDistribution = dd;
             }
           }
-        } catch (qmsErr) {
-          /* QMS error must never break a student's exam — fall through to legacy */
-          console.warn('[CBT] QMS lookup failed for subject', subject._id, '—',
-                       'falling back to legacy. Error:', qmsErr.message);
+        } catch (bpErr) {
+          /* Blueprint lookup failure must never break a student's exam */
+          console.warn('[CBT] Blueprint lookup failed for subject', subject._id, ':', bpErr.message);
         }
       }
 
-      if (!_usingQMS) {
-        /* Legacy path — unchanged from original implementation */
-        var qFilter = { subjectId: subject._id, isActive: true };
+      /* ---- 2. Assemble from Question Engine ---- */
+      var qmsEng = getQMSEngine();
+      if (qmsEng) {
+        try {
+          var engResult;
 
-        if (examCategory !== 'practice') {
-          qFilter.$or = [
-            { examCategory: examCategory },
-            { examCategory: 'all' }
-          ];
+          if (diffDistribution) {
+            /* Blueprint with difficulty distribution → weighted assembly */
+            engResult = await qmsEng.assembleFromBlueprint(
+              subject._id.toString(),
+              examCategory,
+              questionType,
+              {
+                count:                  assemblyCount,
+                difficultyDistribution: diffDistribution,
+                randomize:              blueprintUsed ? blueprintUsed.randomize : true
+              },
+              true
+            );
+          } else {
+            /* Standard random assembly — blueprint count or subject default */
+            engResult = await qmsEng.assemble({
+              subjectId:    subject._id.toString(),
+              examType:     examCategory,
+              questionType: questionType,
+              count:        assemblyCount,
+              shuffle:      true
+            });
+          }
+
+          if (engResult.success && engResult.questions.length > 0) {
+            /* Strip correctAnswer — never sent to client */
+            allSubjectQs = engResult.questions.map(function (q) {
+              return { _id: q._id, question: q.question, options: q.options };
+            });
+            if (engResult.warning) {
+              console.warn('[CBT Stage4] Subject', subject.name, '—', engResult.warning);
+            }
+          } else {
+            console.warn('[CBT Stage4] No questions returned for subject "' + subject.name + '"',
+              'examType:', examCategory, 'questionType:', questionType,
+              '— subject skipped.',
+              engResult.message || '');
+          }
+
+        } catch (engErr) {
+          console.error('[CBT Stage4] Engine error for subject "' + subject.name + '":', engErr.message);
         }
-        /* Practice mode: no category filter — all questions available */
-
-        allSubjectQs = await Question.find(qFilter)
-          .select('question options _id')  /* correctAnswer intentionally excluded */
-          .lean();
+      } else {
+        console.error('[CBT Stage4] Question Engine not available — subject "' + subject.name + '" skipped.');
       }
 
       if (allSubjectQs.length === 0) continue;
 
-      /* ✅ FIX 1: Shuffle question ORDER */
+      /* Shuffle question ORDER (anti-cheat) */
       var shuffledQs = shuffle(allSubjectQs);
 
-      /* ✅ FIX 2: Cap to questionCount (anti-cheat + per-session limit) */
-      var cap    = Math.min(subject.questionCount, shuffledQs.length);
+      /* ✅ STAGE 4: Cap uses blueprint.count (or subject.questionCount if no blueprint) */
+      var cap    = Math.min(assemblyCount, shuffledQs.length);
       var picked = shuffledQs.slice(0, cap);
 
-      /* ✅ FIX 3: Options stay in ORIGINAL order — index matches DB correctAnswer */
-      var tagged = picked.map(function(q) {
+      /* Options stay in ORIGINAL order — index matches DB correctAnswer */
+      var tagged = picked.map(function (q) {
         return {
-          _id:         q._id,
-          question:    q.question,
-          options:     q.options,   /* original order preserved */
+          _id:          q._id,
+          question:     q.question,
+          options:      q.options,  /* original order preserved */
           _subjectId:   subject._id.toString(),
           _subjectName: subject.name
         };
       });
 
+      /* ✅ STAGE 4: Session subject includes blueprint values when available */
       sessionSubjects.push({
         subjectId:     subject._id,
         subjectName:   subject.name,
         questionCount: picked.length,
-        timeLimit:     subject.timeLimit,
-        timeLimitSecs: subject.timeLimit * 60,
-        instructions:  subject.instructions
+        timeLimit:     assemblyTime,
+        timeLimitSecs: assemblyTime * 60,
+        instructions:  blueprintUsed
+          ? (blueprintUsed.instructions || subject.instructions)
+          : subject.instructions,
+        passMark:      assemblyPassMark,
+        blueprintUsed: !!blueprintUsed
       });
 
-      allQuestions    = allQuestions.concat(tagged);
-      totalTimeSeconds += subject.timeLimit * 60;
+      allQuestions     = allQuestions.concat(tagged);
+      totalTimeSeconds += assemblyTime * 60;
     }
 
     if (allQuestions.length === 0)

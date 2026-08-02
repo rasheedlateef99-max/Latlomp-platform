@@ -2910,92 +2910,122 @@ async function qmsEngQuickAssemble(examType, subjectId, subjectName) {
 
 /* ---- Load and render integration status table ---- */
 async function qmsEngLoadIntegrationStatus() {
-  var tbody   = document.getElementById('qmsIntegBody');
-  var summary = document.getElementById('qmsIntegSummary');
+  var tbody    = document.getElementById('qmsIntegBody');
+  var summary  = document.getElementById('qmsIntegSummary');
   var filterEl = document.getElementById('qmsIntegFilterExam');
   var examType = filterEl ? filterEl.value : 'jamb';
 
   if (!tbody) { return; }
 
   tbody.innerHTML =
-    '<tr><td colspan="6" style="text-align:center; padding:28px; color:var(--text-muted);">' +
+    '<tr><td colspan="7" style="text-align:center; padding:28px; color:var(--text-muted);">' +
     '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.2);' +
     'border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;' +
     'margin-right:8px;"></span>Checking...</td></tr>';
 
+  /* Load integration status and blueprint health in parallel */
   var res = await qmsApi('/engine/integration-status?examType=' + examType);
 
   if (!res.ok) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#ff6584; padding:20px;">' +
-      (res.data.message || 'Failed to load.') + '</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#ff6584; padding:20px;">' +
+      esc(res.data.message || 'Failed to load.') + '</td></tr>';
     return;
   }
 
   var data     = res.data;
   var subjects = data.subjects || [];
-  var s        = data.summary  || {};
+  var sm       = data.summary  || {};
 
-  /* Summary pills */
+  /* Load blueprint health for all subjects in one batch call */
+  var blueprintHealth = {};
+  if (subjects.length > 0) {
+    try {
+      var subjectIds = subjects.map(function (s) { return s.subjectId.toString(); });
+      var bpRes = await qmsApi('/blueprint/pool-health-batch', 'POST', { subjectIds: subjectIds });
+      if (bpRes.ok) { blueprintHealth = bpRes.data.health || {}; }
+    } catch (e) {
+      /* Non-critical — table still renders without blueprint column */
+      console.warn('[QMS] Blueprint health fetch failed:', e.message);
+    }
+  }
+
+  /* ✅ STAGE 4: Summary pills + Stage 4 active banner */
   if (summary) {
-    var pctEngine = s.total > 0 ? Math.round((s.usingQMS / s.total) * 100) : 0;
+    var pctEngine     = sm.total > 0 ? Math.round((sm.usingQMS / sm.total) * 100) : 0;
+    var bpReadyCount  = Object.values(blueprintHealth).filter(function (h) {
+      return h._blueprints && h._blueprints.some(function (bp) { return bp.status === 'ready'; });
+    }).length;
+
     summary.innerHTML =
-      '<div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">' +
-        '<span style="font-size:13px; font-weight:700; color:#fff;">' + s.total + ' subject' + (s.total !== 1 ? 's' : '') + ' with questions</span>' +
-        '<span style="background:rgba(67,233,123,0.12); color:#43e97b; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700;">🧠 ' + s.usingQMS + ' Engine</span>' +
-        '<span style="background:rgba(108,99,255,0.12); color:#a78bfa; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700;">📁 ' + s.usingLegacy + ' Legacy</span>' +
-        '<span style="font-size:12px; color:var(--text-muted,#6b6b8a);">(' + pctEngine + '% migrated to engine)</span>' +
-        '<div style="flex:1; min-width:120px; background:rgba(255,255,255,0.06); border-radius:20px; height:8px; overflow:hidden;">' +
-          '<div style="background:linear-gradient(90deg,#43e97b,#38f9d7); width:' + pctEngine + '%; height:100%; border-radius:20px; transition:width 0.5s ease;"></div>' +
+      '<div style="display:flex; flex-direction:column; gap:10px; width:100%;">' +
+
+        /* Stage 4 active banner */
+        '<div style="background:rgba(67,233,123,0.08); border:1px solid rgba(67,233,123,0.2); border-radius:8px; padding:8px 14px; font-size:12px; color:#43e97b; font-weight:700; display:flex; align-items:center; gap:8px;">' +
+          '⚡ <strong>Stage 4 Active</strong> — Questions are now assembled exclusively from the QMS Question Engine. Legacy fallback is inactive.' +
+        '</div>' +
+
+        /* Counts row */
+        '<div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">' +
+          '<span style="font-size:13px; font-weight:700; color:#fff;">' + sm.total + ' subject' + (sm.total !== 1 ? 's' : '') + ' with questions</span>' +
+          '<span style="background:rgba(67,233,123,0.12); color:#43e97b; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700;">🧠 ' + sm.usingQMS + ' Engine</span>' +
+          '<span style="background:rgba(108,99,255,0.12); color:#a78bfa; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700;">📋 ' + bpReadyCount + ' Blueprint Ready</span>' +
+          '<span style="font-size:12px; color:var(--text-muted,#6b6b8a);">(' + pctEngine + '% using QMS engine)</span>' +
+          '<div style="flex:1; min-width:120px; background:rgba(255,255,255,0.06); border-radius:20px; height:8px; overflow:hidden;">' +
+            '<div style="background:linear-gradient(90deg,#43e97b,#38f9d7); width:' + pctEngine + '%; height:100%; border-radius:20px; transition:width 0.5s;"></div>' +
+          '</div>' +
         '</div>' +
       '</div>';
   }
 
   if (!subjects.length) {
     tbody.innerHTML =
-      '<tr><td colspan="6" style="text-align:center; padding:36px; color:var(--text-muted);">' +
-      'No subjects have questions for ' + examType.toUpperCase() + ' yet.' +
+      '<tr><td colspan="7" style="text-align:center; padding:36px; color:var(--text-muted);">' +
+      'No subjects have questions for ' + esc(examType.toUpperCase()) + ' yet.' +
       '</td></tr>';
     return;
   }
 
-  
   try {
-  tbody.innerHTML = subjects.map(function (s) {
-    var isEngine  = s.source === 'qms';
-    var isLegacy  = s.source === 'legacy';
-    var srcLabel  = isEngine
-      ? '<span style="display:inline-flex; align-items:center; gap:5px; background:rgba(67,233,123,0.1); color:#43e97b; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:800;">🧠 Engine</span>'
-      : isLegacy
-        ? '<span style="display:inline-flex; align-items:center; gap:5px; background:rgba(108,99,255,0.1); color:#a78bfa; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:800;">📁 Legacy</span>'
-        : '<span style="color:var(--text-muted,#6b6b8a); font-size:11px;">—</span>';
+    tbody.innerHTML = subjects.map(function (s) {
+      var isEngine = s.source === 'qms';
+      var srcLabel = isEngine
+        ? '<span style="display:inline-flex; align-items:center; gap:5px; background:rgba(67,233,123,0.1); color:#43e97b; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:800;">🧠 Engine</span>'
+        : '<span style="display:inline-flex; align-items:center; gap:5px; background:rgba(255,101,132,0.1); color:#ff6584; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:800;">⚠️ No QMS</span>';
 
-    var qmsColour    = s.qmsCount    > 0 ? '#43e97b' : 'var(--text-muted,#6b6b8a)';
-    var legacyColour = s.legacyCount > 0 ? '#a78bfa' : 'var(--text-muted,#6b6b8a)';
+      var qmsColour = s.qmsCount > 0 ? '#43e97b' : 'var(--text-muted,#6b6b8a)';
 
-    var action = isLegacy
-      ? '<button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsSwitchTab(\'import\'); instToast(\'Use the Import tab to add QMS questions for this subject.\', \'info\')" style="font-size:11px;">📥 Import</button>'
-      : isEngine
-        ? '<span style="font-size:11px; color:#43e97b;">✅ Migrated</span>'
-        : '—';
+      /* Blueprint status for this subject */
+      var bpHealth  = blueprintHealth[s.subjectId ? s.subjectId.toString() : ''] || {};
+      var bpList    = bpHealth._blueprints || [];
+      var bpReady   = bpList.some(function (bp) { return bp.status === 'ready'; });
+      var bpExists  = bpList.length > 0;
+      var bpLabel   = bpReady
+        ? '<span style="font-size:10px; font-weight:700; background:rgba(67,233,123,0.1); color:#43e97b; padding:1px 7px; border-radius:20px;">✅ Ready</span>'
+        : bpExists
+          ? '<span style="font-size:10px; font-weight:700; background:rgba(255,165,0,0.1); color:#ffa500; padding:1px 7px; border-radius:20px;">⚠️ Incomplete</span>'
+          : '<span style="font-size:10px; color:var(--text-muted,#6b6b8a);">Not configured</span>';
 
-    return '<tr>' +
-      '<td style="font-weight:700; color:#fff;">' + esc(s.subjectName) + '</td>' +
-      '<td>' + srcLabel + '</td>' +
-      '<td style="font-weight:700; color:' + qmsColour + ';">' +
-        (s.qmsCount > 0 ? s.qmsCount.toLocaleString() : '—') +
-      '</td>' +
-      '<td style="font-weight:700; color:' + legacyColour + ';">' +
-        (s.legacyCount > 0 ? s.legacyCount.toLocaleString() : '—') +
-      '</td>' +
-      '<td style="font-weight:700; color:#fff;">' + s.total.toLocaleString() + '</td>' +
-      '<td>' + action + '</td>' +
-    '</tr>';
-  }).join('');
+      var action = !isEngine
+        ? '<button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsSwitchTab(\'import\')" style="font-size:11px;">📥 Import</button>'
+        : !bpExists
+          ? '<button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsOpenBankForSubject(\'' + esc(s.subjectId ? s.subjectId.toString() : '') + '\',\'' + esc(s.subjectName) + '\')" style="font-size:11px;">📋 Add Blueprint</button>'
+          : '<span style="font-size:11px; color:#43e97b;">✅ Ready</span>';
+
+      return '<tr>' +
+        '<td style="font-weight:700; color:#fff;">'   + esc(s.subjectName) + '</td>' +
+        '<td>'                                        + srcLabel + '</td>' +
+        '<td>'                                        + bpLabel + '</td>' +
+        '<td style="font-weight:700; color:' + qmsColour + ';">' +
+          (s.qmsCount > 0 ? s.qmsCount.toLocaleString() : '—') +
+        '</td>' +
+        '<td style="font-weight:700; color:#fff;">'   + s.total.toLocaleString() + '</td>' +
+        '<td>'                                        + action + '</td>' +
+      '</tr>';
+    }).join('');
   } catch (renderErr) {
-    /* Render error should show instead of freezing on "Checking..." */
     console.error('[QMS] Integration status render error:', renderErr.message);
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#ff6584; padding:20px;">' +
-      'Display error: ' + renderErr.message + '. Please refresh.' +
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#ff6584; padding:20px;">' +
+      'Display error: ' + esc(renderErr.message) + '. Please refresh.' +
     '</td></tr>';
   }
 }
