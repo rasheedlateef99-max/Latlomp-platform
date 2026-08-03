@@ -1638,31 +1638,11 @@ Paste thousands of questions at once."></textarea>
   </div>
 </div>
 
-<!-- CBT QUESTION MODAL -->
-<div class="t-modal-overlay" id="cbtQModal" style="display:none;">
-  <div class="t-modal-box" style="max-width:600px;">
-    <div class="t-modal-header">
-      <h2 id="cbtQModalTitle">Add Question</h2>
-      <button class="t-modal-close" onclick="closeAdminModal('cbtQModal')">✕</button>
-    </div>
-    <form id="cbtQForm" onsubmit="saveCbtQuestion(event)">
-      <div class="t-form-grid">
-        <div class="t-form-group t-full"><label>Question Text *</label><textarea id="cbtQText" rows="3" placeholder="Enter the question..." required></textarea></div>
-        <div class="t-form-group t-full"><label>Option A *</label><input type="text" id="cbtQOptA" placeholder="First option" required /></div>
-        <div class="t-form-group t-full"><label>Option B *</label><input type="text" id="cbtQOptB" placeholder="Second option" required /></div>
-        <div class="t-form-group t-full"><label>Option C</label><input type="text" id="cbtQOptC" placeholder="Third option (optional)" /></div>
-        <div class="t-form-group t-full"><label>Option D</label><input type="text" id="cbtQOptD" placeholder="Fourth option (optional)" /></div>
-        <div class="t-form-group"><label>Correct Answer *</label><select id="cbtQCorrect" required><option value="">Select correct answer...</option><option value="0">A</option><option value="1">B</option><option value="2">C</option><option value="3">D</option></select></div>
-        <div class="t-form-group"><label>Exam Category</label><select id="cbtQCat"><option value="all">All</option><option value="jamb">JAMB</option><option value="waec">WAEC</option><option value="neco">NECO</option><option value="post-utme">POST-UTME</option><option value="practice">Practice</option></select></div>
-        <div class="t-form-group t-full"><label>Explanation (optional)</label><textarea id="cbtQExpl" rows="2" placeholder="Why is this answer correct?"></textarea></div>
-      </div>
-      <div class="t-modal-footer">
-        <button type="button" class="a-btn a-btn-secondary" onclick="closeAdminModal('cbtQModal')">Cancel</button>
-        <button type="submit" class="a-btn a-btn-primary" id="saveCbtQBtn">Add Question</button>
-      </div>
-    </form>
-  </div>
-</div>
+<!-- CBT QUESTION MODAL — ✅ STAGE 5: Archived.
+     Legacy question creation is no longer active.
+     Questions are created through QMS (qmsEditModal).
+     The HTML is preserved as a reference stub only.
+     openCbtQModalLegacy() shows an archived notice instead. -->
 
 <!-- School Detail Modal -->
 <div class="t-modal-overlay" id="instSchoolDetailModal" style="display:none;">

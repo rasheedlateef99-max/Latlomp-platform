@@ -199,9 +199,42 @@ router.put('/admin/subjects/:id', adminOrPlatformStaff('cbt'), async function (r
 
 router.delete('/admin/subjects/:id', adminOrPlatformStaff('cbt'), async function (req, res) {
   try {
-    const questionCount = await Question.countDocuments({ subjectId: req.params.id });
-    if (questionCount > 0)
-      return res.status(400).json({ success: false, message: questionCount + ' questions exist for this subject. Delete them first.' });
+    /* ✅ STAGE 5: Check both legacy and QMS question pools.
+       Deleting a subject that has an active QMS Question Pool
+       would orphan all those questions from the engine.
+       Both counts must be zero before deletion is allowed. */
+    var legacyCount = await Question.countDocuments({ subjectId: req.params.id });
+    if (legacyCount > 0) {
+      return res.status(400).json({
+        success: false,
+        message: legacyCount + ' legacy questions exist for this subject. ' +
+                 'View and remove them from the Legacy tab in CBT Management first.'
+      });
+    }
+
+    /* Check QMS Question Pool */
+    var QMSQuestion = null;
+    try { QMSQuestion = require('../platform/models/QMSQuestion.model'); } catch (e) { /* QMS not loaded */ }
+    if (QMSQuestion) {
+      var qmsCount = await QMSQuestion.countDocuments({
+        subjectId: req.params.id,
+        status:    { $ne: 'deleted' }
+      });
+      if (qmsCount > 0) {
+        return res.status(400).json({
+          success: false,
+          message: qmsCount + ' questions exist in the QMS Question Pool for this subject. ' +
+                   'Archive or reassign them from the Question Bank before deleting the subject.'
+        });
+      }
+    }
+
+    /* Also remove any blueprints for this subject */
+    try {
+      var ExaminationBlueprint = require('../platform/models/ExaminationBlueprint.model');
+      await ExaminationBlueprint.deleteMany({ subjectId: req.params.id });
+    } catch (e) { /* Blueprint cleanup is non-critical */ }
+
     await Subject.findByIdAndDelete(req.params.id);
     return res.status(200).json({ success: true, message: 'Subject deleted.' });
   } catch (error) {
@@ -219,31 +252,20 @@ router.get('/admin/subjects/:id/questions', adminOrPlatformStaff('cbt'), async f
   }
 });
 
+/* ✅ STAGE 5: Legacy question creation archived.
+   Questions are now managed exclusively through the
+   QMS Question Bank. This endpoint is preserved for
+   reference only and returns 410 Gone.
+   To add questions: use POST /api/qms/bank instead. */
 router.post('/admin/subjects/:id/questions', adminOrPlatformStaff('cbt'), async function (req, res) {
-  try {
-    if (!req.body.question || !req.body.options || req.body.correctAnswer === undefined)
-      return res.status(400).json({ success: false, message: 'Question, options, and correct answer are required.' });
-
-    const subject = await Subject.findById(req.params.id);
-    if (!subject) return res.status(404).json({ success: false, message: 'Subject not found.' });
-
-    const question = await Question.create({
-      subjectId:     req.params.id,
-      examCategory:  req.body.examCategory || 'all',
-      question:      req.body.question.trim(),
-      options:       req.body.options,
-      correctAnswer: parseInt(req.body.correctAnswer),
-      explanation:   req.body.explanation || '',
-      isActive:      true
-    });
-
-    await Subject.findByIdAndUpdate(req.params.id, { $inc: { totalQuestions: 1 } });
-
-    return res.status(201).json({ success: true, message: 'Question added.', question });
-  } catch (error) {
-    console.error('Add question error:', error.message);
-    return res.status(500).json({ success: false, message: error.message });
-  }
+  return res.status(410).json({
+    success:  false,
+    archived: true,
+    message:  'Legacy question creation is no longer active. ' +
+              'Questions are now managed through the QMS Question Bank. ' +
+              'Use the Question Management section to add questions to this subject.',
+    qmsEndpoint: 'POST /api/qms/bank'
+  });
 });
 
 /* Delete a question */

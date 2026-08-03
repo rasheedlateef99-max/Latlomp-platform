@@ -951,35 +951,15 @@ function openCbtQModal() {
   qmsCreateForSubject();
 }
 
-/* Emergency legacy question editor — kept for rollback safety.
-   Creates questions in the legacy Question model.
-   Not accessible from the default UI after Stage 2.    */
+/* ✅ STAGE 5: Legacy question editor archived.
+   The cbtQModal HTML was removed in Stage 5.
+   This function now shows an informational notice.
+   To add questions: use the QMS Question Bank (qmsCreateForSubject). */
 function openCbtQModalLegacy() {
-  if (!_cbtSelSubj) { adminToast('Select a subject first.', 'error'); return; }
-
-  if (!confirm(
-    '⚠️ Legacy Editor\n\n' +
-    'This creates questions in the legacy CBT system, not in the QMS Question Bank.\n\n' +
-    'This editor exists only as an emergency fallback during migration.\n\n' +
-    'Are you sure you want to continue?'
-  )) { return; }
-
-  var form = document.getElementById('cbtQForm');
-  if (form) form.reset();
-
-  var h = document.getElementById('cbtQModalTitle');
-  if (h) h.textContent = 'Add Question (Legacy) — ' + (_cbtSelSubj.name || '') + ' (' + _cbtCat.toUpperCase() + ')';
-
-  /* Pre-select current category */
-  var catEl = document.getElementById('cbtQCat');
-  if (catEl) catEl.value = _cbtCat === 'practice' ? 'all' : _cbtCat;
-
-  var modal = document.getElementById('cbtQModal');
-  if (modal) modal.style.display = 'flex';
-
-  setTimeout(function() {
-    var el = document.getElementById('cbtQText'); if (el) el.focus();
-  }, 100);
+  adminToast(
+    '📦 Legacy editor archived. Use + Add Question to create questions in the QMS Question Bank.',
+    'info'
+  );
 }
 
 async function saveCbtQuestion(e) {
@@ -4343,10 +4323,9 @@ async function loadCbtQuestionsLegacy() {
 
   if (!questions.length) {
     panel.innerHTML =
-      '<div style="background:rgba(255,165,0,0.08); border-bottom:1px solid rgba(255,165,0,0.2); padding:10px 16px; font-size:12px; color:#ffa500; display:flex; align-items:center; gap:8px;">' +
-        '<span>📁 Legacy view — no legacy questions for this subject.</span>' + backBtn +
-      '</div>' +
-      '<div style="color:var(--text-muted); font-size:13px; text-align:center; padding:28px;">No legacy questions found.</div>';
+      '<div style="background:rgba(67,233,123,0.08); border-bottom:1px solid rgba(67,233,123,0.2); padding:10px 16px; font-size:12px; color:#43e97b; display:flex; align-items:center; gap:8px;">' +
+        '<span>✅ No legacy questions remain for this subject. All questions are in the QMS Question Pool.</span>' + backBtn +
+      '</div>';
     return;
   }
 
@@ -4354,7 +4333,8 @@ async function loadCbtQuestionsLegacy() {
 
   panel.innerHTML =
     '<div style="background:rgba(255,165,0,0.08); border-bottom:1px solid rgba(255,165,0,0.2); padding:10px 16px; font-size:12px; color:#ffa500; display:flex; align-items:center; flex-wrap:wrap; gap:8px;">' +
-      '<span>📁 <strong>Legacy View</strong> — showing <strong>' + questions.length + ' legacy questions</strong>. These are read-only during migration. New questions are created in QMS.</span>' +
+      '<span>📦 <strong>Stage 5 — Legacy Archive</strong> — ' + questions.length + ' legacy question' + (questions.length !== 1 ? 's' : '') + ' remain. ' +
+      'Delete individually to complete cleanup. No new questions can be added here.</span>' +
       backBtn +
     '</div>' +
     questions.map(function (q, i) {
