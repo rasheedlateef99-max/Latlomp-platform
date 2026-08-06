@@ -1662,8 +1662,12 @@ router.post(
       }
 
       var mongoose  = require('mongoose');
+      /* ✅ FIX: Mongoose 6+ requires 'new' keyword.
+         mongoose.Types.ObjectId(id) without 'new' throws TypeError,
+         causing all conversions to return null and the aggregate to
+         match zero documents — the root cause of "No questions yet". */
       var objectIds = subjectIds.map(function (id) {
-        try { return mongoose.Types.ObjectId(id); }
+        try { return new mongoose.Types.ObjectId(id); }
         catch (e) { return null; }
       }).filter(Boolean);
 
@@ -1728,9 +1732,10 @@ router.get(
   adminOrPlatformStaff('question_bank'),
   async function (req, res) {
     try {
-      var mongoose = require('mongoose');
+     var mongoose = require('mongoose');
       var sid;
-      try { sid = mongoose.Types.ObjectId(req.params.subjectId); }
+      /* ✅ FIX: Mongoose 6+ requires 'new' keyword. */
+      try { sid = new mongoose.Types.ObjectId(req.params.subjectId); }
       catch (e) { return res.status(400).json({ success: false, message: 'Invalid subjectId.' }); }
 
       var [agg, blueprints] = await Promise.all([

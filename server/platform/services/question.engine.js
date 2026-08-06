@@ -85,10 +85,25 @@ function buildFilter(params) {
     filter.keywords = { $in: [new RegExp(params.keywords, 'i')] };
   }
 
-  /* ✅ STAGE 4: Filter by question type (objective/theory/practical/oral).
-     Not set = all types returned (backward compatible with Phase 3 engine calls). */
+  /* ✅ STAGE 5 FIX: Backward-compatible questionType filter.
+     Documents imported before Stage 1 have no questionType field in MongoDB.
+     MongoDB schema defaults do not apply retroactively to existing documents.
+
+     For 'objective' (the platform default): use $in with null so MongoDB
+     also matches documents where questionType is null or absent.
+     { $in: [null, 'objective'] } matches:
+       - questionType === 'objective'  (new documents with field set)
+       - questionType === null         (documents with field explicitly null)
+       - questionType field missing    (all pre-Stage-1 QMS documents)
+
+     For other types (theory/practical/oral): match strictly — these question
+     types were created intentionally and always have the field set. */
   if (params.questionType) {
-    filter.questionType = params.questionType;
+    if (params.questionType === 'objective') {
+      filter.questionType = { $in: [null, 'objective'] };
+    } else {
+      filter.questionType = params.questionType;
+    }
   }
 
   return filter;
