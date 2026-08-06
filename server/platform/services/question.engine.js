@@ -62,11 +62,24 @@ function buildFilter(params) {
     filter.examType = { $in: [params.examType, 'all'] };
   }
 
-  /* subjectId takes priority over departmentId */
+  /* ✅ FIX: Mongoose Model.aggregate() bypasses schema casting.
+     String IDs are not automatically converted to ObjectId in $match
+     stages. This causes aggregate $sample to return zero results even
+     when countDocuments (which does cast) returns the correct count.
+     Solution: explicitly convert to ObjectId before building the filter
+     so both countDocuments AND aggregate queries match correctly. */
+  var mongoose = require('mongoose');
+  function toObjectId(id) {
+    if (!id) { return null; }
+    if (id instanceof mongoose.Types.ObjectId) { return id; }
+    try { return new mongoose.Types.ObjectId(id.toString()); }
+    catch (e) { return id; } /* return as-is if conversion fails */
+  }
+
   if (params.subjectId) {
-    filter.subjectId = params.subjectId;
+    filter.subjectId = toObjectId(params.subjectId);
   } else if (params.departmentId) {
-    filter.departmentId = params.departmentId;
+    filter.departmentId = toObjectId(params.departmentId);
   }
 
   if (params.difficulty) {
@@ -338,8 +351,16 @@ async function assembleFromBlueprint(subjectId, examType, questionType, blueprin
     /* ---- Base filter ---- */
     var baseFilter = { status: 'approved', questionType: questionType };
 
+    /* ✅ FIX: Same ObjectId casting required here as in buildFilter.
+       assembleFromBlueprint constructs its own filter independently
+       and passes it directly to aggregate — must cast explicitly. */
+    var _mongoose2 = require('mongoose');
     if (subjectId) {
-      baseFilter.subjectId = subjectId;
+      try {
+        baseFilter.subjectId = new _mongoose2.Types.ObjectId(subjectId.toString());
+      } catch (e) {
+        baseFilter.subjectId = subjectId;
+      }
     }
     if (examType && examType !== 'all') {
       baseFilter.examType = { $in: [examType, 'all'] };
