@@ -93,20 +93,96 @@ router.get('/departments', async (req, res) => {
 router.get('/departments/:id/subjects', async (req, res) => {
   try {
     var filter = { department: req.params.id, isActive: true };
+    var examCategory = req.query.category || null;
 
-    if (req.query.category) {
+    if (examCategory) {
       filter.$or = [
-        { examCategories: req.query.category },
+        { examCategories: examCategory },
         { examCategories: 'all' }
       ];
     }
 
     const subjects = await Subject.find(filter)
-      .select('name timeLimit questionCount instructions examCategories totalQuestions')
+      .select('name timeLimit questionCount instructions examCategories')
       .sort({ name: 1 });
 
-    return res.status(200).json({ success: true, subjects });
+    /* ✅ STAGE 5 FIX: Enrich each subject with its ExaminationBlueprint
+       configuration before sending to the student.
+
+       SECURITY PRINCIPLE:
+         Students see examination configuration (blueprint.count, blueprint.duration).
+         Students never see the Question Pool size.
+         Pool size is admin-only information.
+
+       FALLBACK CHAIN (when no blueprint is configured):
+         count    → subject.questionCount (default 40)
+         duration → subject.timeLimit (default 30)
+         passMark → 50
+
+       This means a subject with no blueprint still shows correct
+       examination parameters to the student. */
+
+    var enrichedSubjects = subjects.map(function (s) { return s.toObject(); });
+
+    try {
+      var ExamBP = require('../platform/models/ExaminationBlueprint.model');
+      var questionType = 'objective'; /* student-facing always objective for now */
+
+      /* Fetch all blueprints for these subjects in one query */
+      var subjectIds = enrichedSubjects.map(function (s) { return s._id; });
+      var blueprints = await ExamBP.find({
+        subjectId:    { $in: subjectIds },
+        questionType: questionType
+      }).select('subjectId examType count duration passMark').lean();
+
+      /* Build lookup: subjectId → best blueprint for this examCategory */
+      var bpMap = {};
+      blueprints.forEach(function (bp) {
+        var sid = bp.subjectId.toString();
+        /* Prefer exam-specific blueprint over 'all' */
+        if (!bpMap[sid]) {
+          bpMap[sid] = bp;
+        } else if (examCategory && bp.examType === examCategory) {
+          bpMap[sid] = bp;
+        }
+      });
+
+      /* Attach blueprint values to each subject */
+      enrichedSubjects = enrichedSubjects.map(function (s) {
+        var bp = bpMap[s._id.toString()];
+        return {
+          _id:          s._id,
+          name:         s.name,
+          instructions: s.instructions,
+          examCategories: s.examCategories,
+          /* Blueprint values when available, subject defaults otherwise */
+          questionCount: bp ? bp.count    : s.questionCount,
+          timeLimit:     bp ? bp.duration : s.timeLimit,
+          passMark:      bp ? bp.passMark : 50,
+          blueprintSet:  !!bp
+        };
+      });
+    } catch (bpErr) {
+      /* Blueprint enrichment failure must never break the student exam list.
+         Fall back to raw subject values. */
+      console.warn('[CBT] Blueprint enrichment failed:', bpErr.message);
+      enrichedSubjects = enrichedSubjects.map(function (s) {
+        return {
+          _id:           s._id,
+          name:          s.name,
+          instructions:  s.instructions,
+          examCategories:s.examCategories,
+          questionCount: s.questionCount,
+          timeLimit:     s.timeLimit,
+          passMark:      50,
+          blueprintSet:  false
+        };
+      });
+    }
+
+    return res.status(200).json({ success: true, subjects: enrichedSubjects });
   } catch (err) {
+    console.error('[CBT] GET /departments/:id/subjects:', err.message);
     return res.status(500).json({ success: false, message: 'Failed to load subjects.' });
   }
 });
