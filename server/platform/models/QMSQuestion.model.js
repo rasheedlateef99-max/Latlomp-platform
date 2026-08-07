@@ -42,11 +42,15 @@ const qmsQuestionSchema = new mongoose.Schema(
     },
 
     /* ---- Exam classification ---- */
+    /* ✅ STAGE 6: Enum replaced by dynamic ExamType collection.
+       Any valid ExamType.key is accepted.
+       Validation is done at the import/create route level. */
     examType: {
-      type:     String,
-      enum:     ['jamb', 'waec', 'neco', 'post-utme', 'practice', 'all'],
-      required: true,
-      index:    true
+      type:      String,
+      required:  true,
+      index:     true,
+      lowercase: true,
+      trim:      true
     },
 
     /* ---- Question type for multi-modal examination support ----

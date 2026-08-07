@@ -25,11 +25,11 @@ const subjectSchema = new mongoose.Schema(
       required: [true, "Department is required"],
     },
 
-    /* Which exam categories this subject appears in */
+   /* ✅ STAGE 6: Enum replaced by dynamic ExamType collection.
+       Any valid ExamType.key values are accepted. */
     examCategories: {
-      type: [String],
-      enum: ["jamb", "waec", "neco", "post-utme", "practice", "all"],
-      default: ["all"],
+      type:    [String],
+      default: ['all']
     },
 
     /* Time limit IN MINUTES for this subject in an exam */

@@ -427,12 +427,11 @@
         <div class="a-page-header">
           <div><h1>CBT Management</h1><p>Manage departments, subjects and questions</p></div>
         </div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px;">
-          <button class="cbt-cat-pill active" data-cat="jamb"      onclick="selectCbtCategory('jamb',this)">🎓 JAMB</button>
-          <button class="cbt-cat-pill"         data-cat="waec"      onclick="selectCbtCategory('waec',this)">📚 WAEC</button>
-          <button class="cbt-cat-pill"         data-cat="neco"      onclick="selectCbtCategory('neco',this)">🏫 NECO</button>
-          <button class="cbt-cat-pill"         data-cat="post-utme" onclick="selectCbtCategory('post-utme',this)">🏛️ POST-UTME</button>
-          <button class="cbt-cat-pill"         data-cat="practice"  onclick="selectCbtCategory('practice',this)">⚡ Practice</button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; align-items:center;">
+          <div id="cbtCatPillsContainer" style="display:flex; gap:8px; flex-wrap:wrap; flex:1;">
+            <div style="color:var(--text-muted); font-size:13px;">Loading exam types...</div>
+          </div>
+          <button class="a-btn a-btn-secondary a-btn-sm" onclick="openExamTypeModal()" title="Manage exam types" style="flex-shrink:0;">⚙️ Exam Types</button>
         </div>
         <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start;">
           <div class="a-card" style="flex:1; min-width:220px; overflow:visible;">
@@ -775,11 +774,7 @@
               <div class="t-form-group">
                 <label>Exam Type <span style="color:#ff6584;">*</span></label>
                 <select id="qmsExamType" onchange="qmsLoadDepts()">
-                  <option value="jamb">JAMB</option>
-                  <option value="waec">WAEC</option>
-                  <option value="neco">NECO</option>
-                  <option value="post-utme">POST-UTME</option>
-                  <option value="practice">Practice</option>
+                  <option value="">Loading...</option>
                 </select>
               </div>
               <div class="t-form-group">
@@ -2075,6 +2070,66 @@ Paste thousands of questions at once."></textarea>
     <div class="t-modal-footer">
       <button type="button" class="a-btn a-btn-secondary" onclick="closeAdminModal('qmsOrphanAssignModal')">Cancel</button>
       <button type="button" class="a-btn a-btn-primary" id="qmsOrphanConfirmAssignBtn" onclick="qmsOrphanConfirmAssign()">📌 Assign Questions</button>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ STAGE 6: EXAM TYPE MANAGEMENT MODAL -->
+<div class="t-modal-overlay" id="examTypeModal" style="display:none;">
+  <div class="t-modal-box" style="max-width:660px;">
+    <div class="t-modal-header">
+      <h2>⚙️ CBT Exam Types</h2>
+      <button class="t-modal-close" onclick="closeAdminModal('examTypeModal')">✕</button>
+    </div>
+
+    <div style="background:rgba(108,99,255,0.08); border:1px solid rgba(108,99,255,0.2); border-radius:10px; padding:12px 16px; margin-bottom:16px; font-size:13px; color:var(--text-secondary); line-height:1.7;">
+      Manage the examination types available across the CBT platform.
+      <strong style="color:#fff;">Built-in types</strong> (JAMB, WAEC, NECO, POST-UTME, Practice) cannot be deleted.
+      Create custom types for institutional or special examinations.
+    </div>
+
+    <!-- Existing types table -->
+    <div class="a-table-wrap" style="margin-bottom:16px;">
+      <table class="admin-table">
+        <thead><tr><th>Icon</th><th>Key</th><th>Label</th><th>Type</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="examTypeTableBody">
+          <tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-muted);">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Create new type -->
+    <div class="a-card">
+      <div class="a-card-head"><h3>+ Add New Exam Type</h3></div>
+      <div style="padding:16px 20px;">
+        <div id="examTypeCreateErr" style="display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:#ff6584; padding:10px; border-radius:8px; font-size:13px; margin-bottom:12px;"></div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 60px; gap:12px; margin-bottom:12px;">
+          <div class="t-form-group">
+            <label>Key <span style="color:#ff6584;">*</span></label>
+            <input type="text" id="etNewKey" placeholder="e.g. scholarship-exam"
+              style="text-transform:lowercase;"
+              oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'')" />
+            <div style="font-size:11px; color:var(--text-muted); margin-top:3px;">Lowercase, hyphens only. Cannot be changed.</div>
+          </div>
+          <div class="t-form-group">
+            <label>Label <span style="color:#ff6584;">*</span></label>
+            <input type="text" id="etNewLabel" placeholder="e.g. Scholarship Examination" />
+          </div>
+          <div class="t-form-group">
+            <label>Icon</label>
+            <input type="text" id="etNewIcon" placeholder="📝" maxlength="4" style="text-align:center; font-size:20px;" />
+          </div>
+        </div>
+        <div class="t-form-group" style="margin-bottom:12px;">
+          <label>Description (optional)</label>
+          <input type="text" id="etNewDesc" placeholder="Brief description of this examination type" />
+        </div>
+        <button class="a-btn a-btn-primary" onclick="examTypeCreate()">+ Create Exam Type</button>
+      </div>
+    </div>
+
+    <div class="t-modal-footer">
+      <button type="button" class="a-btn a-btn-secondary" onclick="closeAdminModal('examTypeModal')">Close</button>
     </div>
   </div>
 </div>

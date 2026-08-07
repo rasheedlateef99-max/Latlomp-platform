@@ -473,6 +473,58 @@ var _cbtQuestions  = [];
 var _cbtEditDeptId = null;
 var _cbtEditSubjId = null;
 
+/* ---- Shared exam types cache (loaded once, reused everywhere) ---- */
+var _examTypesCache = null;
+
+async function getExamTypes() {
+  if (_examTypesCache) { return _examTypesCache; }
+  try {
+    var res = await apiRequest('/exams/types');
+    if (res.ok && res.data.examTypes) {
+      /* Filter out 'all' for most dropdowns — it is a QMS concept,
+         not a student-facing exam type */
+      _examTypesCache = res.data.examTypes;
+      return _examTypesCache;
+    }
+  } catch (e) {
+    console.warn('[ExamType] Failed to load exam types:', e.message);
+  }
+  /* Fallback: built-in types so UI never breaks */
+  return [
+    { key:'jamb',     label:'JAMB',      icon:'🎓' },
+    { key:'waec',     label:'WAEC',      icon:'📚' },
+    { key:'neco',     label:'NECO',      icon:'🏫' },
+    { key:'post-utme',label:'POST-UTME', icon:'🏛️' },
+    { key:'practice', label:'Practice',  icon:'⚡' }
+  ];
+}
+
+/* Populate any <select> with exam type options.
+   opts.includeAll: include the 'all' type (QMS/admin only)
+   opts.placeholder: first option text (e.g. "All Exam Types")
+   opts.selectedKey: pre-select this key */
+async function populateExamTypeSelect(selectId, opts) {
+  var sel = document.getElementById(selectId);
+  if (!sel) { return; }
+  opts = opts || {};
+
+  var types = await getExamTypes();
+  var visible = opts.includeAll ? types : types.filter(function (t) { return t.key !== 'all'; });
+
+  var html = '';
+  if (opts.placeholder) {
+    html += '<option value="">' + esc(opts.placeholder) + '</option>';
+  }
+  html += visible.filter(function (t) { return t.isActive !== false; }).map(function (t) {
+    var selected = (opts.selectedKey && opts.selectedKey === t.key) ? ' selected' : '';
+    return '<option value="' + esc(t.key) + '"' + selected + '>' +
+      esc(t.icon || '📝') + ' ' + esc(t.label) +
+    '</option>';
+  }).join('');
+
+  sel.innerHTML = html;
+}
+
 /* Entry point */
 async function loadCbtManagement() {
   _cbtSelDept = null;
@@ -483,7 +535,36 @@ async function loadCbtManagement() {
   if (subjCard) subjCard.style.display = 'none';
   if (qCard)    qCard.style.display    = 'none';
 
+  /* ✅ STAGE 6: Build dynamic exam type pills */
+  await loadCbtExamTypePills();
+
   await loadCbtDepts();
+}
+
+async function loadCbtExamTypePills() {
+  var container = document.getElementById('cbtCatPillsContainer');
+  if (!container) { return; }
+
+  var types = await getExamTypes();
+  var visible = types.filter(function (t) { return t.key !== 'all' && t.isActive !== false; });
+
+  if (!visible.length) {
+    container.innerHTML = '<div style="color:var(--text-muted); font-size:13px;">No exam types configured.</div>';
+    return;
+  }
+
+  /* Set _cbtCat to first type if not already set or if current no longer exists */
+  var keys = visible.map(function (t) { return t.key; });
+  if (!keys.includes(_cbtCat)) { _cbtCat = visible[0].key; }
+
+  container.innerHTML = visible.map(function (t) {
+    var isActive = t.key === _cbtCat;
+    return '<button class="cbt-cat-pill' + (isActive ? ' active' : '') + '" ' +
+      'data-cat="' + esc(t.key) + '" ' +
+      'onclick="selectCbtCategory(\'' + esc(t.key) + '\',this)">' +
+      esc(t.icon || '📝') + ' ' + esc(t.label) +
+    '</button>';
+  }).join('');
 }
 
 /* ---- Category selection ---- */
@@ -1226,8 +1307,47 @@ async function qmsFileApi(path, formData) {
   }
 }
 
+/* ---- Populate all QMS exam type selects from API ---- */
+async function qmsPopulateAllExamTypeDropdowns() {
+  /* Import form */
+  await populateExamTypeSelect('qmsExamType', { selectedKey: 'jamb' });
+
+  /* Bank filter */
+  await populateExamTypeSelect('qmsBankFilterExam', { placeholder: 'All Exam Types', includeAll: false });
+
+  /* Engine config */
+  await populateExamTypeSelect('qmsEngExamType', { selectedKey: 'jamb', includeAll: true });
+
+  /* Breakdown filter */
+  await populateExamTypeSelect('qmsBreakdownFilter', { placeholder: 'All Types', includeAll: true });
+
+  /* Tag manager filter */
+  await populateExamTypeSelect('qmsTagFilterExam', { placeholder: 'All Exam Types' });
+
+  /* Integration status filter */
+  await populateExamTypeSelect('qmsIntegFilterExam', { selectedKey: 'jamb', includeAll: true });
+
+  /* Orphan filter */
+  await populateExamTypeSelect('qmsOrphanFilterExam', { placeholder: 'All Exam Types' });
+
+  /* Bulk move target */
+  await populateExamTypeSelect('qmsMoveExamType', { selectedKey: 'jamb' });
+
+  /* Orphan assign */
+  await populateExamTypeSelect('qmsOrphanExamType', { selectedKey: 'jamb' });
+
+  /* Sources filter */
+  await populateExamTypeSelect('qmsSourceFilterExam', { placeholder: 'Both Sources' });
+
+  /* Blueprint modal */
+  await populateExamTypeSelect('bpExamType', { includeAll: true, selectedKey: 'all' });
+}
+
 /* ---- Init: called when QMS section becomes active ---- */
 async function qmsInit() {
+  /* Populate all exam type dropdowns first */
+  await qmsPopulateAllExamTypeDropdowns();
+
   if (!_qmsDeptsLoaded) {
     await qmsLoadDepts();
     _qmsDeptsLoaded = true;
@@ -4786,6 +4906,142 @@ function qmsMigrationRenderCommitResult(data) {
       '<button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsMigrationDryRun()">🔍 Run Dry-Run Again (verify)</button>' +
       '<button class="a-btn a-btn-secondary a-btn-sm" onclick="qmsSwitchTab(\'bank\')">📚 View Question Bank</button>' +
     '</div>';
+}
+
+/* ============================================================
+   ✅ STAGE 6 — EXAM TYPE MANAGEMENT FUNCTIONS
+   CBT-only. Dynamic exam types replace hardcoded enums.
+============================================================ */
+
+/* ---- Open ExamType management modal ---- */
+async function openExamTypeModal() {
+  document.getElementById('examTypeModal').style.display = 'flex';
+  await examTypeLoadTable();
+  /* Clear create form */
+  ['etNewKey','etNewLabel','etNewIcon','etNewDesc'].forEach(function (id) {
+    var el = document.getElementById(id); if (el) el.value = '';
+  });
+  var err = document.getElementById('examTypeCreateErr');
+  if (err) err.style.display = 'none';
+}
+
+/* ---- Load exam types table in modal ---- */
+async function examTypeLoadTable() {
+  var tbody = document.getElementById('examTypeTableBody');
+  if (!tbody) { return; }
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:var(--text-muted);">Loading...</td></tr>';
+
+  var res = await apiRequest('/exams/admin/exam-types');
+  if (!res.ok) {
+    tbody.innerHTML = '<tr><td colspan="6" style="color:#ff6584; text-align:center; padding:16px;">' +
+      esc(res.data.message || 'Failed.') + '</td></tr>';
+    return;
+  }
+
+  var types = res.data.examTypes || [];
+  if (!types.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-muted);">No exam types. Loading defaults...</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = types.map(function (t) {
+    var isBuiltIn   = t.isBuiltIn;
+    var activeBadge = t.isActive
+      ? '<span class="badge badge-active">Active</span>'
+      : '<span class="badge badge-expired">Inactive</span>';
+    var typeBadge = isBuiltIn
+      ? '<span style="font-size:10px; font-weight:700; background:rgba(67,233,123,0.1); color:#43e97b; padding:1px 7px; border-radius:20px;">Built-in</span>'
+      : '<span style="font-size:10px; font-weight:700; background:rgba(108,99,255,0.1); color:#a78bfa; padding:1px 7px; border-radius:20px;">Custom</span>';
+
+    return '<tr>' +
+      '<td style="font-size:18px;">' + esc(t.icon || '📝') + '</td>' +
+      '<td style="font-family:monospace; font-size:12px; color:#a78bfa;">' + esc(t.key) + '</td>' +
+      '<td style="font-weight:700; color:#fff;">' + esc(t.label) + '</td>' +
+      '<td>' + typeBadge + '</td>' +
+      '<td>' + activeBadge + '</td>' +
+      '<td><div style="display:flex; gap:5px; flex-wrap:wrap;">' +
+        (!isBuiltIn
+          ? '<button class="a-btn a-btn-secondary a-btn-sm" onclick="examTypeToggle(\'' + t._id + '\',' + t.isActive + ')">' +
+              (t.isActive ? 'Disable' : 'Enable') +
+            '</button>' +
+            '<button class="a-btn a-btn-danger a-btn-sm" onclick="examTypeDelete(\'' + t._id + '\',\'' + esc(t.label) + '\')">' +
+              '🗑 Delete' +
+            '</button>'
+          : '<span style="font-size:11px; color:var(--text-muted);">Protected</span>'
+        ) +
+      '</div></td>' +
+    '</tr>';
+  }).join('');
+}
+
+/* ---- Create new exam type ---- */
+async function examTypeCreate() {
+  var key   = (document.getElementById('etNewKey')   || {}).value || '';
+  var label = (document.getElementById('etNewLabel') || {}).value || '';
+  var icon  = ((document.getElementById('etNewIcon')  || {}).value || '📝').trim() || '📝';
+  var desc  = (document.getElementById('etNewDesc')  || {}).value || '';
+  var errEl = document.getElementById('examTypeCreateErr');
+
+  if (errEl) errEl.style.display = 'none';
+
+  if (!key || !label) {
+    if (errEl) { errEl.textContent = 'Key and label are required.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  var res = await apiRequest('/exams/admin/exam-types', 'POST', {
+    key: key, label: label, icon: icon, description: desc, isActive: true
+  });
+
+  if (res.ok) {
+    instToast('Exam type "' + label + '" created.', 'success');
+    /* Clear form */
+    ['etNewKey','etNewLabel','etNewIcon','etNewDesc'].forEach(function (id) {
+      var el = document.getElementById(id); if (el) el.value = '';
+    });
+    /* Refresh table and invalidate cache */
+    _examTypesCache = null;
+    await examTypeLoadTable();
+    /* Refresh CBT pills */
+    await loadCbtExamTypePills();
+    /* Refresh QMS dropdowns */
+    await qmsPopulateAllExamTypeDropdowns();
+  } else {
+    if (errEl) { errEl.textContent = res.data.message || 'Failed to create.'; errEl.style.display = 'block'; }
+  }
+}
+
+/* ---- Toggle active state ---- */
+async function examTypeToggle(id, currentlyActive) {
+  var res = await apiRequest('/exams/admin/exam-types/' + id, 'PUT', {
+    isActive: !currentlyActive
+  });
+  if (res.ok) {
+    instToast('Exam type ' + (!currentlyActive ? 'enabled' : 'disabled') + '.', 'success');
+    _examTypesCache = null;
+    await examTypeLoadTable();
+    await loadCbtExamTypePills();
+    await qmsPopulateAllExamTypeDropdowns();
+  } else {
+    instToast(res.data.message || 'Failed.', 'error');
+  }
+}
+
+/* ---- Delete exam type ---- */
+async function examTypeDelete(id, label) {
+  if (!confirm('Delete exam type "' + label + '"?\n\nThis cannot be undone. Any subjects or questions using this type will need to be reassigned.')) {
+    return;
+  }
+  var res = await apiRequest('/exams/admin/exam-types/' + id, 'DELETE');
+  if (res.ok) {
+    instToast('Exam type deleted.', 'success');
+    _examTypesCache = null;
+    await examTypeLoadTable();
+    await loadCbtExamTypePills();
+    await qmsPopulateAllExamTypeDropdowns();
+  } else {
+    instToast(res.data.message || 'Failed.', 'error');
+  }
 }
 
 console.log('🔧 Admin Dashboard loaded');

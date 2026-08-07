@@ -54,12 +54,13 @@ var examinationBlueprintSchema = new mongoose.Schema(
 
     /* Single exam type per blueprint.
        A subject can have one blueprint per examType per questionType. */
+    /* ✅ STAGE 6: Enum replaced by dynamic ExamType collection. */
     examType: {
-      type:     String,
-      enum:     ['jamb', 'waec', 'neco', 'post-utme', 'practice', 'all'],
-      required: true
+      type:      String,
+      required:  true,
+      lowercase: true,
+      trim:      true
     },
-
     /* Which examination mode this blueprint configures */
     questionType: {
       type:     String,

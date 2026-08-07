@@ -17,6 +17,7 @@ const User       = require('../models/User.model');
 const Department = require('../models/Department.model');
 const Subject    = require('../models/Subject.model');
 const { protect, adminOnly, adminOrPlatformStaff } = require('../middleware/auth.middleware');
+const ExamType = require('../models/ExamType.model');
 
 function normalizeDifficulty(val) {
   var map = { 'easy':'Easy', 'Easy':'Easy', 'medium':'Medium', 'Medium':'Medium', 'hard':'Hard', 'Hard':'Hard', 'mixed':'Mixed', 'Mixed':'Mixed' };
@@ -65,6 +66,142 @@ router.get('/results/:id', protect, async (req, res) => {
     return res.status(200).json({ success: true, result });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Error fetching result' });
+  }
+});
+
+/* ============================================
+   PUBLIC — Exam Types
+   GET /api/exams/types
+   Used by both admin UI dropdowns and student
+   examination interface.
+   Seeds built-in types on first call.
+============================================ */
+router.get('/types', async function (req, res) {
+  try {
+    /* Lazy seed — safe to run on every cold start */
+    await ExamType.seedBuiltIn();
+
+    var filter = {};
+    if (req.query.activeOnly !== 'false') filter.isActive = true;
+
+    var types = await ExamType.find(filter)
+      .sort({ sortOrder: 1, label: 1 })
+      .lean();
+
+    return res.status(200).json({ success: true, examTypes: types });
+  } catch (e) {
+    console.error('[ExamType] GET /types:', e.message);
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+/* ============================================
+   ADMIN — Exam Type CRUD
+   All under /admin/exam-types
+   MUST be before /admin/departments to prevent
+   Express treating 'exam-types' as a dept id.
+============================================ */
+
+/* GET /api/exams/admin/exam-types — list all */
+router.get('/admin/exam-types', adminOrPlatformStaff('cbt'), async function (req, res) {
+  try {
+    await ExamType.seedBuiltIn();
+    var types = await ExamType.find({}).sort({ sortOrder: 1, label: 1 }).lean();
+    return res.status(200).json({ success: true, examTypes: types });
+  } catch (e) {
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+/* POST /api/exams/admin/exam-types — create */
+router.post('/admin/exam-types', adminOrPlatformStaff('cbt'), async function (req, res) {
+  try {
+    var key   = (req.body.key   || '').toLowerCase().trim().replace(/\s+/g, '-');
+    var label = (req.body.label || '').trim();
+
+    if (!key || !label) {
+      return res.status(400).json({ success: false, message: 'Key and label are required.' });
+    }
+    if (!/^[a-z0-9-]+$/.test(key)) {
+      return res.status(400).json({ success: false, message: 'Key must be lowercase letters, numbers and hyphens only.' });
+    }
+
+    var et = await ExamType.create({
+      key:         key,
+      label:       label,
+      description: (req.body.description || '').trim(),
+      icon:        req.body.icon        || '📝',
+      isActive:    req.body.isActive    !== false,
+      sortOrder:   parseInt(req.body.sortOrder) || 0,
+      isBuiltIn:   false,
+      createdBy:   req.user ? req.user.id : null
+    });
+
+    return res.status(201).json({ success: true, message: 'Exam type created.', examType: et });
+  } catch (e) {
+    if (e.code === 11000) {
+      return res.status(400).json({ success: false, message: 'An exam type with this key already exists.' });
+    }
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+/* PUT /api/exams/admin/exam-types/:id — update */
+router.put('/admin/exam-types/:id', adminOrPlatformStaff('cbt'), async function (req, res) {
+  try {
+    var updates = {};
+    if (req.body.label       !== undefined) updates.label       = req.body.label.trim();
+    if (req.body.description !== undefined) updates.description = req.body.description.trim();
+    if (req.body.icon        !== undefined) updates.icon        = req.body.icon;
+    if (req.body.isActive    !== undefined) updates.isActive    = req.body.isActive !== false;
+    if (req.body.sortOrder   !== undefined) updates.sortOrder   = parseInt(req.body.sortOrder) || 0;
+
+    var et = await ExamType.findByIdAndUpdate(
+      req.params.id,
+      { $set: updates },
+      { new: true }
+    );
+    if (!et) { return res.status(404).json({ success: false, message: 'Exam type not found.' }); }
+    return res.status(200).json({ success: true, message: 'Exam type updated.', examType: et });
+  } catch (e) {
+    return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+/* DELETE /api/exams/admin/exam-types/:id — delete non-built-in only */
+router.delete('/admin/exam-types/:id', adminOrPlatformStaff('cbt'), async function (req, res) {
+  try {
+    var et = await ExamType.findById(req.params.id);
+    if (!et) { return res.status(404).json({ success: false, message: 'Exam type not found.' }); }
+
+    if (et.isBuiltIn) {
+      return res.status(400).json({
+        success: false,
+        message: 'Built-in exam types (JAMB, WAEC, NECO, POST-UTME, Practice, All) cannot be deleted.'
+      });
+    }
+
+    /* Safety: check that no QMSQuestions use this key */
+    var QMSQuestion = null;
+    try { QMSQuestion = require('../platform/models/QMSQuestion.model'); } catch (e) {}
+    if (QMSQuestion) {
+      var qmsCount = await QMSQuestion.countDocuments({
+        examType: et.key,
+        status:   { $ne: 'deleted' }
+      });
+      if (qmsCount > 0) {
+        return res.status(400).json({
+          success: false,
+          message: qmsCount + ' questions in the Question Bank use this exam type. ' +
+                   'Reassign or delete them before removing the exam type.'
+        });
+      }
+    }
+
+    await ExamType.findByIdAndDelete(req.params.id);
+    return res.status(200).json({ success: true, message: 'Exam type deleted.' });
+  } catch (e) {
+    return res.status(500).json({ success: false, message: e.message });
   }
 });
 
@@ -243,10 +380,23 @@ router.delete('/admin/subjects/:id', adminOrPlatformStaff('cbt'), async function
 });
 
 /* Subject questions */
+/* ✅ STAGE 6: This route is in archive mode.
+   It serves the legacy 📁 view in CBT Management only.
+   No new questions should be created here (POST returns 410).
+   This GET will be removed in the final cleanup after all
+   legacy questions have been deleted or migrated. */
 router.get('/admin/subjects/:id/questions', adminOrPlatformStaff('cbt'), async function (req, res) {
   try {
+    console.log('[Legacy Archive] GET /admin/subjects/:id/questions — subject:', req.params.id,
+      '— This route is in archive mode. All new questions go through QMS.');
     const questions = await Question.find({ subjectId: req.params.id }).sort({ createdAt: 1 });
-    return res.status(200).json({ success: true, count: questions.length, questions });
+    return res.status(200).json({
+      success:   true,
+      count:     questions.length,
+      questions: questions,
+      _archiveMode: true,
+      _notice: 'Legacy question archive. New questions are managed through QMS.'
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
