@@ -457,6 +457,55 @@ router.get('/audit', guard.eceRootOnly, async function (req, res) {
   }
 });
 
+/* ============================================
+   GET /api/ece/exam-rendering
+   ✅ ECE PHASE 3: Student-accessible endpoint.
+   Called by ece-rendering.js when exam starts.
+   Returns rendering capability flags only.
+
+   FAILURE SAFETY: Always returns valid JSON.
+   images defaults true — existing questions
+   with image content are never broken.
+============================================ */
+router.get('/exam-rendering', protect, async function (req, res) {
+  var SAFE_DEFAULT = {
+    success:   true,
+    rendering: {
+      math:      false,
+      arabic:    false,
+      chemistry: false,
+      physics:   false,
+      rich_text: false,
+      images:    true   /* always true — safe default */
+    }
+  };
+
+  try {
+    var config = await ECEConfig.findOne({ scope: 'cbt', scopeId: null })
+      .select('capabilities enabled')
+      .lean();
+
+    if (!config || !config.enabled || !config.capabilities || !config.capabilities.rendering) {
+      return res.json(SAFE_DEFAULT);
+    }
+
+    var r = config.capabilities.rendering;
+    return res.json({
+      success:   true,
+      rendering: {
+        math:      !!r.math,
+        arabic:    !!r.arabic,
+        chemistry: !!r.chemistry,
+        physics:   !!r.physics,
+        rich_text: !!r.rich_text,
+        images:    r.images !== false   /* default true */
+      }
+    });
+  } catch (e) {
+    console.error('[ECE] GET /exam-rendering:', e.message);
+    return res.json(SAFE_DEFAULT);
+  }
+});
 
 /* ============================================
    GET /api/ece/exam-security

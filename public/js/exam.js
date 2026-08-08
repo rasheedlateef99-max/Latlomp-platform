@@ -89,9 +89,11 @@ document.addEventListener('DOMContentLoaded', function() {
     renderQuestion(0);
     startTimer();
     buildQGrid();
-    /* ✅ ECE Phase 2: Activate security module after exam is fully ready.
-       Safe call — if ece-security.js is not loaded, this is a no-op. */
-    if (typeof eceSecurityInit === 'function') { eceSecurityInit(); }
+    /* ✅ ECE Phase 2: Security Module */
+    if (typeof eceSecurityInit   === 'function') { eceSecurityInit();   }
+    /* ✅ ECE Phase 3: Rendering Module — called after first question
+       is rendered so it has content to process immediately. */
+    if (typeof eceRenderingInit  === 'function') { eceRenderingInit();  }
   });
 
   /* Prevent accidental navigation */
@@ -208,6 +210,12 @@ function renderQuestion(idx) {
   if (body) body.scrollTop = 0;
 
   updateQDot(idx);
+
+  /* ✅ ECE Phase 3: Apply rendering to the question now in the DOM.
+     Called on every question navigation so MathJax, RTL and
+     rich text are re-applied after each renderQuestion() call.
+     No-op if ece-rendering.js is not loaded or module is inactive. */
+  if (typeof eceRenderingApply === 'function') { eceRenderingApply(); }
 }
 
 /* ============================================

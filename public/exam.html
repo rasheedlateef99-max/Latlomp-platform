@@ -307,9 +307,11 @@
 
 <script src="js/main.js"></script>
 <script src="js/exam.js"></script>
-<!-- ✅ ECE Phase 2: Security Module — loaded after exam.js so
-     submitExam(), startTimer() and _timerInterval are available.
-     Self-contained: if the file is missing, exam.js still works. -->
+<!-- ✅ ECE Phase 2: Security Module -->
 <script src="js/ece/ece-security.js"></script>
+<!-- ✅ ECE Phase 3: Rendering Module — loaded after exam.js so
+     _questions and _currentIdx globals are available.
+     Self-contained: if the file is missing, exam.js still works. -->
+<script src="js/ece/ece-rendering.js"></script>
 </body>
 </html>
