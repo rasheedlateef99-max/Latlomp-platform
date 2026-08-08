@@ -28,6 +28,9 @@ var ECEConfig   = require('../models/ECEConfig.model');
 var ECEAuditLog = require('../models/ECEAuditLog.model');
 var registry    = require('../config/ece.capability.registry');
 var guard       = require('../middleware/ece.guard');
+/* ✅ ECE Phase 2: protect is the student JWT middleware.
+   Used only by /exam-security — all other routes use guard. */
+var protect     = require('../../middleware/auth.middleware').protect;
 
 /* ============================================
    GET /api/ece/registry
@@ -451,6 +454,61 @@ router.get('/audit', guard.eceRootOnly, async function (req, res) {
   } catch (e) {
     console.error('[ECE] GET /audit:', e.message);
     return res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+
+/* ============================================
+   GET /api/ece/exam-security
+   ✅ ECE PHASE 2: Student-accessible endpoint.
+   Called by ece-security.js when exam starts.
+   Uses protect (student JWT) not guard.eceRootOnly.
+
+   Returns only the security capability flags
+   needed by the client-side security module.
+   No sensitive admin config is exposed.
+
+   FAILURE SAFETY: Always returns valid JSON.
+   If ECEConfig is missing or DB throws, all
+   capabilities return false so the exam is
+   never blocked by an ECE error.
+============================================ */
+router.get('/exam-security', protect, async function (req, res) {
+  var SAFE_DEFAULT = {
+    success:  true,
+    security: {
+      fullscreenEnforcement: false,
+      tabSwitchDetection:    false,
+      copyProtection:        false,
+      rightClickDisable:     false,
+      maxViolations:         3
+    }
+  };
+
+  try {
+    var config = await ECEConfig.findOne({ scope: 'cbt', scopeId: null })
+      .select('capabilities enabled')
+      .lean();
+
+    if (!config || !config.enabled || !config.capabilities || !config.capabilities.security) {
+      return res.json(SAFE_DEFAULT);
+    }
+
+    var sec = config.capabilities.security;
+
+    return res.json({
+      success: true,
+      security: {
+        fullscreenEnforcement: !!sec.fullscreen_enforcement,
+        tabSwitchDetection:    !!sec.tab_switch_detection,
+        copyProtection:        !!sec.copy_protection,
+        rightClickDisable:     !!sec.right_click_disable,
+        maxViolations:         3
+      }
+    });
+  } catch (e) {
+    console.error('[ECE] GET /exam-security:', e.message);
+    return res.json(SAFE_DEFAULT);
   }
 });
 

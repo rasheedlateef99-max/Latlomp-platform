@@ -89,6 +89,9 @@ document.addEventListener('DOMContentLoaded', function() {
     renderQuestion(0);
     startTimer();
     buildQGrid();
+    /* ✅ ECE Phase 2: Activate security module after exam is fully ready.
+       Safe call — if ece-security.js is not loaded, this is a no-op. */
+    if (typeof eceSecurityInit === 'function') { eceSecurityInit(); }
   });
 
   /* Prevent accidental navigation */
