@@ -19,11 +19,13 @@ const departmentSchema = new mongoose.Schema(
       trim:     true
     },
 
-    /* ✅ FIX: Which exam category this department belongs to */
+    /* ✅ STAGE 6: Enum removed — accepts any valid ExamType.key.
+       Validated against the ExamType collection at the route level. */
     examCategory: {
-      type:     String,
-      enum:     ['jamb', 'waec', 'neco', 'post-utme', 'practice'],
-      required: [true, 'Exam category is required']
+      type:      String,
+      required:  [true, 'Exam category is required'],
+      lowercase: true,
+      trim:      true
     },
 
     description: {

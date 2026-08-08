@@ -105,13 +105,9 @@
         and take a fully timed exam with randomized questions.
       </p>
 
-      <!-- Exam category pills (visual only) -->
-      <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-bottom:28px;">
-        <span style="padding:6px 16px; border-radius:20px; background:rgba(108,99,255,0.2); color:#a78bfa; font-size:13px; font-weight:700;">🎓 JAMB</span>
-        <span style="padding:6px 16px; border-radius:20px; background:rgba(67,233,123,0.15); color:#43e97b; font-size:13px; font-weight:700;">📚 WAEC</span>
-        <span style="padding:6px 16px; border-radius:20px; background:rgba(56,249,215,0.15); color:#38f9d7; font-size:13px; font-weight:700;">🏫 NECO</span>
-        <span style="padding:6px 16px; border-radius:20px; background:rgba(255,214,0,0.15); color:#ffd600; font-size:13px; font-weight:700;">🏛️ POST-UTME</span>
-        <span style="padding:6px 16px; border-radius:20px; background:rgba(255,101,132,0.15); color:#ff6584; font-size:13px; font-weight:700;">⚡ Practice</span>
+      <!-- ✅ STAGE 6: Exam type pills loaded dynamically from ExamType collection -->
+      <div id="cbtHeroExamPills" style="display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-bottom:28px; min-height:36px;">
+        <!-- populated by inline script after page load -->
       </div>
 
       <a href="cbt-start.html"
@@ -203,5 +199,46 @@
 
 <script src="js/main.js"></script>
 <script src="js/cbt.js"></script>
+<script>
+/* ✅ STAGE 6: Load exam type pills dynamically.
+   Uses the public /api/exams/types endpoint (no auth needed).
+   Falls back silently if the request fails — page still works. */
+(async function loadHeroPills() {
+  var container = document.getElementById('cbtHeroExamPills');
+  if (!container) { return; }
+
+  /* Colour palette — cycles for any number of exam types */
+  var palette = [
+    ['rgba(108,99,255,0.2)',  '#a78bfa'],
+    ['rgba(67,233,123,0.15)', '#43e97b'],
+    ['rgba(56,249,215,0.15)', '#38f9d7'],
+    ['rgba(255,214,0,0.15)',  '#ffd600'],
+    ['rgba(255,101,132,0.15)','#ff6584'],
+    ['rgba(255,165,0,0.15)',  '#ffa500'],
+    ['rgba(168,85,247,0.15)', '#c084fc']
+  ];
+
+  try {
+    var res  = await fetch('/api/exams/types');
+    var data = await res.json();
+    var types = (data.examTypes || []).filter(function (t) {
+      return t.key !== 'all' && t.isActive !== false;
+    });
+
+    if (!types.length) { container.style.display = 'none'; return; }
+
+    container.innerHTML = types.map(function (t, i) {
+      var c = palette[i % palette.length];
+      return '<span style="padding:6px 16px; border-radius:20px; background:' + c[0] + '; ' +
+        'color:' + c[1] + '; font-size:13px; font-weight:700;">' +
+        (t.icon || '📝') + ' ' + t.label +
+      '</span>';
+    }).join('');
+  } catch (e) {
+    /* Fail silently — decorative element, not critical */
+    container.style.display = 'none';
+  }
+})();
+</script>
 </body>
 </html>

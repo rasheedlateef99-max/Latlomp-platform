@@ -224,32 +224,12 @@
     <h2>Select Exam Type</h2>
     <p>Choose the exam category you want to practice.</p>
 
-    <div class="cat-grid">
-      <button class="cat-btn" onclick="selectCategory('jamb', this)">
-        <span class="cat-icon">🎓</span>
-        <span class="cat-name">JAMB</span>
-        <span class="cat-sub">UTME</span>
-      </button>
-      <button class="cat-btn" onclick="selectCategory('waec', this)">
-        <span class="cat-icon">📚</span>
-        <span class="cat-name">WAEC</span>
-        <span class="cat-sub">SSCE</span>
-      </button>
-      <button class="cat-btn" onclick="selectCategory('neco', this)">
-        <span class="cat-icon">🏫</span>
-        <span class="cat-name">NECO</span>
-        <span class="cat-sub">SSCE</span>
-      </button>
-      <button class="cat-btn" onclick="selectCategory('post-utme', this)">
-        <span class="cat-icon">🏛️</span>
-        <span class="cat-name">POST-UTME</span>
-        <span class="cat-sub">Admission</span>
-      </button>
-      <button class="cat-btn" onclick="selectCategory('practice', this)" style="grid-column:1/-1;">
-        <span class="cat-icon">⚡</span>
-        <span class="cat-name">Practice Mode</span>
-        <span class="cat-sub">Mixed subjects — no time pressure</span>
-      </button>
+    <!-- ✅ STAGE 6: Exam type buttons loaded dynamically from ExamType collection -->
+    <div class="cat-grid" id="catGrid">
+      <div class="cbt-loading" style="grid-column:1/-1; padding:20px 0;">
+        <div class="cbt-spinner"></div>
+        Loading exam types...
+      </div>
     </div>
 
     <button class="cbt-btn cbt-btn-primary" id="step1Btn" onclick="goStep2()" disabled>
@@ -333,6 +313,8 @@
 ============================================ */
 document.addEventListener('DOMContentLoaded', function() {
   if (!requireLogin('cbt-start.html')) return;
+  /* ✅ STAGE 6: Load exam types dynamically on page open */
+  loadExamTypes();
 });
 
 /* State */
@@ -343,6 +325,125 @@ var _subjects     = [];
 var _selectedSubjectIds = [];
 var _studentInfo  = {};
 var _currentStep  = 1;
+
+/* ============================================
+   ✅ STAGE 6 — DYNAMIC EXAM TYPES
+   Loads available exam types from the ExamType
+   collection and renders selectable buttons.
+   Falls back to built-in types if API fails.
+============================================ */
+async function loadExamTypes() {
+  var grid = document.getElementById('catGrid');
+  if (!grid) { return; }
+
+  /* Built-in fallback — shown if API fails */
+  var FALLBACK = [
+    { key:'jamb',      label:'JAMB',         icon:'🎓', description:'UTME' },
+    { key:'waec',      label:'WAEC',          icon:'📚', description:'SSCE' },
+    { key:'neco',      label:'NECO',          icon:'🏫', description:'SSCE' },
+    { key:'post-utme', label:'POST-UTME',     icon:'🏛️', description:'Admission' },
+    { key:'practice',  label:'Practice Mode', icon:'⚡', description:'Mixed subjects — no time pressure' }
+  ];
+
+  var types = FALLBACK;
+
+  try {
+    var res  = await fetch('/api/exams/types');
+    var data = await res.json();
+    var loaded = (data.examTypes || []).filter(function (t) {
+      return t.key !== 'all' && t.isActive !== false;
+    });
+    if (loaded.length > 0) { types = loaded; }
+  } catch (e) {
+    /* Use fallback silently */
+    console.warn('[CBT] Could not load exam types from API, using defaults.');
+  }
+
+  /* Render buttons.
+     Last item (or any item with key==='practice') gets full width. */
+  var lastIdx = types.length - 1;
+  grid.innerHTML = types.map(function (t, i) {
+    var isPractice  = (t.key === 'practice');
+    var isLast      = (i === lastIdx && types.length % 2 !== 0);
+    var fullWidth   = isPractice || isLast;
+    var safeKey     = t.key.replace(/'/g, "\\'");
+    var sub         = t.description || t.label;
+    if (sub.length > 40) { sub = sub.substring(0, 37) + '...'; }
+
+    return '<button class="cat-btn" onclick="selectCategory(\'' + safeKey + '\', this)"' +
+      (fullWidth ? ' style="grid-column:1/-1;"' : '') + '>' +
+      '<span class="cat-icon">' + (t.icon || '📝') + '</span>' +
+      '<span class="cat-name">' + t.label + '</span>' +
+      '<span class="cat-sub">'  + sub + '</span>' +
+    '</button>';
+  }).join('');
+}document.addEventListener('DOMContentLoaded', function() {
+  if (!requireLogin('cbt-start.html')) return;
+  /* ✅ STAGE 6: Load exam types dynamically on page open */
+  loadExamTypes();
+});
+
+/* State */
+var _category     = '';
+var _depts        = [];
+var _selectedDept = null;
+var _subjects     = [];
+var _selectedSubjectIds = [];
+var _studentInfo  = {};
+var _currentStep  = 1;
+
+/* ============================================
+   ✅ STAGE 6 — DYNAMIC EXAM TYPES
+   Loads available exam types from the ExamType
+   collection and renders selectable buttons.
+   Falls back to built-in types if API fails.
+============================================ */
+async function loadExamTypes() {
+  var grid = document.getElementById('catGrid');
+  if (!grid) { return; }
+
+  /* Built-in fallback — shown if API fails */
+  var FALLBACK = [
+    { key:'jamb',      label:'JAMB',         icon:'🎓', description:'UTME' },
+    { key:'waec',      label:'WAEC',          icon:'📚', description:'SSCE' },
+    { key:'neco',      label:'NECO',          icon:'🏫', description:'SSCE' },
+    { key:'post-utme', label:'POST-UTME',     icon:'🏛️', description:'Admission' },
+    { key:'practice',  label:'Practice Mode', icon:'⚡', description:'Mixed subjects — no time pressure' }
+  ];
+
+  var types = FALLBACK;
+
+  try {
+    var res  = await fetch('/api/exams/types');
+    var data = await res.json();
+    var loaded = (data.examTypes || []).filter(function (t) {
+      return t.key !== 'all' && t.isActive !== false;
+    });
+    if (loaded.length > 0) { types = loaded; }
+  } catch (e) {
+    /* Use fallback silently */
+    console.warn('[CBT] Could not load exam types from API, using defaults.');
+  }
+
+  /* Render buttons.
+     Last item (or any item with key==='practice') gets full width. */
+  var lastIdx = types.length - 1;
+  grid.innerHTML = types.map(function (t, i) {
+    var isPractice  = (t.key === 'practice');
+    var isLast      = (i === lastIdx && types.length % 2 !== 0);
+    var fullWidth   = isPractice || isLast;
+    var safeKey     = t.key.replace(/'/g, "\\'");
+    var sub         = t.description || t.label;
+    if (sub.length > 40) { sub = sub.substring(0, 37) + '...'; }
+
+    return '<button class="cat-btn" onclick="selectCategory(\'' + safeKey + '\', this)"' +
+      (fullWidth ? ' style="grid-column:1/-1;"' : '') + '>' +
+      '<span class="cat-icon">' + (t.icon || '📝') + '</span>' +
+      '<span class="cat-name">' + t.label + '</span>' +
+      '<span class="cat-sub">'  + sub + '</span>' +
+    '</button>';
+  }).join('');
+}
 
 /* ============================================
    STEP INDICATOR
@@ -541,15 +642,21 @@ async function loadSubjects() {
     return;
   }
 
-  listEl.innerHTML = _subjects.map(function(s) {
+  listEl.innerHTML = _subjects.map(function (s) {
+    /* ✅ STAGE 6: Use blueprint count (s.questionCount) not legacy
+       s.totalQuestions which is a denormalized counter defaulting to 0.
+       s.questionCount is enriched from ExaminationBlueprint by
+       GET /api/cbt/departments/:id/subjects. */
+    var qCount = s.questionCount || 0;
+    var mins   = s.timeLimit     || 0;
+    var meta   = qCount + ' question' + (qCount !== 1 ? 's' : '') +
+                 ' · ' + mins + ' min' + (mins !== 1 ? 's' : '');
+
     return '<div class="subj-card" id="subj_' + s._id + '" onclick="toggleSubject(\'' + s._id + '\')">' +
       '<div class="subj-checkbox" id="check_' + s._id + '"></div>' +
       '<div class="subj-info">' +
         '<div class="subj-name">' + s.name + '</div>' +
-        '<div class="subj-meta">' +
-          (s.totalQuestions || 0) + ' questions · ' + (s.timeLimit || 0) + ' mins' +
-          (s.instructions ? ' · ' + s.instructions : '') +
-        '</div>' +
+        '<div class="subj-meta">' + meta + '</div>' +
       '</div>' +
     '</div>';
   }).join('');
