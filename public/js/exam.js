@@ -93,9 +93,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof eceSecurityInit    === 'function') { eceSecurityInit();    }
     /* ✅ ECE Phase 3: Rendering Module */
     if (typeof eceRenderingInit   === 'function') { eceRenderingInit();   }
-    /* ✅ ECE Phase 4: Navigation Module — called last so all globals
-       (_questions, _answers, renderQuestion) are fully initialised. */
-    if (typeof eceNavigationInit  === 'function') { eceNavigationInit();  }
+    /* ✅ ECE Phase 4: Navigation Module */
+    if (typeof eceNavigationInit === 'function') { eceNavigationInit(); }
+    /* ✅ ECE Phase 5: Rules Engine — reads _session.rules for display */
+    if (typeof eceRulesInit      === 'function') { eceRulesInit();      }
   });
 
   /* Prevent accidental navigation */
@@ -398,12 +399,26 @@ async function submitExam(wasAuto, retryCount) {
   });
 
   try {
+    /* ✅ ECE PHASE 5: Build option mappings for shuffle_options grading.
+       When shuffle_options is active, session/start adds _correctAnswerIdx
+       to each question. We send it back so session/submit can grade
+       against the shuffled order, not the original DB order. */
+    var optionMappings = {};
+    if (_session && Array.isArray(_session.questions)) {
+      _session.questions.forEach(function (q) {
+        if (q._id && typeof q._correctAnswerIdx === 'number') {
+          optionMappings[q._id.toString()] = q._correctAnswerIdx;
+        }
+      });
+    }
+
     var res = await apiRequest('/cbt/session/submit', 'POST', {
-      examCategory:  _session.examCategory || 'practice',
-      subjectIds:    _session.selectedSubjectIds || [],
-      answers:       answerPayload,
-      timeTaken:     timeTaken,
-      wasAutoSubmit: wasAuto || false
+      examCategory:   _session.examCategory || 'practice',
+      subjectIds:     _session.selectedSubjectIds || [],
+      answers:        answerPayload,
+      optionMappings: optionMappings,
+      timeTaken:      timeTaken,
+      wasAutoSubmit:  wasAuto || false
     });
 
     if (res.ok) {

@@ -56,6 +56,52 @@ function getExaminationBlueprint() {
   return _ExamBlueprint;
 }
 
+/* ✅ ECE PHASE 5: ECEConfig lazy-loader */
+var _ECEConfig = null;
+function getECEConfig() {
+  if (!_ECEConfig) {
+    try { _ECEConfig = require('../ece/models/ECEConfig.model'); }
+    catch (e) { /* ECEConfig not available — rules engine inactive */ }
+  }
+  return _ECEConfig;
+}
+
+/* Load CBT rules from ECEConfig.
+   Always returns safe defaults — never throws.
+   Called in both session/start and session/submit. */
+async function loadCBTRules() {
+  var defaults = {
+    negative_marking:    false,
+    negative_mark_value: 0.25,
+    attempts_limit:      false,
+    attempts_allowed:    1,
+    shuffle_options:     false,
+    review_allowed:      false
+  };
+  var ECECfgModel = getECEConfig();
+  if (!ECECfgModel) { return defaults; }
+  try {
+    var cfg = await ECECfgModel.findOne({ scope: 'cbt', scopeId: null })
+      .select('capabilities enabled').lean();
+    if (!cfg || !cfg.enabled || !cfg.capabilities || !cfg.capabilities.rules) {
+      return defaults;
+    }
+    var r = cfg.capabilities.rules;
+    return {
+      negative_marking:    !!r.negative_marking,
+      negative_mark_value: typeof r.negative_mark_value === 'number' ? r.negative_mark_value : 0.25,
+      attempts_limit:      !!r.attempts_limit,
+      attempts_allowed:    typeof r.attempts_allowed === 'number' && r.attempts_allowed >= 1
+                             ? Math.floor(r.attempts_allowed) : 1,
+      shuffle_options:     !!r.shuffle_options,
+      review_allowed:      !!r.review_allowed
+    };
+  } catch (e) {
+    console.warn('[CBT] ECE rules config load failed:', e.message);
+    return defaults;
+  }
+}
+
 /* ============================================
    Fisher-Yates shuffle — question ORDER only
    Options are NOT shuffled to preserve answer
@@ -208,6 +254,32 @@ router.post('/session/start', protect, async (req, res) => {
     if (subjects.length === 0)
       return res.status(400).json({ success: false, message: 'No valid subjects found.' });
 
+    /* ✅ ECE PHASE 5: Load rules config once before the subject loop */
+    var _rules = await loadCBTRules();
+
+    /* ✅ ECE PHASE 5: Attempts limit check */
+    if (_rules.attempts_limit) {
+      try {
+        var attemptCount = await Result.countDocuments({
+          userId:       req.user.id,
+          examCategory: examCategory
+        });
+        if (attemptCount >= _rules.attempts_allowed) {
+          return res.status(403).json({
+            success:          false,
+            attemptsExceeded: true,
+            message:          'You have reached the maximum number of attempts (' +
+                              _rules.attempts_allowed + ') for ' +
+                              examCategory.toUpperCase() + ' exams. ' +
+                              'Please contact your administrator.'
+          });
+        }
+      } catch (attErr) {
+        /* Non-critical — allow exam to proceed if check fails */
+        console.warn('[CBT] Attempts limit check failed:', attErr.message);
+      }
+    }
+
     var sessionSubjects    = [];
     var allQuestions       = [];
     var totalTimeSeconds   = 0;
@@ -300,9 +372,28 @@ router.post('/session/start', protect, async (req, res) => {
           }
 
           if (engResult.success && engResult.questions.length > 0) {
-            /* Strip correctAnswer — never sent to client */
+            /* Strip correctAnswer — never sent to client.
+               ✅ ECE PHASE 5: When shuffle_options is enabled, shuffle each
+               question's options and compute the new correct answer index.
+               _correctAnswerIdx is stored in client sessionStorage (not
+               rendered in the UI) so session/submit can grade correctly. */
             allSubjectQs = engResult.questions.map(function (q) {
-              return { _id: q._id, question: q.question, options: q.options };
+              var opts = q.options.slice();
+              var qObj = { _id: q._id, question: q.question, options: opts };
+
+              if (_rules.shuffle_options && opts.length > 1) {
+                /* Fisher-Yates shuffle on index array */
+                var idx = opts.map(function (_, i) { return i; });
+                for (var si = idx.length - 1; si > 0; si--) {
+                  var sj   = Math.floor(Math.random() * (si + 1));
+                  var stmp = idx[si]; idx[si] = idx[sj]; idx[sj] = stmp;
+                }
+                qObj.options = idx.map(function (i) { return opts[i]; });
+                /* New position of correct answer in shuffled order */
+                qObj._correctAnswerIdx = idx.indexOf(q.correctAnswer);
+              }
+
+              return qObj;
             });
             if (engResult.warning) {
               console.warn('[CBT Stage4] Subject', subject.name, '—', engResult.warning);
@@ -375,7 +466,14 @@ router.post('/session/start', protect, async (req, res) => {
         subjects:         sessionSubjects,
         totalQuestions:   finalQuestions.length,
         totalTimeSeconds: totalTimeSeconds,
-        questions:        finalQuestions
+        questions:        finalQuestions,
+        /* ✅ ECE PHASE 5: Rules config for client display and result page */
+        rules: {
+          negativeMarking:   _rules.negative_marking,
+          negativeMarkValue: _rules.negative_mark_value,
+          shuffleOptions:    _rules.shuffle_options,
+          reviewAllowed:     _rules.review_allowed
+        }
       }
     });
 
@@ -458,62 +556,90 @@ router.post('/session/submit', protect, async (req, res) => {
        
        ✅ Direct comparison now works correctly
     ============================================ */
+   /* ✅ ECE PHASE 5: Option mappings for shuffle_options + rules for negative marking */
+    var optionMappings = req.body.optionMappings || {};
+    var submitRules    = await loadCBTRules();
+
     var correctCount     = 0;
+    var wrongCount       = 0;
     var totalAnswered    = questions.length;
     var gradedAnswers    = [];
     var subjectBreakdown = {};
 
-    questions.forEach(function(q) {
-      var qId          = q._id.toString();
-      var userAnswer   = answers[qId];
-      var isCorrect    = (typeof userAnswer === 'number') && (userAnswer === q.correctAnswer);
+    questions.forEach(function (q) {
+      var qId        = q._id.toString();
+      var userAnswer = answers[qId];
+
+      /* ✅ ECE PHASE 5: Use remapped correct answer index when shuffle_options active */
+      var correctIdx = q.correctAnswer;
+      if (typeof optionMappings[qId] === 'number') {
+        correctIdx = optionMappings[qId];
+      }
+
+      var isCorrect = (typeof userAnswer === 'number') && (userAnswer === correctIdx);
 
       if (isCorrect) {
         correctCount++;
         Question.findByIdAndUpdate(q._id, { $inc: { timesAnswered: 1, timesCorrect: 1 } }).exec();
       } else {
+        /* Only count answered-wrong (not skipped) for negative marking */
+        if (typeof userAnswer === 'number') { wrongCount++; }
         Question.findByIdAndUpdate(q._id, { $inc: { timesAnswered: 1 } }).exec();
       }
 
-      /* Subject breakdown */
       var sid = q.subjectId ? q.subjectId.toString() : 'general';
-      if (!subjectBreakdown[sid]) subjectBreakdown[sid] = { correct: 0, total: 0 };
+      if (!subjectBreakdown[sid]) { subjectBreakdown[sid] = { correct: 0, total: 0 }; }
       subjectBreakdown[sid].total++;
-      if (isCorrect) subjectBreakdown[sid].correct++;
+      if (isCorrect) { subjectBreakdown[sid].correct++; }
 
       gradedAnswers.push({
         questionId:    q._id,
         question:      q.question,
         options:       q.options,
         userAnswer:    userAnswer !== undefined ? userAnswer : null,
-        correctAnswer: q.correctAnswer,
+        correctAnswer: correctIdx,   /* remapped index when shuffle active */
         isCorrect:     isCorrect,
         explanation:   q.explanation || '',
         subjectId:     q.subjectId || null
       });
     });
 
-    var scorePercent = totalAnswered > 0 ? Math.round((correctCount / totalAnswered) * 100) : 0;
-    var isPassed     = scorePercent >= 50;
+    /* ✅ ECE PHASE 5: Negative marking — deduct fraction for each wrong answer */
+    var negativeMarksDeducted = 0;
+    var rawScore              = correctCount;
+    var adjustedScore         = correctCount;   /* float allowed for fractional deductions */
+
+    if (submitRules.negative_marking && wrongCount > 0) {
+      var deduction         = wrongCount * submitRules.negative_mark_value;
+      negativeMarksDeducted = Math.round(deduction * 100) / 100;   /* 2 d.p. */
+      adjustedScore         = Math.max(0, correctCount - negativeMarksDeducted);
+    }
+
+    var scorePercent = totalAnswered > 0
+      ? Math.max(0, Math.round((adjustedScore / totalAnswered) * 100))
+      : 0;
+    var isPassed = scorePercent >= 50;
 
     var examTitle = examCategory.toUpperCase() + ' Exam — ' +
       new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' });
 
     /* ✅ FIX: Save result WITHOUT requiring examId */
     var result = await Result.create({
-      userId:         req.user.id,
-      examId:         null,          /* not a legacy exam */
-      examCategory:   examCategory,
-      examTitle:      examTitle,
-      score:          correctCount,
-      totalQuestions: totalAnswered,
-      scorePercent:   scorePercent,
-      passMark:       50,
-      isPassed:       isPassed,
-      timeTaken:      timeTaken,
-      timeAllowed:    0,
-      wasAutoSubmit:  wasAutoSubmit,
-      answers:        gradedAnswers
+      userId:                req.user.id,
+      examId:                null,
+      examCategory:          examCategory,
+      examTitle:             examTitle,
+      score:                 correctCount,          /* correct count — never adjusted */
+      totalQuestions:        totalAnswered,
+      scorePercent:          scorePercent,          /* adjusted for negative marking */
+      passMark:              50,
+      isPassed:              isPassed,
+      timeTaken:             timeTaken,
+      timeAllowed:           0,
+      wasAutoSubmit:         wasAutoSubmit,
+      answers:               gradedAnswers,
+      rawScore:              rawScore,
+      negativeMarksDeducted: negativeMarksDeducted
     });
 
     /* Update user lifetime stats */
@@ -541,14 +667,17 @@ router.post('/session/submit', protect, async (req, res) => {
       success:  true,
       message:  isPassed ? '🎉 Congratulations! You passed!' : '📚 Keep practicing!',
       result: {
-        id:               result._id,
-        score:            correctCount,
-        totalQuestions:   totalAnswered,
-        scorePercent:     scorePercent,
-        isPassed:         isPassed,
-        timeTaken:        timeTaken,
-        subjectBreakdown: subjectBreakdown,
-        gradedAnswers:    gradedAnswers
+        id:                    result._id,
+        score:                 correctCount,
+        totalQuestions:        totalAnswered,
+        scorePercent:          scorePercent,
+        isPassed:              isPassed,
+        timeTaken:             timeTaken,
+        subjectBreakdown:      subjectBreakdown,
+        gradedAnswers:         gradedAnswers,
+        /* ✅ ECE PHASE 5: Negative marking transparency */
+        rawScore:              rawScore,
+        negativeMarksDeducted: negativeMarksDeducted
       }
     });
 

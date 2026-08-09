@@ -195,9 +195,24 @@ document.addEventListener('DOMContentLoaded', function() {
       '<div class="subj-breakdown">' + bRows + '</div>';
   }
 
-  /* Build answers review (collapsible) */
+  /* Build answers review (collapsible)
+     ✅ ECE PHASE 5: Gated by review_allowed capability.
+     Default: show (backward compatible with sessions without rules). */
+  var reviewAllowed = true;
+  if (session.rules && session.rules.reviewAllowed === false) {
+    reviewAllowed = false;
+  }
+
   var answersHtml = '';
-  if (result.gradedAnswers && result.gradedAnswers.length > 0) {
+  if (!reviewAllowed) {
+    answersHtml =
+      '<div style="background:rgba(255,255,255,0.03); border:1px solid var(--border,rgba(255,255,255,0.08)); ' +
+      'border-radius:12px; padding:18px 20px; text-align:center; margin-bottom:16px;">' +
+      '<div style="font-size:20px; margin-bottom:8px;">🔒</div>' +
+      '<div style="font-size:14px; font-weight:700; color:#fff; margin-bottom:4px;">Answer Review Disabled</div>' +
+      '<div style="font-size:13px; color:var(--text-muted,#6b6b8a);">Answer review is not permitted for this examination.</div>' +
+      '</div>';
+  } else if (result.gradedAnswers && result.gradedAnswers.length > 0) {
     var letters = ['A', 'B', 'C', 'D', 'E'];
     var items = result.gradedAnswers.map(function(a, i) {
       var cls = a.isCorrect ? 'correct' : (a.userAnswer === null ? 'skipped' : 'wrong');
@@ -225,6 +240,16 @@ document.addEventListener('DOMContentLoaded', function() {
   var secs = (result.timeTaken || 0) % 60;
   var timeStr = mins + 'm ' + secs + 's';
 
+  /* ✅ ECE PHASE 5: Negative marking display */
+  var hasNegativeMarking = result.negativeMarksDeducted && result.negativeMarksDeducted > 0;
+  var negMarkStatHtml    = '';
+  if (hasNegativeMarking) {
+    negMarkStatHtml =
+      '<div class="stat-box"><div class="stat-val" style="color:#ffa500;">' +
+        '−' + result.negativeMarksDeducted +
+      '</div><div class="stat-lbl">Deducted</div></div>';
+  }
+
   wrap.innerHTML =
     /* Score card */
     '<div class="score-card">' +
@@ -244,9 +269,22 @@ document.addEventListener('DOMContentLoaded', function() {
       '<div class="stats-row">' +
         '<div class="stat-box"><div class="stat-val" style="color:#43e97b">' + result.score + '</div><div class="stat-lbl">Correct</div></div>' +
         '<div class="stat-box"><div class="stat-val">' + result.totalQuestions + '</div><div class="stat-lbl">Questions</div></div>' +
-        '<div class="stat-box"><div class="stat-val" style="color:#ffa500">' + (result.totalQuestions - result.score) + '</div><div class="stat-lbl">Wrong</div></div>' +
+        '<div class="stat-box"><div class="stat-val" style="color:#ff6584">' + (result.totalQuestions - result.score) + '</div><div class="stat-lbl">Wrong</div></div>' +
+        negMarkStatHtml +
         '<div class="stat-box"><div class="stat-val">' + timeStr + '</div><div class="stat-lbl">Time</div></div>' +
       '</div>' +
+      /* ✅ ECE PHASE 5: Negative marking notice */
+      (hasNegativeMarking
+        ? '<div style="background:rgba(255,165,0,0.08); border:1px solid rgba(255,165,0,0.2); ' +
+          'border-radius:10px; padding:10px 14px; margin-bottom:4px; font-size:12px; ' +
+          'color:#ffa500; line-height:1.7;">' +
+          '⚠️ <strong>Negative marking was active.</strong> ' +
+          result.negativeMarksDeducted + ' mark' + (result.negativeMarksDeducted !== 1 ? 's' : '') +
+          ' deducted for wrong answers. ' +
+          (result.rawScore !== null && result.rawScore !== undefined
+            ? 'Raw score: <strong>' + result.rawScore + '/' + result.totalQuestions + '</strong> correct answers.' : '') +
+        '</div>'
+        : '') +
     '</div>' +
 
     /* Subject breakdown */

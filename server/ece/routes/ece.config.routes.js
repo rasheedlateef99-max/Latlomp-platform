@@ -510,6 +510,58 @@ router.get('/exam-navigation', protect, async function (req, res) {
 });
 
 /* ============================================
+   GET /api/ece/exam-rules
+   ✅ ECE PHASE 5: Student-accessible endpoint.
+   Called by ece-rules.js as a fallback when
+   session.rules is not present (e.g. old sessions).
+   Returns only rules capability flags + values.
+
+   FAILURE SAFETY: Always returns valid JSON.
+   All rules default false so no exam is ever
+   blocked by an ECE configuration error.
+============================================ */
+router.get('/exam-rules', protect, async function (req, res) {
+  var SAFE_DEFAULT = {
+    success: true,
+    rules: {
+      negative_marking:    false,
+      negative_mark_value: 0.25,
+      attempts_limit:      false,
+      attempts_allowed:    1,
+      shuffle_options:     false,
+      review_allowed:      false
+    }
+  };
+
+  try {
+    var config = await ECEConfig.findOne({ scope: 'cbt', scopeId: null })
+      .select('capabilities enabled')
+      .lean();
+
+    if (!config || !config.enabled || !config.capabilities || !config.capabilities.rules) {
+      return res.json(SAFE_DEFAULT);
+    }
+
+    var r = config.capabilities.rules;
+    return res.json({
+      success: true,
+      rules: {
+        negative_marking:    !!r.negative_marking,
+        negative_mark_value: typeof r.negative_mark_value === 'number' ? r.negative_mark_value : 0.25,
+        attempts_limit:      !!r.attempts_limit,
+        attempts_allowed:    typeof r.attempts_allowed === 'number' ? r.attempts_allowed : 1,
+        shuffle_options:     !!r.shuffle_options,
+        review_allowed:      !!r.review_allowed
+      }
+    });
+  } catch (e) {
+    console.error('[ECE] GET /exam-rules:', e.message);
+    return res.json(SAFE_DEFAULT);
+  }
+});
+
+
+/* ============================================
    GET /api/ece/exam-rendering
    ✅ ECE PHASE 3: Student-accessible endpoint.
    Called by ece-rendering.js when exam starts.

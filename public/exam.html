@@ -401,9 +401,11 @@
 <script src="js/ece/ece-security.js"></script>
 <!-- ✅ ECE Phase 3: Rendering Module -->
 <script src="js/ece/ece-rendering.js"></script>
-<!-- ✅ ECE Phase 4: Navigation Module — loaded after exam.js so
-     _questions, _currentIdx, _answers, submitExam() are available.
-     Self-contained: if the file is missing, exam.js still works. -->
+<!-- ✅ ECE Phase 4: Navigation Module -->
 <script src="js/ece/ece-navigation.js"></script>
+<!-- ✅ ECE Phase 5: Rules Engine — loaded after exam.js so _session
+     is available. Reads negative_marking from session.rules.
+     Self-contained: if the file is missing, exam.js still works. -->
+<script src="js/ece/ece-rules.js"></script>
 </body>
 </html>

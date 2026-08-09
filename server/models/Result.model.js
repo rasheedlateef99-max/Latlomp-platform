@@ -37,10 +37,11 @@ const resultSchema = new mongoose.Schema(
       default: null
     },
 
-    /* New CBT system — populated when using dept/subject flow */
+    /* New CBT system — populated when using dept/subject flow.
+       ✅ STAGE 6 FIX: Enum removed — accepts any ExamType.key.
+       Dynamic exam types (e.g. 'mobic') would fail enum validation. */
     examCategory: {
       type:    String,
-      enum:    ['jamb', 'waec', 'neco', 'post-utme', 'practice', 'custom', ''],
       default: ''
     },
 
@@ -48,11 +49,15 @@ const resultSchema = new mongoose.Schema(
     examType:    { type: String, default: '' },
     examSubject: { type: String, default: '' },
 
-    score:          { type: Number, default: 0,  min: 0 },
+    score:          { type: Number, default: 0,  min: 0 },  /* correct count (never adjusted) */
     totalQuestions: { type: Number, default: 0,  min: 0 },
-    scorePercent:   { type: Number, default: 0,  min: 0, max: 100 },
+    scorePercent:   { type: Number, default: 0,  min: 0, max: 100 }, /* adjusted for negative marking */
     passMark:       { type: Number, default: 50, min: 0, max: 100 },
     isPassed:       { type: Boolean, default: false },
+
+    /* ✅ ECE PHASE 5: Negative marking transparency */
+    rawScore:              { type: Number, default: null },  /* correct count before deduction */
+    negativeMarksDeducted: { type: Number, default: 0   },  /* total marks deducted */
 
     timeTaken:     { type: Number, default: 0 }, /* seconds */
     timeAllowed:   { type: Number, default: 0 }, /* seconds */
