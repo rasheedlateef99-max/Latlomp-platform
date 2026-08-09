@@ -290,6 +290,96 @@
 
 </div>
 
+<!-- ✅ ECE PHASE 4: REVIEW SCREEN OVERLAY
+     Shown when review_mode is enabled and student
+     clicks Submit. Populated by ece-navigation.js. -->
+<div id="eceReviewOverlay"
+  style="display:none; position:fixed; inset:0;
+         background:rgba(10,10,20,0.97); z-index:600;
+         flex-direction:column; align-items:center;
+         overflow-y:auto; -webkit-overflow-scrolling:touch;
+         animation:fadeIn 0.25s ease;">
+  <div style="width:100%; max-width:600px; padding:24px 20px 60px;">
+
+    <!-- Header -->
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+      <div>
+        <h2 style="font-size:20px; font-weight:800; color:#fff; margin:0 0 4px;">📋 Review Before Submit</h2>
+        <p style="font-size:13px; color:var(--text-muted,#6b6b8a); margin:0;">
+          Check your answers before final submission.
+        </p>
+      </div>
+      <button onclick="eceReviewClose()"
+        style="background:rgba(255,255,255,0.06); border:1px solid var(--border,rgba(255,255,255,0.08));
+               color:var(--text-muted,#6b6b8a); padding:8px 14px; border-radius:8px;
+               font-size:13px; font-weight:700; cursor:pointer; font-family:inherit;">
+        ✕ Close
+      </button>
+    </div>
+
+    <!-- Stats row -->
+    <div id="eceReviewStats"
+      style="display:grid; grid-template-columns:repeat(auto-fit,minmax(90px,1fr));
+             gap:10px; margin-bottom:20px;">
+    </div>
+
+    <!-- Legend -->
+    <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:14px; font-size:12px; color:var(--text-muted,#6b6b8a);">
+      <span>
+        <span style="display:inline-block; width:12px; height:12px; background:rgba(67,233,123,0.3); border-radius:3px; margin-right:5px;"></span>Answered
+      </span>
+      <span>
+        <span style="display:inline-block; width:12px; height:12px; background:rgba(255,101,132,0.2); border-radius:3px; margin-right:5px;"></span>Unanswered
+      </span>
+      <span>
+        <span style="display:inline-block; width:12px; height:12px; background:rgba(167,139,250,0.2); border-radius:3px; margin-right:5px;"></span>Bookmarked
+      </span>
+      <span>
+        <span style="display:inline-block; width:12px; height:12px; background:rgba(255,165,0,0.2); border-radius:3px; margin-right:5px;"></span>Flagged
+      </span>
+    </div>
+
+    <!-- Question grid -->
+    <div id="eceReviewGrid"
+      style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:28px; padding:20px;
+             background:var(--dark-2,#1a1a2e); border:1px solid var(--border,rgba(255,255,255,0.08));
+             border-radius:16px;">
+    </div>
+
+    <!-- Tip -->
+    <div style="font-size:12px; color:var(--text-muted,#6b6b8a); text-align:center;
+                margin-bottom:20px; line-height:1.7;">
+      Click any question number to return to it.
+      Press <kbd style="background:rgba(255,255,255,0.08); padding:1px 6px; border-radius:4px;">Esc</kbd>
+      to close this review.
+    </div>
+
+    <!-- Action buttons -->
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <button onclick="eceReviewSubmit()"
+        style="width:100%; padding:16px; border-radius:12px;
+               background:linear-gradient(135deg,#43e97b,#38f9d7);
+               color:#0f0f1a; font-size:15px; font-weight:800;
+               border:none; cursor:pointer; font-family:inherit; transition:all 0.2s;"
+        onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 20px rgba(67,233,123,0.4)'"
+        onmouseout="this.style.transform=''; this.style.boxShadow=''">
+        ✅ Submit Exam
+      </button>
+      <button onclick="eceReviewClose()"
+        style="width:100%; padding:13px; border-radius:12px;
+               background:rgba(255,255,255,0.04);
+               border:1px solid var(--border,rgba(255,255,255,0.08));
+               color:var(--text-secondary,#a0a0c0); font-size:14px; font-weight:600;
+               cursor:pointer; font-family:inherit; transition:all 0.2s;"
+        onmouseover="this.style.background='rgba(255,255,255,0.08)'"
+        onmouseout="this.style.background='rgba(255,255,255,0.04)'">
+        ← Continue Reviewing
+      </button>
+    </div>
+
+  </div>
+</div>
+
 <!-- QUESTION GRID OVERLAY -->
 <div class="q-grid-overlay" id="qGridOverlay" onclick="handleGridOverlayClick(event)">
   <div class="q-grid-panel">
@@ -309,9 +399,11 @@
 <script src="js/exam.js"></script>
 <!-- ✅ ECE Phase 2: Security Module -->
 <script src="js/ece/ece-security.js"></script>
-<!-- ✅ ECE Phase 3: Rendering Module — loaded after exam.js so
-     _questions and _currentIdx globals are available.
-     Self-contained: if the file is missing, exam.js still works. -->
+<!-- ✅ ECE Phase 3: Rendering Module -->
 <script src="js/ece/ece-rendering.js"></script>
+<!-- ✅ ECE Phase 4: Navigation Module — loaded after exam.js so
+     _questions, _currentIdx, _answers, submitExam() are available.
+     Self-contained: if the file is missing, exam.js still works. -->
+<script src="js/ece/ece-navigation.js"></script>
 </body>
 </html>

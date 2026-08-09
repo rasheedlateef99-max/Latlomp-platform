@@ -458,6 +458,58 @@ router.get('/audit', guard.eceRootOnly, async function (req, res) {
 });
 
 /* ============================================
+   GET /api/ece/exam-navigation
+   ✅ ECE PHASE 4: Student-accessible endpoint.
+   Called by ece-navigation.js on exam start.
+   Returns only navigation capability flags.
+
+   FAILURE SAFETY: Always returns valid JSON.
+   review_mode defaults false so confirmSubmit()
+   is never blocked by an ECE error.
+============================================ */
+router.get('/exam-navigation', protect, async function (req, res) {
+  var SAFE_DEFAULT = {
+    success:    true,
+    navigation: {
+      keyboard_shortcuts: false,
+      question_palette:   false,
+      bookmarking:        false,
+      flag_review:        false,
+      autosave:           false,
+      resume_session:     false,
+      review_mode:        false
+    }
+  };
+
+  try {
+    var config = await ECEConfig.findOne({ scope: 'cbt', scopeId: null })
+      .select('capabilities enabled')
+      .lean();
+
+    if (!config || !config.enabled || !config.capabilities || !config.capabilities.navigation) {
+      return res.json(SAFE_DEFAULT);
+    }
+
+    var n = config.capabilities.navigation;
+    return res.json({
+      success:    true,
+      navigation: {
+        keyboard_shortcuts: !!n.keyboard_shortcuts,
+        question_palette:   !!n.question_palette,
+        bookmarking:        !!n.bookmarking,
+        flag_review:        !!n.flag_review,
+        autosave:           !!n.autosave,
+        resume_session:     !!n.resume_session,
+        review_mode:        !!n.review_mode
+      }
+    });
+  } catch (e) {
+    console.error('[ECE] GET /exam-navigation:', e.message);
+    return res.json(SAFE_DEFAULT);
+  }
+});
+
+/* ============================================
    GET /api/ece/exam-rendering
    ✅ ECE PHASE 3: Student-accessible endpoint.
    Called by ece-rendering.js when exam starts.

@@ -90,10 +90,12 @@ document.addEventListener('DOMContentLoaded', function() {
     startTimer();
     buildQGrid();
     /* ✅ ECE Phase 2: Security Module */
-    if (typeof eceSecurityInit   === 'function') { eceSecurityInit();   }
-    /* ✅ ECE Phase 3: Rendering Module — called after first question
-       is rendered so it has content to process immediately. */
-    if (typeof eceRenderingInit  === 'function') { eceRenderingInit();  }
+    if (typeof eceSecurityInit    === 'function') { eceSecurityInit();    }
+    /* ✅ ECE Phase 3: Rendering Module */
+    if (typeof eceRenderingInit   === 'function') { eceRenderingInit();   }
+    /* ✅ ECE Phase 4: Navigation Module — called last so all globals
+       (_questions, _answers, renderQuestion) are fully initialised. */
+    if (typeof eceNavigationInit  === 'function') { eceNavigationInit();  }
   });
 
   /* Prevent accidental navigation */
@@ -211,12 +213,16 @@ function renderQuestion(idx) {
 
   updateQDot(idx);
 
-  /* ✅ ECE Phase 3: Apply rendering to the question now in the DOM.
-     Called on every question navigation so MathJax, RTL and
-     rich text are re-applied after each renderQuestion() call.
-     No-op if ece-rendering.js is not loaded or module is inactive. */
-  if (typeof eceRenderingApply === 'function') { eceRenderingApply(); }
+ /* ✅ ECE Phase 3: Rendering */
+  if (typeof eceRenderingApply    === 'function') { eceRenderingApply();     }
+  /* ✅ ECE Phase 4: Navigation per-question hook (action bar + state save) */
+  if (typeof eceNavigationOnRender === 'function') { eceNavigationOnRender(idx); }
+
+  /* ✅ ECE Phase 4: Navigation dot enhancement (bookmark/flag CSS classes) */
+  if (typeof eceNavigationUpdateDot === 'function') { eceNavigationUpdateDot(idx); }
 }
+
+
 
 /* ============================================
    ANSWER SELECTION
@@ -336,6 +342,12 @@ function pad(n) { return n < 10 ? '0' + n : String(n); }
    SUBMIT
 ============================================ */
 function confirmSubmit() {
+  /* ✅ ECE Phase 4: Review mode intercept.
+     Returns true if navigation module handled the submit
+     (review screen shown). Returns false to proceed normally. */
+  if (typeof eceNavigationInterceptSubmit === 'function' &&
+      eceNavigationInterceptSubmit()) { return; }
+
   var answered   = Object.keys(_answers).length;
   var unanswered = _questions.length - answered;
 
