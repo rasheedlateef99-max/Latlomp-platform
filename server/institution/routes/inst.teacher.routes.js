@@ -14,6 +14,11 @@ const { requireActiveSubscription }   = require('../middleware/inst.tenant');
 
 var guard = [instProtect, teacherOrAdmin, requireActiveSubscription];
 
+/* ✅ ECE PHASE 6 QIE — Institution CBT question import */
+var multer     = require('multer');
+var qieUpload  = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+var qieHelpers = require('../../platform/utils/qie.helpers');
+
 function shuffle(arr) {
   var a = arr.slice();
   for (var i = a.length - 1; i > 0; i--) {
@@ -301,6 +306,189 @@ router.get('/analytics', guard, async (req, res) => {
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
+});
+
+/* ============================================
+   ECE PHASE 6 — QIE ROUTES (INSTITUTION CBT)
+   Target model: SchoolQuestion
+
+   POST /exams/:id/questions/import/preview
+   POST /exams/:id/questions/import/confirm
+   GET  /exams/:id/questions/export
+   GET  /questions/import-template
+
+   All routes use the same [instProtect, teacherOrAdmin,
+   requireActiveSubscription] guard as the rest of this file.
+   Tenant isolation: req.schoolId on every query.
+============================================ */
+
+/* ----
+   POST /exams/:id/questions/import/preview
+   Parse file or text — returns valid/rejected preview.
+   Does NOT write to DB.
+---- */
+router.post(
+  '/exams/:id/questions/import/preview',
+  guard,
+  qieUpload.single('file'),
+  async (req, res) => {
+    try {
+      var exam = await SchoolExam.findOne({ _id: req.params.id, schoolId: req.schoolId });
+      if (!exam) { return res.status(404).json({ success: false, message: 'Exam not found.' }); }
+
+      var rawQuestions = [];
+
+      if (req.file) {
+        var parseResult = await qieHelpers.parseFileBuffer(req.file.buffer, req.file.originalname);
+        if (!parseResult.valid.length && parseResult.rejected.length > 0) {
+          return res.status(400).json({ success: false, message: parseResult.rejected[0].reason });
+        }
+        rawQuestions = parseResult.valid.concat(
+          parseResult.rejected.map(function (r) { return { question: r.question || '', _rejected: r.reason }; })
+        );
+        rawQuestions = parseResult.valid;
+      } else if (req.body.text) {
+        rawQuestions = qieHelpers.parseCSVText(req.body.text);
+      } else if (Array.isArray(req.body.questions)) {
+        rawQuestions = req.body.questions;
+      } else {
+        return res.status(400).json({ success: false, message: 'Send a file, text, or questions array.' });
+      }
+
+      var validated = qieHelpers.validateQuestions(rawQuestions);
+      return res.json({
+        success: true,
+        preview: {
+          valid:    validated.valid,
+          rejected: validated.rejected,
+          stats: {
+            detected: rawQuestions.length,
+            valid:    validated.valid.length,
+            rejected: validated.rejected.length
+          }
+        }
+      });
+    } catch (err) {
+      console.error('[QIE inst-cbt] preview:', err.message);
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
+);
+
+/* ----
+   POST /exams/:id/questions/import/confirm
+   Saves the pre-validated questions array.
+   Client sends the valid[] array from preview.
+---- */
+router.post('/exams/:id/questions/import/confirm', guard, async (req, res) => {
+  try {
+    var exam = await SchoolExam.findOne({ _id: req.params.id, schoolId: req.schoolId });
+    if (!exam) { return res.status(404).json({ success: false, message: 'Exam not found.' }); }
+    if (exam.status === 'active') {
+      return res.status(400).json({ success: false, message: 'Cannot import questions into an active exam.' });
+    }
+
+    var questions = req.body.questions;
+    if (!Array.isArray(questions) || !questions.length) {
+      return res.status(400).json({ success: false, message: 'No questions to import. Run preview first.' });
+    }
+
+    /* Start sort order after last existing question */
+    var lastQ     = await SchoolQuestion.findOne({ examId: exam._id }).sort({ sortOrder: -1 }).select('sortOrder').lean();
+    var startSort = lastQ ? (lastQ.sortOrder + 1) : 0;
+
+    var docs = questions.map(function (q, i) {
+      return {
+        schoolId:      req.schoolId,
+        examId:        exam._id,
+        questionType:  q.questionType  || 'objective',
+        question:      q.question,
+        options:       q.options       || [],
+        correctAnswer: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
+        explanation:   q.explanation   || '',
+        modelAnswer:   '',
+        markScheme:    '',
+        marks:         1,
+        difficulty:    q.difficulty    || 'medium',
+        topic:         q.topic         || '',
+        imageUrl:      '',
+        tableHtml:     '',
+        audioUrl:      '',
+        sortOrder:     startSort + i
+      };
+    });
+
+    var imported = 0;
+    try {
+      var insertResult = await SchoolQuestion.insertMany(docs, { ordered: false });
+      imported = insertResult.length;
+    } catch (insertErr) {
+      imported = insertErr.insertedDocs ? insertErr.insertedDocs.length : 0;
+    }
+
+    /* Sync totalQuestions on exam */
+    var qCount = await SchoolQuestion.countDocuments({ examId: exam._id, isActive: true });
+    await SchoolExam.findByIdAndUpdate(exam._id, { totalQuestions: qCount });
+
+    return res.json({
+      success:  true,
+      message:  imported + ' question' + (imported !== 1 ? 's' : '') + ' imported successfully.',
+      imported: imported,
+      total:    docs.length
+    });
+  } catch (err) {
+    console.error('[QIE inst-cbt] confirm:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ----
+   GET /exams/:id/questions/export
+   Downloads all questions for this exam as CSV.
+---- */
+router.get('/exams/:id/questions/export', guard, async (req, res) => {
+  try {
+    var exam = await SchoolExam.findOne({ _id: req.params.id, schoolId: req.schoolId });
+    if (!exam) { return res.status(404).json({ success: false, message: 'Exam not found.' }); }
+
+    var questions = await SchoolQuestion.find({ examId: exam._id, isActive: true }).sort({ sortOrder: 1 });
+    var LETTERS   = ['A', 'B', 'C', 'D', 'E'];
+    var rows      = ['question,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty,topic'];
+
+    questions.forEach(function (q) {
+      var opts = q.options || [];
+      rows.push([
+        qieHelpers.csvCell(q.question),
+        qieHelpers.csvCell(opts[0] || ''),
+        qieHelpers.csvCell(opts[1] || ''),
+        qieHelpers.csvCell(opts[2] || ''),
+        qieHelpers.csvCell(opts[3] || ''),
+        LETTERS[q.correctAnswer] || 'A',
+        qieHelpers.csvCell(q.explanation || ''),
+        q.difficulty || 'medium',
+        qieHelpers.csvCell(q.topic || '')
+      ].join(','));
+    });
+
+    var filename = (exam.title || 'questions').replace(/[^a-z0-9]/gi, '_') + '_export.csv';
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"');
+    return res.send(rows.join('\n'));
+  } catch (err) {
+    console.error('[QIE inst-cbt] export:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ----
+   GET /questions/import-template
+   Returns a downloadable CSV template.
+   Registered before /questions/:id to avoid CastError.
+---- */
+router.get('/questions/import-template', guard, function (req, res) {
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="question_import_template.csv"');
+  return res.send(qieHelpers.TEMPLATE_CSV);
 });
 
 module.exports = router;

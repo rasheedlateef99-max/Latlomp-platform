@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Import Questions — LatLomp Institution</title>
+  <link rel="stylesheet" href="../../css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin:0; padding:0; min-height:100vh; background:var(--dark,#0f0f1a); font-family:'Inter',sans-serif; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes spin   { to{transform:rotate(360deg)} }
+
+    .qie-nav {
+      padding:0 20px; height:56px; background:var(--dark-2,#1a1a2e);
+      border-bottom:1px solid var(--border,rgba(255,255,255,0.08));
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .qie-nav a { color:var(--text-muted,#6b6b8a); font-size:13px; text-decoration:none; }
+    .qie-nav-title { font-size:15px; font-weight:800; color:#fff; }
+
+    .qie-wrap { max-width:680px; margin:0 auto; padding:28px 20px 60px; animation:fadeUp 0.3s ease; }
+
+    .qie-card {
+      background:var(--dark-2,#1a1a2e);
+      border:1px solid var(--border,rgba(255,255,255,0.08));
+      border-radius:16px; margin-bottom:20px;
+    }
+    .qie-card-head {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:16px 20px; border-bottom:1px solid var(--border,rgba(255,255,255,0.08));
+    }
+    .qie-card-head h3 { font-size:15px; font-weight:800; color:#fff; margin:0; }
+    .qie-body { padding:20px; }
+
+    .qie-tabs { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+    .qie-tab {
+      padding:8px 16px; border-radius:8px; font-size:13px; font-weight:700;
+      cursor:pointer; font-family:inherit;
+      background:rgba(255,255,255,0.04); border:1px solid var(--border,rgba(255,255,255,0.08));
+      color:var(--text-muted,#6b6b8a); transition:all 0.15s;
+    }
+    .qie-tab.active { background:rgba(108,99,255,0.15); border-color:rgba(108,99,255,0.4); color:#a78bfa; }
+
+    .qie-input {
+      width:100%; background:rgba(255,255,255,0.04);
+      border:1px solid var(--border,rgba(255,255,255,0.08));
+      border-radius:10px; padding:13px 16px;
+      color:#fff; font-size:14px; font-family:inherit;
+      outline:none; transition:border-color 0.2s;
+    }
+    .qie-input:focus { border-color:rgba(108,99,255,0.5); }
+    .qie-label { display:block; font-size:11px; font-weight:700; color:var(--text-muted,#6b6b8a); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:7px; }
+
+    .qie-textarea { resize:vertical; min-height:160px; }
+
+    .qie-drop-zone {
+      border:2px dashed var(--border,rgba(255,255,255,0.12));
+      border-radius:12px; padding:32px 20px;
+      text-align:center; cursor:pointer; transition:all 0.2s;
+      color:var(--text-muted,#6b6b8a); font-size:14px; line-height:1.7;
+    }
+    .qie-drop-zone:hover, .qie-drop-zone.drag-over {
+      border-color:rgba(108,99,255,0.5); background:rgba(108,99,255,0.06); color:#fff;
+    }
+
+    .qie-btn {
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      padding:12px 24px; border-radius:10px; font-size:14px; font-weight:700;
+      cursor:pointer; font-family:inherit; border:none; transition:all 0.2s;
+    }
+    .qie-btn-primary { background:linear-gradient(135deg,var(--primary,#6c63ff),var(--primary-dark,#574fd6)); color:#fff; }
+    .qie-btn-green   { background:linear-gradient(135deg,#43e97b,#38f9d7); color:#0f0f1a; }
+    .qie-btn-secondary {
+      background:rgba(255,255,255,0.06); border:1px solid var(--border,rgba(255,255,255,0.08));
+      color:var(--text-secondary,#a0a0c0);
+    }
+    .qie-btn:hover:not(:disabled) { transform:translateY(-1px); }
+    .qie-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+    .qie-btn-full { width:100%; }
+
+    .qie-spinner {
+      width:16px; height:16px;
+      border:2px solid rgba(255,255,255,0.25); border-top-color:#fff;
+      border-radius:50%; animation:spin 0.7s linear infinite;
+    }
+
+    /* Stats bar */
+    .qie-stats {
+      display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px;
+    }
+    .qie-stat {
+      background:rgba(255,255,255,0.03); border:1px solid var(--border,rgba(255,255,255,0.08));
+      border-radius:10px; padding:12px 16px; text-align:center;
+    }
+    .qie-stat-val { font-size:22px; font-weight:900; line-height:1; }
+    .qie-stat-lbl { font-size:11px; color:var(--text-muted,#6b6b8a); text-transform:uppercase; letter-spacing:0.4px; margin-top:4px; }
+
+    /* Preview table */
+    .qie-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:10px; overflow:hidden; }
+    .qie-table { width:100%; border-collapse:collapse; min-width:520px; }
+    .qie-table th {
+      padding:10px 14px; text-align:left; font-size:11px; font-weight:700;
+      text-transform:uppercase; letter-spacing:0.4px;
+      color:var(--text-muted,#6b6b8a); background:rgba(255,255,255,0.02);
+      border-bottom:1px solid var(--border,rgba(255,255,255,0.08));
+    }
+    .qie-table td {
+      padding:11px 14px; font-size:13px; color:var(--text-secondary,#a0a0c0);
+      border-bottom:1px solid var(--border,rgba(255,255,255,0.05));
+      vertical-align:top;
+    }
+    .qie-table tr:last-child td { border-bottom:none; }
+
+    .badge {
+      display:inline-block; padding:2px 8px; border-radius:20px;
+      font-size:10px; font-weight:700; text-transform:uppercase;
+    }
+    .badge-green  { background:rgba(67,233,123,0.12); color:#43e97b; }
+    .badge-orange { background:rgba(255,165,0,0.12);  color:#ffa500; }
+    .badge-red    { background:rgba(255,101,132,0.12);color:#ff6584; }
+
+    .qie-err {
+      background:rgba(255,101,132,0.08); border:1px solid rgba(255,101,132,0.25);
+      color:#ff6584; padding:12px 16px; border-radius:10px; font-size:13px;
+      margin-bottom:14px; line-height:1.5; display:none;
+    }
+    .qie-success {
+      background:rgba(67,233,123,0.08); border:1px solid rgba(67,233,123,0.25);
+      color:#43e97b; padding:14px 18px; border-radius:10px; font-size:14px;
+      font-weight:700; text-align:center; margin-bottom:14px; display:none;
+    }
+  </style>
+</head>
+<body>
+
+<nav class="qie-nav">
+  <a id="backLink" href="dashboard.html">← Dashboard</a>
+  <span class="qie-nav-title">📥 Import Questions</span>
+  <span></span>
+</nav>
+
+<div class="qie-wrap">
+
+  <!-- Exam Info -->
+  <div id="examInfoCard" class="qie-card" style="display:none;">
+    <div class="qie-card-head">
+      <h3>📋 Exam</h3>
+      <div style="display:flex; gap:8px;">
+        <a id="templateLink" href="#" download class="qie-btn qie-btn-secondary" style="font-size:12px; padding:6px 14px; text-decoration:none;">⬇ Template</a>
+        <a id="exportLink"   href="#" class="qie-btn qie-btn-secondary" style="font-size:12px; padding:6px 14px; text-decoration:none;">📤 Export</a>
+      </div>
+    </div>
+    <div class="qie-body" style="padding:14px 20px;">
+      <div id="examInfoContent" style="font-size:13px; color:var(--text-secondary,#a0a0c0);"></div>
+    </div>
+  </div>
+
+  <!-- Step 1: Import Method -->
+  <div class="qie-card" id="importCard">
+    <div class="qie-card-head"><h3>1. Choose Import Method</h3></div>
+    <div class="qie-body">
+
+      <div class="qie-tabs">
+        <button class="qie-tab active" onclick="qieSetMethod('paste', this)">📋 Paste Text / CSV</button>
+        <button class="qie-tab"        onclick="qieSetMethod('file', this)">📁 Upload File</button>
+      </div>
+
+      <!-- Paste -->
+      <div id="pasteArea">
+        <label class="qie-label">Paste questions in CSV format</label>
+        <textarea id="pasteText" class="qie-input qie-textarea"
+          placeholder="question,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty,topic
+&quot;What is 2+2?&quot;,&quot;3&quot;,&quot;4&quot;,&quot;5&quot;,&quot;6&quot;,&quot;B&quot;,&quot;2+2=4&quot;,&quot;easy&quot;,&quot;maths&quot;"></textarea>
+      </div>
+
+      <!-- File -->
+      <div id="fileArea" style="display:none;">
+        <div class="qie-drop-zone" id="dropZone"
+          onclick="document.getElementById('fileInput').click()"
+          ondragover="qieDragOver(event)"
+          ondragleave="qieDragLeave(event)"
+          ondrop="qieDrop(event)">
+          <div style="font-size:36px; margin-bottom:8px;">📄</div>
+          <strong>Click to upload or drag and drop</strong><br>
+          <span style="font-size:12px;">CSV · TXT · DOCX · XLSX (max 5MB)</span>
+          <div id="fileLabel" style="margin-top:8px; font-size:12px; color:#43e97b;"></div>
+        </div>
+        <input type="file" id="fileInput" style="display:none;"
+          accept=".csv,.txt,.docx,.xlsx,.xls" onchange="qieFileSelected(this)" />
+      </div>
+
+      <div id="qieErr" class="qie-err"></div>
+
+      <button class="qie-btn qie-btn-primary qie-btn-full" id="previewBtn"
+        onclick="qieRunPreview()" style="margin-top:16px;">
+        🔍 Validate & Preview
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 2: Preview -->
+  <div class="qie-card" id="previewCard" style="display:none;">
+    <div class="qie-card-head">
+      <h3>2. Review Questions</h3>
+      <button class="qie-btn qie-btn-secondary" style="font-size:12px; padding:6px 14px;" onclick="qieReset()">← Start Over</button>
+    </div>
+    <div class="qie-body">
+      <div class="qie-stats" id="previewStats"></div>
+
+      <div id="rejectedSection" style="display:none; margin-bottom:16px;">
+        <div style="font-size:12px; font-weight:700; color:#ff6584; margin-bottom:8px;" id="rejectedTitle"></div>
+        <div id="rejectedList" style="font-size:12px; color:var(--text-muted,#6b6b8a); line-height:1.9;"></div>
+      </div>
+
+      <div id="qieSuccessMsg" class="qie-success"></div>
+
+      <div class="qie-table-wrap" id="previewTableWrap">
+        <table class="qie-table">
+          <thead><tr>
+            <th>#</th><th>Question</th><th>Options</th><th>Answer</th><th>Type</th>
+          </tr></thead>
+          <tbody id="previewTableBody"></tbody>
+        </table>
+      </div>
+
+      <button class="qie-btn qie-btn-green qie-btn-full" id="confirmBtn"
+        onclick="qieConfirm()" style="margin-top:16px; display:none;">
+        ✅ Import Questions
+      </button>
+    </div>
+  </div>
+
+</div><!-- /qie-wrap -->
+
+<script src="../../js/main.js"></script>
+<script>
+/* ============================================
+   QIE — Institution Teacher Import UI
+   Supports both CBT (SchoolQuestion) and
+   Paper (PaperQuestion) exam types.
+   Mode is determined by URL parameter:
+     ?type=school&examId=xxx  — CBT import
+     ?type=paper&examId=xxx   — Paper import
+============================================ */
+
+var _examId       = '';
+var _examType     = 'school'; /* 'school' | 'paper' */
+var _method       = 'paste';
+var _selectedFile = null;
+var _previewData  = null;
+
+/* ---- API base path based on type ---- */
+function _apiBase() {
+  return _examType === 'paper' ? '/inst/paper' : '/inst/teacher';
+}
+
+/* ---- Initialise ---- */
+document.addEventListener('DOMContentLoaded', async function() {
+  var params  = new URLSearchParams(window.location.search);
+  _examId     = params.get('examId')  || '';
+  _examType   = params.get('type')    || 'school';
+
+  if (!_examId) {
+    document.getElementById('qieErr').textContent = 'No exam ID in URL. Add ?type=school&examId=xxx';
+    document.getElementById('qieErr').style.display = 'block';
+    return;
+  }
+
+  /* Fetch exam info */
+  try {
+    var token = localStorage.getItem('instToken');
+    var res   = await fetch('/api' + _apiBase() + '/exams/' + _examId, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    var data = await res.json();
+    if (!res.ok || !data.exam) { throw new Error(data.message || 'Exam not found.'); }
+
+    var exam = data.exam;
+    document.getElementById('examInfoCard').style.display = 'block';
+    document.getElementById('examInfoContent').innerHTML =
+      '<strong style="color:#fff;">' + exam.title + '</strong>' +
+      ' &nbsp;·&nbsp; ' + (exam.subject || '') +
+      (exam.class ? ' &nbsp;·&nbsp; ' + exam.class : '') +
+      ' &nbsp;·&nbsp; <span style="color:var(--text-muted);">' + (data.questionCount || 0) + ' questions already</span>';
+
+    /* Set template + export links */
+    document.getElementById('templateLink').href =
+      '/api' + _apiBase() + '/questions/import-template';
+    document.getElementById('exportLink').href =
+      '/api' + _apiBase() + '/exams/' + _examId + '/questions/export';
+    /* Add auth token to export link via JS (download links can't send headers) */
+    document.getElementById('exportLink').onclick = function(e) {
+      e.preventDefault();
+      _downloadWithAuth('/api' + _apiBase() + '/exams/' + _examId + '/questions/export');
+    };
+    document.getElementById('templateLink').onclick = function(e) {
+      e.preventDefault();
+      _downloadWithAuth('/api' + _apiBase() + '/questions/import-template');
+    };
+
+    /* Update back link */
+    document.getElementById('backLink').href = 'dashboard.html';
+
+  } catch(e) {
+    document.getElementById('qieErr').textContent = e.message;
+    document.getElementById('qieErr').style.display = 'block';
+  }
+});
+
+/* ---- Method switching ---- */
+function qieSetMethod(method, btn) {
+  _method = method;
+  document.querySelectorAll('.qie-tab').forEach(function(b) { b.classList.remove('active'); });
+  if (btn) { btn.classList.add('active'); }
+  document.getElementById('pasteArea').style.display = method === 'paste' ? 'block' : 'none';
+  document.getElementById('fileArea').style.display  = method === 'file'  ? 'block' : 'none';
+  qieReset();
+}
+
+/* ---- File handling ---- */
+function qieFileSelected(input) {
+  _selectedFile = input.files && input.files[0];
+  if (_selectedFile) {
+    document.getElementById('fileLabel').textContent =
+      '✅ ' + _selectedFile.name + ' (' + (_selectedFile.size / 1024).toFixed(1) + ' KB)';
+  }
+}
+
+function qieDragOver(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.add('drag-over');
+}
+function qieDragLeave(e) {
+  document.getElementById('dropZone').classList.remove('drag-over');
+}
+function qieDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('drag-over');
+  var file = e.dataTransfer.files[0];
+  if (file) {
+    _selectedFile = file;
+    document.getElementById('fileLabel').textContent =
+      '✅ ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+  }
+}
+
+/* ---- Run preview ---- */
+async function qieRunPreview() {
+  var errEl = document.getElementById('qieErr');
+  errEl.style.display = 'none';
+  _previewData = null;
+
+  var btn = document.getElementById('previewBtn');
+  btn.innerHTML = '<span class="qie-spinner"></span> Validating...';
+  btn.disabled  = true;
+
+  var token = localStorage.getItem('instToken');
+  var url   = '/api' + _apiBase() + '/exams/' + _examId + '/questions/import/preview';
+  var res;
+
+  try {
+    if (_method === 'file') {
+      if (!_selectedFile) {
+        errEl.textContent = 'Please select a file first.';
+        errEl.style.display = 'block';
+        btn.innerHTML = '🔍 Validate & Preview';
+        btn.disabled  = false;
+        return;
+      }
+      var fd = new FormData();
+      fd.append('file', _selectedFile);
+      res = await fetch(url, {
+        method:  'POST',
+        headers: { 'Authorization': 'Bearer ' + token },
+        body:    fd
+      });
+    } else {
+      var text = document.getElementById('pasteText').value.trim();
+      if (!text) {
+        errEl.textContent = 'Please paste some questions first.';
+        errEl.style.display = 'block';
+        btn.innerHTML = '🔍 Validate & Preview';
+        btn.disabled  = false;
+        return;
+      }
+      res = await fetch(url, {
+        method:  'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ text: text })
+      });
+    }
+
+    var data = await res.json();
+    btn.innerHTML = '🔍 Validate & Preview';
+    btn.disabled  = false;
+
+    if (!res.ok || !data.success) {
+      errEl.textContent = data.message || 'Validation failed.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    _previewData = data.preview;
+    _renderPreview(data.preview);
+
+  } catch(e) {
+    btn.innerHTML = '🔍 Validate & Preview';
+    btn.disabled  = false;
+    errEl.textContent = 'Network error: ' + e.message;
+    errEl.style.display = 'block';
+  }
+}
+
+/* ---- Render preview ---- */
+function _renderPreview(preview) {
+  document.getElementById('previewCard').style.display = 'block';
+  document.getElementById('previewCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  var s = preview.stats || {};
+  document.getElementById('previewStats').innerHTML =
+    _stat(s.detected || 0, 'Detected',  '#fff') +
+    _stat(s.valid    || 0, 'Valid',      '#43e97b') +
+    _stat(s.rejected || 0, 'Rejected',   '#ff6584');
+
+  /* Rejected list */
+  var rejSec   = document.getElementById('rejectedSection');
+  var rejTitle = document.getElementById('rejectedTitle');
+  var rejList  = document.getElementById('rejectedList');
+  if ((preview.rejected || []).length > 0) {
+    rejSec.style.display = 'block';
+    rejTitle.textContent = '⚠️ ' + preview.rejected.length + ' rejected question' +
+                           (preview.rejected.length !== 1 ? 's' : '');
+    rejList.innerHTML = preview.rejected.map(function(r) {
+      return '• ' + (r.question || '').substring(0, 60) + ' — <em>' + r.reason + '</em>';
+    }).join('<br>');
+  } else {
+    rejSec.style.display = 'none';
+  }
+
+  /* Valid table */
+  var tbody = document.getElementById('previewTableBody');
+  var validQs = preview.valid || [];
+  var LETTERS = ['A','B','C','D','E'];
+
+  tbody.innerHTML = validQs.slice(0, 30).map(function(q, i) {
+    var optsHtml = (q.options || []).map(function(o, idx) {
+      var isCorrect = idx === q.correctAnswer;
+      return '<span style="font-size:10px;padding:1px 5px;border-radius:3px;margin-right:3px;' +
+        'background:' + (isCorrect ? 'rgba(67,233,123,0.15)' : 'rgba(255,255,255,0.04)') + ';' +
+        'color:' + (isCorrect ? '#43e97b' : 'var(--text-muted)') + ';">' +
+        LETTERS[idx] + ': ' + o.substring(0, 18) + (o.length > 18 ? '…' : '') +
+        (isCorrect ? ' ✓' : '') + '</span>';
+    }).join('');
+
+    var typeBadge = '<span class="badge badge-' +
+      (q.questionType === 'objective' ? 'green' : 'orange') + '">' +
+      q.questionType + '</span>';
+
+    return '<tr>' +
+      '<td style="color:#a78bfa;font-weight:700;">' + (i+1) + '</td>' +
+      '<td style="color:#fff;max-width:220px;">' + q.question.substring(0,80) + (q.question.length>80?'…':'') + '</td>' +
+      '<td>' + (optsHtml || '<span style="font-size:11px;color:var(--text-muted)">—</span>') + '</td>' +
+      '<td><span style="background:rgba(67,233,123,0.12);color:#43e97b;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">' +
+        (LETTERS[q.correctAnswer] || '—') + '</span></td>' +
+      '<td>' + typeBadge + '</td>' +
+    '</tr>';
+  }).join('') + (validQs.length > 30
+    ? '<tr><td colspan="5" style="text-align:center;padding:10px;font-size:12px;color:var(--text-muted);">+ ' + (validQs.length-30) + ' more</td></tr>'
+    : '');
+
+  /* Confirm button */
+  var confirmBtn = document.getElementById('confirmBtn');
+  if (validQs.length > 0) {
+    confirmBtn.textContent = '✅ Import ' + validQs.length + ' Question' + (validQs.length !== 1 ? 's' : '');
+    confirmBtn.style.display = 'inline-flex';
+  } else {
+    confirmBtn.style.display = 'none';
+  }
+}
+
+/* ---- Confirm import ---- */
+async function qieConfirm() {
+  if (!_previewData || !(_previewData.valid || []).length) { return; }
+
+  var count = _previewData.valid.length;
+  if (!confirm('Import ' + count + ' question' + (count!==1?'s':'') + ' into this exam?\n\nThis cannot be undone.')) { return; }
+
+  var btn = document.getElementById('confirmBtn');
+  btn.innerHTML = '<span class="qie-spinner"></span> Importing...';
+  btn.disabled  = true;
+
+  try {
+    var token = localStorage.getItem('instToken');
+    var res   = await fetch(
+      '/api' + _apiBase() + '/exams/' + _examId + '/questions/import/confirm',
+      {
+        method:  'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ questions: _previewData.valid })
+      }
+    );
+    var data = await res.json();
+
+    btn.innerHTML = '✅ Import ' + count + ' Questions';
+    btn.disabled  = false;
+
+    if (res.ok && data.success) {
+      btn.style.display = 'none';
+      var successEl = document.getElementById('qieSuccessMsg');
+      successEl.innerHTML = '✅ ' + data.imported + ' question' + (data.imported!==1?'s':'') + ' imported successfully!<br>' +
+        '<a href="dashboard.html" style="color:#43e97b; font-weight:800;">← Back to Dashboard</a>';
+      successEl.style.display = 'block';
+      _previewData = null;
+    } else {
+      document.getElementById('qieErr').textContent = data.message || 'Import failed.';
+      document.getElementById('qieErr').style.display = 'block';
+    }
+  } catch(e) {
+    btn.innerHTML = '✅ Import Questions';
+    btn.disabled  = false;
+    document.getElementById('qieErr').textContent = 'Network error: ' + e.message;
+    document.getElementById('qieErr').style.display = 'block';
+  }
+}
+
+/* ---- Reset ---- */
+function qieReset() {
+  _previewData = null;
+  _selectedFile = null;
+  document.getElementById('previewCard').style.display = 'none';
+  document.getElementById('qieErr').style.display      = 'none';
+  document.getElementById('qieSuccessMsg').style.display = 'none';
+  document.getElementById('fileLabel').textContent = '';
+  var fi = document.getElementById('fileInput');
+  if (fi) { fi.value = ''; }
+}
+
+/* ---- Stat helper ---- */
+function _stat(val, lbl, color) {
+  return '<div class="qie-stat">' +
+    '<div class="qie-stat-val" style="color:' + color + ';">' + val + '</div>' +
+    '<div class="qie-stat-lbl">' + lbl + '</div>' +
+  '</div>';
+}
+
+/* ---- Authenticated download (fetch + blob) ---- */
+async function _downloadWithAuth(url) {
+  try {
+    var token = localStorage.getItem('instToken');
+    var res   = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!res.ok) { alert('Download failed.'); return; }
+    var blob      = await res.blob();
+    var cd        = res.headers.get('Content-Disposition') || '';
+    var fnMatch   = cd.match(/filename="([^"]+)"/);
+    var filename  = fnMatch ? fnMatch[1] : 'download.csv';
+    var a         = document.createElement('a');
+    a.href        = URL.createObjectURL(blob);
+    a.download    = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch(e) { alert('Download error: ' + e.message); }
+}
+</script>
+</body>
+</html>

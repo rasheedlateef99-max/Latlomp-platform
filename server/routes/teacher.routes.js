@@ -19,6 +19,13 @@ const StudentSubmission = require('../models/StudentSubmission.model');
 const ActivityLog       = require('../models/ActivityLog.model');
 const { protect }       = require('../middleware/auth.middleware');
 
+/* ✅ ECE PHASE 6 QIE — Teacher question import.
+   protect + teacherOnly are applied by router.use() above
+   so no additional auth needed on these routes. */
+var multer     = require('multer');
+var qieUpload  = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+var qieHelpers = require('../platform/utils/qie.helpers');
+
 const teacherOnly = (req, res, next) => {
   if (req.user.role === 'teacher' || req.user.role === 'admin') return next();
   return res.status(403).json({ success: false, message: 'Access denied. Teacher account required.' });
@@ -292,6 +299,188 @@ router.get('/exams/:id/submissions', async (req, res) => {
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Error fetching submissions' });
   }
+});
+
+/* ============================================
+   ECE PHASE 6 — QIE ROUTES (TEACHER PLATFORM)
+   Target model: TeacherQuestion
+
+   CRITICAL: TeacherQuestion uses 'questionText'
+   NOT 'question'. The QIE parser returns 'question'.
+   This file remaps: q.question → questionText.
+
+   Tenant isolation: teacherId: req.user.id
+   Auth: router.use(protect) + router.use(teacherOnly)
+   covers all routes — no extra guard needed.
+
+   POST /exams/:id/questions/import/preview
+   POST /exams/:id/questions/import/confirm
+   GET  /exams/:id/questions/export
+   GET  /questions/import-template
+============================================ */
+
+router.post(
+  '/exams/:id/questions/import/preview',
+  qieUpload.single('file'),
+  async (req, res) => {
+    try {
+      /* ✅ Teacher isolation: only the owner can import into their exam */
+      var exam = await TeacherExam.findOne({ _id: req.params.id, teacherId: req.user.id });
+      if (!exam) { return res.status(404).json({ success: false, message: 'Exam not found.' }); }
+
+      var rawQuestions = [];
+
+      if (req.file) {
+        var parseResult = await qieHelpers.parseFileBuffer(req.file.buffer, req.file.originalname);
+        if (!parseResult.valid.length && parseResult.rejected.length > 0) {
+          return res.status(400).json({ success: false, message: parseResult.rejected[0].reason });
+        }
+        rawQuestions = parseResult.valid;
+      } else if (req.body.text) {
+        rawQuestions = qieHelpers.parseCSVText(req.body.text);
+      } else if (Array.isArray(req.body.questions)) {
+        rawQuestions = req.body.questions;
+      } else {
+        return res.status(400).json({ success: false, message: 'Send a file, text, or questions array.' });
+      }
+
+      /* Apply exam type filter: if exam is 'objective', flag theory questions */
+      var validated = qieHelpers.validateQuestions(rawQuestions);
+
+      if (exam.examType === 'objective') {
+        validated.rejected = validated.rejected.concat(
+          validated.valid.filter(function (q) { return q.questionType === 'theory'; })
+            .map(function (q) { return { question: q.question, reason: 'This exam only accepts objective questions.' }; })
+        );
+        validated.valid = validated.valid.filter(function (q) { return q.questionType !== 'theory'; });
+      } else if (exam.examType === 'theory') {
+        validated.valid = validated.valid.map(function (q) {
+          return Object.assign({}, q, { questionType: 'theory', options: [] });
+        });
+      }
+
+      return res.json({
+        success: true,
+        preview: {
+          valid:    validated.valid,
+          rejected: validated.rejected,
+          stats: {
+            detected: rawQuestions.length,
+            valid:    validated.valid.length,
+            rejected: validated.rejected.length
+          },
+          examType: exam.examType  /* client uses this to show appropriate preview columns */
+        }
+      });
+    } catch (err) {
+      console.error('[QIE teacher] preview:', err.message);
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
+);
+
+router.post('/exams/:id/questions/import/confirm', async (req, res) => {
+  try {
+    var exam = await TeacherExam.findOne({ _id: req.params.id, teacherId: req.user.id });
+    if (!exam) { return res.status(404).json({ success: false, message: 'Exam not found.' }); }
+    if (!exam.isActive) {
+      return res.status(400).json({ success: false, message: 'Cannot import into an inactive exam.' });
+    }
+
+    var questions = req.body.questions;
+    if (!Array.isArray(questions) || !questions.length) {
+      return res.status(400).json({ success: false, message: 'No questions to import. Run preview first.' });
+    }
+
+    var existingCount = await TeacherQuestion.countDocuments({ examId: req.params.id });
+
+    var docs = questions.map(function (q, i) {
+      var isTheory  = q.questionType === 'theory' || exam.examType === 'theory';
+      return {
+        examId:         req.params.id,
+        questionType:   isTheory ? 'theory' : 'objective',
+        /* ✅ CRITICAL REMAP: parser returns 'question', model needs 'questionText' */
+        questionText:   q.question,
+        options:        isTheory ? [] : (q.options || []),
+        correctAnswer:  isTheory ? null : (typeof q.correctAnswer === 'number' ? q.correctAnswer : 0),
+        expectedAnswer: isTheory ? (q.explanation || '') : '',
+        marks:          1,
+        orderNumber:    existingCount + i + 1
+      };
+    });
+
+    var imported = 0;
+    try {
+      var insertResult = await TeacherQuestion.insertMany(docs, { ordered: false });
+      imported = insertResult.length;
+    } catch (insertErr) {
+      imported = insertErr.insertedDocs ? insertErr.insertedDocs.length : 0;
+    }
+
+    await ActivityLog.record({
+      userId:      req.user.id,
+      userName:    req.user.name  || 'Teacher',
+      userEmail:   req.user.email || '',
+      userRole:    'teacher',
+      action:      'teacher_questions_imported',
+      description: 'Teacher imported ' + imported + ' questions into exam "' + exam.title + '"',
+      metadata:    { examId: exam._id, examTitle: exam.title, imported: imported }
+    });
+
+    return res.json({
+      success:  true,
+      message:  imported + ' question' + (imported !== 1 ? 's' : '') + ' imported.',
+      imported: imported,
+      total:    docs.length
+    });
+  } catch (err) {
+    console.error('[QIE teacher] confirm:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.get('/exams/:id/questions/export', async (req, res) => {
+  try {
+    var exam = await TeacherExam.findOne({ _id: req.params.id, teacherId: req.user.id });
+    if (!exam) { return res.status(404).json({ success: false, message: 'Exam not found.' }); }
+
+    var questions = await TeacherQuestion.find({ examId: req.params.id }).sort({ orderNumber: 1 });
+    var LETTERS   = ['A', 'B', 'C', 'D', 'E'];
+    var rows      = ['question,option_a,option_b,option_c,option_d,correct_answer,expected_answer,marks'];
+
+    questions.forEach(function (q) {
+      var opts = q.options || [];
+      var ca   = q.questionType === 'objective' ? (LETTERS[q.correctAnswer] || 'A') : '';
+      rows.push([
+        qieHelpers.csvCell(q.questionText || q.question || ''),
+        qieHelpers.csvCell(opts[0] || ''),
+        qieHelpers.csvCell(opts[1] || ''),
+        qieHelpers.csvCell(opts[2] || ''),
+        qieHelpers.csvCell(opts[3] || ''),
+        ca,
+        qieHelpers.csvCell(q.expectedAnswer || ''),
+        q.marks || 1
+      ].join(','));
+    });
+
+    var filename = (exam.title || 'questions').replace(/[^a-z0-9]/gi, '_') + '_export.csv';
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"');
+    return res.send(rows.join('\n'));
+  } catch (err) {
+    console.error('[QIE teacher] export:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* GET /questions/import-template
+   Must be before any /questions/:id routes to avoid CastError.
+   In teacher.routes.js the only /questions/:id routes are
+   PUT and DELETE — different HTTP methods — so no conflict. */
+router.get('/questions/import-template', function (req, res) {
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="teacher_question_template.csv"');
+  return res.send(qieHelpers.TEMPLATE_CSV);
 });
 
 module.exports = router;

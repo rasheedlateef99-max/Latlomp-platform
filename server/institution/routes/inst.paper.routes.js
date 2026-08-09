@@ -24,6 +24,11 @@ const { requireActiveSubscription }   = require('../middleware/inst.tenant');
 
 var guard = [instProtect, teacherOrAdmin, requireActiveSubscription];
 
+/* ✅ ECE PHASE 6 QIE — Institution Paper question import */
+var multer     = require('multer');
+var qieUpload  = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+var qieHelpers = require('../../platform/utils/qie.helpers');
+
 /* ============================================
    POST /exams
    Create a new paper exam (status: draft)
@@ -328,6 +333,163 @@ router.delete('/questions/:id', guard, async (req, res) => {
     console.error('[inst.paper] DELETE /questions/:id:', err.message);
     return res.status(500).json({ success: false, message: err.message });
   }
+});
+
+/* ============================================
+   ECE PHASE 6 — QIE ROUTES (INSTITUTION PAPER)
+   Target model: PaperQuestion
+
+   POST /exams/:id/questions/import/preview
+   POST /exams/:id/questions/import/confirm
+   GET  /exams/:id/questions/export
+   GET  /questions/import-template
+============================================ */
+
+router.post(
+  '/exams/:id/questions/import/preview',
+  guard,
+  qieUpload.single('file'),
+  async (req, res) => {
+    try {
+      var exam = await PaperExam.findOne({ _id: req.params.id, schoolId: req.schoolId });
+      if (!exam) { return res.status(404).json({ success: false, message: 'Paper exam not found.' }); }
+
+      var rawQuestions = [];
+
+      if (req.file) {
+        var parseResult = await qieHelpers.parseFileBuffer(req.file.buffer, req.file.originalname);
+        if (!parseResult.valid.length && parseResult.rejected.length > 0) {
+          return res.status(400).json({ success: false, message: parseResult.rejected[0].reason });
+        }
+        rawQuestions = parseResult.valid;
+      } else if (req.body.text) {
+        rawQuestions = qieHelpers.parseCSVText(req.body.text);
+      } else if (Array.isArray(req.body.questions)) {
+        rawQuestions = req.body.questions;
+      } else {
+        return res.status(400).json({ success: false, message: 'Send a file, text, or questions array.' });
+      }
+
+      var validated = qieHelpers.validateQuestions(rawQuestions);
+      return res.json({
+        success: true,
+        preview: {
+          valid:    validated.valid,
+          rejected: validated.rejected,
+          stats: {
+            detected: rawQuestions.length,
+            valid:    validated.valid.length,
+            rejected: validated.rejected.length
+          }
+        }
+      });
+    } catch (err) {
+      console.error('[QIE inst-paper] preview:', err.message);
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
+);
+
+router.post('/exams/:id/questions/import/confirm', guard, async (req, res) => {
+  try {
+    var exam = await PaperExam.findOne({ _id: req.params.id, schoolId: req.schoolId });
+    if (!exam) { return res.status(404).json({ success: false, message: 'Paper exam not found.' }); }
+    if (exam.status === 'finalized') {
+      return res.status(400).json({ success: false, message: 'Cannot import questions into a finalized exam. Revert to draft first.' });
+    }
+
+    var questions = req.body.questions;
+    if (!Array.isArray(questions) || !questions.length) {
+      return res.status(400).json({ success: false, message: 'No questions to import. Run preview first.' });
+    }
+
+    var lastQ     = await PaperQuestion.findOne({ examId: exam._id }).sort({ sortOrder: -1 }).select('sortOrder').lean();
+    var startSort = lastQ ? (lastQ.sortOrder + 1) : 0;
+    var section   = (req.body.section || '').trim();  /* optional bulk section assignment */
+
+    var docs = questions.map(function (q, i) {
+      return {
+        schoolId:        req.schoolId,
+        examId:          exam._id,
+        questionType:    q.questionType  || 'objective',
+        question:        q.question,
+        options:         q.options       || [],
+        correctAnswer:   typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
+        modelAnswer:     '',
+        markScheme:      '',
+        marks:           1,
+        difficulty:      q.difficulty    || 'medium',
+        topic:           q.topic         || '',
+        imageUrl:        '',
+        tableHtml:       '',
+        section:         section,
+        answerSpaceLines:4,
+        sortOrder:       startSort + i
+      };
+    });
+
+    var imported = 0;
+    try {
+      var insertResult = await PaperQuestion.insertMany(docs, { ordered: false });
+      imported = insertResult.length;
+    } catch (insertErr) {
+      imported = insertErr.insertedDocs ? insertErr.insertedDocs.length : 0;
+    }
+
+    var qCount = await PaperQuestion.countDocuments({ examId: exam._id, isActive: true });
+    await PaperExam.findByIdAndUpdate(exam._id, { totalQuestions: qCount });
+
+    return res.json({
+      success:  true,
+      message:  imported + ' question' + (imported !== 1 ? 's' : '') + ' imported.',
+      imported: imported,
+      total:    docs.length
+    });
+  } catch (err) {
+    console.error('[QIE inst-paper] confirm:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.get('/exams/:id/questions/export', guard, async (req, res) => {
+  try {
+    var exam = await PaperExam.findOne({ _id: req.params.id, schoolId: req.schoolId });
+    if (!exam) { return res.status(404).json({ success: false, message: 'Paper exam not found.' }); }
+
+    var questions = await PaperQuestion.find({ examId: exam._id, isActive: true }).sort({ sortOrder: 1 });
+    var LETTERS   = ['A', 'B', 'C', 'D', 'E'];
+    var rows      = ['question,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty,topic,section'];
+
+    questions.forEach(function (q) {
+      var opts = q.options || [];
+      rows.push([
+        qieHelpers.csvCell(q.question),
+        qieHelpers.csvCell(opts[0] || ''),
+        qieHelpers.csvCell(opts[1] || ''),
+        qieHelpers.csvCell(opts[2] || ''),
+        qieHelpers.csvCell(opts[3] || ''),
+        LETTERS[q.correctAnswer] || 'A',
+        qieHelpers.csvCell(q.modelAnswer || ''),
+        q.difficulty || 'medium',
+        qieHelpers.csvCell(q.topic    || ''),
+        qieHelpers.csvCell(q.section  || '')
+      ].join(','));
+    });
+
+    var filename = (exam.title || 'paper').replace(/[^a-z0-9]/gi, '_') + '_export.csv';
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"');
+    return res.send(rows.join('\n'));
+  } catch (err) {
+    console.error('[QIE inst-paper] export:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.get('/questions/import-template', guard, function (req, res) {
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="paper_question_template.csv"');
+  return res.send(qieHelpers.TEMPLATE_CSV);
 });
 
 module.exports = router;
