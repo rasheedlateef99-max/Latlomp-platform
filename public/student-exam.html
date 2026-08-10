@@ -364,8 +364,94 @@
     </div>
   </div>
 
-  <script src="js/main.js"></script>
+ <script src="js/main.js"></script>
   <script src="js/student-exam.js"></script>
+
+  <!-- ✅ ECE PHASE 7: sState Bridge
+       student-exam.js declares sState with `let`, so it is NOT on window.
+       Phase G IIFE reads window.examQuestions + window.currentQuestionIndex.
+       Phase H sTriggerSubmit reads window.examQuestions + window.studentAnswers.
+       Without this bridge, Phase G returns early (dead code) and the submit
+       confirm modal always shows "0 answered of 0".
+
+       FIX: Seed from sessionStorage (student-exam.js stores questions there)
+       and patch renderStudentQuestion / sSelectAnswer / saveTheoryAnswer to
+       keep window globals in sync on every navigation and answer selection.
+       student-exam.js is NOT modified. -->
+  <script>
+  (function () {
+    'use strict';
+
+    /* ---- Seed window.examQuestions from sessionStorage ---- */
+    function _seedQuestions () {
+      try {
+        var raw = sessionStorage.getItem('student_questions');
+        if (raw) {
+          var parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length) {
+            window.examQuestions = parsed;
+          }
+        }
+      } catch (e) { /* silent — Phase G falls back gracefully */ }
+    }
+
+    /* Run immediately — sessionStorage is synchronous */
+    _seedQuestions();
+
+    if (!window.studentAnswers) { window.studentAnswers = {}; }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      /* Re-seed in case sessionStorage was populated after script load */
+      _seedQuestions();
+
+      /* ---- Patch renderStudentQuestion → sync currentQuestionIndex ---- */
+      var _origRSQ = window.renderStudentQuestion;
+      if (typeof _origRSQ === 'function') {
+        window.renderStudentQuestion = function (index) {
+          _origRSQ.apply(this, arguments);
+          window.currentQuestionIndex = index;
+          /* Re-seed in case questions reloaded */
+          _seedQuestions();
+        };
+      }
+
+      /* ---- Patch sSelectAnswer → maintain window.studentAnswers ---- */
+      var _origSel = window.sSelectAnswer;
+      if (typeof _origSel === 'function') {
+        window.sSelectAnswer = function (optionIndex) {
+          _origSel.apply(this, arguments);
+          var qs  = window.examQuestions || [];
+          var idx = (typeof window.currentQuestionIndex === 'number')
+            ? window.currentQuestionIndex : 0;
+          var q   = qs[idx];
+          if (q) {
+            var qId = q._id || q.id;
+            if (!window.studentAnswers) { window.studentAnswers = {}; }
+            window.studentAnswers[qId] = optionIndex;
+          }
+        };
+      }
+
+      /* ---- Patch saveTheoryAnswer → maintain window.studentAnswers ---- */
+      var _origSTA = window.saveTheoryAnswer;
+      if (typeof _origSTA === 'function') {
+        window.saveTheoryAnswer = function () {
+          _origSTA.apply(this, arguments);
+          var inp = document.getElementById('sTheoryAnswer');
+          var qs  = window.examQuestions || [];
+          var idx = (typeof window.currentQuestionIndex === 'number')
+            ? window.currentQuestionIndex : 0;
+          var q   = qs[idx];
+          if (q && inp) {
+            var qId = q._id || q.id;
+            if (!window.studentAnswers) { window.studentAnswers = {}; }
+            window.studentAnswers[qId] = inp.value;
+          }
+        };
+      }
+    });
+  })();
+  </script>
 
   <!-- ============================================
        ✅ PHASE H: MULTI-LANGUAGE SYSTEM

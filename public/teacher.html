@@ -301,9 +301,17 @@
       <!-- QUESTIONS -->
       <section class="teacher-section" id="ts-questions">
         <div class="t-page-header">
-          <div><h1>Question Bank</h1><p>Manage questions for your exams</p></div>
-          <button class="t-btn t-btn-green" id="addQuestionBtn" onclick="openAddQuestionModal()" style="display:none;">+ Add Question</button>
-        </div>
+            <div><h1>Question Bank</h1><p>Manage questions for your exams</p></div>
+            <!-- ✅ ECE PHASE 7: Import + Add buttons -->
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <button class="t-btn t-btn-secondary" id="importQuestionsBtn"
+                onclick="openQIEImport()"
+                style="display:none; gap:6px;">
+                📥 Import Questions
+              </button>
+              <button class="t-btn t-btn-green" id="addQuestionBtn" onclick="openAddQuestionModal()" style="display:none;">+ Add Question</button>
+            </div>
+          </div>
         <div class="t-card" style="margin-bottom:20px;">
           <div style="padding:18px 22px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
             <label style="font-size:14px; font-weight:600; color:var(--text-secondary); white-space:nowrap;">Select Exam:</label>
@@ -584,6 +592,57 @@
 
 <script src="js/main.js"></script>
 <script src="js/teacher.js"></script>
+
+<!-- ✅ ECE PHASE 7: QIE import button controller.
+     Mirrors addQuestionBtn visibility — shows when an exam is selected.
+     teacher.js is NOT modified. -->
+<script>
+(function () {
+  'use strict';
+
+  /* ---- Open the QIE import page for the selected exam ---- */
+  window.openQIEImport = function () {
+    var selector = document.getElementById('questionExamSelector');
+    var examId   = selector ? selector.value : '';
+    if (!examId) {
+      /* Reuse the existing teacher toast for feedback */
+      var toast = document.getElementById('teacherToast');
+      if (toast) {
+        toast.textContent   = '⚠️ Please select an exam first.';
+        toast.style.display = 'block';
+        setTimeout(function () { toast.style.display = 'none'; }, 2500);
+      }
+      return;
+    }
+    window.location.href =
+      '/institution/teacher/qie.html?type=teacher&examId=' +
+      encodeURIComponent(examId);
+  };
+
+  /* ---- Sync import button visibility with exam selector ---- */
+  document.addEventListener('DOMContentLoaded', function () {
+    var selector  = document.getElementById('questionExamSelector');
+    var importBtn = document.getElementById('importQuestionsBtn');
+    if (!selector || !importBtn) { return; }
+
+    function syncBtn() {
+      /* Show import button whenever an exam is chosen.
+         teacher.js controls addQuestionBtn; we follow the selector directly
+         so the import button is always available as soon as an exam loads. */
+      importBtn.style.display = selector.value ? 'inline-flex' : 'none';
+    }
+
+    selector.addEventListener('change', function () {
+      /* Small delay so teacher.js runs loadTeacherQuestions() first */
+      setTimeout(syncBtn, 350);
+    });
+
+    /* Handle the case where teacher.js restores a previously selected exam */
+    setTimeout(syncBtn, 800);
+  });
+})();
+</script>
+
 <!-- ============================================
      ✅ PHASE G: RICH QUESTION SUPPORT — MAIN PLATFORM
      Image preview, audio URL, table builder,
