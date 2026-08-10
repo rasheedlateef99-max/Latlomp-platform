@@ -256,6 +256,31 @@ function _apiBase() {
   return _examType === 'paper' ? '/inst/paper' : '/inst/teacher';
 }
 
+/* ---- Token resolver ────────────────────────────────────────────
+   Three independent authentication systems — must not be merged.
+
+   type=school  → Institution teacher  → instToken
+   type=paper   → Institution teacher  → instToken
+   type=teacher → Platform teacher     → platform token key
+
+   Platform JWT is stored by main.js / teacher.js under the key
+   used during teacher sign-in. We check the two most common
+   platform storage keys; the correct one will be non-empty.
+   Institution auth (instToken) is completely separate and unaffected.
+──────────────────────────────────────────────────────────────── */
+function _getToken () {
+  if (_examType === 'teacher') {
+    /* Platform teacher — token stored by main.js saveAuthData()
+       under 'latlomp_token'. This is confirmed from main.js line:
+         localStorage.getItem('latlomp_token') in apiRequest().
+       Institution auth is completely separate and unaffected. */
+    return localStorage.getItem('latlomp_token') || '';
+  }
+  /* Institution teacher (type=school or type=paper).
+     inst.api.js stores under 'instToken' — unchanged. */
+  return localStorage.getItem('instToken') || '';
+}
+
 /* ---- Initialise ---- */
 document.addEventListener('DOMContentLoaded', async function() {
   var params  = new URLSearchParams(window.location.search);
@@ -270,7 +295,11 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   /* Fetch exam info */
   try {
-    var token = localStorage.getItem('instToken');
+
+    var token = _getToken();
+    var url   = '/api' + _apiBase() + '/exams/' + _examId + '/questions/import/preview';
+
+    var token = _getToken();
     var res   = await fetch('/api' + _apiBase() + '/exams/' + _examId, {
       headers: { 'Authorization': 'Bearer ' + token }
     });
@@ -492,7 +521,7 @@ async function qieConfirm() {
   btn.disabled  = true;
 
   try {
-    var token = localStorage.getItem('instToken');
+    var token = _getToken();
     var res   = await fetch(
       '/api' + _apiBase() + '/exams/' + _examId + '/questions/import/confirm',
       {
@@ -548,7 +577,7 @@ function _stat(val, lbl, color) {
 /* ---- Authenticated download (fetch + blob) ---- */
 async function _downloadWithAuth(url) {
   try {
-    var token = localStorage.getItem('instToken');
+    var token = _getToken();
     var res   = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
     if (!res.ok) { alert('Download failed.'); return; }
     var blob      = await res.blob();

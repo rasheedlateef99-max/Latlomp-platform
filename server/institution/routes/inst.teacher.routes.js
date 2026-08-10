@@ -19,6 +19,49 @@ var multer     = require('multer');
 var qieUpload  = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 var qieHelpers = require('../../platform/utils/qie.helpers');
 
+/* ============================================
+   ACCESS CODE GENERATOR
+   Generates a unique 8-character alphanumeric
+   access code for a new SchoolExam.
+
+   Uniqueness is checked against exams whose
+   status is NOT 'ended' — active and draft exams
+   both hold their code.
+
+   Ended exams release their code naturally:
+   they will not be found by this query, so their
+   code becomes safe to reuse. The exam document
+   and all its historical data remain in the DB
+   permanently.
+
+   Up to 10 attempts before throwing — a collision
+   on a random 8-char code is extremely unlikely
+   in practice.
+============================================ */
+var _CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; /* no O/0/I/1 ambiguity */
+
+async function generateSchoolExamCode (schoolId) {
+  var attempts = 0;
+  while (attempts < 10) {
+    var code = '';
+    for (var i = 0; i < 8; i++) {
+      code += _CODE_CHARS.charAt(Math.floor(Math.random() * _CODE_CHARS.length));
+    }
+
+    /* Block if ANY non-ended exam in this school uses this code.
+       Ended exams have released the code — they are excluded. */
+    var conflict = await SchoolExam.findOne({
+      schoolId:   schoolId,
+      accessCode: code,
+      status:     { $ne: 'ended' }   /* draft + published both hold their code */
+    }).select('_id').lean();
+
+    if (!conflict) { return code; }
+    attempts++;
+  }
+  throw new Error('Could not generate a unique access code. Please try again.');
+}
+
 function shuffle(arr) {
   var a = arr.slice();
   for (var i = a.length - 1; i > 0; i--) {
@@ -31,9 +74,49 @@ function shuffle(arr) {
 /* ---- Create exam ---- */
 router.post('/exams', guard, async (req, res) => {
   try {
+    /* ── Access Code Resolution ──────────────────────────────────
+       If the teacher supplies an accessCode, validate it is not
+       already held by a non-ended exam in this school.
+       If no code is supplied, generate one automatically.
+       Ended exams do NOT block reuse — they have released their code.
+    ────────────────────────────────────────────────────────────── */
+    var accessCode = '';
+
+    if (req.body.accessCode && req.body.accessCode.trim()) {
+      /* Teacher-supplied code: normalise and validate */
+      accessCode = req.body.accessCode.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (accessCode.length < 4) {
+        return res.status(400).json({
+          success: false,
+          message: 'Access code must be at least 4 alphanumeric characters.'
+        });
+      }
+      var codeConflict = await SchoolExam.findOne({
+        schoolId:   req.schoolId,
+        accessCode: accessCode,
+        status:     { $ne: 'ended' }
+      }).select('_id title').lean();
+
+      if (codeConflict) {
+        return res.status(409).json({
+          success: false,
+          message: 'Access code "' + accessCode + '" is already in use by an active exam in this school. ' +
+                   'Please choose a different code or end that exam first.'
+        });
+      }
+    } else {
+      /* Auto-generate */
+      try {
+        accessCode = await generateSchoolExamCode(req.schoolId);
+      } catch (codeErr) {
+        return res.status(500).json({ success: false, message: codeErr.message });
+      }
+    }
+
     var exam = await SchoolExam.create({
       schoolId:         req.schoolId,
       createdBy:        req.schoolUser._id,
+      accessCode:       accessCode,
       title:            req.body.title,
       subject:          req.body.subject,
       class:            req.body.class            || '',
