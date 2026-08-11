@@ -378,8 +378,15 @@ router.post('/session/start', protect, async (req, res) => {
                _correctAnswerIdx is stored in client sessionStorage (not
                rendered in the UI) so session/submit can grade correctly. */
             allSubjectQs = engResult.questions.map(function (q) {
-              var opts = q.options.slice();
-              var qObj = { _id: q._id, question: q.question, options: opts };
+              /* ✅ STEP 2: (q.options || []) — theory questions have no options.
+                 .slice() on undefined would throw; default to [] prevents that. */
+              var opts = (q.options || []).slice();
+              var qObj = {
+                _id:          q._id,
+                question:     q.question,
+                options:      opts,
+                questionType: q.questionType || 'objective'  /* ✅ STEP 2: pass type to client */
+              };
 
               if (_rules.shuffle_options && opts.length > 1) {
                 /* Fisher-Yates shuffle on index array */
@@ -422,11 +429,14 @@ router.post('/session/start', protect, async (req, res) => {
       var picked = shuffledQs.slice(0, cap);
 
       /* Options stay in ORIGINAL order — index matches DB correctAnswer */
+      /* ✅ STEP 2: questionType included so exam.js renderQuestion()
+         can switch between MCQ options and theory textarea. */
       var tagged = picked.map(function (q) {
         return {
           _id:          q._id,
           question:     q.question,
-          options:      q.options,  /* original order preserved */
+          options:      q.options || [],
+          questionType: q.questionType || 'objective',
           _subjectId:   subject._id.toString(),
           _subjectName: subject.name
         };
@@ -560,15 +570,53 @@ router.post('/session/submit', protect, async (req, res) => {
     var optionMappings = req.body.optionMappings || {};
     var submitRules    = await loadCBTRules();
 
-    var correctCount     = 0;
-    var wrongCount       = 0;
-    var totalAnswered    = questions.length;
-    var gradedAnswers    = [];
+    var correctCount   = 0;
+    var wrongCount     = 0;
+    var objectiveTotal = 0;   /* ✅ STEP 2: objective questions only */
+    var theoryTotal    = 0;   /* ✅ STEP 2: theory questions — pending manual review */
+    var totalAnswered  = questions.length;   /* total Q count preserved for Result record */
+    var gradedAnswers  = [];
     var subjectBreakdown = {};
 
     questions.forEach(function (q) {
       var qId        = q._id.toString();
       var userAnswer = answers[qId];
+
+      /* ✅ STEP 2: Theory questions cannot be auto-graded.
+         Store the student's text answer and mark as pending review.
+         They do NOT contribute to correctCount, wrongCount, or scorePercent.
+         Backward compat: legacy Question docs have no questionType field
+         (undefined) → isTheory is false → treated as objective. ✅ */
+      var isTheory = (q.questionType === 'theory');
+
+      if (isTheory) {
+        theoryTotal++;
+
+        var tSid = q.subjectId ? q.subjectId.toString() : 'general';
+        if (!subjectBreakdown[tSid]) {
+          subjectBreakdown[tSid] = { correct: 0, total: 0, theoryTotal: 0 };
+        }
+        subjectBreakdown[tSid].total++;
+        subjectBreakdown[tSid].theoryTotal =
+          (subjectBreakdown[tSid].theoryTotal || 0) + 1;
+
+        gradedAnswers.push({
+          questionId:    q._id,
+          question:      q.question,
+          options:       [],
+          userAnswer:    (userAnswer !== undefined && userAnswer !== null)
+                           ? String(userAnswer) : null,
+          correctAnswer: 0,
+          isCorrect:     false,       /* pending review — never auto-graded */
+          explanation:   q.explanation || q.modelAnswer || '',
+          subjectId:     q.subjectId || null,
+          questionType:  'theory'
+        });
+        return;   /* skip objective grading for this question */
+      }
+
+      /* ── Objective question grading (unchanged logic) ── */
+      objectiveTotal++;
 
       /* ✅ ECE PHASE 5: Use remapped correct answer index when shuffle_options active */
       var correctIdx = q.correctAnswer;
@@ -600,25 +648,29 @@ router.post('/session/submit', protect, async (req, res) => {
         correctAnswer: correctIdx,   /* remapped index when shuffle active */
         isCorrect:     isCorrect,
         explanation:   q.explanation || '',
-        subjectId:     q.subjectId || null
+        subjectId:     q.subjectId || null,
+        questionType:  'objective'
       });
     });
 
-    /* ✅ ECE PHASE 5: Negative marking — deduct fraction for each wrong answer */
+    /* ✅ ECE PHASE 5: Negative marking — objective questions only */
     var negativeMarksDeducted = 0;
     var rawScore              = correctCount;
-    var adjustedScore         = correctCount;   /* float allowed for fractional deductions */
+    var adjustedScore         = correctCount;
 
     if (submitRules.negative_marking && wrongCount > 0) {
       var deduction         = wrongCount * submitRules.negative_mark_value;
-      negativeMarksDeducted = Math.round(deduction * 100) / 100;   /* 2 d.p. */
+      negativeMarksDeducted = Math.round(deduction * 100) / 100;
       adjustedScore         = Math.max(0, correctCount - negativeMarksDeducted);
     }
 
-    var scorePercent = totalAnswered > 0
-      ? Math.max(0, Math.round((adjustedScore / totalAnswered) * 100))
+    /* ✅ STEP 2: Score calculated from objective questions only.
+       Theory questions are pending manual review and cannot affect auto-score.
+       If session has ONLY theory questions, score = 0 until teacher marks. */
+    var scorePercent = objectiveTotal > 0
+      ? Math.max(0, Math.round((adjustedScore / objectiveTotal) * 100))
       : 0;
-    var isPassed = scorePercent >= 50;
+    var isPassed = objectiveTotal > 0 ? (scorePercent >= 50) : false;
 
     var examTitle = examCategory.toUpperCase() + ' Exam — ' +
       new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -670,6 +722,9 @@ router.post('/session/submit', protect, async (req, res) => {
         id:                    result._id,
         score:                 correctCount,
         totalQuestions:        totalAnswered,
+        objectiveTotal:        objectiveTotal,    /* ✅ STEP 2 */
+        theoryTotal:           theoryTotal,        /* ✅ STEP 2 */
+        hasTheoryPending:      theoryTotal > 0,    /* ✅ STEP 2 */
         scorePercent:          scorePercent,
         isPassed:              isPassed,
         timeTaken:             timeTaken,

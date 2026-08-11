@@ -179,20 +179,38 @@ function renderQuestion(idx) {
   /* Question text */
   document.getElementById('qText').textContent = q.question || '';
 
-  /* Options */
+  /* ✅ STEP 2: Theory-aware question rendering */
   var listEl      = document.getElementById('optionsList');
+  var theoryEl    = document.getElementById('theoryAnswer');
   var options     = q.options || [];
   var qId         = q._id ? q._id.toString() : '';
   var savedAnswer = _answers[qId];
+  var isTheory    = (q.questionType === 'theory');
 
-  listEl.innerHTML = options.map(function(opt, i) {
-    var isSelected = savedAnswer === i;
-    return '<button class="option-btn' + (isSelected ? ' selected' : '') + '" ' +
-      'onclick="selectAnswer(' + i + ')">' +
-      '<span class="option-letter">' + (letters[i] || i) + '</span>' +
-      '<span class="option-text">' + opt + '</span>' +
-    '</button>';
-  }).join('');
+  if (isTheory) {
+    /* Theory question: hide options list, show textarea */
+    if (listEl)   { listEl.innerHTML  = '';    listEl.style.display   = 'none';  }
+    if (theoryEl) {
+      theoryEl.style.display = 'block';
+      theoryEl.dataset.qid   = qId;
+      /* Restore previously typed answer or clear for fresh question */
+      theoryEl.value = (typeof savedAnswer === 'string') ? savedAnswer : '';
+    }
+  } else {
+    /* Objective question: show options, hide textarea */
+    if (theoryEl) { theoryEl.style.display = 'none'; theoryEl.value = ''; }
+    if (listEl) {
+      listEl.style.display = '';
+      listEl.innerHTML = options.map(function(opt, i) {
+        var isSelected = savedAnswer === i;
+        return '<button class="option-btn' + (isSelected ? ' selected' : '') + '" ' +
+          'onclick="selectAnswer(' + i + ')">' +
+          '<span class="option-letter">' + (letters[i] || i) + '</span>' +
+          '<span class="option-text">' + opt + '</span>' +
+        '</button>';
+      }).join('');
+    }
+  }
 
   /* Subject tag in topbar */
   document.getElementById('examSubjectTag').textContent =
@@ -244,6 +262,23 @@ function selectAnswer(optionIdx) {
     else btn.classList.remove('selected');
   });
 
+  updateQDot(_currentIdx);
+}
+
+/* ============================================
+   THEORY ANSWER SAVE
+   ✅ STEP 2: Called by the theory textarea oninput.
+   Stores the text in _answers[qId] (same _answers
+   map as objective answers — Mixed type in Result schema).
+   Persists to sessionStorage identically to selectAnswer().
+============================================ */
+function saveTheoryAnswer() {
+  var el  = document.getElementById('theoryAnswer');
+  if (!el) { return; }
+  var qId = el.dataset.qid;
+  if (!qId) { return; }
+  _answers[qId] = el.value;
+  try { sessionStorage.setItem('cbtAnswers', JSON.stringify(_answers)); } catch (e) {}
   updateQDot(_currentIdx);
 }
 
@@ -391,11 +426,18 @@ async function submitExam(wasAuto, retryCount) {
 
   var timeTaken = Math.round((Date.now() - _startTime) / 1000);
 
-  /* Build answer payload — verify it's not empty */
+  /* Build answer payload — includes both objective (number) and theory (string).
+     ✅ STEP 2: Theory text answers are strings — previously filtered out by
+     typeof val === 'number' check which silently dropped them.
+     Empty strings are excluded: a blank textarea is not an answer. */
   var answerPayload = {};
   Object.keys(_answers).forEach(function(qId) {
     var val = _answers[qId];
-    if (typeof val === 'number') answerPayload[qId] = val;
+    if (typeof val === 'number') {
+      answerPayload[qId] = val;
+    } else if (typeof val === 'string' && val.trim()) {
+      answerPayload[qId] = val;
+    }
   });
 
   try {

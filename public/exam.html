@@ -278,6 +278,28 @@
     <div class="q-counter" id="qCounter">Question 1 of 1</div>
     <div class="q-text"    id="qText">Loading...</div>
     <div class="options-list" id="optionsList"></div>
+
+    <!-- ✅ STEP 2: Theory answer input — hidden for objective questions.
+         Shown by renderQuestion() when q.questionType === 'theory'.
+         oninput calls saveTheoryAnswer() in exam.js.
+         user-select:text overrides the exam body's user-select:none. -->
+    <textarea id="theoryAnswer"
+      style="display:none;
+        width:100%; min-height:160px;
+        background:rgba(255,255,255,0.04);
+        border:2px solid var(--border,rgba(255,255,255,0.08));
+        border-radius:12px; padding:16px 18px;
+        color:var(--text-primary,#fff);
+        font-size:15px; font-family:'Inter',sans-serif; line-height:1.7;
+        resize:vertical; outline:none; box-sizing:border-box;
+        margin-bottom:24px;
+        user-select:text; -webkit-user-select:text;
+        transition:border-color 0.2s;"
+      placeholder="Type your answer here..."
+      oninput="saveTheoryAnswer()"
+      onfocus="this.style.borderColor='var(--primary,#6c63ff)'"
+      onblur="this.style.borderColor='var(--border,rgba(255,255,255,0.08))'">
+    </textarea>
   </div>
 
   <!-- Bottom nav -->

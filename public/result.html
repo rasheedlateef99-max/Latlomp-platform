@@ -215,6 +215,34 @@ document.addEventListener('DOMContentLoaded', function() {
   } else if (result.gradedAnswers && result.gradedAnswers.length > 0) {
     var letters = ['A', 'B', 'C', 'D', 'E'];
     var items = result.gradedAnswers.map(function(a, i) {
+      /* ✅ STEP 2: Theory questions — show text answer + pending review badge.
+         Detection uses questionType field (new) with fallback to structural
+         detection for any edge case where field is missing. */
+      var isTheory = (a.questionType === 'theory') ||
+                     (Array.isArray(a.options) && a.options.length === 0 &&
+                      a.userAnswer !== null && typeof a.userAnswer === 'string');
+
+      if (isTheory) {
+        var hasWritten = a.userAnswer && String(a.userAnswer).trim();
+        var answerText = hasWritten
+          ? String(a.userAnswer).substring(0, 300) +
+            (String(a.userAnswer).length > 300 ? '…' : '')
+          : null;
+        return '<div class="answer-item skipped">' +
+          '<div class="answer-q">📝 Q' + (i + 1) + '. ' + a.question + '</div>' +
+          '<div class="answer-meta">' +
+            (hasWritten
+              ? 'Your answer: <em style="color:var(--text-secondary,#a0a0c0);">' +
+                answerText + '</em>'
+              : '<span style="color:#ff6584;">Not answered</span>') +
+            ' &nbsp;<span style="color:#ffa500; font-weight:700; font-size:11px;">' +
+            '⏳ Pending review</span>' +
+          '</div>' +
+          (a.explanation ? '<div class="answer-expl">💡 Marking guide: ' + a.explanation + '</div>' : '') +
+        '</div>';
+      }
+
+      /* Objective question — unchanged display */
       var cls = a.isCorrect ? 'correct' : (a.userAnswer === null ? 'skipped' : 'wrong');
       var icon = a.isCorrect ? '✅' : (a.userAnswer === null ? '⬜' : '❌');
       var userAns = a.userAnswer !== null && a.userAnswer !== undefined
@@ -250,6 +278,17 @@ document.addEventListener('DOMContentLoaded', function() {
       '</div><div class="stat-lbl">Deducted</div></div>';
   }
 
+/* ✅ STEP 2: Theory pending display */
+  var hasTheoryPending = !!(result.hasTheoryPending ||
+    (result.theoryTotal && result.theoryTotal > 0));
+  var theoryStatHtml = '';
+  if (hasTheoryPending) {
+    theoryStatHtml =
+      '<div class="stat-box"><div class="stat-val" style="color:#ffa500;">' +
+        (result.theoryTotal || '?') +
+      '</div><div class="stat-lbl">Theory (Pending)</div></div>';
+  }
+
   wrap.innerHTML =
     /* Score card */
     '<div class="score-card">' +
@@ -268,11 +307,27 @@ document.addEventListener('DOMContentLoaded', function() {
       '</span>' +
       '<div class="stats-row">' +
         '<div class="stat-box"><div class="stat-val" style="color:#43e97b">' + result.score + '</div><div class="stat-lbl">Correct</div></div>' +
-        '<div class="stat-box"><div class="stat-val">' + result.totalQuestions + '</div><div class="stat-lbl">Questions</div></div>' +
-        '<div class="stat-box"><div class="stat-val" style="color:#ff6584">' + (result.totalQuestions - result.score) + '</div><div class="stat-lbl">Wrong</div></div>' +
+        /* ✅ STEP 2: Show objective count only when theory questions exist */
+        '<div class="stat-box"><div class="stat-val">' +
+          (result.objectiveTotal !== undefined ? result.objectiveTotal : result.totalQuestions) +
+        '</div><div class="stat-lbl">Questions</div></div>' +
+        '<div class="stat-box"><div class="stat-val" style="color:#ff6584">' +
+          ((result.objectiveTotal !== undefined ? result.objectiveTotal : result.totalQuestions) - result.score) +
+        '</div><div class="stat-lbl">Wrong</div></div>' +
         negMarkStatHtml +
+        theoryStatHtml +
         '<div class="stat-box"><div class="stat-val">' + timeStr + '</div><div class="stat-lbl">Time</div></div>' +
       '</div>' +
+      /* ✅ STEP 2: Theory pending notice */
+      (hasTheoryPending
+        ? '<div style="background:rgba(255,165,0,0.08); border:1px solid rgba(255,165,0,0.2); ' +
+          'border-radius:10px; padding:10px 14px; margin-bottom:4px; font-size:12px; ' +
+          'color:#ffa500; line-height:1.7;">' +
+          '⏳ <strong>' + (result.theoryTotal || 'Some') + ' theory question' +
+          ((result.theoryTotal || 1) !== 1 ? 's are' : ' is') + ' pending manual review.</strong> ' +
+          'Your score will be updated after your teacher reviews your written answers.' +
+        '</div>'
+        : '') +
       /* ✅ ECE PHASE 5: Negative marking notice */
       (hasNegativeMarking
         ? '<div style="background:rgba(255,165,0,0.08); border:1px solid rgba(255,165,0,0.2); ' +

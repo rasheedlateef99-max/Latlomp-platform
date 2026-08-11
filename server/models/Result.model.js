@@ -19,7 +19,10 @@ const gradedAnswerSchema = new mongoose.Schema({
   correctAnswer: { type: Number, default: 0 },
   isCorrect:     { type: Boolean, default: false },
   explanation:   { type: String, default: '' },
-  subjectId:     { type: mongoose.Schema.Types.ObjectId, ref: 'Subject', default: null }
+  subjectId:     { type: mongoose.Schema.Types.ObjectId, ref: 'Subject', default: null },
+  /* ✅ STEP 2: Preserves question type on result record.
+     Default 'objective' keeps all existing results valid — no migration needed. */
+  questionType:  { type: String, default: 'objective' }
 }, { _id: false });
 
 const resultSchema = new mongoose.Schema(
