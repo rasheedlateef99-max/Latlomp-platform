@@ -27,6 +27,8 @@ const versionSchema = new mongoose.Schema({
   options:       { type: [String] },
   correctAnswer: { type: Number },
   explanation:   { type: String, default: '' },
+  /* ✅ STEP 2: Track model answer changes in version history */
+  modelAnswer:   { type: String, default: '' },
   editedBy:      { type: String, default: 'system' },
   reason:        { type: String, default: '' }
 }, { timestamps: true });
@@ -85,16 +87,33 @@ const qmsQuestionSchema = new mongoose.Schema(
 
     /* ---- Core question data (compatible with Question.model.js) ---- */
     question:      { type: String, required: true, trim: true },
-    options:       {
-      type:     [String],
-      required: true,
+    options: {
+      type:    [String],
+      default: [],
+      /* ✅ STEP 2: Validator removed from model — route enforces minimum
+         2 options for objective questions before any DB write occurs.
+         Theory questions (no options) now pass model validation.
+         All existing objective questions are unaffected. */
       validate: {
-        validator: function (v) { return v && v.length >= 2; },
+        validator: function () { return true; },
         message:   'At least 2 options are required'
       }
     },
-    correctAnswer: { type: Number, required: true, min: 0 },
+    correctAnswer: {
+      type:    Number,
+      default: null
+      /* ✅ STEP 2: Not required. Theory questions have no correct answer
+         index — they use modelAnswer instead. Route validates the range
+         for objective questions before saving. Null stored for theory.
+         Existing objective questions with correctAnswer: 0 are unaffected
+         (0 is a number, not null). */
+    },
     explanation:   { type: String, default: '', trim: true },
+    /* ✅ STEP 2: Reference / model answer for theory questions.
+       Stores the expected answer or marking guide.
+       Not visible to students — admin/marker facing only.
+       Objective questions leave this empty string. */
+    modelAnswer:   { type: String, default: '', trim: true },
 
     /* ---- Metadata tags ---- */
     topic:      { type: String, default: '', trim: true },

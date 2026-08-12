@@ -2253,6 +2253,88 @@ async function qmsSoftDelete(id, preview) {
   }
 }
 
+/* ============================================================
+   ✅ STEP 2 — QMS THEORY EDITOR SUPPORT
+
+   qmsEnsureEditorTheoryFields():
+     Injects a Question Type selector and Model Answer textarea
+     into the existing QMS edit modal. Idempotent — only runs
+     once per page load. Uses insertAdjacentHTML relative to
+     known element IDs (qmsEditOptA, qmsEditExpl), so the
+     injection is independent of admin.html outer structure.
+
+   qmsToggleEditorForType(type):
+     Shows/hides option fields (A-D + correct answer) and the
+     model answer block based on the selected question type.
+     Hides the PARENT element of each input (which typically
+     includes its label) for a cleaner appearance.
+============================================================ */
+function qmsEnsureEditorTheoryFields () {
+  /* Idempotent — inject only once */
+  if (document.getElementById('qmsEditQuestionType')) { return; }
+
+  var optAEl = document.getElementById('qmsEditOptA');
+  var explEl = document.getElementById('qmsEditExpl');
+  if (!optAEl || !explEl) { return; }   /* modal not yet in DOM */
+
+  /* ── Question Type selector — injected as sibling before optA ── */
+  optAEl.insertAdjacentHTML('beforebegin',
+    '<div id="qmsEditTypeWrap" style="margin-bottom:14px;">' +
+      '<label style="display:block; font-size:11px; font-weight:700; ' +
+        'color:var(--text-muted,#6b6b8a); text-transform:uppercase; ' +
+        'letter-spacing:0.4px; margin-bottom:6px;">Question Type</label>' +
+      '<select id="qmsEditQuestionType" ' +
+          'onchange="qmsToggleEditorForType(this.value)" ' +
+          'style="width:100%; background:rgba(255,255,255,0.04); ' +
+          'border:1px solid var(--border,rgba(255,255,255,0.08)); ' +
+          'border-radius:8px; padding:10px 12px; color:#fff; ' +
+          'font-size:14px; font-family:inherit; outline:none;">' +
+        '<option value="objective">🔘 Objective / MCQ</option>' +
+        '<option value="theory">📝 Theory / Essay</option>' +
+        '<option value="fill_in_blank">✏️ Fill-in-the-Blank</option>' +
+        '<option value="true_false">✓ True / False</option>' +
+      '</select>' +
+    '</div>'
+  );
+
+  /* ── Model Answer textarea — injected as sibling before explEl ── */
+  explEl.insertAdjacentHTML('beforebegin',
+    '<div id="qmsEditModelAnswerWrap" style="display:none; margin-bottom:14px;">' +
+      '<label style="display:block; font-size:11px; font-weight:700; ' +
+        'color:var(--text-muted,#6b6b8a); text-transform:uppercase; ' +
+        'letter-spacing:0.4px; margin-bottom:6px;">' +
+        'Expected Answer / Marking Guide' +
+      '</label>' +
+      '<textarea id="qmsEditModelAnswer" rows="4" ' +
+        'placeholder="Enter the model answer or marking guide for this theory question. ' +
+        'Visible to administrators and markers only — never shown to students." ' +
+        'style="width:100%; background:rgba(255,255,255,0.04); ' +
+        'border:1px solid var(--border,rgba(255,255,255,0.08)); ' +
+        'border-radius:8px; padding:10px 12px; color:#fff; ' +
+        'font-size:14px; font-family:inherit; outline:none; ' +
+        'resize:vertical; min-height:90px; box-sizing:border-box;">' +
+      '</textarea>' +
+    '</div>'
+  );
+}
+
+function qmsToggleEditorForType (type) {
+  var isObjective = (type !== 'theory');
+
+  /* Show/hide objective fields. We hide the PARENT of each input,
+     which typically contains both the label and the input as a unit. */
+  ['qmsEditOptA', 'qmsEditOptB', 'qmsEditOptC', 'qmsEditOptD', 'qmsEditCorrect']
+    .forEach(function (id) {
+      var el   = document.getElementById(id);
+      var wrap = el ? el.parentElement : null;
+      if (wrap) { wrap.style.display = isObjective ? '' : 'none'; }
+    });
+
+  /* Show/hide theory model-answer block */
+  var maWrap = document.getElementById('qmsEditModelAnswerWrap');
+  if (maWrap) { maWrap.style.display = type === 'theory' ? 'block' : 'none'; }
+}
+
 /* ---- Open Edit modal ---- */
 async function qmsOpenEdit(id) {
   /* ✅ STAGE 2: Reset create mode state — we are editing, not creating */
@@ -2286,26 +2368,38 @@ async function qmsOpenEdit(id) {
   document.getElementById('qmsEditTitle').textContent =
     'Edit — ' + (q.questionId || 'Question') + (q.subjectName ? ' · ' + q.subjectName : '');
 
+  /* ✅ STEP 2: Guard against empty options array on theory questions */
+  var opts = Array.isArray(q.options) ? q.options : [];
+
   var flds = {
-    qmsEditQuestion:   q.question     || '',
-    qmsEditOptA:      (q.options[0]   || ''),
-    qmsEditOptB:      (q.options[1]   || ''),
-    qmsEditOptC:      (q.options[2]   || ''),
-    qmsEditOptD:      (q.options[3]   || ''),
-    qmsEditTopic:      q.topic        || '',
-    qmsEditExpl:       q.explanation  || '',
-    qmsEditReason:     '',
-    qmsEditYear:       q.year         || ''
+    qmsEditQuestion:  q.question    || '',
+    qmsEditOptA:      opts[0]       || '',
+    qmsEditOptB:      opts[1]       || '',
+    qmsEditOptC:      opts[2]       || '',
+    qmsEditOptD:      opts[3]       || '',
+    qmsEditTopic:     q.topic       || '',
+    qmsEditExpl:      q.explanation || '',
+    qmsEditReason:    '',
+    qmsEditYear:      q.year        || ''
   };
   Object.keys(flds).forEach(function (id) {
     var el = document.getElementById(id); if (el) el.value = flds[id];
   });
   var correctEl = document.getElementById('qmsEditCorrect');
-  if (correctEl) correctEl.value = String(q.correctAnswer || 0);
+  /* ✅ STEP 2: correctAnswer is null for theory — default display to 0 */
+  if (correctEl) correctEl.value = String(q.correctAnswer !== null && q.correctAnswer !== undefined ? q.correctAnswer : 0);
   var statusEl  = document.getElementById('qmsEditStatus');
   if (statusEl)  statusEl.value  = q.status     || 'approved';
   var diffEl    = document.getElementById('qmsEditDifficulty');
   if (diffEl)    diffEl.value    = q.difficulty || 'medium';
+
+  /* ✅ STEP 2: Inject theory fields (idempotent), set type, load modelAnswer, toggle */
+  qmsEnsureEditorTheoryFields();
+  var qtSel = document.getElementById('qmsEditQuestionType');
+  if (qtSel) { qtSel.value = q.questionType || 'objective'; }
+  var maEl  = document.getElementById('qmsEditModelAnswer');
+  if (maEl)  { maEl.value  = q.modelAnswer  || ''; }
+  qmsToggleEditorForType(q.questionType || 'objective');
 }
 
 /* ---- Save Edit / Create ---- */
@@ -2317,37 +2411,50 @@ async function qmsSaveEdit() {
 
   if (errEl) errEl.style.display = 'none';
 
+  /* ✅ STEP 2: Read question type first — drives all subsequent validation */
+  var currentType = (document.getElementById('qmsEditQuestionType') || {}).value || 'objective';
+  var isTheory    = (currentType === 'theory');
+
   var optA = ((document.getElementById('qmsEditOptA') || {}).value || '').trim();
   var optB = ((document.getElementById('qmsEditOptB') || {}).value || '').trim();
   var optC = ((document.getElementById('qmsEditOptC') || {}).value || '').trim();
   var optD = ((document.getElementById('qmsEditOptD') || {}).value || '').trim();
   var opts = [optA, optB, optC, optD].filter(Boolean);
 
-  if (opts.length < 2) {
-    if (errEl) { errEl.textContent = 'At least 2 options are required.'; errEl.style.display = 'block'; }
+  /* ✅ STEP 2: Only require options for non-theory questions */
+  if (!isTheory && opts.length < 2) {
+    if (errEl) { errEl.textContent = 'At least 2 options are required for objective questions.'; errEl.style.display = 'block'; }
     return;
   }
 
   var payload = {
-    question:      ((document.getElementById('qmsEditQuestion')   || {}).value || '').trim(),
-    options:       opts,
-    correctAnswer: parseInt((document.getElementById('qmsEditCorrect')     || {}).value || '0'),
-    explanation:   ((document.getElementById('qmsEditExpl')                || {}).value || '').trim(),
-    topic:         ((document.getElementById('qmsEditTopic')               || {}).value || '').trim(),
-    status:        (document.getElementById('qmsEditStatus')               || {}).value || 'approved',
-    difficulty:    (document.getElementById('qmsEditDifficulty')           || {}).value || 'medium',
-    year:          parseInt((document.getElementById('qmsEditYear')        || {}).value) || null,
-    reason:        ((document.getElementById('qmsEditReason')              || {}).value || '').trim()
+    question:      ((document.getElementById('qmsEditQuestion')  || {}).value || '').trim(),
+    /* ✅ STEP 2: Theory stores empty options array */
+    options:       isTheory ? [] : opts,
+    /* ✅ STEP 2: Theory stores null — not an option index */
+    correctAnswer: isTheory ? null : parseInt((document.getElementById('qmsEditCorrect') || {}).value || '0'),
+    /* ✅ STEP 2: modelAnswer carries reference answer for theory questions */
+    modelAnswer:   ((document.getElementById('qmsEditModelAnswer') || {}).value || '').trim(),
+    explanation:   ((document.getElementById('qmsEditExpl')        || {}).value || '').trim(),
+    topic:         ((document.getElementById('qmsEditTopic')       || {}).value || '').trim(),
+    status:        (document.getElementById('qmsEditStatus')       || {}).value || 'approved',
+    difficulty:    (document.getElementById('qmsEditDifficulty')   || {}).value || 'medium',
+    year:          parseInt((document.getElementById('qmsEditYear') || {}).value) || null,
+    reason:        ((document.getElementById('qmsEditReason')      || {}).value || '').trim()
   };
 
-  /* ✅ STAGE 2: Attach subject/exam context for create mode */
+ /* ✅ STAGE 2: Attach subject/exam context for create mode */
   if (isCreate) {
     if (!_qmsCreateOpts) {
       if (errEl) { errEl.textContent = 'Create context lost — please close and try again.'; errEl.style.display = 'block'; }
       return;
     }
     payload.examType       = _qmsCreateOpts.examType       || 'jamb';
-    payload.questionType   = _qmsCreateOpts.questionType   || 'objective';
+    /* ✅ STEP 2: Use the CURRENT selector value — the user may have changed
+       the type via the dropdown after the modal opened. _qmsCreateOpts still
+       holds the initial value from qmsCreateForSubject() but the selector
+       is authoritative for what the admin actually selected. */
+    payload.questionType   = currentType;
     payload.subjectId      = _qmsCreateOpts.subjectId      || null;
     payload.subjectName    = _qmsCreateOpts.subjectName    || '';
     payload.departmentId   = _qmsCreateOpts.departmentId   || null;
@@ -4394,6 +4501,14 @@ function qmsOpenCreate(opts) {
   });
 
   document.getElementById('qmsEditModal').style.display = 'flex';
+
+  /* ✅ STEP 2: Inject theory fields (idempotent), set initial type, toggle */
+  qmsEnsureEditorTheoryFields();
+  var qtSel = document.getElementById('qmsEditQuestionType');
+  if (qtSel) { qtSel.value = opts.questionType || 'objective'; }
+  var maEl  = document.getElementById('qmsEditModelAnswer');
+  if (maEl)  { maEl.value  = ''; }
+  qmsToggleEditorForType(opts.questionType || 'objective');
 
   /* Focus the question textarea */
   setTimeout(function () {

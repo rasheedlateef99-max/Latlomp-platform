@@ -319,8 +319,14 @@ router.post('/import/confirm', adminOrPlatformStaff('question_import'), async fu
           subjectName:    subjectName,
           departmentName: departmentName,
           question:       q.question,
-          options:        q.options,
-          correctAnswer:  q.correctAnswer,
+          /* ✅ STEP 2: Theory questions have no options — default to [].
+             Parser may return undefined for absent columns. */
+          options:        Array.isArray(q.options) ? q.options : [],
+          /* ✅ STEP 2: Theory questions have no correctAnswer integer.
+             typeof check avoids storing NaN or the string 'undefined'. */
+          correctAnswer:  typeof q.correctAnswer === 'number' ? q.correctAnswer : null,
+          /* ✅ STEP 2: modelAnswer carries reference answer for theory imports */
+          modelAnswer:    q.modelAnswer   || '',
           explanation:    q.explanation   || '',
           questionType:   questionType,
           topic:          q.topic         || '',
@@ -714,18 +720,35 @@ router.post('/bank', adminOrPlatformStaff('question_bank'), async function (req,
     if (!body.question || !body.question.trim()) {
       return res.status(400).json({ success: false, message: 'Question text is required.' });
     }
-    if (!Array.isArray(body.options) || body.options.length < 2) {
-      return res.status(400).json({ success: false, message: 'At least 2 options are required.' });
-    }
-    var correctAnswer = parseInt(body.correctAnswer);
-    if (isNaN(correctAnswer) || correctAnswer === undefined) {
-      return res.status(400).json({ success: false, message: 'Correct answer index is required.' });
-    }
-    if (correctAnswer < 0 || correctAnswer >= body.options.length) {
-      return res.status(400).json({
-        success: false,
-        message: 'Correct answer index (' + correctAnswer + ') is out of range — only ' + body.options.length + ' options provided.'
-      });
+
+    /* ✅ STEP 2: Branch validation by question type.
+       Objective (and fill_in_blank / true_false): require options + correctAnswer.
+       Theory: require nothing except question text; uses modelAnswer instead.
+       Practical / oral: future-phase — follow objective rules for now. */
+    var isTheory      = (questionType === 'theory');
+    var correctAnswer = null;
+
+    if (!isTheory) {
+      if (!Array.isArray(body.options) || body.options.length < 2) {
+        return res.status(400).json({
+          success: false,
+          message: 'At least 2 options are required for ' + questionType + ' questions.'
+        });
+      }
+      correctAnswer = parseInt(body.correctAnswer);
+      if (isNaN(correctAnswer)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Correct answer index is required for ' + questionType + ' questions.'
+        });
+      }
+      if (correctAnswer < 0 || correctAnswer >= body.options.length) {
+        return res.status(400).json({
+          success: false,
+          message: 'Correct answer index (' + correctAnswer + ') is out of range — only ' +
+                   body.options.length + ' options provided.'
+        });
+      }
     }
 
     /* Generate unique question ID */
@@ -740,8 +763,13 @@ router.post('/bank', adminOrPlatformStaff('question_bank'), async function (req,
       subjectName:    subjectName,
       departmentName: departmentName,
       question:       body.question.trim(),
-      options:        body.options.map(function (o) { return (o || '').trim(); }).filter(Boolean),
-      correctAnswer:  correctAnswer,
+      /* ✅ STEP 2: Theory questions have no options — store empty array */
+      options:        isTheory
+        ? []
+        : (body.options || []).map(function (o) { return (o || '').trim(); }).filter(Boolean),
+      correctAnswer:  correctAnswer,   /* null for theory, integer for objective */
+      /* ✅ STEP 2: modelAnswer stores reference answer / marking guide for theory */
+      modelAnswer:    (body.modelAnswer || '').trim(),
       explanation:    (body.explanation || '').trim(),
       topic:          (body.topic       || '').trim(),
       subtopic:       (body.subtopic    || '').trim(),
@@ -877,13 +905,16 @@ router.put('/bank/:id', adminOrPlatformStaff('question_bank'), async function (r
       (body.question      !== undefined && body.question      !== doc.question) ||
       (body.options       !== undefined)                                         ||
       (body.correctAnswer !== undefined && body.correctAnswer !== doc.correctAnswer) ||
-      (body.explanation   !== undefined && body.explanation   !== doc.explanation)
+      (body.explanation   !== undefined && body.explanation   !== doc.explanation) ||
+      /* ✅ STEP 2: Track modelAnswer changes in version history */
+      (body.modelAnswer   !== undefined && body.modelAnswer   !== doc.modelAnswer)
     ) {
       doc.versions.push({
         question:      doc.question,
         options:       doc.options.slice(),
         correctAnswer: doc.correctAnswer,
         explanation:   doc.explanation,
+        modelAnswer:   doc.modelAnswer || '',   /* ✅ STEP 2 */
         editedBy:      editor,
         reason:        body.reason || 'Manual edit'
       });
@@ -892,15 +923,21 @@ router.put('/bank/:id', adminOrPlatformStaff('question_bank'), async function (r
     }
 
     /* Apply updates */
-    var ALLOWED = ['question', 'options', 'correctAnswer', 'explanation',
+    /* ✅ STEP 2: modelAnswer added to editable fields */
+    var ALLOWED = ['question', 'options', 'correctAnswer', 'explanation', 'modelAnswer',
                    'topic', 'subtopic', 'difficulty', 'year', 'source',
                    'keywords', 'status'];
     ALLOWED.forEach(function (field) {
       if (body[field] !== undefined) { doc[field] = body[field]; }
     });
 
-    /* Validate correctAnswer range */
-    if (doc.correctAnswer < 0 || doc.correctAnswer >= doc.options.length) {
+    /* ✅ STEP 2: Only validate correctAnswer range for objective questions.
+       Theory questions store correctAnswer = null and options = [].
+       Checking null >= 0 is true in JS — would incorrectly block theory edits. */
+    if (doc.questionType !== 'theory' &&
+        doc.correctAnswer !== null &&
+        doc.correctAnswer !== undefined &&
+        (doc.correctAnswer < 0 || doc.correctAnswer >= doc.options.length)) {
       return res.status(400).json({ success: false, message: 'correctAnswer index out of range.' });
     }
 
