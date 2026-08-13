@@ -132,10 +132,15 @@ router.post('/import/preview', adminOrPlatformStaff('question_import'), async fu
       return res.status(400).json({ success: false, message: 'Exam type is required.' });
     }
 
-    var parseResult = parser.parseText(text);
+    /* ✅ STEP 2: Pass questionType so parser and validator behave
+       correctly for theory. The admin selects the type in the import
+       form; this context must flow through the entire pipeline. */
+    var questionType = (req.body.questionType || 'objective').trim();
+    var parseResult = parser.parseText(text, { questionType: questionType });
     var valResult   = await validator.validate(parseResult.questions, {
-      examType:  examType,
-      subjectId: subjectId
+      examType:     examType,
+      subjectId:    subjectId,
+      questionType: questionType   /* ✅ STEP 2 */
     });
 
     return res.json({
@@ -190,13 +195,14 @@ router.post(
         return res.status(400).json({ success: false, message: 'Exam type is required.' });
       }
 
-      var content = req.file.buffer.toString('utf8');
+      var content      = req.file.buffer.toString('utf8');
+      var questionType = (req.body.questionType || 'objective').trim(); /* ✅ STEP 2 */
       var parseResult;
 
       if (ext === 'csv') {
-        parseResult = parser.parseCsv(content);
+        parseResult = parser.parseCsv(content, { questionType: questionType }); /* ✅ STEP 2 */
       } else if (ext === 'txt') {
-        parseResult = parser.parseText(content);
+        parseResult = parser.parseText(content, { questionType: questionType }); /* ✅ STEP 2 */
       } else if (ext === 'docx') {
         /* ✅ PHASE 2: DOCX support via mammoth */
         var docxParser = require('../utils/docx.parser');
@@ -328,6 +334,7 @@ router.post('/import/confirm', adminOrPlatformStaff('question_import'), async fu
           /* ✅ STEP 2: modelAnswer carries reference answer for theory imports */
           modelAnswer:    q.modelAnswer   || '',
           explanation:    q.explanation   || '',
+          marks:          (typeof q.marks === 'number') ? q.marks : (parseInt(q.marks) || 1),
           questionType:   questionType,
           topic:          q.topic         || '',
           difficulty:     q.difficulty    || 'medium',
@@ -771,6 +778,7 @@ router.post('/bank', adminOrPlatformStaff('question_bank'), async function (req,
       /* ✅ STEP 2: modelAnswer stores reference answer / marking guide for theory */
       modelAnswer:    (body.modelAnswer || '').trim(),
       explanation:    (body.explanation || '').trim(),
+      marks:          (typeof body.marks === 'number') ? body.marks : (parseInt(body.marks) || 1),
       topic:          (body.topic       || '').trim(),
       subtopic:       (body.subtopic    || '').trim(),
       difficulty:     body.difficulty   || 'medium',

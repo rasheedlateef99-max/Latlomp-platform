@@ -60,21 +60,36 @@ async function validate(questions, opts) {
     }
   }
 
+  /* ✅ STEP 2: Determine effective questionType for this batch.
+     Individual questions may carry their own questionType (from parser).
+     opts.questionType is the batch-level override from the import form.
+     Individual question type takes priority if set. */
+  var batchType = opts.questionType || 'objective';
+
   questions.forEach(function (q, i) {
     /* ---- Level 1: Field validation ---- */
     var reason = null;
 
+    /* ✅ STEP 2: Resolve per-question type (parser may set it explicitly) */
+    var qType    = q.questionType || batchType;
+    var isTheory = (qType === 'theory');
+
     if (!q.question || !q.question.trim()) {
       reason = 'Missing question text';
-    } else if (!q.options || q.options.length < 2) {
-      reason = 'Fewer than 2 options (' + (q.options ? q.options.length : 0) + ' found)';
-    } else if (q.correctAnswer === null || q.correctAnswer === undefined) {
-      reason = 'Missing correct answer — could not detect answer line';
-    } else if (typeof q.correctAnswer !== 'number' || isNaN(q.correctAnswer)) {
-      reason = 'Correct answer is not a valid number';
-    } else if (q.correctAnswer < 0 || q.correctAnswer >= q.options.length) {
-      reason = 'Correct answer index (' + q.correctAnswer + ') out of range — only ' + q.options.length + ' options';
+    } else if (!isTheory) {
+      /* Objective-only field validation — theory skips these checks */
+      if (!q.options || q.options.length < 2) {
+        reason = 'Fewer than 2 options (' + (q.options ? q.options.length : 0) + ' found)';
+      } else if (q.correctAnswer === null || q.correctAnswer === undefined) {
+        reason = 'Missing correct answer — could not detect answer line';
+      } else if (typeof q.correctAnswer !== 'number' || isNaN(q.correctAnswer)) {
+        reason = 'Correct answer is not a valid number';
+      } else if (q.correctAnswer < 0 || q.correctAnswer >= q.options.length) {
+        reason = 'Correct answer index (' + q.correctAnswer + ') out of range — only ' +
+                 q.options.length + ' options';
+      }
     }
+    /* Theory questions: only question text is required (already checked above) */
 
     if (reason) {
       rejected.push({

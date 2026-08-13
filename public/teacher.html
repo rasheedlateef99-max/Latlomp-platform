@@ -971,5 +971,379 @@
 
 })();
 </script>
+
+<!-- ============================================
+     ✅ STEP 2: TEACHER BULK PASTE IMPORT
+     Adds a "Paste Import" button and modal to the
+     Questions section. Non-destructive IIFE — does
+     not modify teacher.js.
+
+     Uses existing teacher QIE endpoints:
+       POST /api/teacher/exams/:id/questions/import/preview
+       POST /api/teacher/exams/:id/questions/import/confirm
+
+     Auth: latlomp_token (confirmed from main.js).
+     All state remains in this IIFE — no globals added
+     except the three window.* handler functions needed
+     by onclick attributes in injected HTML.
+============================================ -->
+<script>
+(function () {
+  'use strict';
+
+  var _biPreview = null;   /* validated questions from last preview call */
+
+  /* ---- Token (platform teacher uses latlomp_token per main.js) ---- */
+  function _biToken() {
+    return localStorage.getItem('latlomp_token') || '';
+  }
+
+  /* ---- API wrapper ---- */
+  async function _biReq(method, path, body) {
+    var opts = {
+      method:  method,
+      headers: { 'Authorization': 'Bearer ' + _biToken(), 'Content-Type': 'application/json' }
+    };
+    if (body) { opts.body = JSON.stringify(body); }
+    try {
+      var res  = await fetch('/api/teacher' + path, opts);
+      var data = await res.json();
+      return { ok: res.ok, status: res.status, data: data };
+    } catch (e) {
+      return { ok: false, status: 0, data: { message: 'Network error: ' + e.message } };
+    }
+  }
+
+  /* ---- Get exam type label from current exam ---- */
+  function _currentExamType() {
+    var examId = (document.getElementById('questionExamSelector') || {}).value;
+    if (!examId || !window.teacherState) { return 'objective'; }
+    var exam = (window.teacherState.exams || []).find(function (e) { return e._id === examId; });
+    return exam ? (exam.examType || 'objective') : 'objective';
+  }
+
+  /* ---- Build format guide HTML ---- */
+  function _formatGuideHtml(examType) {
+    if (examType === 'theory') {
+      return '<strong style="color:#fff; display:block; margin-bottom:6px;">Theory / Essay Format</strong>' +
+        'Each question separated by a blank line:<br><br>' +
+        '<code style="background:rgba(255,255,255,0.08); padding:4px 8px; border-radius:4px; display:block; white-space:pre; margin-bottom:4px; font-size:11px;">' +
+          'Question: Define osmosis.\n' +
+          'ModelAnswer: Movement of water through a semi-permeable membrane\n' +
+          'Marks: 5\n\n' +
+          'Question: Solve 2x + 5 = 11.\n' +
+          'ModelAnswer: x = 3\n' +
+          'Marks: 3' +
+        '</code>' +
+        '<span style="color:#a78bfa;">Tip: ModelAnswer is your marking guide — students never see it.</span>';
+    }
+
+    if (examType === 'both') {
+      return '<strong style="color:#fff; display:block; margin-bottom:6px;">Mixed — Objective or Theory</strong>' +
+        'Objective block (separated by blank lines):<br>' +
+        '<code style="background:rgba(255,255,255,0.08); padding:4px 8px; border-radius:4px; display:block; white-space:pre; margin-bottom:8px; font-size:11px;">' +
+          '1. What is 2 + 2?\nA. 3\nB. 4\nC. 5\nAnswer: B' +
+        '</code>' +
+        'Theory block:<br>' +
+        '<code style="background:rgba(255,255,255,0.08); padding:4px 8px; border-radius:4px; display:block; white-space:pre; font-size:11px;">' +
+          'Question: Define osmosis.\nModelAnswer: Movement of water...\nMarks: 5' +
+        '</code>';
+    }
+
+    /* Default: objective */
+    return '<strong style="color:#fff; display:block; margin-bottom:6px;">Objective / MCQ Format</strong>' +
+      'Each question separated by a blank line:<br><br>' +
+      '<code style="background:rgba(255,255,255,0.08); padding:4px 8px; border-radius:4px; display:block; white-space:pre; margin-bottom:4px; font-size:11px;">' +
+        '1. What is the capital of Nigeria?\n' +
+        'A. Lagos\nB. Abuja\nC. Kano\nD. Ibadan\n' +
+        'Answer: B\n\n' +
+        '2. Next question...' +
+      '</code>' +
+      '<span style="color:#a78bfa;">A/B/C/D or 1/2/3/4 for answer. Blank line separates questions.</span>';
+  }
+
+  /* ---- Inject button and modal into DOM ---- */
+  function _injectUI() {
+    /* Add "Paste Import" button into the header button group */
+    var btnGroup = document.querySelector('#ts-questions .t-page-header > div:last-child');
+    if (btnGroup && !document.getElementById('pasteImportBtn')) {
+      var btn = document.createElement('button');
+      btn.id        = 'pasteImportBtn';
+      btn.className = 't-btn t-btn-secondary';
+      btn.style.cssText = 'display:none; gap:6px;';
+      btn.innerHTML = '📋 Paste Import';
+      btn.onclick   = window.openBulkPasteModal;
+      btnGroup.insertBefore(btn, btnGroup.firstChild);
+    }
+
+    /* Add modal to body */
+    if (!document.getElementById('bulkPasteModal')) {
+      var modal = document.createElement('div');
+      modal.className = 't-modal-overlay';
+      modal.id        = 'bulkPasteModal';
+      modal.style.display = 'none';
+      modal.addEventListener('click', function (e) {
+        if (e.target === modal) { window.closeBulkPasteModal(); }
+      });
+      modal.innerHTML =
+        '<div class="t-modal-box" style="max-width:700px;">' +
+          '<div class="t-modal-header">' +
+            '<h2>📋 Paste Questions in Bulk</h2>' +
+            '<button class="t-modal-close" onclick="closeBulkPasteModal()">✕</button>' +
+          '</div>' +
+
+          /* Format guide */
+          '<div id="bpFormatGuide" style="background:rgba(108,99,255,0.07); border:1px solid rgba(108,99,255,0.18); border-radius:8px; padding:12px 14px; font-size:12px; color:var(--text-secondary,#a0a0c0); line-height:1.8; margin-bottom:14px;"></div>' +
+
+          /* Paste area */
+          '<div class="t-form-group" style="margin-bottom:14px;">' +
+            '<label>Paste Questions Here</label>' +
+            '<textarea id="bpPasteArea" rows="14" ' +
+              'style="background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; padding:11px 14px; color:#fff; font-size:13px; font-family:monospace; outline:none; width:100%; resize:vertical; box-sizing:border-box; line-height:1.6;" ' +
+              'placeholder="Paste your questions here..."></textarea>' +
+          '</div>' +
+
+          /* Error box */
+          '<div id="bpErrBox" style="display:none; background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:#ff6584; padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:12px;"></div>' +
+
+          /* Preview */
+          '<div id="bpPreviewArea" style="display:none; margin-bottom:14px;">' +
+            '<div style="display:flex; gap:10px; margin-bottom:12px;" id="bpStats"></div>' +
+            '<div style="font-size:13px; font-weight:700; color:var(--text-secondary); margin-bottom:8px;" id="bpPreviewTitle"></div>' +
+            '<div id="bpPreviewList" style="max-height:260px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;"></div>' +
+            '<div id="bpRejectedArea" style="margin-top:10px;"></div>' +
+          '</div>' +
+
+          '<div class="t-modal-footer">' +
+            '<button type="button" class="t-btn t-btn-secondary" onclick="closeBulkPasteModal()">Cancel</button>' +
+            '<button type="button" class="t-btn t-btn-secondary" id="bpValidateBtn" onclick="bulkPastePreview()">🔍 Validate &amp; Preview</button>' +
+            '<button type="button" class="t-btn t-btn-green" id="bpConfirmBtn" onclick="bulkPasteConfirm()" style="display:none;">✅ Import Questions</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+    }
+  }
+
+  /* ---- Sync paste button visibility with exam selector ---- */
+  function _syncPasteBtn() {
+    var sel = document.getElementById('questionExamSelector');
+    var btn = document.getElementById('pasteImportBtn');
+    if (!sel || !btn) { return; }
+    btn.style.display = sel.value ? 'inline-flex' : 'none';
+  }
+
+  /* ============ PUBLIC HANDLERS (window.*) ============ */
+
+  window.openBulkPasteModal = function () {
+    var examId = (document.getElementById('questionExamSelector') || {}).value;
+    if (!examId) {
+      if (typeof teacherToast === 'function') { teacherToast('Please select an exam first.', 'error'); }
+      return;
+    }
+    _biPreview = null;
+
+    /* Reset UI */
+    var textarea = document.getElementById('bpPasteArea');
+    var errBox   = document.getElementById('bpErrBox');
+    var prevArea = document.getElementById('bpPreviewArea');
+    var confBtn  = document.getElementById('bpConfirmBtn');
+    var guide    = document.getElementById('bpFormatGuide');
+
+    if (textarea) { textarea.value = ''; }
+    if (errBox)   { errBox.style.display   = 'none'; }
+    if (prevArea) { prevArea.style.display = 'none'; }
+    if (confBtn)  { confBtn.style.display  = 'none'; }
+    if (guide)    { guide.innerHTML = _formatGuideHtml(_currentExamType()); }
+
+    var modal = document.getElementById('bulkPasteModal');
+    if (modal) { modal.style.display = 'flex'; }
+    setTimeout(function () {
+      var ta = document.getElementById('bpPasteArea');
+      if (ta) { ta.focus(); }
+    }, 120);
+  };
+
+  window.closeBulkPasteModal = function () {
+    var modal = document.getElementById('bulkPasteModal');
+    if (modal) { modal.style.display = 'none'; }
+    _biPreview = null;
+  };
+
+  window.bulkPastePreview = async function () {
+    var examId   = (document.getElementById('questionExamSelector') || {}).value;
+    var text     = (document.getElementById('bpPasteArea')          || {}).value || '';
+    var errBox   = document.getElementById('bpErrBox');
+    var prevArea = document.getElementById('bpPreviewArea');
+    var statsEl  = document.getElementById('bpStats');
+    var prevList = document.getElementById('bpPreviewList');
+    var prevTitle = document.getElementById('bpPreviewTitle');
+    var rejArea  = document.getElementById('bpRejectedArea');
+    var confBtn  = document.getElementById('bpConfirmBtn');
+    var valBtn   = document.getElementById('bpValidateBtn');
+
+    if (errBox)   { errBox.style.display   = 'none'; }
+    if (prevArea) { prevArea.style.display = 'none'; }
+    if (confBtn)  { confBtn.style.display  = 'none'; }
+    _biPreview = null;
+
+    if (!examId) {
+      if (errBox) { errBox.textContent = 'No exam selected.'; errBox.style.display = 'block'; }
+      return;
+    }
+    if (!text.trim()) {
+      if (errBox) { errBox.textContent = 'Please paste some questions first.'; errBox.style.display = 'block'; }
+      return;
+    }
+
+    var spinHtml = '<span style="display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px;"></span>';
+    if (valBtn) { valBtn.innerHTML = spinHtml + 'Validating...'; valBtn.disabled = true; }
+
+    var res = await _biReq('POST', '/exams/' + examId + '/questions/import/preview', { text: text });
+
+    if (valBtn) { valBtn.innerHTML = '🔍 Validate &amp; Preview'; valBtn.disabled = false; }
+
+    if (!res.ok) {
+      if (errBox) {
+        errBox.textContent = (res.data && res.data.message) || 'Validation failed.';
+        errBox.style.display = 'block';
+      }
+      return;
+    }
+
+    var preview  = res.data.preview || {};
+    var valid    = preview.valid    || [];
+    var rejected = preview.rejected || [];
+    var stats    = preview.stats    || {};
+
+    _biPreview = { questions: valid, examId: examId };
+
+    /* Stats bar */
+    if (statsEl) {
+      var SC = [
+        ['📋', stats.detected || 0, 'Detected',  'rgba(255,255,255,0.05)'],
+        ['✅', stats.valid    || 0, 'Valid',      'rgba(67,233,123,0.1)'],
+        ['❌', stats.rejected || 0, 'Rejected',   'rgba(255,101,132,0.1)']
+      ];
+      statsEl.innerHTML = SC.map(function (s) {
+        return '<div style="flex:1; background:' + s[3] + '; border-radius:10px; padding:12px; text-align:center;">' +
+          '<div style="font-size:20px;">' + s[0] + '</div>' +
+          '<div style="font-size:20px; font-weight:900; color:#fff;">' + s[1] + '</div>' +
+          '<div style="font-size:11px; color:var(--text-muted); text-transform:uppercase;">' + s[2] + '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    /* Preview list */
+    if (prevTitle) {
+      prevTitle.textContent = valid.length + ' question' + (valid.length !== 1 ? 's' : '') + ' ready to import';
+    }
+
+    var LETTERS = ['A', 'B', 'C', 'D'];
+    if (prevList) {
+      prevList.innerHTML = (valid.length === 0)
+        ? '<div style="color:var(--text-muted); text-align:center; padding:16px; font-size:13px;">No valid questions found. Check format guide above.</div>'
+        : valid.slice(0, 20).map(function (q, idx) {
+            var isTheory  = (q.questionType === 'theory' || (!q.options || !q.options.length));
+            var detailHtml = isTheory
+              ? (q.expectedAnswer || q.modelAnswer
+                  ? '<div style="font-size:11px; color:#43e97b; margin-top:4px;">📌 Model: ' + ((q.expectedAnswer || q.modelAnswer || '').substring(0, 80)) + '</div>'
+                  : '<div style="font-size:11px; color:var(--text-muted); margin-top:4px; font-style:italic;">No model answer supplied</div>')
+              : '<div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:4px;">' +
+                (q.options || []).map(function (o, i) {
+                  var isC = (i === q.correctAnswer);
+                  return '<span style="font-size:10px; padding:1px 6px; border-radius:3px; background:' +
+                    (isC ? 'rgba(67,233,123,0.15)' : 'rgba(255,255,255,0.04)') +
+                    '; color:' + (isC ? '#43e97b' : 'var(--text-secondary)') + ';">' +
+                    LETTERS[i] + ': ' + o.substring(0, 25) + (o.length > 25 ? '...' : '') +
+                    (isC ? ' ✓' : '') +
+                  '</span>';
+                }).join('') + '</div>';
+
+            return '<div style="background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:8px; padding:10px 14px;">' +
+              '<div style="font-size:11px; font-weight:700; color:#a78bfa; margin-bottom:4px;">Q' + (idx + 1) + ' ' +
+                '<span style="background:' + (isTheory ? 'rgba(255,165,0,0.1)' : 'rgba(108,99,255,0.1)') +
+                '; color:' + (isTheory ? '#ffa500' : '#a78bfa') + '; padding:1px 7px; border-radius:20px; font-size:10px;">' +
+                (isTheory ? '📝 Theory' : '🔘 Objective') + '</span>' +
+              '</div>' +
+              '<div style="font-size:13px; color:#fff; line-height:1.5;">' +
+                ((q.question || q.questionText || '').substring(0, 120)) +
+                (((q.question || q.questionText || '').length > 120) ? '...' : '') +
+              '</div>' +
+              detailHtml +
+            '</div>';
+          }).join('') +
+          (valid.length > 20 ? '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:8px;">...and ' + (valid.length - 20) + ' more</div>' : '');
+    }
+
+    /* Rejected */
+    if (rejArea) {
+      rejArea.innerHTML = rejected.length
+        ? '<div style="font-size:12px; font-weight:700; color:#ff6584; margin-bottom:6px;">❌ ' + rejected.length + ' skipped</div>' +
+          rejected.slice(0, 5).map(function (r) {
+            return '<div style="font-size:11px; color:var(--text-muted); padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.04);">' +
+              '• ' + (r.question || '').substring(0, 60) + ' — <span style="color:#ffa500;">' + (r.reason || '') + '</span>' +
+            '</div>';
+          }).join('') +
+          (rejected.length > 5 ? '<div style="font-size:11px; color:var(--text-muted);">...and ' + (rejected.length - 5) + ' more</div>' : '')
+        : '';
+    }
+
+    if (prevArea) { prevArea.style.display = 'block'; }
+
+    if (confBtn && valid.length > 0) {
+      confBtn.textContent  = '✅ Import ' + valid.length + ' Question' + (valid.length !== 1 ? 's' : '');
+      confBtn.style.display = 'inline-flex';
+    }
+  };
+
+  window.bulkPasteConfirm = async function () {
+    if (!_biPreview || !_biPreview.questions || !_biPreview.questions.length) {
+      if (typeof teacherToast === 'function') { teacherToast('No questions to import.', 'error'); }
+      return;
+    }
+
+    var confBtn = document.getElementById('bpConfirmBtn');
+    var spinHtml = '<span style="display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px;"></span>';
+    if (confBtn) { confBtn.innerHTML = spinHtml + 'Importing...'; confBtn.disabled = true; }
+
+    var res = await _biReq('POST', '/exams/' + _biPreview.examId + '/questions/import/confirm', {
+      questions: _biPreview.questions
+    });
+
+    if (confBtn) {
+      confBtn.innerHTML = '✅ Import ' + _biPreview.questions.length + ' Questions';
+      confBtn.disabled  = false;
+    }
+
+    if (res.ok) {
+      var imported = (res.data && res.data.imported) || _biPreview.questions.length;
+      if (typeof teacherToast === 'function') {
+        teacherToast('✅ ' + imported + ' question' + (imported !== 1 ? 's' : '') + ' imported!', 'success');
+      }
+      window.closeBulkPasteModal();
+      if (typeof loadTeacherQuestions === 'function') { loadTeacherQuestions(); }
+      _biPreview = null;
+    } else {
+      if (typeof teacherToast === 'function') {
+        teacherToast((res.data && res.data.message) || 'Import failed.', 'error');
+      }
+    }
+  };
+
+  /* ---- Init ---- */
+  document.addEventListener('DOMContentLoaded', function () {
+    setTimeout(function () {
+      _injectUI();
+
+      var sel = document.getElementById('questionExamSelector');
+      if (sel) {
+        sel.addEventListener('change', function () { setTimeout(_syncPasteBtn, 400); });
+      }
+      setTimeout(_syncPasteBtn, 900);
+    }, 850);
+  });
+
+})();
+</script>
 </body>
 </html>

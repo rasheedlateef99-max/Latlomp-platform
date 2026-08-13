@@ -745,4 +745,114 @@ router.post('/session/submit', protect, async (req, res) => {
   }
 });
 
+/* ============================================
+   POST /api/cbt/subject-components
+   Public — no auth required.
+
+   Given selected subjectIds + examCategory,
+   returns which question-type components have
+   both a blueprint AND approved questions in
+   the QMS pool.
+
+   Objective always falls back to legacy Question
+   model if QMS has nothing.
+
+   Body:    { examCategory: string, subjectIds: [] }
+   Returns: { success, components: { objective: bool, theory: bool } }
+
+   Called by cbt-start.html after subject selection
+   to determine whether a component selector should
+   be shown to the student.
+============================================ */
+router.post('/subject-components', async (req, res) => {
+  /* Safe default — objective always available */
+  var components = { objective: true, theory: false };
+
+  try {
+    var examCategory = ((req.body.examCategory || 'practice') + '').toLowerCase().trim();
+    var rawIds       = Array.isArray(req.body.subjectIds) ? req.body.subjectIds : [];
+
+    if (rawIds.length === 0) {
+      return res.json({ success: true, components: components });
+    }
+
+    /* Convert to ObjectId — aggregate ignores plain strings */
+    var mongoose2 = require('mongoose');
+    var objectIds = rawIds.map(function (id) {
+      try { return new mongoose2.Types.ObjectId(id.toString()); }
+      catch (e) { return null; }
+    }).filter(Boolean);
+
+    var ExamBP    = getExaminationBlueprint();
+    var QMSQModel = getQMSQuestion();
+
+    if (!ExamBP || !QMSQModel) {
+      return res.json({ success: true, components: components });
+    }
+
+    /* Find all blueprints for these subjects + examType */
+    var bps = await ExamBP.find({
+      subjectId: { $in: objectIds },
+      examType:  { $in: [examCategory, 'all'] }
+    }).select('questionType').lean();
+
+    if (bps.length === 0) {
+      return res.json({ success: true, components: components });
+    }
+
+    /* Unique questionTypes that have blueprints */
+    var typesWithBP = bps.reduce(function (acc, bp) {
+      if (!acc.includes(bp.questionType)) { acc.push(bp.questionType); }
+      return acc;
+    }, []);
+
+    /* For each type, verify approved questions actually exist */
+    for (var i = 0; i < typesWithBP.length; i++) {
+      var qt = typesWithBP[i];
+
+      /* Objective: include legacy documents (null/missing questionType) */
+      var qtFilter = (qt === 'objective')
+        ? { $in: [null, 'objective'] }
+        : qt;
+
+      var count = await QMSQModel.countDocuments({
+        subjectId:    { $in: objectIds },
+        examType:     { $in: [examCategory, 'all'] },
+        questionType: qtFilter,
+        status:       'approved'
+      });
+
+      if (count > 0) { components[qt] = true; }
+    }
+
+    /* Objective fallback: check legacy Question model */
+    if (!components.objective) {
+      try {
+        var LegacyQ  = require('../models/Question.model');
+        var legFilter = { isActive: true, subjectId: { $in: objectIds } };
+        if (examCategory !== 'practice') {
+          legFilter.$or = [
+            { examCategory: examCategory },
+            { examCategory: 'all' }
+          ];
+        }
+        var legCount = await LegacyQ.countDocuments(legFilter);
+        if (legCount > 0) { components.objective = true; }
+      } catch (legErr) { /* Legacy model unavailable */ }
+    }
+
+    /* Safety: never return all false */
+    if (!Object.values(components).some(Boolean)) {
+      components.objective = true;
+    }
+
+    return res.json({ success: true, components: components });
+
+  } catch (err) {
+    console.error('[CBT] /subject-components error:', err.message);
+    /* Never break exam flow — return safe default */
+    return res.json({ success: true, components: { objective: true, theory: false } });
+  }
+});
+
 module.exports = router;

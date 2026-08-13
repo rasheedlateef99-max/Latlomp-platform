@@ -114,6 +114,11 @@ const qmsQuestionSchema = new mongoose.Schema(
        Not visible to students — admin/marker facing only.
        Objective questions leave this empty string. */
     modelAnswer:   { type: String, default: '', trim: true },
+    /* ✅ STEP 2: Marks allocated to this question.
+       Extracted by the parser from "Marks: N" lines in paste import.
+       Stored for future per-question marking support.
+       Default 1 — all existing documents are valid without migration. */
+    marks: { type: Number, default: 1, min: 0 },
 
     /* ---- Metadata tags ---- */
     topic:      { type: String, default: '', trim: true },
