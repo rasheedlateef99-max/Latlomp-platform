@@ -1269,6 +1269,10 @@ var _qmsPreviewData     = null; /* stores validated questions from last preview 
 var _qmsCurrentMethod   = 'paste'; /* 'paste' or 'file' */
 var _qmsSelectedFile    = null;
 var _qmsDeptsLoaded     = false;
+/* ✅ STEP 2 FIX: Module-level questionType so qmsGetMeta() never
+   defaults to 'objective' just because the DOM element is missing.
+   Updated by qmsOnTypeChange() whenever the selector changes. */
+var _qmsCurrentQType    = 'objective';
 
 /* ---- API wrapper — uses correct token for root/staff ---- */
 async function qmsApi(path, method, body) {
@@ -1345,9 +1349,8 @@ async function qmsPopulateAllExamTypeDropdowns() {
 
 /* ---- Init: called when QMS section becomes active ---- */
 async function qmsInit() {
-  /* ✅ STEP 2: Inject questionType selector before populating dropdowns.
-     Without this, qmsGetMeta() always returns questionType:'objective'
-     because admin.html has no qmsQuestionType element. */
+  /* ✅ STEP 2 FIX: Inject questionType selector. Try immediately, then
+     retry after dropdowns load in case the panel renders late. */
   _qmsEnsureTypeSelector();
 
   /* Populate all exam type dropdowns first */
@@ -1356,6 +1359,9 @@ async function qmsInit() {
     await qmsLoadDepts();
     _qmsDeptsLoaded = true;
   }
+  /* ✅ STEP 2 FIX: Retry injection — panel may not have been in DOM
+     on first call if the section was rendered after DOMContentLoaded */
+  setTimeout(_qmsEnsureTypeSelector, 200);
 }
 
 /* ---- Sub-tab switching ---- */
@@ -1456,7 +1462,8 @@ function qmsGetMeta() {
   var subjOpt        = subjSel && subjSel.selectedOptions[0];
   return {
     examType:       examTypeSel ? examTypeSel.value : 'jamb',
-    questionType:   qTypeSel ? (qTypeSel.value || 'objective') : 'objective',
+    /* ✅ STEP 2 FIX: Fall back to _qmsCurrentQType if DOM element missing */
+    questionType:   qTypeSel ? (qTypeSel.value || _qmsCurrentQType) : _qmsCurrentQType,
     departmentId:   deptSel ? deptSel.value : '',
     departmentName: deptOpt ? (deptOpt.dataset.name || deptOpt.text || '') : '',
     subjectId:      subjSel ? subjSel.value : '',
@@ -1488,6 +1495,9 @@ async function qmsPreview() {
     var fd = new FormData();
     fd.append('file',           _qmsSelectedFile);
     fd.append('examType',       meta.examType);
+    /* ✅ STEP 2 FIX: questionType was never sent — server always got
+       undefined → defaulted to 'objective' → theory rejected */
+    fd.append('questionType',   meta.questionType || _qmsCurrentQType);
     fd.append('departmentId',   meta.departmentId);
     fd.append('subjectId',      meta.subjectId);
     fd.append('subjectName',    meta.subjectName);
@@ -1503,6 +1513,10 @@ async function qmsPreview() {
     res = await qmsApi('/import/preview', 'POST', {
       text:           text,
       examType:       meta.examType,
+      /* ✅ STEP 2 FIX: This was the primary bug. questionType was never
+         sent to the server so the parser always ran in objective mode.
+         Theory questions were rejected as "Fewer than 2 options". */
+      questionType:   meta.questionType || _qmsCurrentQType,
       departmentId:   meta.departmentId,
       subjectId:      meta.subjectId,
       subjectName:    meta.subjectName,
@@ -1518,7 +1532,18 @@ async function qmsPreview() {
   }
 
   var preview = res.data.preview;
-  _qmsPreviewData = { preview: preview, meta: meta, sourceType: _qmsCurrentMethod === 'file' ? 'file' : 'paste', filename: res.data.filename || '' };
+ /* ✅ STEP 2 FIX: Store questionType from server response (echoed back).
+     This ensures renderQmsPreview and qmsConfirmImport both get the
+     correct type even if meta was read before selector was visible. */
+  var resolvedQType = (res.data.preview && res.data.preview.questionType)
+    ? res.data.preview.questionType
+    : (meta.questionType || _qmsCurrentQType);
+  _qmsPreviewData = {
+    preview:    preview,
+    meta:       Object.assign({}, meta, { questionType: resolvedQType }),
+    sourceType: _qmsCurrentMethod === 'file' ? 'file' : 'paste',
+    filename:   res.data.filename || ''
+  };
   renderQmsPreview(preview, meta);
   if (status) status.textContent = 'Validation complete.';
 }
@@ -2029,103 +2054,171 @@ function qmsFilterByTopic(topic) {
   qmsBankLoad(1);
 }
 
+
 /* ============================================================
-   ✅ STEP 2 — QMS QUESTION TYPE SELECTOR
-   
-   admin.html does not have a qmsQuestionType select element.
-   Without it, qmsGetMeta() returns questionType:'objective'
-   for EVERY import, causing theory questions to be rejected.
-   
-   This function injects the selector into the QMS import
-   panel once per page load (idempotent).
-   
-   Insertion target priority:
-     1. Before qmsBtnPaste (the "Paste Text" toggle button)
-     2. Before qmsPasteArea (the paste textarea wrapper)
-     3. Before qmsValidateBtn (the validate button)
+   ✅ STEP 2 FIX — QMS QUESTION TYPE SELECTOR (ROBUST VERSION)
+
+   PRIMARY FIX: The type selector must exist before qmsPreview()
+   reads it via qmsGetMeta(). Previously, if the injection failed
+   (element not found), qmsGetMeta() returned 'objective' always.
+
+   This version:
+   1. Targets qmsPanelImport (always exists when QMS section opens)
+   2. Updates _qmsCurrentQType module variable on every change
+   3. Injects a complete theory/objective UI switcher
+   4. Shows/hides a theory-specific paste guide when type changes
 ============================================================ */
 function _qmsEnsureTypeSelector() {
   if (document.getElementById('qmsQuestionType')) { return; }
 
-  /* Find best insertion point */
-  var insertBefore = document.getElementById('qmsBtnPaste') ||
-                     document.getElementById('qmsPasteArea') ||
-                     document.getElementById('qmsValidateBtn');
-
-  if (!insertBefore || !insertBefore.parentNode) { return; }
+  /* Primary target: the import panel container itself */
+  var panel = document.getElementById('qmsPanelImport');
+  if (!panel) {
+    /* Fallback: find any of the known child elements */
+    panel = (
+      (document.getElementById('qmsBtnPaste')     || {}).parentNode ||
+      (document.getElementById('qmsPasteArea')    || {}).parentNode ||
+      (document.getElementById('qmsValidateBtn')  || {}).parentNode
+    ) || null;
+  }
+  if (!panel) {
+    /* Nothing found — will retry on next qmsInit() call */
+    console.warn('[QMS] Type selector injection: panel not found.');
+    return;
+  }
 
   var wrapper = document.createElement('div');
   wrapper.id  = '_qmsTypeSelectorWrap';
-  wrapper.style.cssText =
-    'margin-bottom:16px; padding:14px 16px; ' +
-    'background:rgba(255,255,255,0.02); ' +
-    'border:1px solid var(--border,rgba(255,255,255,0.08)); ' +
-    'border-radius:10px;';
   wrapper.innerHTML =
-    '<div style="display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap;">' +
+    '<div style="' +
+      'display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap;' +
+      'background:rgba(255,255,255,0.02);' +
+      'border:1px solid var(--border,rgba(255,255,255,0.08));' +
+      'border-radius:12px; padding:16px 18px; margin-bottom:18px;' +
+    '">' +
       '<div style="flex:0 0 auto;">' +
-        '<div style="font-size:11px; font-weight:700; color:var(--text-muted,#6b6b8a); ' +
-          'text-transform:uppercase; letter-spacing:0.4px; margin-bottom:7px;">Question Type</div>' +
+        '<div style="' +
+          'font-size:11px; font-weight:700;' +
+          'color:var(--text-muted,#6b6b8a);' +
+          'text-transform:uppercase; letter-spacing:0.4px; margin-bottom:8px;' +
+        '">Question Type</div>' +
         '<select id="qmsQuestionType" onchange="qmsOnTypeChange(this.value)" ' +
-          'style="background:rgba(255,255,255,0.04); ' +
-          'border:1px solid var(--border,rgba(255,255,255,0.08)); ' +
-          'border-radius:8px; padding:10px 14px; color:#fff; font-size:14px; ' +
-          'font-family:inherit; outline:none; min-width:220px;">' +
+          'style="' +
+            'background:rgba(255,255,255,0.04);' +
+            'border:1px solid var(--border,rgba(255,255,255,0.08));' +
+            'border-radius:8px; padding:10px 14px;' +
+            'color:#fff; font-size:14px; font-family:inherit;' +
+            'outline:none; min-width:230px; cursor:pointer;' +
+          '">' +
           '<option value="objective">🔘 Objective / MCQ</option>' +
           '<option value="theory">📝 Theory / Essay</option>' +
         '</select>' +
       '</div>' +
-      '<div id="qmsTypeHintEl" style="flex:1; font-size:12px; ' +
-        'color:var(--text-secondary,#a0a0c0); line-height:1.7; padding-top:26px;"></div>' +
+      '<div id="qmsTypeHintEl" style="' +
+        'flex:1; font-size:12px;' +
+        'color:var(--text-secondary,#a0a0c0);' +
+        'line-height:1.7; padding-top:24px;' +
+      '"></div>' +
+    '</div>' +
+
+    /* ✅ Theory-specific format guide — shown only in theory mode */
+    '<div id="qmsTheoryGuideEl" style="' +
+      'display:none;' +
+      'background:rgba(108,99,255,0.06);' +
+      'border:1px solid rgba(108,99,255,0.2);' +
+      'border-radius:10px; padding:14px 16px;' +
+      'font-size:12px; color:var(--text-secondary,#a0a0c0);' +
+      'line-height:1.8; margin-bottom:14px;' +
+    '">' +
+      '<div style="font-weight:700; color:#a78bfa; margin-bottom:8px;">📐 Theory Paste Format</div>' +
+      'Separate questions using <strong style="color:#fff;">QUESTION N</strong> headers, ' +
+      '<code style="background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:3px;">---</code> ' +
+      'dividers, or double blank lines. ' +
+      'Include a <strong style="color:#fff;">DETAILED SOLUTION &amp; MARKING SCHEME</strong> ' +
+      'section for model answers. <code style="background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:3px;">ModelAnswer: ...</code> ' +
+      'also works inline.<br>' +
+      '<span style="color:#43e97b;">✓ No A/B/C/D options needed. No correct-answer index needed.</span><br>' +
+      '<strong style="color:#fff;">Example:</strong><br>' +
+      '<code style="background:rgba(0,0,0,0.3);display:block;padding:8px 10px;border-radius:6px;white-space:pre;font-size:11px;margin-top:6px;">' +
+        'QUESTION 1 [8 MARKS]\n\n' +
+        '(a) Without using tables, evaluate:\n' +
+        '    (log 27 + log 8 - log 125) / (log 6 - log 5)\n\n' +
+        '(b) A trader bought oranges at ₦1,200 per dozen.\n' +
+        '    Calculate her percentage profit.\n\n' +
+        'DETAILED SOLUTION &amp; MARKING SCHEME\n\n' +
+        '(a) = log(27×8/125) / log(6/5) = 3  [M1][A1]\n' +
+        '(b) Profit = 400/1200 × 100 = 33.3%  [M1][A1]\n\n' +
+        'QUESTION 2 [5 MARKS]\n\n' +
+        '(a) Solve: 2x² - 7x + 3 = 0\n\n' +
+        'DETAILED SOLUTION &amp; MARKING SCHEME\n\n' +
+        '(a) x = 3 or x = ½              [A1]' +
+      '</code>' +
     '</div>';
 
-  insertBefore.parentNode.insertBefore(wrapper, insertBefore);
-  qmsOnTypeChange('objective');   /* set initial hint */
+  /* Prepend to panel so it appears at the very top */
+  panel.insertBefore(wrapper, panel.firstChild);
+
+  /* Apply initial state */
+  qmsOnTypeChange('objective');
 }
 
 window.qmsOnTypeChange = function(type) {
+  /* ✅ STEP 2 FIX: Always update the module variable FIRST.
+     This is the safety net: even if qmsGetMeta() is called before
+     the DOM element is read, _qmsCurrentQType has the correct value. */
+  _qmsCurrentQType = type || 'objective';
+
   var hintEl   = document.getElementById('qmsTypeHintEl');
+  var guideEl  = document.getElementById('qmsTheoryGuideEl');
   var textArea = document.getElementById('qmsPasteText');
+  var btnFile  = document.getElementById('qmsBtnFile');
 
   if (type === 'theory') {
     if (hintEl) {
       hintEl.innerHTML =
-        '<strong style="color:#a78bfa;">📝 Theory mode active.</strong><br>' +
-        'Questions split on <code style="background:rgba(255,255,255,0.08); ' +
-        'padding:1px 5px; border-radius:3px;">QUESTION N</code> headers, ' +
-        '<code style="background:rgba(255,255,255,0.08); padding:1px 5px; ' +
-        'border-radius:3px;">---</code> separators, or blank lines.<br>' +
-        'Include <code style="background:rgba(255,255,255,0.08); padding:1px 5px; ' +
-        'border-radius:3px;">DETAILED SOLUTION & MARKING SCHEME</code> ' +
-        'or <code style="background:rgba(255,255,255,0.08); padding:1px 5px; ' +
-        'border-radius:3px;">ModelAnswer: ...</code> for model answers.<br>' +
-        '<span style="color:#43e97b;">No options A/B/C/D or correct-answer required.</span>';
+        '<span style="color:#a78bfa; font-weight:700;">📝 Theory / Essay mode.</span><br>' +
+        'Questions split on QUESTION N headers, <code style="background:rgba(255,255,255,0.08);padding:1px 4px;border-radius:3px;">---</code> separators, or blank lines.<br>' +
+        'See format guide below. No options or correct-answer required.';
     }
+    if (guideEl)  { guideEl.style.display  = 'block'; }
     if (textArea) {
       textArea.placeholder =
         'QUESTION 1 [8 MARKS]\n\n' +
-        '(a) Without using mathematical tables, evaluate...\n\n' +
+        '(a) Without using mathematical tables, evaluate:\n' +
+        '    (log₁₀ 27 + log₁₀ 8 - log₁₀ 125) ÷ (log₁₀ 6 - log₁₀ 5)\n\n' +
         '(b) A trader bought oranges at ₦1,200 per dozen...\n\n' +
         'DETAILED SOLUTION & MARKING SCHEME\n\n' +
-        '(a) log₁₀(27) = 3log₁₀(3)...   [M1]\n\n' +
-        'QUESTION 2 [5 MARKS]\n\n' +
-        '(a) Solve: 2x² - 7x + 3 = 0\n\n' +
+        '(a) LHS = log(27×8/125) / log(6/5) = 3    [M1][A1]\n' +
+        '(b) Selling price per dozen = 3 × 500 = ₦1,500\n' +
+        '    Profit % = (300/1200) × 100 = 25%      [M1][A1]\n\n' +
+        'QUESTION 2 [8 MARKS]\n\n' +
+        '(a) Solve 2x² - 7x + 3 = 0 by completing the square.\n\n' +
         'DETAILED SOLUTION & MARKING SCHEME\n\n' +
-        '(a) x = 3 or x = ½              [A1]';
+        '(a) x = 3 or x = ½                         [A1]';
     }
   } else {
     if (hintEl) {
       hintEl.innerHTML =
-        '<strong style="color:#a78bfa;">🔘 Objective mode.</strong><br>' +
-        'Each question requires options A/B/C/D and a correct answer. ' +
+        '<span style="color:#a78bfa; font-weight:700;">🔘 Objective / MCQ mode.</span><br>' +
+        'Each question needs options A/B/C/D and a correct answer.<br>' +
         'Separate questions with a blank line.';
     }
+    if (guideEl)  { guideEl.style.display  = 'none'; }
     if (textArea) {
       textArea.placeholder =
-        '1. What is the capital of Nigeria?\nA. Lagos\nB. Abuja\nC. Kano\nD. Ibadan\nAnswer: B\n\n' +
-        '2. What is 2 + 2?\nA. 3\nB. 4\nC. 5\nAnswer: B';
+        '1. What is the capital of Nigeria?\n' +
+        'A. Lagos\nB. Abuja\nC. Kano\nD. Ibadan\n' +
+        'Answer: B\n\n' +
+        '2. What is 2 + 2?\n' +
+        'A. 3\nB. 4\nC. 5\n' +
+        'Answer: B';
     }
   }
+
+  /* Reset preview when type changes */
+  _qmsPreviewData = null;
+  var pp = document.getElementById('qmsPreviewPanel');
+  if (pp) { pp.style.display = 'none'; }
 };
 
 /* ============================================================
@@ -3916,41 +4009,132 @@ async function eceLoadAuditLog() {
 }
 
 /* ============================================================
-   QMS STABILIZATION — PREVIEW EXPLANATION DISPLAY
-   Patch renderQmsPreview to show explanation column
+   ✅ STEP 2 FIX — THEORY-AWARE PREVIEW RENDERER
+
+   Replaces the original renderQmsPreview + its stabilization patch.
+   Detects whether the preview contains theory or objective questions
+   and renders appropriate columns for each type.
+
+   Theory columns:   # | Question | Marks | Model Answer | Type
+   Objective columns:# | Question | Options | Correct | Explanation
 ============================================================ */
 var _origRenderQmsPreview = renderQmsPreview;
+
 renderQmsPreview = function(preview, meta) {
+  /* Always call original first for stats, warnings, duplicate/rejected panels */
   _origRenderQmsPreview(preview, meta);
-  /* Patch: add explanation to each row after original render */
-  var tbody = document.getElementById('qmsPreviewTable');
-  if (!tbody) { return; }
+
+  /* Determine effective question type */
+  var qType    = (preview && preview.questionType)
+               ? preview.questionType
+               : (meta && meta.questionType ? meta.questionType : _qmsCurrentQType);
+  var isTheory = (qType === 'theory');
+
   var validQs = preview.valid || [];
+  if (!validQs.length) { return; }
+
   var PREVIEW_LIMIT = 20;
-  var shown = validQs.slice(0, PREVIEW_LIMIT);
-  if (!shown.length) { return; }
+  var shown   = validQs.slice(0, PREVIEW_LIMIT);
   var letters = ['A', 'B', 'C', 'D'];
-  /* Re-render with explanation column */
-  tbody.innerHTML = shown.map(function (q, i) {
-    var opts = (q.options || []).map(function (o, idx) {
-      return '<span style="font-size:11px; padding:1px 6px; border-radius:4px; margin-right:3px; background:' +
-        (idx === q.correctAnswer ? 'rgba(67,233,123,0.15)' : 'rgba(255,255,255,0.04)') + '; color:' +
-        (idx === q.correctAnswer ? '#43e97b' : 'var(--text-secondary)') + ';">' +
-        letters[idx] + ': ' + o.substring(0, 30) + (o.length > 30 ? '...' : '') +
-        (idx === q.correctAnswer ? ' ✓' : '') + '</span>';
+
+  var tbody  = document.getElementById('qmsPreviewTable');
+  if (!tbody) { return; }
+
+  if (isTheory) {
+    /* ---- Theory preview: show Question | Marks | Model Answer | Status ---- */
+    tbody.innerHTML = shown.map(function(q, i) {
+      var questionPreview = (q.question || '').substring(0, 100) +
+        ((q.question || '').length > 100 ? '…' : '');
+      var marksVal    = q.marks || '—';
+      var modelPreview = (q.modelAnswer || q.explanation || '')
+        .replace(/\[M\d\]/gi, '').replace(/\[A\d\]/gi, '').trim()
+        .substring(0, 80);
+      var hasModel = !!(q.modelAnswer || q.explanation);
+
+      return '<tr>' +
+        '<td style="font-weight:700; color:#a78bfa; width:32px;">' + (i + 1) + '</td>' +
+        '<td style="color:#fff; font-size:13px; max-width:280px; line-height:1.5;">' +
+          questionPreview +
+        '</td>' +
+        '<td style="text-align:center; white-space:nowrap;">' +
+          '<span style="background:rgba(67,233,123,0.12); color:#43e97b; ' +
+          'padding:2px 10px; border-radius:20px; font-size:12px; font-weight:700;">' +
+          marksVal + (marksVal !== '—' ? ' mk' : '') +
+          '</span>' +
+        '</td>' +
+        '<td style="font-size:12px; color:var(--text-secondary,#a0a0c0); max-width:220px;">' +
+          (hasModel
+            ? '<span style="color:#43e97b;">✓</span> ' + modelPreview +
+              (modelPreview.length >= 80 ? '…' : '')
+            : '<span style="color:var(--text-muted,#6b6b8a); font-style:italic;">No model answer</span>'
+          ) +
+        '</td>' +
+        '<td>' +
+          '<span style="background:rgba(255,165,0,0.1); color:#ffa500; ' +
+          'padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;">Theory</span>' +
+        '</td>' +
+      '</tr>';
     }).join('');
-    var explHtml = q.explanation
-      ? '<span style="font-size:11px; color:#43e97b;">✓ ' + q.explanation.substring(0, 60) + (q.explanation.length > 60 ? '...' : '') + '</span>'
-      : '<span style="font-size:11px; color:var(--text-muted,#6b6b8a);">—</span>';
-    return '<tr>' +
-      '<td style="font-weight:700; color:#a78bfa;">' + (i + 1) + '</td>' +
-      '<td style="color:#fff; font-size:13px;">' + q.question.substring(0, 100) + (q.question.length > 100 ? '...' : '') + '</td>' +
-      '<td>' + opts + '</td>' +
-      '<td><span style="background:rgba(67,233,123,0.12); color:#43e97b; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;">' +
-        (letters[q.correctAnswer] || '?') + '</span></td>' +
-      '<td>' + explHtml + '</td>' +
-    '</tr>';
-  }).join('');
+
+    /* Update the preview title to reflect theory mode */
+    var titleEl = document.getElementById('qmsPreviewTitle');
+    if (titleEl) {
+      titleEl.textContent =
+        '📝 Theory Questions Preview (' + validQs.length + ' ready to import)';
+    }
+
+    /* Update confirm button label */
+    var confirmBtn = document.getElementById('qmsConfirmBtn');
+    if (confirmBtn && validQs.length > 0) {
+      confirmBtn.style.display = 'inline-flex';
+      confirmBtn.textContent   =
+        '✅ Import ' + validQs.length + ' Theory Question' + (validQs.length !== 1 ? 's' : '');
+    }
+
+    /* More note */
+    var noteEl = document.getElementById('qmsPreviewMoreNote');
+    if (noteEl) {
+      noteEl.textContent = validQs.length > PREVIEW_LIMIT
+        ? 'Showing ' + PREVIEW_LIMIT + ' of ' + validQs.length +
+          ' theory questions. All ' + validQs.length + ' will be imported on confirmation.'
+        : '';
+    }
+
+  } else {
+    /* ---- Objective preview: original 5-column layout with explanation ---- */
+    tbody.innerHTML = shown.map(function(q, i) {
+      var opts = (q.options || []).map(function(o, idx) {
+        return '<span style="font-size:11px; padding:1px 6px; border-radius:4px; ' +
+          'margin-right:3px; background:' +
+          (idx === q.correctAnswer ? 'rgba(67,233,123,0.15)' : 'rgba(255,255,255,0.04)') +
+          '; color:' +
+          (idx === q.correctAnswer ? '#43e97b' : 'var(--text-secondary)') + ';">' +
+          letters[idx] + ': ' + o.substring(0, 30) + (o.length > 30 ? '...' : '') +
+          (idx === q.correctAnswer ? ' ✓' : '') +
+        '</span>';
+      }).join('');
+
+      var explHtml = q.explanation
+        ? '<span style="font-size:11px; color:#43e97b;">✓ ' +
+            q.explanation.substring(0, 60) +
+            (q.explanation.length > 60 ? '...' : '') +
+          '</span>'
+        : '<span style="font-size:11px; color:var(--text-muted,#6b6b8a);">—</span>';
+
+      return '<tr>' +
+        '<td style="font-weight:700; color:#a78bfa;">' + (i + 1) + '</td>' +
+        '<td style="color:#fff; font-size:13px;">' +
+          q.question.substring(0, 100) + (q.question.length > 100 ? '...' : '') +
+        '</td>' +
+        '<td>' + opts + '</td>' +
+        '<td><span style="background:rgba(67,233,123,0.12); color:#43e97b; ' +
+          'padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;">' +
+          (letters[q.correctAnswer] || '?') +
+        '</span></td>' +
+        '<td>' + explHtml + '</td>' +
+      '</tr>';
+    }).join('');
+  }
 };
 
 /* ============================================================

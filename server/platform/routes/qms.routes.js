@@ -146,12 +146,15 @@ router.post('/import/preview', adminOrPlatformStaff('question_import'), async fu
     return res.json({
       success: true,
       preview: {
-        stats:       valResult.stats,
-        parseErrors: parseResult.parseErrors,
-        warnings:    parseResult.warnings,
-        valid:       valResult.valid,
-        duplicates:  valResult.duplicates.slice(0, 50),  /* cap for response size */
-        rejected:    valResult.rejected.slice(0, 50)
+        stats:        valResult.stats,
+        parseErrors:  parseResult.parseErrors,
+        warnings:     parseResult.warnings,
+        valid:        valResult.valid,
+        duplicates:   valResult.duplicates.slice(0, 50),
+        rejected:     valResult.rejected.slice(0, 50),
+        /* ✅ STEP 2 FIX: Echo back the questionType so frontend knows
+           which rendering mode to use in the preview table */
+        questionType: questionType
       }
     });
   } catch (e) {
@@ -253,12 +256,14 @@ router.post(
         success:  true,
         filename: filename,
         preview: {
-          stats:       valResult.stats,
-          parseErrors: parseResult.parseErrors,
-          warnings:    parseResult.warnings,
-          valid:       valResult.valid,
-          duplicates:  valResult.duplicates.slice(0, 50),
-          rejected:    valResult.rejected.slice(0, 50)
+          stats:        valResult.stats,
+          parseErrors:  parseResult.parseErrors,
+          warnings:     parseResult.warnings,
+          valid:        valResult.valid,
+          duplicates:   valResult.duplicates.slice(0, 50),
+          rejected:     valResult.rejected.slice(0, 50),
+          /* ✅ STEP 2 FIX: Echo questionType for frontend rendering */
+          questionType: questionType
         }
       });
     } catch (e) {
