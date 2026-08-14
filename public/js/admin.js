@@ -1345,9 +1345,13 @@ async function qmsPopulateAllExamTypeDropdowns() {
 
 /* ---- Init: called when QMS section becomes active ---- */
 async function qmsInit() {
+  /* ✅ STEP 2: Inject questionType selector before populating dropdowns.
+     Without this, qmsGetMeta() always returns questionType:'objective'
+     because admin.html has no qmsQuestionType element. */
+  _qmsEnsureTypeSelector();
+
   /* Populate all exam type dropdowns first */
   await qmsPopulateAllExamTypeDropdowns();
-
   if (!_qmsDeptsLoaded) {
     await qmsLoadDepts();
     _qmsDeptsLoaded = true;
@@ -2024,6 +2028,105 @@ function qmsFilterByTopic(topic) {
   if (topicSel) { topicSel.value = topic; }
   qmsBankLoad(1);
 }
+
+/* ============================================================
+   ✅ STEP 2 — QMS QUESTION TYPE SELECTOR
+   
+   admin.html does not have a qmsQuestionType select element.
+   Without it, qmsGetMeta() returns questionType:'objective'
+   for EVERY import, causing theory questions to be rejected.
+   
+   This function injects the selector into the QMS import
+   panel once per page load (idempotent).
+   
+   Insertion target priority:
+     1. Before qmsBtnPaste (the "Paste Text" toggle button)
+     2. Before qmsPasteArea (the paste textarea wrapper)
+     3. Before qmsValidateBtn (the validate button)
+============================================================ */
+function _qmsEnsureTypeSelector() {
+  if (document.getElementById('qmsQuestionType')) { return; }
+
+  /* Find best insertion point */
+  var insertBefore = document.getElementById('qmsBtnPaste') ||
+                     document.getElementById('qmsPasteArea') ||
+                     document.getElementById('qmsValidateBtn');
+
+  if (!insertBefore || !insertBefore.parentNode) { return; }
+
+  var wrapper = document.createElement('div');
+  wrapper.id  = '_qmsTypeSelectorWrap';
+  wrapper.style.cssText =
+    'margin-bottom:16px; padding:14px 16px; ' +
+    'background:rgba(255,255,255,0.02); ' +
+    'border:1px solid var(--border,rgba(255,255,255,0.08)); ' +
+    'border-radius:10px;';
+  wrapper.innerHTML =
+    '<div style="display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap;">' +
+      '<div style="flex:0 0 auto;">' +
+        '<div style="font-size:11px; font-weight:700; color:var(--text-muted,#6b6b8a); ' +
+          'text-transform:uppercase; letter-spacing:0.4px; margin-bottom:7px;">Question Type</div>' +
+        '<select id="qmsQuestionType" onchange="qmsOnTypeChange(this.value)" ' +
+          'style="background:rgba(255,255,255,0.04); ' +
+          'border:1px solid var(--border,rgba(255,255,255,0.08)); ' +
+          'border-radius:8px; padding:10px 14px; color:#fff; font-size:14px; ' +
+          'font-family:inherit; outline:none; min-width:220px;">' +
+          '<option value="objective">🔘 Objective / MCQ</option>' +
+          '<option value="theory">📝 Theory / Essay</option>' +
+        '</select>' +
+      '</div>' +
+      '<div id="qmsTypeHintEl" style="flex:1; font-size:12px; ' +
+        'color:var(--text-secondary,#a0a0c0); line-height:1.7; padding-top:26px;"></div>' +
+    '</div>';
+
+  insertBefore.parentNode.insertBefore(wrapper, insertBefore);
+  qmsOnTypeChange('objective');   /* set initial hint */
+}
+
+window.qmsOnTypeChange = function(type) {
+  var hintEl   = document.getElementById('qmsTypeHintEl');
+  var textArea = document.getElementById('qmsPasteText');
+
+  if (type === 'theory') {
+    if (hintEl) {
+      hintEl.innerHTML =
+        '<strong style="color:#a78bfa;">📝 Theory mode active.</strong><br>' +
+        'Questions split on <code style="background:rgba(255,255,255,0.08); ' +
+        'padding:1px 5px; border-radius:3px;">QUESTION N</code> headers, ' +
+        '<code style="background:rgba(255,255,255,0.08); padding:1px 5px; ' +
+        'border-radius:3px;">---</code> separators, or blank lines.<br>' +
+        'Include <code style="background:rgba(255,255,255,0.08); padding:1px 5px; ' +
+        'border-radius:3px;">DETAILED SOLUTION & MARKING SCHEME</code> ' +
+        'or <code style="background:rgba(255,255,255,0.08); padding:1px 5px; ' +
+        'border-radius:3px;">ModelAnswer: ...</code> for model answers.<br>' +
+        '<span style="color:#43e97b;">No options A/B/C/D or correct-answer required.</span>';
+    }
+    if (textArea) {
+      textArea.placeholder =
+        'QUESTION 1 [8 MARKS]\n\n' +
+        '(a) Without using mathematical tables, evaluate...\n\n' +
+        '(b) A trader bought oranges at ₦1,200 per dozen...\n\n' +
+        'DETAILED SOLUTION & MARKING SCHEME\n\n' +
+        '(a) log₁₀(27) = 3log₁₀(3)...   [M1]\n\n' +
+        'QUESTION 2 [5 MARKS]\n\n' +
+        '(a) Solve: 2x² - 7x + 3 = 0\n\n' +
+        'DETAILED SOLUTION & MARKING SCHEME\n\n' +
+        '(a) x = 3 or x = ½              [A1]';
+    }
+  } else {
+    if (hintEl) {
+      hintEl.innerHTML =
+        '<strong style="color:#a78bfa;">🔘 Objective mode.</strong><br>' +
+        'Each question requires options A/B/C/D and a correct answer. ' +
+        'Separate questions with a blank line.';
+    }
+    if (textArea) {
+      textArea.placeholder =
+        '1. What is the capital of Nigeria?\nA. Lagos\nB. Abuja\nC. Kano\nD. Ibadan\nAnswer: B\n\n' +
+        '2. What is 2 + 2?\nA. 3\nB. 4\nC. 5\nAnswer: B';
+    }
+  }
+};
 
 /* ============================================================
    QMS PHASE 2 — QUESTION BANK

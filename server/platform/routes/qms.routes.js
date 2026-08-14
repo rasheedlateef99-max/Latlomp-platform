@@ -38,7 +38,7 @@ try {
     storage: multer.memoryStorage(),
     limits:  { fileSize: 10 * 1024 * 1024 }, /* 10MB */
     fileFilter: function (req, file, cb) {
-      var allowed = ['.txt', '.csv', '.docx', '.xlsx', '.xls'];
+      var allowed = ['.txt', '.csv', '.docx', '.xlsx', '.xls', '.pdf'];
       var ext     = '.' + (file.originalname.split('.').pop() || '').toLowerCase();
       if (allowed.includes(ext)) { cb(null, true); }
       else { cb(new Error('Unsupported file type: ' + ext + '. Allowed: ' + allowed.join(', '))); }
@@ -211,6 +211,32 @@ router.post(
         /* ✅ PHASE 2: XLSX support via SheetJS */
         var xlsxParser = require('../utils/xlsx.parser');
         parseResult    = xlsxParser.parseXlsx(req.file.buffer);
+      } else if (ext === 'pdf') {
+        /* ✅ STEP 2: PDF text extraction → theory/objective parser.
+           Requires: npm install pdf-parse
+           Falls back gracefully if pdf-parse is not installed. */
+        var pdfExtractText = '';
+        try {
+          var pdfParse = require('pdf-parse');
+          var pdfData  = await pdfParse(req.file.buffer);
+          pdfExtractText = pdfData.text || '';
+        } catch (pdfErr) {
+          return res.status(400).json({
+            success: false,
+            message: pdfErr.code === 'MODULE_NOT_FOUND'
+              ? 'PDF support requires installation: run "npm install pdf-parse" on the server.'
+              : 'PDF extraction failed: ' + pdfErr.message
+          });
+        }
+        if (!pdfExtractText.trim()) {
+          return res.status(400).json({
+            success: false,
+            message: 'PDF appears to contain no extractable text. ' +
+                     'Scanned PDFs must be OCR-processed first. ' +
+                     'Use Paste Text or CSV instead.'
+          });
+        }
+        parseResult = parser.parseText(pdfExtractText, { questionType: questionType });
       } else {
         return res.status(400).json({
           success: false,
