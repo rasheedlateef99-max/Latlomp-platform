@@ -18,6 +18,76 @@ var _submitted    = false;
 var _startTime    = Date.now();
 var _currentSubjectId = null;
 
+
+/* ============================================
+   ✅ STEP 2 — ENSURE THEORY TEXTAREA EXISTS
+
+   exam.html may not have the theoryAnswer element
+   if Step 2 HTML changes were not applied.
+   This function injects it defensively — safe to
+   call even when the element already exists.
+
+   Placement: immediately after optionsList so
+   the textarea appears in the same DOM position
+   where options normally appear.
+============================================ */
+function _ensureTheoryTextarea() {
+  if (document.getElementById('theoryAnswer')) {
+    /* Already exists — ensure event listener is attached */
+    var existing = document.getElementById('theoryAnswer');
+    if (!existing._theoryListenerAttached) {
+      existing.addEventListener('input', saveTheoryAnswer);
+      existing._theoryListenerAttached = true;
+    }
+    return;
+  }
+
+  var ta       = document.createElement('textarea');
+  ta.id        = 'theoryAnswer';
+  ta.rows      = 9;
+  ta.placeholder =
+    'Write your answer here...\n\n' +
+    'For multi-part questions:\n' +
+    '(a) Answer to part (a)\n' +
+    '(b) Answer to part (b)';
+  ta.style.cssText = [
+    'width:100%',
+    'min-height:220px',
+    'resize:vertical',
+    'background:rgba(255,255,255,0.04)',
+    'border:1px solid rgba(255,255,255,0.12)',
+    'border-radius:10px',
+    'padding:14px 16px',
+    'color:#fff',
+    'font-size:15px',
+    'font-family:inherit',
+    'outline:none',
+    'line-height:1.7',
+    'box-sizing:border-box',
+    'display:none',
+    'margin-top:8px',
+    'transition:border-color 0.2s'
+  ].join(';');
+
+  ta.addEventListener('input', saveTheoryAnswer);
+  ta.addEventListener('focus', function() { ta.style.borderColor = '#43e97b'; });
+  ta.addEventListener('blur',  function() { ta.style.borderColor = 'rgba(255,255,255,0.12)'; });
+  ta._theoryListenerAttached = true;
+
+  /* Insert after optionsList — same visual position */
+  var ref = document.getElementById('optionsList');
+  if (ref && ref.parentNode) {
+    ref.parentNode.insertBefore(ta, ref.nextSibling);
+  } else {
+    /* Fallback: insert into question area or body */
+    var area = document.getElementById('questionArea') ||
+               document.getElementById('examBody')     ||
+               document.getElementById('examApp')      ||
+               document.body;
+    area.appendChild(ta);
+  }
+}
+
 /* ============================================
    INIT
 ============================================ */
@@ -46,6 +116,10 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('noSessionScreen').style.display = 'flex';
     return;
   }
+
+  /* ✅ STEP 2: Inject theory textarea early — before any renderQuestion()
+     call so getElementById('theoryAnswer') always finds the element. */
+  _ensureTheoryTextarea();
 
   /* ✅ FIX: Timer persistence across refresh
      Store { startTime, totalSeconds } in sessionStorage.
@@ -187,18 +261,60 @@ function renderQuestion(idx) {
   var savedAnswer = _answers[qId];
   var isTheory    = (q.questionType === 'theory');
 
+ /* ✅ STEP 2: Re-read theoryEl every render — defensive in case element
+     was injected after the var was first declared. */
+  theoryEl = document.getElementById('theoryAnswer');
+
   if (isTheory) {
-    /* Theory question: hide options list, show textarea */
-    if (listEl)   { listEl.innerHTML  = '';    listEl.style.display   = 'none';  }
+    /* ── Theory question ── */
+    if (listEl)   { listEl.innerHTML = ''; listEl.style.display = 'none'; }
+
+    /* Inject a "📝 Theory Question" label above the textarea if absent */
+    var theoryLabelId = 'theoryInputLabel';
+    if (!document.getElementById(theoryLabelId) && theoryEl && theoryEl.parentNode) {
+      var lbl = document.createElement('div');
+      lbl.id  = theoryLabelId;
+      lbl.style.cssText =
+        'font-size:12px;font-weight:700;color:var(--text-muted,#6b6b8a);' +
+        'text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;margin-top:4px;';
+      lbl.textContent = '📝 Theory / Essay — Type your answer below';
+      theoryEl.parentNode.insertBefore(lbl, theoryEl);
+    }
+
     if (theoryEl) {
       theoryEl.style.display = 'block';
       theoryEl.dataset.qid   = qId;
-      /* Restore previously typed answer or clear for fresh question */
       theoryEl.value = (typeof savedAnswer === 'string') ? savedAnswer : '';
+      /* Auto-focus so student can type immediately */
+      setTimeout(function() { theoryEl.focus && theoryEl.focus(); }, 80);
     }
+
+    /* Show theory badge in question header */
+    var badge = document.getElementById('qTypeBadge');
+    if (badge) {
+      badge.textContent        = '📝 Theory';
+      badge.style.background   = 'rgba(255,165,0,0.1)';
+      badge.style.color        = '#ffa500';
+      badge.style.display      = 'inline-block';
+    }
+
   } else {
-    /* Objective question: show options, hide textarea */
+    /* ── Objective question ── */
     if (theoryEl) { theoryEl.style.display = 'none'; theoryEl.value = ''; }
+
+    /* Hide the theory label when switching back to objective */
+    var existingLabel = document.getElementById('theoryInputLabel');
+    if (existingLabel) { existingLabel.style.display = 'none'; }
+
+    /* Reset question type badge */
+    var badge = document.getElementById('qTypeBadge');
+    if (badge) {
+      badge.textContent      = 'Objective';
+      badge.style.background = 'rgba(108,99,255,0.12)';
+      badge.style.color      = 'var(--primary-light,#a78bfa)';
+      badge.style.display    = 'inline-block';
+    }
+
     if (listEl) {
       listEl.style.display = '';
       listEl.innerHTML = options.map(function(opt, i) {

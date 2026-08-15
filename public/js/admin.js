@@ -2233,7 +2233,6 @@ window.qmsOnTypeChange = function(type) {
   if (pp) { pp.style.display = 'none'; }
 };
 
-
 /* ============================================================
    QMS PHASE 2 — QUESTION BANK
 ============================================================ */

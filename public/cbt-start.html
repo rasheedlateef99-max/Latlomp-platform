@@ -219,6 +219,32 @@
       margin-top: 8px; line-height: 1.5;
     }
 
+/* ✅ STEP 2: Component selector */
+    .comp-wrap {
+      margin-top: 16px; padding: 14px 16px;
+      background: rgba(108,99,255,0.06);
+      border: 1px solid rgba(108,99,255,0.2);
+      border-radius: 12px; display: none;
+    }
+    .comp-label {
+      font-size: 11px; font-weight: 700;
+      color: var(--text-muted,#6b6b8a);
+      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;
+    }
+    .comp-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .comp-btn {
+      flex: 1; min-width: 140px; padding: 14px 16px;
+      border-radius: 12px; cursor: pointer;
+      border: 2px solid var(--border,rgba(255,255,255,0.08));
+      background: rgba(255,255,255,0.03);
+      font-family: inherit; text-align: left; transition: all 0.15s;
+    }
+    .comp-btn:hover { border-color: rgba(108,99,255,0.4); background: rgba(108,99,255,0.06); }
+    .comp-btn.active { border-color: var(--primary,#6c63ff); background: rgba(108,99,255,0.15); }
+    .comp-btn-name { font-size: 14px; font-weight: 800; color: #fff; margin-bottom: 3px; }
+    .comp-btn-desc { font-size: 11px; color: var(--text-muted,#6b6b8a); }
+    .comp-note { font-size: 12px; color: var(--text-muted,#6b6b8a); margin-top: 8px; line-height: 1.5; }
+
     /* Selected subjects summary */
     .subj-summary {
       background: rgba(67,233,123,0.06);
@@ -341,6 +367,17 @@
       </div>
     </div>
 
+    <div class="subj-summary" id="subjSummary"></div>
+
+    <!-- ✅ STEP 2: Component selector — hidden when only one component available -->
+    <div class="comp-wrap" id="compWrap">
+      <div class="comp-label">Choose Examination Component</div>
+      <div class="comp-row" id="compRow"></div>
+      <div class="comp-note" id="compNote">
+        Select a component. Take a separate session for each additional component.
+      </div>
+    </div>
+
     <button class="cbt-btn cbt-btn-green" id="step4Btn" onclick="startExam()" disabled>
       🚀 Start Exam →
     </button>
@@ -368,6 +405,9 @@ var _subjects     = [];
 var _selectedSubjectIds = [];
 var _studentInfo  = {};
 var _currentStep  = 1;
+/* ✅ STEP 2: Component selection state */
+var _selectedComponent   = 'objective';
+var _availableComponents = { objective: true, theory: false };
 /* ✅ STEP 2: Selected examination component (question type).
    Defaults to 'objective' for backward compatibility.
    Updated by loadComponents() after subjects are chosen. */
@@ -731,7 +771,6 @@ function toggleSubject(id) {
   if (_selectedSubjectIds.length > 0) {
     btn.disabled = false;
 
-    /* Calculate total time */
     var totalMins = 0;
     _subjects.forEach(function(s) {
       if (_selectedSubjectIds.includes(s._id)) totalMins += (s.timeLimit || 0);
@@ -741,19 +780,93 @@ function toggleSubject(id) {
     summary.textContent   = '✅ ' + _selectedSubjectIds.length + ' subject' +
       (_selectedSubjectIds.length > 1 ? 's' : '') + ' selected · Total time: ' + totalMins + ' mins';
 
-    /* ✅ STEP 2: Detect available components for selected subjects */
+    /* ✅ STEP 2: Detect available components */
     loadComponents();
 
   } else {
     btn.disabled = true;
     summary.style.display = 'none';
-    /* ✅ STEP 2: Hide component selector — no subjects selected */
-    var compWrap = document.getElementById('componentSelectorWrap');
-    if (compWrap) { compWrap.style.display = 'none'; }
+    /* Hide component selector */
+    var cw = document.getElementById('compWrap');
+    if (cw) { cw.style.display = 'none'; }
     _selectedComponent   = 'objective';
     _availableComponents = { objective: true, theory: false };
   }
 }
+
+/* ============================================
+   ✅ STEP 2 — COMPONENT DETECTION
+   Calls POST /api/cbt/subject-components.
+   Shows selector only when > 1 available.
+============================================ */
+async function loadComponents() {
+  var compWrap = document.getElementById('compWrap');
+  var compRow  = document.getElementById('compRow');
+  if (!compWrap || !compRow) { return; }
+
+  compRow.innerHTML =
+    '<div style="font-size:13px; color:var(--text-muted,#6b6b8a); ' +
+    'padding:4px 0;">Checking available components...</div>';
+  compWrap.style.display = 'block';
+
+  try {
+    var res = await apiRequest('/cbt/subject-components', 'POST', {
+      examCategory: _category,
+      subjectIds:   _selectedSubjectIds
+    });
+    _availableComponents = (res.ok && res.data.components)
+      ? res.data.components
+      : { objective: true, theory: false };
+  } catch (e) {
+    _availableComponents = { objective: true, theory: false };
+  }
+
+  var available = Object.keys(_availableComponents).filter(function(k) {
+    return _availableComponents[k];
+  });
+
+  /* Only one component — no selector needed, start directly */
+  if (available.length <= 1) {
+    compWrap.style.display = 'none';
+    _selectedComponent     = available[0] || 'objective';
+    return;
+  }
+
+  /* Multiple components — show selector */
+  var INFO = {
+    objective: { icon: '🔘', name: 'Objective / MCQ',   desc: 'Multiple-choice A/B/C/D' },
+    theory:    { icon: '📝', name: 'Theory / Essay',     desc: 'Written answer questions' },
+    practical: { icon: '🔬', name: 'Practical',          desc: 'Practical examination' },
+    oral:      { icon: '🎤', name: 'Oral',               desc: 'Oral examination' }
+  };
+
+  /* Ensure current selection is valid */
+  if (!_availableComponents[_selectedComponent]) {
+    _selectedComponent = available[0];
+  }
+
+  compRow.innerHTML = available.map(function(type) {
+    var info     = INFO[type] || { icon: '📝', name: type, desc: '' };
+    var isActive = (_selectedComponent === type);
+    return '<button class="comp-btn' + (isActive ? ' active' : '') + '" ' +
+      'id="compBtn_' + type + '" ' +
+      'onclick="selectComponent(\'' + type + '\', this)">' +
+      '<div class="comp-btn-name">' + info.icon + ' ' + info.name + '</div>' +
+      '<div class="comp-btn-desc">' + info.desc + '</div>' +
+    '</button>';
+  }).join('');
+
+  compWrap.style.display = 'block';
+}
+
+function selectComponent(type, btnEl) {
+  _selectedComponent = type;
+  document.querySelectorAll('.comp-btn').forEach(function(b) {
+    b.classList.remove('active');
+  });
+  if (btnEl) { btnEl.classList.add('active'); }
+}
+
 
 /* ============================================
    ✅ STEP 2 — COMPONENT DETECTION + SELECTION
@@ -858,8 +971,10 @@ async function startExam() {
     var res = await apiRequest('/cbt/session/start', 'POST', {
       examCategory: _category,
       subjectIds:   _selectedSubjectIds,
-      /* ✅ STEP 2: Pass selected component.
-         Defaults to 'objective' — fully backward compatible. */
+      /* ✅ STEP 2: Send selected component so server assembles
+         the correct question type. Default: objective.
+         This was the primary reason students could not take theory —
+         the server never received questionType so always assembled MCQ. */
       questionType: _selectedComponent || 'objective'
     });
 
