@@ -80,6 +80,32 @@ router.post('/access', async (req, res) => {
       metadata: { examId: exam._id, examTitle: exam.title, examCode: exam.examCode, studentName: studentName.trim() }
     });
 
+    /* ✅ STEP 4: Load teacher's ECE config.
+       Failure NEVER blocks exam — returns null safely.
+       Flattened to { key: boolean } for Phase F consumption. */
+    var teacherEceConfig = null;
+    try {
+      var ECEConfig = require('../ece/models/ECEConfig.model');
+      var eceCfg   = await ECEConfig.findOne({
+        scope:   'teacher',
+        scopeId: exam.teacherId
+      }).lean();
+
+      if (eceCfg && eceCfg.enabled && eceCfg.capabilities) {
+        var flat = {};
+        var caps = eceCfg.capabilities;
+        Object.keys(caps).forEach(function (group) {
+          if (typeof caps[group] === 'object') {
+            Object.assign(flat, caps[group]);
+          }
+        });
+        teacherEceConfig = flat;
+      }
+    } catch (eceErr) {
+      /* Non-critical — exam proceeds without ECE */
+      console.warn('[ECE teacher] /access ECE load failed:', eceErr.message);
+    }
+
     return res.status(200).json({
       success:  true,
       message:  'Welcome ' + studentName + '! Your exam is ready.',
@@ -99,7 +125,10 @@ router.post('/access', async (req, res) => {
         studentName: studentName.trim(),
         examId:      exam._id.toString(),
         teacherId:   exam.teacherId.toString()
-      })).toString('base64')
+      })).toString('base64'),
+      /* ✅ STEP 4: ECE config for Phase F security module.
+         null = ECE not configured for this teacher. */
+      eceConfig: teacherEceConfig
     });
 
   } catch (error) {

@@ -302,6 +302,8 @@ function showTeacherSection(name) {
 
   if (name === 'students')  populateStudentExamSelector();
   if (name === 'questions') populateQuestionExamSelector();
+  /* ✅ STEP 4: Load ECE config when teacher opens settings */
+  if (name === 'ece') { if (typeof tEceLoad === 'function') tEceLoad(); }
 }
 
 /* ============================================
@@ -1102,6 +1104,131 @@ async function handleTeacherGoogleResponse(response) {
     setTimeout(function() { window.location.reload(); }, 600);
   } else {
     if (errEl) { errEl.textContent = result.data.message || '❌ Google sign in failed.'; errEl.style.display = 'block'; }
+  }
+}
+
+/* ============================================
+   ✅ STEP 4 — TEACHER ECE CONFIGURATION UI
+   Mirrors institution ECE panel. Uses apiRequest
+   (from main.js) not instApi.
+============================================ */
+var _tEceCaps = {};
+
+var _T_ECE_GROUPS = {
+  security: {
+    caps: [
+      { key: 'fullscreen_enforcement', label: 'Require Fullscreen',
+        desc: 'Students must stay in fullscreen. Exiting triggers a warning and is logged.' },
+      { key: 'tab_switch_detection', label: 'Tab Switch Detection',
+        desc: 'Detects and counts tab/window switching during the exam.' },
+      { key: 'copy_protection', label: 'Copy Protection',
+        desc: 'Blocks students from copying exam content.' },
+      { key: 'right_click_disable', label: 'Disable Right-Click',
+        desc: 'Prevents right-click context menu during the exam.' }
+    ]
+  },
+  rules: {
+    caps: [
+      { key: 'shuffle_options', label: 'Shuffle Answer Options',
+        desc: 'Randomize A/B/C/D option order for each student session.' },
+      { key: 'review_allowed', label: 'Show Result After Submission',
+        desc: 'Students see correct answers and scores immediately after submitting.' }
+    ]
+  },
+  rendering: {
+    caps: [
+      { key: 'math', label: 'LaTeX / Math Rendering',
+        desc: 'Enable KaTeX rendering for questions using $formula$ notation.' },
+      { key: 'images', label: 'Image Support',
+        desc: 'Display images embedded in questions (recommended: ON).' }
+    ]
+  }
+};
+
+async function tEceLoad() {
+  var loadEl    = document.getElementById('tEceLoading');
+  var contentEl = document.getElementById('tEceContent');
+  if (loadEl)    { loadEl.style.display    = 'block'; }
+  if (contentEl) { contentEl.style.display = 'none';  }
+
+  var res = await apiRequest('/teacher/ece-config');
+  if (!res.ok) {
+    teacherToast('Failed to load ECE configuration.', 'error');
+    if (loadEl) { loadEl.textContent = 'Failed to load. Please refresh.'; }
+    return;
+  }
+
+  _tEceCaps = {};
+  var storedCaps = (res.data.config && res.data.config.capabilities) ? res.data.config.capabilities : {};
+  Object.keys(storedCaps).forEach(function (group) {
+    if (typeof storedCaps[group] === 'object') { Object.assign(_tEceCaps, storedCaps[group]); }
+  });
+
+  Object.keys(_T_ECE_GROUPS).forEach(function (groupKey) {
+    var group  = _T_ECE_GROUPS[groupKey];
+    var rowsEl = document.getElementById('tEce' + groupKey.charAt(0).toUpperCase() + groupKey.slice(1) + 'Rows');
+    if (!rowsEl) { return; }
+
+    rowsEl.innerHTML = group.caps.map(function (cap) {
+      var isOn = !!_tEceCaps[cap.key];
+      return '<div id="tEceRow_' + cap.key + '" ' +
+        'onclick="tEceToggle(\'' + groupKey + '\', \'' + cap.key + '\')" ' +
+        'style="display:flex;align-items:flex-start;gap:14px;padding:12px;border-radius:8px;' +
+          'border-bottom:1px solid var(--border,rgba(255,255,255,0.08));cursor:pointer;' +
+          (isOn ? 'background:rgba(67,233,123,0.04);' : '') +
+        '">' +
+        '<input type="checkbox" id="tEceCb_' + cap.key + '" ' + (isOn ? 'checked' : '') + ' ' +
+          'onclick="event.stopPropagation();tEceToggle(\'' + groupKey + '\',\'' + cap.key + '\')" ' +
+          'style="width:18px;height:18px;accent-color:#43e97b;margin-top:2px;flex-shrink:0;cursor:pointer;" />' +
+        '<div style="flex:1;">' +
+          '<div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:3px;">' + cap.label + '</div>' +
+          '<div style="font-size:12px;color:var(--text-muted,#6b6b8a);line-height:1.6;">' + cap.desc + '</div>' +
+        '</div>' +
+        '<span id="tEceLbl_' + cap.key + '" style="font-size:11px;font-weight:700;' +
+          'color:' + (isOn ? '#43e97b' : 'var(--text-muted,#6b6b8a)') + ';' +
+          'margin-top:3px;flex-shrink:0;min-width:32px;text-align:right;">' +
+          (isOn ? 'ON' : 'OFF') +
+        '</span>' +
+      '</div>';
+    }).join('');
+  });
+
+  if (loadEl)    { loadEl.style.display    = 'none';  }
+  if (contentEl) { contentEl.style.display = 'block'; }
+}
+
+function tEceToggle(group, key) {
+  _tEceCaps[key] = !_tEceCaps[key];
+  var isOn = _tEceCaps[key];
+  var row  = document.getElementById('tEceRow_' + key);
+  var cb   = document.getElementById('tEceCb_' + key);
+  var lbl  = document.getElementById('tEceLbl_' + key);
+  if (cb)  { cb.checked = isOn; }
+  if (row) { row.style.background = isOn ? 'rgba(67,233,123,0.04)' : ''; }
+  if (lbl) { lbl.textContent = isOn ? 'ON' : 'OFF'; lbl.style.color = isOn ? '#43e97b' : 'var(--text-muted,#6b6b8a)'; }
+}
+
+async function tEceSave() {
+  var capabilities = {};
+  Object.keys(_T_ECE_GROUPS).forEach(function (groupKey) {
+    capabilities[groupKey] = {};
+    _T_ECE_GROUPS[groupKey].caps.forEach(function (cap) {
+      capabilities[groupKey][cap.key] = !!_tEceCaps[cap.key];
+    });
+  });
+
+  var res = await apiRequest('/teacher/ece-config', 'PUT', { capabilities: capabilities });
+
+  if (res.ok) {
+    teacherToast('ECE configuration saved!', 'success');
+    var bannerEl = document.getElementById('tEceStatusBanner');
+    if (bannerEl) {
+      bannerEl.textContent = '✅ Saved at ' + new Date().toLocaleTimeString('en-NG');
+      bannerEl.style.display = 'block';
+      setTimeout(function () { bannerEl.style.display = 'none'; }, 4000);
+    }
+  } else {
+    teacherToast(res.data.message || 'Failed to save.', 'error');
   }
 }
 

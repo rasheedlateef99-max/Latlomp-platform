@@ -236,6 +236,9 @@
       <a class="sb-link teacher-nav-link"         data-section="exams"    onclick="showTeacherSection('exams')">    <span class="sb-icon">📝</span> My Exams</a>
       <a class="sb-link teacher-nav-link"         data-section="questions" onclick="showTeacherSection('questions')"><span class="sb-icon">❓</span> Questions</a>
       <a class="sb-link teacher-nav-link"         data-section="students" onclick="showTeacherSection('students')"> <span class="sb-icon">👥</span> Students</a>
+      <a class="sb-link teacher-nav-link" data-section="ece" onclick="showTeacherSection('ece')">
+        <span class="sb-icon">⚡</span> ECE Settings
+      </a>
       <a class="sb-link" onclick="teacherLogout()"><span class="sb-icon">🚪</span> Logout</a>
     </nav>
     <a href="index.html" class="sb-back">← Back to Platform</a>
@@ -328,6 +331,54 @@
             <span id="questionsCount" style="font-size:13px; color:var(--text-muted);">0 questions</span>
           </div>
           <div id="questionsListWrapper"><div class="teacher-loading">Select an exam to load questions</div></div>
+        </div>
+      </section>
+
+<!-- ECE SETTINGS -->
+      <section class="teacher-section" id="ts-ece">
+        <div class="t-page-header">
+          <div>
+            <h1>⚡ Exam Core Engine</h1>
+            <p>Configure security and rules for your student examinations.</p>
+          </div>
+          <button class="t-btn t-btn-green" onclick="tEceSave()">💾 Save Configuration</button>
+        </div>
+
+        <div id="tEceStatusBanner" style="
+          display:none; background:rgba(67,233,123,0.08);
+          border:1px solid rgba(67,233,123,0.25); border-radius:10px;
+          padding:12px 18px; font-size:13px; color:#43e97b;
+          font-weight:700; margin-bottom:20px;
+        "></div>
+
+        <div id="tEceLoading" style="text-align:center; padding:40px; color:var(--text-muted);">
+          <div style="width:28px;height:28px;border:3px solid rgba(108,99,255,0.2);
+            border-top-color:#6c63ff;border-radius:50%;animation:spin 0.8s linear infinite;
+            margin:0 auto 14px;"></div>
+          Loading ECE configuration...
+        </div>
+
+        <div id="tEceContent" style="display:none;">
+
+          <div class="t-card" style="margin-bottom:16px;">
+            <div class="t-card-head"><h3>🔒 Security</h3></div>
+            <div class="t-card-body" id="tEceSecurityRows"></div>
+          </div>
+
+          <div class="t-card" style="margin-bottom:16px;">
+            <div class="t-card-head"><h3>📐 Examination Rules</h3></div>
+            <div class="t-card-body" id="tEceRulesRows"></div>
+          </div>
+
+          <div class="t-card" style="margin-bottom:16px;">
+            <div class="t-card-head"><h3>🎨 Question Rendering</h3></div>
+            <div class="t-card-body" id="tEceRenderingRows"></div>
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
+            <button class="t-btn t-btn-secondary" onclick="tEceLoad()">↺ Reset</button>
+            <button class="t-btn t-btn-green" onclick="tEceSave()">💾 Save All Changes</button>
+          </div>
         </div>
       </section>
 

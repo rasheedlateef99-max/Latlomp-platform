@@ -888,6 +888,50 @@
   })();
   </script>
 
+<!-- ============================================
+       ✅ STEP 4: TEACHER ECE CONFIG BRIDGE
+       Intercepts the /api/student-exam/access fetch
+       response and stores eceConfig in
+       window._sEceConfig before Phase F reads it.
+       student-exam.js is NOT modified.
+  ============================================ -->
+  <script>
+  (function () {
+    'use strict';
+
+    /* Wrap fetch to intercept /api/student-exam/access */
+    var _origFetch = window.fetch;
+    window.fetch = function (url, opts) {
+      var p = _origFetch.apply(this, arguments);
+
+      /* Only intercept the access endpoint */
+      if (typeof url === 'string' && url.indexOf('/student-exam/access') !== -1) {
+        return p.then(function (response) {
+          /* Clone so body can be read twice */
+          var cloned = response.clone();
+          cloned.json().then(function (data) {
+            if (data && data.success && data.eceConfig) {
+              window._sEceConfig = data.eceConfig;
+              try {
+                sessionStorage.setItem('_teacherEceConfig', JSON.stringify(data.eceConfig));
+              } catch (e) {}
+            }
+          }).catch(function () {});
+          return response;  /* return original to caller */
+        });
+      }
+      return p;
+    };
+
+    /* Also try restoring from sessionStorage on page refresh */
+    try {
+      var stored = sessionStorage.getItem('_teacherEceConfig');
+      if (stored) { window._sEceConfig = JSON.parse(stored); }
+    } catch (e) {}
+
+  })();
+  </script>
+
   <!-- ============================================
        ✅ PHASE F: CBT SECURITY MODULE
        Self-contained IIFE. Wraps beginStudentExam
@@ -898,6 +942,11 @@
   <script>
   (function() {
 
+    /* ✅ STEP 4: Read ECE config from teacher settings.
+       Falls back to safe defaults when not configured.
+       window._sEceConfig populated by fetch interceptor above. */
+    var _cfg = window._sEceConfig || {};
+
     var _sec = {
       isActive:        false,
       fullscreenExits: 0,
@@ -906,8 +955,16 @@
       copyAttempts:    0,
       devtoolAttempts: 0,
       totalViolations: 0,
-      maxViolations:   5,
-      fsMaxViolations: 3,
+      /* ✅ STEP 4: Dynamic thresholds from teacher ECE config.
+         fullscreen_enforcement = false → fsMaxViolations set high
+         so fullscreen is not enforced even if browser fires events. */
+      maxViolations:   typeof _cfg.max_violations === 'number' ? _cfg.max_violations : 5,
+      fsMaxViolations: _cfg.fullscreen_enforcement ? 3 : 99,
+      /* Enable/disable specific detection based on teacher settings */
+      _fsEnabled:      _cfg.fullscreen_enforcement !== false,
+      _tabEnabled:     _cfg.tab_switch_detection !== false,
+      _copyEnabled:    _cfg.copy_protection !== false,
+      _rcEnabled:      _cfg.right_click_disable !== false,
       cdTimer:         null,
       log:             []
     };
@@ -943,19 +1000,36 @@
     function initSec() {
       if (_sec.isActive) { return; }
       _sec.isActive = true;
-      requestFs();
+
+      /* ✅ STEP 4: Only request fullscreen if teacher enabled it */
+      if (_sec._fsEnabled) { requestFs(); }
+
+      /* Always listen for fs change — needed to update badge */
       document.addEventListener('fullscreenchange',       onFsChange);
       document.addEventListener('webkitfullscreenchange', onFsChange);
       document.addEventListener('mozfullscreenchange',    onFsChange);
-      document.addEventListener('visibilitychange',       onVisChange);
-      window.addEventListener('blur',  onWinBlur);
-      window.addEventListener('focus', onWinFocus);
-      document.addEventListener('keydown',     blockKeys, true);
-      document.addEventListener('contextmenu', blockMenu, true);
-      var qEl  = document.getElementById('sQuestionText');
-      var optEl = document.getElementById('sOptionsArea');
-      if (qEl)  { qEl.addEventListener('copy',  blockCopy, true); qEl.addEventListener('cut', blockCopy, true); }
-      if (optEl){ optEl.addEventListener('copy', blockCopy, true); }
+
+      /* Tab switch detection only if teacher enabled it */
+      if (_sec._tabEnabled) {
+        document.addEventListener('visibilitychange', onVisChange);
+        window.addEventListener('blur',  onWinBlur);
+        window.addEventListener('focus', onWinFocus);
+      }
+
+      /* Always block devtools shortcuts (F12, Ctrl+I etc.) */
+      document.addEventListener('keydown', blockKeys, true);
+
+      /* Copy / right-click based on teacher settings */
+      if (_sec._copyEnabled || _sec._rcEnabled) {
+        document.addEventListener('contextmenu', blockMenu, true);
+      }   /* end _copyEnabled || _rcEnabled */
+
+      if (_sec._copyEnabled) {
+        var qEl  = document.getElementById('sQuestionText');
+        var optEl = document.getElementById('sOptionsArea');
+        if (qEl)  { qEl.addEventListener('copy',  blockCopy, true); qEl.addEventListener('cut', blockCopy, true); }
+        if (optEl){ optEl.addEventListener('copy', blockCopy, true); }
+      }
       logSec('init', 'Security initialized');
       updateSecBadge();
     }

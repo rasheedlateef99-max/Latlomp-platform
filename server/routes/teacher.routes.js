@@ -483,4 +483,75 @@ router.get('/questions/import-template', function (req, res) {
   return res.send(qieHelpers.TEMPLATE_CSV);
 });
 
+/* ============================================
+   ✅ STEP 4 — TEACHER ECE CONFIG ROUTES
+   protect + teacherOnly already applied via
+   router.use() above — no extra guard needed.
+
+   GET  /api/teacher/ece-config  → load config
+   PUT  /api/teacher/ece-config  → save config
+============================================ */
+router.get('/ece-config', async (req, res) => {
+  try {
+    var ECEConfig = require('../ece/models/ECEConfig.model');
+    var config    = await ECEConfig.getOrCreate(
+      'teacher',
+      req.user.id,
+      req.user.name || 'Teacher'
+    );
+    return res.json({ success: true, config: config.toClientObject() });
+  } catch (err) {
+    console.error('[ECE teacher] GET /ece-config:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.put('/ece-config', async (req, res) => {
+  try {
+    var ECEConfig = require('../ece/models/ECEConfig.model');
+    var newCaps   = req.body.capabilities;
+
+    if (!newCaps || typeof newCaps !== 'object') {
+      return res.status(400).json({
+        success: false,
+        message: 'capabilities object is required.'
+      });
+    }
+
+    /* Respect root-admin global availability — silently downgrade blocked caps */
+    var globalCfg   = await ECEConfig.findOne({ scope: 'cbt', scopeId: null }).lean();
+    var globalAvail = (globalCfg && globalCfg.globalAvailability) ? globalCfg.globalAvailability : {};
+
+    var config = await ECEConfig.getOrCreate(
+      'teacher',
+      req.user.id,
+      req.user.name || 'Teacher'
+    );
+
+    Object.keys(newCaps).forEach(function (group) {
+      if (typeof newCaps[group] !== 'object') { return; }
+      if (!config.capabilities[group]) { config.capabilities[group] = {}; }
+      Object.keys(newCaps[group]).forEach(function (key) {
+        var val = newCaps[group][key];
+        if (globalAvail[key] === false && val === true) { val = false; }
+        config.capabilities[group][key] = val;
+      });
+    });
+
+    config.lastModifiedBy = req.user.name || 'teacher';
+    config.lastModifiedAt = new Date();
+    config.markModified('capabilities');
+    await config.save();
+
+    return res.json({
+      success: true,
+      message: 'ECE configuration saved.',
+      config:  config.toClientObject()
+    });
+  } catch (err) {
+    console.error('[ECE teacher] PUT /ece-config:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;
