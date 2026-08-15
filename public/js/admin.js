@@ -1738,6 +1738,10 @@ function qmsReset() {
   if (txt) txt.value = '';
   _qmsSelectedFile = null;
   _qmsPreviewData  = null;
+  /* ✅ FIX: Reset type selector to objective on form reset */
+  var typeSel = document.getElementById('qmsQuestionType');
+  if (typeSel) { typeSel.value = 'objective'; }
+  qmsOnTypeChange('objective');
   var lbl = document.getElementById('qmsFileLabel');
   if (lbl) lbl.textContent = 'Click to upload or drag and drop';
   var pp = document.getElementById('qmsPreviewPanel');
@@ -2071,21 +2075,29 @@ function qmsFilterByTopic(topic) {
 function _qmsEnsureTypeSelector() {
   if (document.getElementById('qmsQuestionType')) { return; }
 
-  /* Primary target: the import panel container itself */
-  var panel = document.getElementById('qmsPanelImport');
-  if (!panel) {
-    /* Fallback: find any of the known child elements */
-    panel = (
-      (document.getElementById('qmsBtnPaste')     || {}).parentNode ||
-      (document.getElementById('qmsPasteArea')    || {}).parentNode ||
-      (document.getElementById('qmsValidateBtn')  || {}).parentNode
-    ) || null;
-  }
-  if (!panel) {
-    /* Nothing found — will retry on next qmsInit() call */
-    console.warn('[QMS] Type selector injection: panel not found.');
+  /* ✅ FIX: Walk up from a known always-present child element.
+     qmsValidateBtn is rendered by admin.html directly (not dynamically)
+     so it is reliably in the DOM once the import tab is first opened.
+     We insert before the validate button's closest section ancestor. */
+  var anchor = document.getElementById('qmsValidateBtn') ||
+               document.getElementById('qmsBtnPaste')    ||
+               document.getElementById('qmsPasteArea');
+
+  if (!anchor) {
+    console.warn('[QMS] Type selector: anchor element not found — will retry.');
     return;
   }
+
+  /* Find the nearest container that is a direct child of the panel
+     (not a grandchild) so our wrapper appears at the top level */
+  var panel = anchor.parentNode;
+  /* Walk up maximum 4 levels looking for the panel div */
+  for (var up = 0; up < 4 && panel && panel.tagName !== 'SECTION'; up++) {
+    if (panel.id && panel.id.indexOf('Panel') !== -1) { break; }
+    if (panel.id && panel.id.indexOf('panel') !== -1) { break; }
+    panel = panel.parentNode;
+  }
+  if (!panel) { panel = anchor.parentNode; }
 
   var wrapper = document.createElement('div');
   wrapper.id  = '_qmsTypeSelectorWrap';
@@ -2219,6 +2231,99 @@ window.qmsOnTypeChange = function(type) {
   _qmsPreviewData = null;
   var pp = document.getElementById('qmsPreviewPanel');
   if (pp) { pp.style.display = 'none'; }
+};
+
+
+window.qmsOnTypeChange = function(type) {
+  /* ✅ FIX: Update module-level variable FIRST — this is the safety net */
+  _qmsCurrentQType = type || 'objective';
+
+  var hintEl    = document.getElementById('qmsTypeHintEl');
+  var guideEl   = document.getElementById('qmsTheoryGuideEl');
+  var textArea  = document.getElementById('qmsPasteText');
+
+  /* ✅ FIX: Show/hide a theory-specific instruction banner that appears
+     between the type selector and the paste/file controls.
+     This makes it visually obvious the mode has changed. */
+  var theoryBanner = document.getElementById('_qmsTheoryBannerEl');
+  if (!theoryBanner) {
+    theoryBanner = document.createElement('div');
+    theoryBanner.id = '_qmsTheoryBannerEl';
+    theoryBanner.style.cssText =
+      'margin-bottom:14px; padding:12px 16px; ' +
+      'background:rgba(255,165,0,0.07); ' +
+      'border:1px solid rgba(255,165,0,0.25); ' +
+      'border-radius:10px; font-size:13px; ' +
+      'color:#ffa500; line-height:1.7; display:none;';
+    theoryBanner.innerHTML =
+      '<strong style="color:#fff;">📝 THEORY / ESSAY MODE ACTIVE</strong><br>' +
+      'Options A/B/C/D and correct-answer fields are NOT required for theory.<br>' +
+      'Each question must start with <code style="background:rgba(255,255,255,0.1);' +
+      'padding:1px 5px;border-radius:3px;">QUESTION N</code> or be separated by ' +
+      '<code style="background:rgba(255,255,255,0.1);padding:1px 5px;border-radius:3px;">---</code>.<br>' +
+      'The <strong style="color:#fff;">DETAILED SOLUTION &amp; MARKING SCHEME</strong> ' +
+      'section is stored as the model answer — never sent to students.';
+    /* Insert after the type selector wrapper */
+    var selectorWrap = document.getElementById('_qmsTypeSelectorWrap');
+    if (selectorWrap && selectorWrap.parentNode) {
+      selectorWrap.parentNode.insertBefore(theoryBanner, selectorWrap.nextSibling);
+    } else if (textArea && textArea.parentNode) {
+      textArea.parentNode.insertBefore(theoryBanner, textArea);
+    }
+  }
+
+  if (type === 'theory') {
+    /* Show theory banner */
+    if (theoryBanner) { theoryBanner.style.display = 'block'; }
+    if (hintEl) {
+      hintEl.innerHTML =
+        '<span style="color:#ffa500; font-weight:700;">📝 Theory / Essay mode.</span><br>' +
+        'Paste your WAEC/NECO-style questions below. Each question block ' +
+        'starting with <strong>QUESTION N</strong> becomes one Question Bank record.<br>' +
+        '<span style="color:#43e97b;">No A/B/C/D or correct-answer required.</span>';
+    }
+    if (guideEl)  { guideEl.style.display = 'block'; }
+    if (textArea) {
+      textArea.placeholder =
+        'QUESTION 1 [8 MARKS]\n\n' +
+        '(a) Without using mathematical tables, evaluate:\n' +
+        '    (log₁₀ 27 + log₁₀ 8 − log₁₀ 125) ÷ (log₁₀ 6 − log₁₀ 5)\n\n' +
+        '(b) A trader bought oranges at ₦1,200 per dozen and sold them\n' +
+        '    in packs of 4 at ₦500 per pack. Calculate her % profit.\n\n' +
+        'DETAILED SOLUTION & MARKING SCHEME\n\n' +
+        '(a) = log(27×8/125) / log(6/5) = log(1000) / log(1.2)\n' +
+        '    = 3 / log(6/5)    [M1]   = 3 / 0.07918 = 3  [A1]\n\n' +
+        '(b) Selling price per dozen = 3 × ₦500 = ₦1,500\n' +
+        '    Profit = ₦300; Profit % = (300/1200)×100 = 25%   [A1]\n\n' +
+        'QUESTION 2 [10 MARKS]\n\n' +
+        '(a) Make T the subject of the formula: P = √[R(T−t)/m]\n\n' +
+        'DETAILED SOLUTION & MARKING SCHEME\n\n' +
+        '(a) P² = R(T−t)/m  → T = mP²/R + t   [M1][A1]';
+    }
+  } else {
+    /* Hide theory banner, restore objective mode */
+    if (theoryBanner) { theoryBanner.style.display = 'none'; }
+    if (hintEl) {
+      hintEl.innerHTML =
+        '<span style="color:#a78bfa; font-weight:700;">🔘 Objective / MCQ mode.</span><br>' +
+        'Each question requires options A/B/C/D and a correct answer. ' +
+        'Separate questions with a blank line.';
+    }
+    if (guideEl)  { guideEl.style.display = 'none'; }
+    if (textArea) {
+      textArea.placeholder =
+        '1. What is the capital of Nigeria?\nA. Lagos\nB. Abuja\nC. Kano\nD. Ibadan\nAnswer: B\n\n' +
+        '2. What is 2 + 2?\nA. 3\nB. 4\nC. 5\nD. 6\nAnswer: B';
+    }
+  }
+
+  /* Reset preview when type changes — avoids stale objective
+     preview being displayed after switching to theory */
+  _qmsPreviewData = null;
+  var pp = document.getElementById('qmsPreviewPanel');
+  if (pp) { pp.style.display = 'none'; }
+  var confBtn = document.getElementById('qmsConfirmBtn');
+  if (confBtn) { confBtn.style.display = 'none'; }
 };
 
 /* ============================================================
@@ -4021,121 +4126,131 @@ async function eceLoadAuditLog() {
 var _origRenderQmsPreview = renderQmsPreview;
 
 renderQmsPreview = function(preview, meta) {
-  /* Always call original first for stats, warnings, duplicate/rejected panels */
-  _origRenderQmsPreview(preview, meta);
-
-  /* Determine effective question type */
+  /* ✅ FIX: Determine type BEFORE calling original so we can
+     skip the original's table rendering when in theory mode. */
   var qType    = (preview && preview.questionType)
                ? preview.questionType
                : (meta && meta.questionType ? meta.questionType : _qmsCurrentQType);
   var isTheory = (qType === 'theory');
 
-  var validQs = preview.valid || [];
-  if (!validQs.length) { return; }
-
-  var PREVIEW_LIMIT = 20;
-  var shown   = validQs.slice(0, PREVIEW_LIMIT);
-  var letters = ['A', 'B', 'C', 'D'];
-
-  var tbody  = document.getElementById('qmsPreviewTable');
-  if (!tbody) { return; }
-
   if (isTheory) {
-    /* ---- Theory preview: show Question | Marks | Model Answer | Status ---- */
-    tbody.innerHTML = shown.map(function(q, i) {
-      var questionPreview = (q.question || '').substring(0, 100) +
-        ((q.question || '').length > 100 ? '…' : '');
-      var marksVal    = q.marks || '—';
-      var modelPreview = (q.modelAnswer || q.explanation || '')
-        .replace(/\[M\d\]/gi, '').replace(/\[A\d\]/gi, '').trim()
-        .substring(0, 80);
-      var hasModel = !!(q.modelAnswer || q.explanation);
+    /* ---- Theory mode: call original ONLY for stats/warnings/rejected.
+       We immediately overwrite the tbody ourselves so there is no
+       double-render conflict. ---- */
+    _origRenderQmsPreview(preview, meta);
 
-      return '<tr>' +
-        '<td style="font-weight:700; color:#a78bfa; width:32px;">' + (i + 1) + '</td>' +
-        '<td style="color:#fff; font-size:13px; max-width:280px; line-height:1.5;">' +
-          questionPreview +
-        '</td>' +
-        '<td style="text-align:center; white-space:nowrap;">' +
-          '<span style="background:rgba(67,233,123,0.12); color:#43e97b; ' +
-          'padding:2px 10px; border-radius:20px; font-size:12px; font-weight:700;">' +
-          marksVal + (marksVal !== '—' ? ' mk' : '') +
-          '</span>' +
-        '</td>' +
-        '<td style="font-size:12px; color:var(--text-secondary,#a0a0c0); max-width:220px;">' +
-          (hasModel
-            ? '<span style="color:#43e97b;">✓</span> ' + modelPreview +
-              (modelPreview.length >= 80 ? '…' : '')
-            : '<span style="color:var(--text-muted,#6b6b8a); font-style:italic;">No model answer</span>'
-          ) +
-        '</td>' +
-        '<td>' +
-          '<span style="background:rgba(255,165,0,0.1); color:#ffa500; ' +
-          'padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;">Theory</span>' +
-        '</td>' +
-      '</tr>';
-    }).join('');
+    var validQs   = preview.valid || [];
+    var tbody     = document.getElementById('qmsPreviewTable');
+    var titleEl   = document.getElementById('qmsPreviewTitle');
+    var confBtn   = document.getElementById('qmsConfirmBtn');
+    var noteEl    = document.getElementById('qmsPreviewMoreNote');
+    var LIMIT     = 20;
+    var shown     = validQs.slice(0, LIMIT);
 
-    /* Update the preview title to reflect theory mode */
-    var titleEl = document.getElementById('qmsPreviewTitle');
     if (titleEl) {
       titleEl.textContent =
-        '📝 Theory Questions Preview (' + validQs.length + ' ready to import)';
+        '📝 Theory Questions (' + validQs.length + ' ready to import)';
     }
 
-    /* Update confirm button label */
-    var confirmBtn = document.getElementById('qmsConfirmBtn');
-    if (confirmBtn && validQs.length > 0) {
-      confirmBtn.style.display = 'inline-flex';
-      confirmBtn.textContent   =
-        '✅ Import ' + validQs.length + ' Theory Question' + (validQs.length !== 1 ? 's' : '');
+    if (tbody) {
+      if (!shown.length) {
+        tbody.innerHTML =
+          '<tr><td colspan="5" style="text-align:center; padding:24px; ' +
+          'color:var(--text-muted);">No valid theory questions detected. ' +
+          'Check the format guide and warnings above.</td></tr>';
+      } else {
+        tbody.innerHTML = shown.map(function(q, i) {
+          var qPreview = (q.question || '').substring(0, 120) +
+            ((q.question || '').length > 120 ? '…' : '');
+          var marksVal = q.marks || '—';
+          var rawModel = (q.modelAnswer || q.explanation || '');
+          /* Strip marking notation for preview */
+          var modelPreview = rawModel
+            .replace(/\[M\d\]/gi, '').replace(/\[A\d\]/gi, '')
+            .replace(/\[B\d\]/gi, '').trim()
+            .substring(0, 80);
+          var hasModel = rawModel.trim().length > 0;
+
+          return '<tr>' +
+            '<td style="font-weight:700;color:#a78bfa;width:32px;">' + (i+1) + '</td>' +
+            '<td style="color:#fff;font-size:13px;max-width:260px;line-height:1.5;">' +
+              qPreview + '</td>' +
+            '<td style="text-align:center;">' +
+              '<span style="background:rgba(67,233,123,0.12);color:#43e97b;' +
+              'padding:2px 10px;border-radius:20px;font-size:12px;font-weight:700;">' +
+              marksVal + (marksVal !== '—' ? ' mk' : '') + '</span></td>' +
+            '<td style="font-size:12px;color:var(--text-secondary);max-width:200px;">' +
+              (hasModel
+                ? '<span style="color:#43e97b;">✓ </span>' + modelPreview +
+                  (rawModel.trim().length > 80 ? '…' : '')
+                : '<span style="color:var(--text-muted);font-style:italic;">—</span>'
+              ) + '</td>' +
+            '<td><span style="background:rgba(255,165,0,0.1);color:#ffa500;' +
+              'padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">' +
+              'Theory</span></td>' +
+          '</tr>';
+        }).join('');
+      }
     }
 
-    /* More note */
-    var noteEl = document.getElementById('qmsPreviewMoreNote');
+    if (confBtn) {
+      if (validQs.length > 0) {
+        confBtn.style.display = 'inline-flex';
+        confBtn.textContent   = '✅ Import ' + validQs.length +
+          ' Theory Question' + (validQs.length !== 1 ? 's' : '');
+      } else {
+        confBtn.style.display = 'none';
+      }
+    }
     if (noteEl) {
-      noteEl.textContent = validQs.length > PREVIEW_LIMIT
-        ? 'Showing ' + PREVIEW_LIMIT + ' of ' + validQs.length +
-          ' theory questions. All ' + validQs.length + ' will be imported on confirmation.'
+      noteEl.textContent = validQs.length > LIMIT
+        ? 'Showing ' + LIMIT + ' of ' + validQs.length +
+          ' theory questions. All will be imported on confirmation.'
         : '';
     }
 
   } else {
-    /* ---- Objective preview: original 5-column layout with explanation ---- */
-    tbody.innerHTML = shown.map(function(q, i) {
+    /* ---- Objective mode: call original, then add explanation column ---- */
+    _origRenderQmsPreview(preview, meta);
+
+    var objValidQs = preview.valid || [];
+    var objTbody   = document.getElementById('qmsPreviewTable');
+    var LIMIT2     = 20;
+    if (!objTbody || !objValidQs.length) { return; }
+
+    var letters = ['A', 'B', 'C', 'D'];
+    objTbody.innerHTML = objValidQs.slice(0, LIMIT2).map(function(q, i) {
       var opts = (q.options || []).map(function(o, idx) {
-        return '<span style="font-size:11px; padding:1px 6px; border-radius:4px; ' +
-          'margin-right:3px; background:' +
-          (idx === q.correctAnswer ? 'rgba(67,233,123,0.15)' : 'rgba(255,255,255,0.04)') +
-          '; color:' +
-          (idx === q.correctAnswer ? '#43e97b' : 'var(--text-secondary)') + ';">' +
-          letters[idx] + ': ' + o.substring(0, 30) + (o.length > 30 ? '...' : '') +
-          (idx === q.correctAnswer ? ' ✓' : '') +
-        '</span>';
+        return '<span style="font-size:11px;padding:1px 6px;border-radius:4px;' +
+          'margin-right:3px;background:' +
+          (idx===q.correctAnswer ? 'rgba(67,233,123,0.15)' : 'rgba(255,255,255,0.04)') +
+          ';color:' +
+          (idx===q.correctAnswer ? '#43e97b' : 'var(--text-secondary)') + ';">' +
+          letters[idx] + ': ' + o.substring(0,30) + (o.length>30?'...':'') +
+          (idx===q.correctAnswer?' ✓':'') + '</span>';
       }).join('');
-
       var explHtml = q.explanation
-        ? '<span style="font-size:11px; color:#43e97b;">✓ ' +
-            q.explanation.substring(0, 60) +
-            (q.explanation.length > 60 ? '...' : '') +
+        ? '<span style="font-size:11px;color:#43e97b;">✓ ' +
+            q.explanation.substring(0,60) + (q.explanation.length>60?'...':'') +
           '</span>'
-        : '<span style="font-size:11px; color:var(--text-muted,#6b6b8a);">—</span>';
-
+        : '<span style="font-size:11px;color:var(--text-muted);">—</span>';
       return '<tr>' +
-        '<td style="font-weight:700; color:#a78bfa;">' + (i + 1) + '</td>' +
-        '<td style="color:#fff; font-size:13px;">' +
-          q.question.substring(0, 100) + (q.question.length > 100 ? '...' : '') +
-        '</td>' +
+        '<td style="font-weight:700;color:#a78bfa;">' + (i+1) + '</td>' +
+        '<td style="color:#fff;font-size:13px;">' +
+          q.question.substring(0,100) + (q.question.length>100?'...':'') + '</td>' +
         '<td>' + opts + '</td>' +
-        '<td><span style="background:rgba(67,233,123,0.12); color:#43e97b; ' +
-          'padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;">' +
-          (letters[q.correctAnswer] || '?') +
-        '</span></td>' +
+        '<td><span style="background:rgba(67,233,123,0.12);color:#43e97b;' +
+          'padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">' +
+          (letters[q.correctAnswer]||'?') + '</span></td>' +
         '<td>' + explHtml + '</td>' +
       '</tr>';
     }).join('');
   }
 };
+
+
+
+
 
 /* ============================================================
    QMS STABILIZATION — QUESTION SOURCES (UNIFIED VIEW)

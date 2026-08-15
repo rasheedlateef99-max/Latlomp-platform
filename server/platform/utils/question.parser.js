@@ -46,24 +46,32 @@ var LETTER_MAP = { 'A': 0, 'B': 1, 'C': 2, 'D': 3, '1': 0, '2': 1, '3': 2, '4': 
 
 /* Matches "QUESTION 1", "QUESTION 1 [8 MARKS]", "Q. 1", "Q1 ", "Q 1" at line start.
    The lookahead (?=\s|\[|$) avoids matching "Q1: something" mid-sentence. */
-var TH_BOUNDARY_RE = /^[ \t]*(?:QUESTION\s+\d+|Q\.?\s*\d+)(?=\s|\[|$)/m;
+/* ✅ FIX: Added 'i' flag — real exam docs use mixed case.
+   Extended pattern covers: "Question 1", "QUESTION 1",
+   "Q1.", "Q. 1", "Q 1 [8 marks]", "Qn 1" */
+var TH_BOUNDARY_RE = /^[ \t]*(?:QUESTION\s+\d+|Q(?:n|uestion)?\.?\s*\d+)(?=\s|\[|:|$)/im;
 
 /* Matches "[8 MARKS]" or "(8 MARKS)" or "[8 marks]" anywhere in a line */
 var TH_MARKS_HDR_RE = /[\[\(](\d+)\s*MARKS?[\]\)]/i;
 
 /* Matches solution/answer section headers on their own line */
+/* ✅ FIX: Broader match — handles "&", "and", ":", spacing variations.
+   Also catches section labels like "SOLUTION:" or "Answers:" alone.
+   The $ anchor now allows trailing whitespace and optional colon. */
 var TH_SOL_HEADER_RE = new RegExp(
   '^[ \\t]*(?:' +
-    '(?:DETAILED\\s+)?SOLUTION\\s*(?:(?:&|AND)\\s*MARKING\\s+SCHEME)?' + '|' +
+    '(?:DETAILED\\s+)?SOLUTION(?:\\s*[&+]\\s*MARKING\\s+SCHEME|\\s+AND\\s+MARKING\\s+SCHEME)?' + '|' +
     '(?:DETAILED\\s+)?MARKING\\s+SCHEME' + '|' +
-    'MARK\\s+SCHEME' + '|' +
-    'MODEL\\s+ANSWER' + '|' +
-    'EXPECTED\\s+ANSWER' + '|' +
-    'REFERENCE\\s+ANSWER' + '|' +
-    'WORKED\\s+SOLUTION' + '|' +
-    'FULL\\s+SOLUTION' + '|' +
-    'OFFICIAL\\s+ANSWER'  +
-  ')\\s*:?\\s*$',
+    'MARK(?:ING)?\\s+SCHEME' + '|' +
+    'MODEL\\s+ANSWERS?' + '|' +
+    'EXPECTED\\s+ANSWERS?' + '|' +
+    'REFERENCE\\s+ANSWERS?' + '|' +
+    'WORKED\\s+SOLUTIONS?' + '|' +
+    'FULL\\s+SOLUTIONS?' + '|' +
+    'OFFICIAL\\s+ANSWERS?' + '|' +
+    'ANSWERS?\\s+(?:AND\\s+)?SOLUTIONS?' + '|' +
+    'SOLUTIONS?\\s+(?:AND\\s+)?MARKING'  +
+  ')[ \\t]*:?[ \\t]*$',
   'im'
 );
 
@@ -250,10 +258,17 @@ function parseTheoryBlock(blockText) {
     var trimLine = line.trim();
 
     if (!inAnswer) {
-      /* Solution/answer section header? */
+      /* ✅ FIX: Recognise solution section header */
       if (TH_SOL_HEADER_RE.test(trimLine)) {
         inAnswer = true;
-        continue;         /* skip the header line itself */
+        continue;
+      }
+      /* ✅ FIX: Also treat "---"/"===" separator lines as answer section start
+         when they appear after at least 2 question lines exist.
+         This handles formats where no explicit MARKING SCHEME header is used. */
+      if (qLines.length >= 2 && /^[-=*]{3,}\s*$/.test(trimLine)) {
+        inAnswer = true;
+        continue;
       }
       /* Inline ModelAnswer: label? */
       var inlineMatch = trimLine.match(TH_MODEL_INLINE_RE);
@@ -329,6 +344,18 @@ function parseText(rawText, opts) {
 
     if (blocks.length === 0) {
       return { questions: [], warnings: ['No content detected. Please check the pasted text.'], parseErrors: 0 };
+    }
+
+    /* ✅ FIX: Warn when only 1 block found but text is long.
+       This surfaces the "all merged into 1" problem clearly
+       rather than letting 1 oversized question through silently. */
+    if (blocks.length === 1 && rawText.length > 800) {
+      var sampleStart = rawText.substring(0, 120).replace(/\n/g, '↵');
+      warnings.push(
+        'Only 1 question block was detected from a large document (' + rawText.length + ' chars). ' +
+        'If you have multiple questions, ensure each starts with "QUESTION N" or is separated by "---". ' +
+        'Document starts with: "' + sampleStart + '..."'
+      );
     }
 
     blocks.forEach(function(block, i) {
