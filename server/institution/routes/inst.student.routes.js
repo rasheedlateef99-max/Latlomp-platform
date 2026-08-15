@@ -162,6 +162,33 @@ router.post('/verify-code', async (req, res) => {
       optionMappings: optionMappings
     };
 
+    /* ✅ STEP 3: Load institution ECE config.
+       Failure NEVER blocks exam — returns null safely.
+       Flatten capabilities to { key: boolean } for easy
+       client-side consumption. modelAnswer never exposed. */
+    var eceConfig = null;
+    try {
+      var ECEConfig = require('../../ece/models/ECEConfig.model');
+      var eceCfg   = await ECEConfig.findOne({
+        scope:   'institution',
+        scopeId: exam.schoolId
+      }).lean();
+
+      if (eceCfg && eceCfg.enabled && eceCfg.capabilities) {
+        var flat = {};
+        var caps = eceCfg.capabilities;
+        Object.keys(caps).forEach(function (group) {
+          if (typeof caps[group] === 'object') {
+            Object.assign(flat, caps[group]);
+          }
+        });
+        eceConfig = flat;   /* e.g. { fullscreen_enforcement: true, math: true } */
+      }
+    } catch (eceErr) {
+      /* Non-critical — exam proceeds without ECE */
+      console.warn('[ECE inst] verify-code ECE load failed:', eceErr.message);
+    }
+
     return res.status(200).json({
       success:      true,
       sessionToken: Buffer.from(JSON.stringify(sessionData)).toString('base64'),
@@ -180,7 +207,10 @@ router.post('/verify-code', async (req, res) => {
         name: school.name,
         logo: school.logo
       },
-      questions: questionsArr
+      questions: questionsArr,
+      /* ✅ STEP 3: ECE config for the student exam interface.
+         null = ECE not configured or disabled for this school. */
+      eceConfig: eceConfig
     });
 
   } catch (err) {

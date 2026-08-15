@@ -202,6 +202,10 @@
     <button class="nav-item"        data-sec="exams"    onclick="showSection('exams')">   <span class="nav-icon">📝</span> My Exams</button>
     <button class="nav-item"        data-sec="results"  onclick="showSection('results')"> <span class="nav-icon">📈</span> Results</button>
     <button class="nav-item"        data-sec="grading"  onclick="showSection('grading')"> <span class="nav-icon">✏️</span>  Grading</button>
+    <div class="sb-sep">Configuration</div>
+    <button class="nav-item" data-sec="ece" onclick="showSection('ece')">
+      <span class="nav-icon">⚡</span> ECE Settings
+    </button>
     <div class="sb-sep">Links</div>
     <!-- ✅ PHASE K.3: Paper Exams nav link -->
     <a class="nav-item" href="/institution/teacher/paper-exam.html">           <span class="nav-icon">📄</span> Paper Exams</a>
@@ -328,6 +332,77 @@
       </div>
       <div id="gradingContent">
         <div class="empty"><div class="empty-icon">✏️</div><div class="empty-title">Select an exam above</div><div class="empty-sub">Only exams with theory questions and ungraded submissions will appear.</div></div>
+      </div>
+    </div>
+
+  </div>
+
+    <!-- ECE SETTINGS -->
+    <div class="section" id="sec-ece">
+      <div class="page-header">
+        <div>
+          <h1>⚡ Examination Core Engine</h1>
+          <p>Configure examination security, rules, and capabilities for your institution.</p>
+        </div>
+        <button class="btn btn-green" onclick="saveEceConfig()">💾 Save Configuration</button>
+      </div>
+
+      <!-- Status banner -->
+      <div id="eceStatusBanner" style="
+        display:none;
+        background:rgba(67,233,123,0.07);
+        border:1px solid rgba(67,233,123,0.2);
+        border-radius:10px; padding:12px 18px;
+        font-size:13px; color:#43e97b;
+        margin-bottom:20px; font-weight:600;
+      "></div>
+
+      <!-- Loading -->
+      <div id="eceLoading" style="text-align:center; padding:40px; color:var(--muted);">
+        <div class="spinner" style="margin:0 auto 14px;"></div>
+        Loading ECE configuration...
+      </div>
+
+      <!-- Config panels (hidden until loaded) -->
+      <div id="eceContent" style="display:none;">
+
+        <!-- Security -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head">
+            <h3>🔒 Security</h3>
+            <span style="font-size:12px; color:var(--muted);">Controls student exam environment</span>
+          </div>
+          <div class="card-body" style="display:flex; flex-direction:column; gap:0;">
+            <div id="eceSecurityRows"></div>
+          </div>
+        </div>
+
+        <!-- Rules -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head">
+            <h3>📐 Examination Rules</h3>
+            <span style="font-size:12px; color:var(--muted);">Marking and scoring behaviour</span>
+          </div>
+          <div class="card-body">
+            <div id="eceRulesRows"></div>
+          </div>
+        </div>
+
+        <!-- Rendering -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-head">
+            <h3>🎨 Question Rendering</h3>
+            <span style="font-size:12px; color:var(--muted);">Content display capabilities</span>
+          </div>
+          <div class="card-body">
+            <div id="eceRenderingRows"></div>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
+          <button class="btn btn-secondary" onclick="loadEceConfig()">↺ Reset</button>
+          <button class="btn btn-green" onclick="saveEceConfig()">💾 Save All Changes</button>
+        </div>
       </div>
     </div>
 
@@ -909,6 +984,7 @@ function showSection(name) {
   if(name==='exams'){loadExams();}
   if(name==='results'){loadResults();}
   if(name==='grading'){loadGradingExamList();}
+  if(name==='ece'){loadEceConfig();}
 }
 
 function openSidebar()  { document.getElementById('sidebar').classList.add('open');    document.getElementById('sidebarOverlay').classList.add('visible');    document.body.style.overflow='hidden'; }
@@ -1220,6 +1296,154 @@ async function submitGrades() {
   if(btn){btn.innerHTML='Submit Grades';btn.disabled=false;}
   if(res.ok){instToast('Grades submitted!','success');closeModal('gradeModal');loadResults();loadGradingQueue();}
   else instToast(res.data.message||'Grading failed.','error');
+}
+
+/* ============================================
+   ✅ STEP 3 — INSTITUTION ECE CONFIGURATION UI
+
+   _eceCaps: in-memory state updated by toggles.
+   Capabilities are grouped: security, rules, rendering.
+   Renders checkbox rows with label + description.
+   Save sends PUT /teacher/ece-config with full caps.
+============================================ */
+
+var _eceCaps = {};   /* live state — updated by toggles */
+
+var _ECE_GROUPS = {
+  security: {
+    label: '🔒 Security',
+    caps: [
+      { key: 'fullscreen_enforcement', label: 'Require Fullscreen',
+        desc: 'Students must stay in fullscreen mode during the exam. Exiting triggers a warning.' },
+      { key: 'tab_switch_detection', label: 'Tab Switch Detection',
+        desc: 'Detects and logs tab or window switching during the exam.' },
+      { key: 'copy_protection', label: 'Copy Protection',
+        desc: 'Blocks copy and paste of exam content.' },
+      { key: 'right_click_disable', label: 'Disable Right-Click',
+        desc: 'Prevents right-click context menu during the exam.' }
+    ]
+  },
+  rules: {
+    label: '📐 Rules',
+    caps: [
+      { key: 'negative_marking', label: 'Negative Marking',
+        desc: 'Deduct marks for wrong objective answers (0.25 mark per wrong answer).' },
+      { key: 'shuffle_options', label: 'Shuffle Answer Options',
+        desc: 'Randomize A/B/C/D option order for each student session.' },
+      { key: 'review_allowed', label: 'Allow Result Review',
+        desc: 'Students can review correct answers after submitting.' }
+    ]
+  },
+  rendering: {
+    label: '🎨 Rendering',
+    caps: [
+      { key: 'math', label: 'LaTeX / Math Rendering',
+        desc: 'Enable KaTeX math rendering for questions containing $formula$ notation.' },
+      { key: 'images', label: 'Image Support',
+        desc: 'Display images embedded in questions (recommended: ON).' }
+    ]
+  }
+};
+
+async function loadEceConfig() {
+  var loadEl   = document.getElementById('eceLoading');
+  var contentEl = document.getElementById('eceContent');
+  if (loadEl)    { loadEl.style.display   = 'block'; }
+  if (contentEl) { contentEl.style.display = 'none'; }
+
+  var res = await instApi('/teacher/ece-config');
+  if (!res.ok) {
+    instToast('Failed to load ECE configuration.', 'error');
+    if (loadEl) { loadEl.textContent = 'Failed to load. Please refresh.'; }
+    return;
+  }
+
+  /* Flatten stored capabilities to _eceCaps */
+  _eceCaps = {};
+  var storedCaps = (res.data.config && res.data.config.capabilities) ? res.data.config.capabilities : {};
+  Object.keys(storedCaps).forEach(function (group) {
+    if (typeof storedCaps[group] === 'object') {
+      Object.assign(_eceCaps, storedCaps[group]);
+    }
+  });
+
+  /* Render each group */
+  Object.keys(_ECE_GROUPS).forEach(function (groupKey) {
+    var group   = _ECE_GROUPS[groupKey];
+    var rowsEl  = document.getElementById('ece' + groupKey.charAt(0).toUpperCase() + groupKey.slice(1) + 'Rows');
+    if (!rowsEl) { return; }
+
+    rowsEl.innerHTML = group.caps.map(function (cap) {
+      var isEnabled = !!_eceCaps[cap.key];
+      return '<div id="eceRow_' + cap.key + '" ' +
+        'onclick="eceToggle(\'' + groupKey + '\', \'' + cap.key + '\')" ' +
+        'style="' +
+          'display:flex; align-items:flex-start; gap:14px; padding:14px 0;' +
+          'border-bottom:1px solid var(--border); cursor:pointer;' +
+          'border-radius:8px; padding:12px;' +
+          (isEnabled ? 'background:rgba(67,233,123,0.04);' : '') +
+        '">' +
+        '<input type="checkbox" id="eceCb_' + cap.key + '" ' +
+          (isEnabled ? 'checked' : '') + ' ' +
+          'onclick="event.stopPropagation(); eceToggle(\'' + groupKey + '\', \'' + cap.key + '\')" ' +
+          'style="width:18px; height:18px; accent-color:var(--green); margin-top:2px; flex-shrink:0; cursor:pointer;" />' +
+        '<div style="flex:1;">' +
+          '<div style="font-size:14px; font-weight:700; color:#fff; margin-bottom:3px;">' + cap.label + '</div>' +
+          '<div style="font-size:12px; color:var(--muted); line-height:1.6;">' + cap.desc + '</div>' +
+        '</div>' +
+        '<span style="font-size:11px; font-weight:700; color:' + (isEnabled ? 'var(--green)' : 'var(--muted)') + '; ' +
+          'margin-top:3px; flex-shrink:0; min-width:40px; text-align:right;">' +
+          (isEnabled ? 'ON' : 'OFF') +
+        '</span>' +
+      '</div>';
+    }).join('');
+  });
+
+  if (loadEl)    { loadEl.style.display    = 'none'; }
+  if (contentEl) { contentEl.style.display = 'block'; }
+}
+
+function eceToggle(group, key) {
+  _eceCaps[key] = !_eceCaps[key];
+  var isEnabled = _eceCaps[key];
+
+  var row = document.getElementById('eceRow_' + key);
+  var cb  = document.getElementById('eceCb_' + key);
+  if (cb)  { cb.checked = isEnabled; }
+  if (row) {
+    row.style.background = isEnabled ? 'rgba(67,233,123,0.04)' : '';
+    /* Update the ON/OFF label (last span) */
+    var label = row.querySelector('span:last-child');
+    if (label) {
+      label.textContent = isEnabled ? 'ON' : 'OFF';
+      label.style.color = isEnabled ? 'var(--green)' : 'var(--muted)';
+    }
+  }
+}
+
+async function saveEceConfig() {
+  /* Rebuild grouped capabilities from _eceCaps */
+  var capabilities = {};
+  Object.keys(_ECE_GROUPS).forEach(function (groupKey) {
+    capabilities[groupKey] = {};
+    _ECE_GROUPS[groupKey].caps.forEach(function (cap) {
+      capabilities[groupKey][cap.key] = !!_eceCaps[cap.key];
+    });
+  });
+
+  var res = await instApi('/teacher/ece-config', 'PUT', { capabilities: capabilities });
+
+  var bannerEl = document.getElementById('eceStatusBanner');
+  if (res.ok) {
+    instToast('ECE configuration saved!', 'success');
+    if (bannerEl) {
+      bannerEl.textContent = '✅ Configuration saved at ' + new Date().toLocaleTimeString('en-NG');
+      bannerEl.style.display = 'block';
+      setTimeout(function () { bannerEl.style.display = 'none'; }, 4000);
+    }
+  } else {
+    instToast(res.data.message || 'Failed to save.', 'error');
+  }
 }
 
 function closeModal(id){var el=document.getElementById(id);if(el)el.style.display='none';}

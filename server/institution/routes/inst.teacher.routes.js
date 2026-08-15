@@ -574,4 +574,77 @@ router.get('/questions/import-template', guard, function (req, res) {
   return res.send(qieHelpers.TEMPLATE_CSV);
 });
 
+/* ============================================
+   ✅ STEP 3 — INSTITUTION ECE CONFIG ROUTES
+   Uses existing instProtect + teacherOrAdmin guard.
+   Tenant isolation: req.schoolId on every query.
+
+   GET  /api/inst/teacher/ece-config  → load config
+   PUT  /api/inst/teacher/ece-config  → save config
+============================================ */
+router.get('/ece-config', guard, async (req, res) => {
+  try {
+    var ECEConfig = require('../../ece/models/ECEConfig.model');
+    var config    = await ECEConfig.getOrCreate(
+      'institution',
+      req.schoolId,
+      'Institution Exam'
+    );
+    return res.json({ success: true, config: config.toClientObject() });
+  } catch (err) {
+    console.error('[ECE inst] GET /ece-config:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.put('/ece-config', guard, async (req, res) => {
+  try {
+    var ECEConfig = require('../../ece/models/ECEConfig.model');
+    var newCaps   = req.body.capabilities;
+
+    if (!newCaps || typeof newCaps !== 'object') {
+      return res.status(400).json({
+        success: false,
+        message: 'capabilities object is required.'
+      });
+    }
+
+    /* ✅ Respect root-admin global availability restrictions.
+       If root admin has blocked a capability, silently downgrade
+       the institution's request — never throw an error. */
+    var globalCfg   = await ECEConfig.findOne({ scope: 'cbt', scopeId: null }).lean();
+    var globalAvail = (globalCfg && globalCfg.globalAvailability) ? globalCfg.globalAvailability : {};
+
+    var config = await ECEConfig.getOrCreate('institution', req.schoolId, 'Institution Exam');
+
+    /* Deep merge — only update provided keys */
+    Object.keys(newCaps).forEach(function (group) {
+      if (typeof newCaps[group] !== 'object') { return; }
+      if (!config.capabilities[group]) { config.capabilities[group] = {}; }
+      Object.keys(newCaps[group]).forEach(function (key) {
+        var val = newCaps[group][key];
+        /* Silently downgrade if root admin blocked this globally */
+        if (globalAvail[key] === false && val === true) { val = false; }
+        config.capabilities[group][key] = val;
+      });
+    });
+
+    config.lastModifiedBy = req.schoolUser
+      ? (req.schoolUser.name || 'institution_admin')
+      : 'institution_admin';
+    config.lastModifiedAt = new Date();
+    config.markModified('capabilities');
+    await config.save();
+
+    return res.json({
+      success: true,
+      message: 'ECE configuration saved.',
+      config:  config.toClientObject()
+    });
+  } catch (err) {
+    console.error('[ECE inst] PUT /ece-config:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;
