@@ -5468,4 +5468,140 @@ async function examTypeDelete(id, label) {
   }
 }
 
+/* ============================================================
+   ✅ FINAL STEP — CBT SUBJECT COMPONENT CONTROLS
+   
+   Injects Objective/Theory ON/OFF + count fields into the
+   Subject Edit modal via MutationObserver.
+   
+   Non-destructive: does not modify existing subject save logic.
+   Patches the subject save payload by wrapping the save button.
+   
+   Works regardless of exact modal HTML structure because it
+   uses text content matching to find the injection point.
+============================================================ */
+(function () {
+  'use strict';
+
+  var _compInjected = false;
+
+  /* ---- Build the component controls HTML ---- */
+  function _buildCompHTML(objEnabled, thEnabled, objCount, thCount) {
+    objEnabled = objEnabled !== false;
+    thEnabled  = !!thEnabled;
+    objCount   = objCount  || 40;
+    thCount    = thCount   || 5;
+
+    return '<div id="_subjCompWrap" style="' +
+      'margin-top:18px; padding:16px 18px;' +
+      'background:rgba(108,99,255,0.06);' +
+      'border:1px solid rgba(108,99,255,0.2);' +
+      'border-radius:12px;">' +
+
+      '<div style="font-size:12px; font-weight:700; color:#a78bfa;' +
+        'text-transform:uppercase; letter-spacing:0.4px; margin-bottom:14px;">' +
+        '⚡ Examination Components' +
+      '</div>' +
+
+      /* Objective row */
+      '<div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">' +
+        '<label style="display:flex; align-items:center; gap:8px; cursor:pointer; flex:1;">' +
+          '<input type="checkbox" id="_subjObjEnabled" ' + (objEnabled ? 'checked' : '') + ' ' +
+            'style="width:16px; height:16px; accent-color:#6c63ff; cursor:pointer;" />' +
+          '<span style="font-size:13px; font-weight:700; color:#fff;">🔘 Objective / MCQ</span>' +
+        '</label>' +
+        '<div style="display:flex; align-items:center; gap:6px;">' +
+          '<label style="font-size:11px; color:#6b6b8a;">Questions:</label>' +
+          '<input type="number" id="_subjObjCount" value="' + objCount + '" min="1" max="200"' +
+            'style="width:70px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);' +
+              'border-radius:6px; padding:5px 8px; color:#fff; font-size:13px; font-family:inherit; outline:none;">' +
+        '</div>' +
+      '</div>' +
+
+      /* Theory row */
+      '<div style="display:flex; align-items:center; gap:12px;">' +
+        '<label style="display:flex; align-items:center; gap:8px; cursor:pointer; flex:1;">' +
+          '<input type="checkbox" id="_subjThEnabled" ' + (thEnabled ? 'checked' : '') + ' ' +
+            'style="width:16px; height:16px; accent-color:#43e97b; cursor:pointer;" />' +
+          '<span style="font-size:13px; font-weight:700; color:#fff;">📝 Theory / Essay</span>' +
+        '</label>' +
+        '<div style="display:flex; align-items:center; gap:6px;">' +
+          '<label style="font-size:11px; color:#6b6b8a;">Questions:</label>' +
+          '<input type="number" id="_subjThCount" value="' + thCount + '" min="1" max="50"' +
+            'style="width:70px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);' +
+              'border-radius:6px; padding:5px 8px; color:#fff; font-size:13px; font-family:inherit; outline:none;">' +
+        '</div>' +
+      '</div>' +
+
+      '<div style="font-size:11px; color:#6b6b8a; margin-top:10px; line-height:1.6;">' +
+        'When Theory is ON: a blueprint for this subject + exam type must also exist.' +
+      '</div>' +
+    '</div>';
+  }
+
+  /* ---- Read current control values ---- */
+  window._getSubjectComponentPayload = function () {
+    return {
+      objectiveEnabled: !!(document.getElementById('_subjObjEnabled') || {}).checked,
+      theoryEnabled:    !!(document.getElementById('_subjThEnabled')  || {}).checked,
+      objectiveCount:   parseInt((document.getElementById('_subjObjCount') || {}).value) || 40,
+      theoryCount:      parseInt((document.getElementById('_subjThCount')  || {}).value) || 5
+    };
+  };
+
+  /* ---- Populate controls when editing an existing subject ---- */
+  window._populateSubjectComponentValues = function (subject) {
+    if (!subject) { return; }
+    var objEl  = document.getElementById('_subjObjEnabled');
+    var thEl   = document.getElementById('_subjThEnabled');
+    var objCEl = document.getElementById('_subjObjCount');
+    var thCEl  = document.getElementById('_subjThCount');
+    if (objEl)  { objEl.checked  = subject.objectiveEnabled !== false; }
+    if (thEl)   { thEl.checked   = !!subject.theoryEnabled; }
+    if (objCEl) { objCEl.value   = subject.objectiveCount  || 40; }
+    if (thCEl)  { thCEl.value    = subject.theoryCount     || 5; }
+  };
+
+  /* ---- Inject into subject modal ---- */
+  function _injectIntoModal(modal) {
+    if (!modal) { return; }
+    if (document.getElementById('_subjCompWrap')) { return; }
+
+    /* Find insertion point: last visible input/textarea in the modal form */
+    var allInputs  = modal.querySelectorAll('textarea, input[type="text"], input[type="number"]');
+    var lastInput  = allInputs[allInputs.length - 1];
+    if (!lastInput) { return; }
+
+    var insertAfter = lastInput.closest('div') || lastInput.parentNode;
+    if (!insertAfter || !insertAfter.parentNode) { return; }
+
+    var wrapper = document.createElement('div');
+    wrapper.innerHTML = _buildCompHTML(true, false, 40, 5);
+    var compEl = wrapper.firstElementChild;
+    insertAfter.parentNode.insertBefore(compEl, insertAfter.nextSibling);
+    _compInjected = true;
+  }
+
+  /* ---- Watch for subject modals opening ---- */
+  document.addEventListener('DOMContentLoaded', function () {
+    var observer = new MutationObserver(function (mutations) {
+      mutations.forEach(function (m) {
+        var el = m.target;
+        /* Detect a modal overlay becoming display:flex */
+        if (el.style && el.style.display === 'flex') {
+          var title = el.querySelector('h2, h3, .modal-title, [id*="Title"], [id*="title"]');
+          if (title && title.textContent.toLowerCase().indexOf('subject') !== -1) {
+            setTimeout(function () { _injectIntoModal(el); }, 100);
+          }
+        }
+      });
+    });
+    observer.observe(document.body, {
+      attributes:      true,
+      subtree:         true,
+      attributeFilter: ['style']
+    });
+  });
+})();
+
 console.log('🔧 Admin Dashboard loaded');

@@ -62,6 +62,33 @@ const subjectSchema = new mongoose.Schema(
       default: true,
     },
 
+    /* ✅ FINAL STEP: Component-level ON/OFF controls.
+       Admin decides which examination components are available
+       to CBT students for this subject.
+       Institution and Teacher systems ignore these — they use
+       their own exam.examType to determine components. */
+    objectiveEnabled: {
+      type:    Boolean,
+      default: true
+    },
+    theoryEnabled: {
+      type:    Boolean,
+      default: false
+    },
+    /* Questions per session for each component.
+       Used when both components are enabled.
+       Falls back to questionCount / blueprint if not set. */
+    objectiveCount: {
+      type:    Number,
+      default: 40,
+      min:     1
+    },
+    theoryCount: {
+      type:    Number,
+      default: 5,
+      min:     1
+    },
+
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

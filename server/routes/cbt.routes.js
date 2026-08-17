@@ -202,10 +202,15 @@ router.get('/departments/:id/subjects', async (req, res) => {
           instructions: s.instructions,
           examCategories: s.examCategories,
           /* Blueprint values when available, subject defaults otherwise */
-          questionCount: bp ? bp.count    : s.questionCount,
-          timeLimit:     bp ? bp.duration : s.timeLimit,
-          passMark:      bp ? bp.passMark : 50,
-          blueprintSet:  !!bp
+         questionCount:     bp ? bp.count    : s.questionCount,
+          timeLimit:         bp ? bp.duration : s.timeLimit,
+          passMark:          bp ? bp.passMark : 50,
+          blueprintSet:      !!bp,
+          /* ✅ FINAL STEP: Component settings for cbt-start.html */
+          objectiveEnabled:  s.objectiveEnabled !== false,
+          theoryEnabled:     !!s.theoryEnabled,
+          objectiveCount:    s.objectiveCount  || s.questionCount,
+          theoryCount:       s.theoryCount     || 5
         };
       });
     } catch (bpErr) {
@@ -283,6 +288,10 @@ router.post('/session/start', protect, async (req, res) => {
     var sessionSubjects    = [];
     var allQuestions       = [];
     var totalTimeSeconds   = 0;
+    /* ✅ FINAL STEP: 'both' mode — assembles objective + theory in one session.
+       Components metadata tells exam.html which tabs to render. */
+    var isBothMode     = (questionType === 'both');
+    var componentsMeta = {};   /* populated when isBothMode = true */
 
     for (var i = 0; i < subjects.length; i++) {
       var subject = subjects[i];
@@ -419,7 +428,41 @@ router.post('/session/start', protect, async (req, res) => {
         console.error('[CBT Stage4] Question Engine not available — subject "' + subject.name + '" skipped.');
       }
 
-      if (allSubjectQs.length === 0) continue;
+      /* ✅ FINAL STEP: if 'both' mode, also assemble theory questions */
+      var theorySubjectQs = [];
+      if (isBothMode && qmsEng) {
+        try {
+          var thBP = null;
+          if (ExamBP) {
+            thBP = await ExamBP.findOne({ subjectId: subject._id, questionType: 'theory', examType: examCategory }).lean()
+                || await ExamBP.findOne({ subjectId: subject._id, questionType: 'theory', examType: 'all' }).lean();
+          }
+          var thCount = (thBP ? thBP.count : null) || subject.theoryCount || 5;
+          var thResult = await qmsEng.assemble({
+            subjectId:    subject._id.toString(),
+            examType:     examCategory,
+            questionType: 'theory',
+            count:        thCount,
+            shuffle:      true
+          });
+          if (thResult.success && thResult.questions.length > 0) {
+            theorySubjectQs = thResult.questions.map(function(q) {
+              return {
+                _id:          q._id,
+                question:     q.question,
+                options:      [],
+                questionType: 'theory',
+                _subjectId:   subject._id.toString(),
+                _subjectName: subject.name
+              };
+            });
+          }
+        } catch (thErr) {
+          console.warn('[CBT] both-mode theory assembly failed:', thErr.message);
+        }
+      }
+
+      if (allSubjectQs.length === 0 && theorySubjectQs.length === 0) continue;
 
       /* Shuffle question ORDER (anti-cheat) */
       var shuffledQs = shuffle(allSubjectQs);
@@ -441,6 +484,19 @@ router.post('/session/start', protect, async (req, res) => {
           _subjectName: subject.name
         };
       });
+
+      /* ✅ FINAL STEP: Append theory questions for 'both' mode */
+      var theoryPicked = theorySubjectQs;
+      if (theoryPicked.length > 0) {
+        tagged = tagged.concat(theoryPicked);
+        /* Track component metadata for exam.html tabs */
+        if (!componentsMeta.objective) { componentsMeta.objective = 0; }
+        if (!componentsMeta.theory)    { componentsMeta.theory    = 0; }
+        componentsMeta.objective += picked.length;
+        componentsMeta.theory    += theoryPicked.length;
+        /* Add theory time (30 mins per theory component by default) */
+        totalTimeSeconds += 30 * 60;
+      }
 
       /* ✅ STAGE 4: Session subject includes blueprint values when available */
       sessionSubjects.push({
@@ -477,6 +533,11 @@ router.post('/session/start', protect, async (req, res) => {
         totalQuestions:   finalQuestions.length,
         totalTimeSeconds: totalTimeSeconds,
         questions:        finalQuestions,
+        /* ✅ FINAL STEP: Component metadata for exam.html tab bar.
+           Empty when single-type session. */
+        components:       Object.keys(componentsMeta).length > 0
+          ? componentsMeta
+          : null,
         /* ✅ ECE PHASE 5: Rules config for client display and result page */
         rules: {
           negativeMarking:   _rules.negative_marking,
@@ -788,6 +849,31 @@ router.post('/subject-components', async (req, res) => {
 
     if (!ExamBP || !QMSQModel) {
       return res.json({ success: true, components: components });
+    }
+
+    /* ✅ FINAL STEP: Check Subject-level ON/OFF settings FIRST.
+       These are the admin's explicit component controls.
+       Blueprint/pool checks only run for components that are enabled. */
+    try {
+      var subjectDocs = await Subject.find({ _id: { $in: objectIds } })
+        .select('objectiveEnabled theoryEnabled')
+        .lean();
+
+      /* Objective is enabled only if ALL selected subjects have it enabled
+         (or the field is absent — default is true). */
+      var objEnabled = subjectDocs.every(function(s) {
+        return s.objectiveEnabled !== false;
+      });
+      /* Theory is enabled only if ALL selected subjects have it enabled. */
+      var thEnabled = subjectDocs.length > 0 && subjectDocs.every(function(s) {
+        return s.theoryEnabled === true;
+      });
+
+      if (!objEnabled) { components.objective = false; }
+      if (!thEnabled)  { components.theory    = false; }
+    } catch (subjErr) {
+      /* Non-critical — fall through to blueprint check */
+      console.warn('[CBT] subject-components Subject settings check failed:', subjErr.message);
     }
 
     /* Find all blueprints for these subjects + examType */

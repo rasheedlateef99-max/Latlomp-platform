@@ -349,6 +349,139 @@
   </div>
 </div>
 
+<!-- ============================================
+     ✅ FINAL STEP: INSTITUTION COMPONENT SWITCHER
+     Non-destructive IIFE. Detects when exam starts
+     with multiple question types and injects a
+     component tab bar. Does NOT modify existing code.
+============================================ -->
+<script>
+(function () {
+  'use strict';
+
+  var _compMap     = {};   /* { objective: [...], theory: [...] } */
+  var _activeComp  = 'objective';
+  var _compIdx     = {};   /* saved index per component */
+  var _isMulti     = false;
+
+  var COMP = {
+    objective: { icon: '🔘', label: 'Objective' },
+    theory:    { icon: '📝', label: 'Theory / Essay' }
+  };
+
+  function _partition() {
+    var qs = window._questions || [];
+    _compMap = {};
+    qs.forEach(function(q) {
+      var t = q.questionType || 'objective';
+      if (!_compMap[t]) { _compMap[t] = []; }
+      _compMap[t].push(q);
+    });
+    return Object.keys(_compMap).length > 1;
+  }
+
+  function _injectTabBar() {
+    if (document.getElementById('_instCompTabBar')) { return; }
+    var examBody = document.getElementById('examBody');
+    if (!examBody) { return; }
+    var examScreen = document.getElementById('examScreen');
+    if (!examScreen) { return; }
+
+    var bar = document.createElement('div');
+    bar.id  = '_instCompTabBar';
+    bar.style.cssText =
+      'display:flex; background:var(--dark-2,#1a1a2e);' +
+      'border-bottom:1px solid var(--border,rgba(255,255,255,0.08));' +
+      'padding:0 12px; overflow-x:auto; flex-shrink:0;';
+
+    var types = Object.keys(_compMap);
+    bar.innerHTML = types.map(function(type) {
+      var info  = COMP[type] || { icon: '📝', label: type };
+      var count = _compMap[type].length;
+      var isAct = type === _activeComp;
+      return '<button data-comp="' + type + '"' +
+        'style="display:inline-flex;align-items:center;gap:7px;padding:10px 18px;' +
+          'font-size:13px;font-weight:700;background:none;border:none;' +
+          'border-bottom:3px solid ' + (isAct ? 'var(--primary,#6c63ff)' : 'transparent') + ';' +
+          'color:' + (isAct ? '#a78bfa' : 'var(--muted,#6b6b8a)') + ';' +
+          'cursor:pointer;font-family:inherit;white-space:nowrap;"' +
+        'onclick="window._instSwitchComp(\'' + type + '\')">' +
+        info.icon + ' ' + info.label +
+        '<span style="font-size:10px;background:rgba(108,99,255,0.15);color:#a78bfa;' +
+          'padding:2px 7px;border-radius:20px;">' + count + '</span>' +
+      '</button>';
+    }).join('');
+
+    /* Insert before the progress bar */
+    var progress = examScreen.querySelector('.exam-progress');
+    if (progress) { examScreen.insertBefore(bar, progress); }
+    else { examScreen.insertBefore(bar, examBody); }
+  }
+
+  function _updateTabs() {
+    var bar = document.getElementById('_instCompTabBar');
+    if (!bar) { return; }
+    bar.querySelectorAll('[data-comp]').forEach(function(btn) {
+      var isAct = btn.dataset.comp === _activeComp;
+      btn.style.borderBottomColor = isAct ? 'var(--primary,#6c63ff)' : 'transparent';
+      btn.style.color             = isAct ? '#a78bfa'                 : 'var(--muted,#6b6b8a)';
+    });
+  }
+
+  /* Public: called by tab buttons */
+  window._instSwitchComp = function(type) {
+    if (!_compMap[type] || type === _activeComp) { return; }
+
+    /* Save current index */
+    _compIdx[_activeComp] = window._currentIdx || 0;
+
+    /* Switch */
+    _activeComp           = type;
+    window._questions     = _compMap[type];
+    window._currentIdx    = _compIdx[type] !== undefined ? _compIdx[type] : 0;
+
+    _updateTabs();
+
+    /* Rebuild grid and render */
+    if (typeof window.buildQGrid    === 'function') { window.buildQGrid(); }
+    if (typeof window.renderQuestion=== 'function') { window.renderQuestion(window._currentIdx); }
+
+    var body = document.getElementById('examBody');
+    if (body) { body.scrollTop = 0; }
+  };
+
+  /* Watch for exam screen becoming active */
+  var _initialized = false;
+  var _obs = new MutationObserver(function() {
+    if (_initialized) { return; }
+    var examScreen = document.getElementById('examScreen');
+    if (!examScreen || !examScreen.classList.contains('active')) { return; }
+
+    setTimeout(function() {
+      _isMulti = _partition();
+      if (!_isMulti) { _obs.disconnect(); return; }
+
+      /* Set initial component */
+      var types = Object.keys(_compMap);
+      _activeComp       = types[0];
+      window._questions = _compMap[_activeComp] || window._questions;
+
+      _injectTabBar();
+      if (typeof window.buildQGrid     === 'function') { window.buildQGrid(); }
+      if (typeof window.renderQuestion === 'function') { window.renderQuestion(0); }
+
+      _initialized = true;
+      _obs.disconnect();
+    }, 200);
+  });
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var target = document.getElementById('examScreen') || document.body;
+    _obs.observe(target, { attributes: true, attributeFilter: ['class', 'style'], subtree: true });
+  });
+
+})();
+</script>
 
 <script src="/institution/js/inst.api.js"></script>
 <script>

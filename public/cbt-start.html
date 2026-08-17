@@ -810,6 +810,9 @@ async function loadComponents() {
   compWrap.style.display = 'block';
 
   try {
+    /* ✅ FINAL STEP: subject-components checks Subject.objectiveEnabled
+       and Subject.theoryEnabled before blueprint/pool check.
+       Admin ON/OFF settings always take precedence. */
     var res = await apiRequest('/cbt/subject-components', 'POST', {
       examCategory: _category,
       subjectIds:   _selectedSubjectIds
@@ -968,14 +971,18 @@ async function startExam() {
   btn.disabled    = true;
 
   try {
+    /* ✅ FINAL STEP: If both components are available and enabled,
+       send 'both' so server assembles objective + theory in one session.
+       exam.html will show component tabs when session.components exists. */
+    var effectiveType = _selectedComponent || 'objective';
+    if (_availableComponents.objective && _availableComponents.theory) {
+      effectiveType = 'both';
+    }
+
     var res = await apiRequest('/cbt/session/start', 'POST', {
       examCategory: _category,
       subjectIds:   _selectedSubjectIds,
-      /* ✅ STEP 2: Send selected component so server assembles
-         the correct question type. Default: objective.
-         This was the primary reason students could not take theory —
-         the server never received questionType so always assembled MCQ. */
-      questionType: _selectedComponent || 'objective'
+      questionType: effectiveType
     });
 
     if (!res.ok) {

@@ -1443,5 +1443,157 @@
   })();
   </script>
 
+<!-- ============================================
+     ✅ FINAL STEP: TEACHER PLATFORM COMPONENT SWITCHER
+     Non-destructive IIFE. Uses window.examQuestions
+     (set by the existing sState bridge above).
+     Does NOT modify student-exam.js.
+============================================ -->
+<script>
+(function () {
+  'use strict';
+
+  var _compMap     = {};
+  var _activeComp  = 'objective';
+  var _compIdx     = {};
+  var _isMulti     = false;
+
+  var COMP = {
+    objective: { icon: '🔘', label: 'Objective' },
+    theory:    { icon: '📝', label: 'Theory / Essay' }
+  };
+
+  function _partition() {
+    var qs = window.examQuestions || [];
+    _compMap = {};
+    qs.forEach(function(q) {
+      var t = q.questionType || 'objective';
+      if (!_compMap[t]) { _compMap[t] = []; }
+      _compMap[t].push(q);
+    });
+    return Object.keys(_compMap).length > 1;
+  }
+
+  function _injectTabBar() {
+    if (document.getElementById('_seCompTabBar')) { return; }
+    var examIface = document.getElementById('sExamInterface');
+    if (!examIface) { return; }
+
+    var bar = document.createElement('div');
+    bar.id  = '_seCompTabBar';
+    bar.style.cssText =
+      'display:flex; background:var(--dark-2,#1a1a2e);' +
+      'border-bottom:1px solid var(--border,rgba(255,255,255,0.08));' +
+      'padding:0 12px; overflow-x:auto;';
+
+    var types = Object.keys(_compMap);
+    bar.innerHTML = types.map(function(type) {
+      var info  = COMP[type] || { icon: '📝', label: type };
+      var count = _compMap[type].length;
+      var isAct = type === _activeComp;
+      return '<button data-comp="' + type + '"' +
+        'style="display:inline-flex;align-items:center;gap:7px;padding:10px 18px;' +
+          'font-size:13px;font-weight:700;background:none;border:none;' +
+          'border-bottom:3px solid ' + (isAct ? 'var(--primary,#6c63ff)' : 'transparent') + ';' +
+          'color:' + (isAct ? '#a78bfa' : 'var(--text-muted,#6b6b8a)') + ';' +
+          'cursor:pointer;font-family:inherit;white-space:nowrap;transition:all 0.15s;"' +
+        'onclick="window._seSwitchComp(\'' + type + '\')">' +
+        info.icon + ' ' + info.label +
+        '<span style="font-size:10px;background:rgba(108,99,255,0.15);color:#a78bfa;' +
+          'padding:2px 7px;border-radius:20px;margin-left:2px;">' + count + '</span>' +
+      '</button>';
+    }).join('');
+
+    /* Insert before .s-exam-main */
+    var main = examIface.querySelector('.s-exam-main');
+    if (main) { examIface.insertBefore(bar, main); }
+  }
+
+  function _updateTabs() {
+    var bar = document.getElementById('_seCompTabBar');
+    if (!bar) { return; }
+    bar.querySelectorAll('[data-comp]').forEach(function(btn) {
+      var isAct = btn.dataset.comp === _activeComp;
+      btn.style.borderBottomColor = isAct ? 'var(--primary,#6c63ff)' : 'transparent';
+      btn.style.color             = isAct ? '#a78bfa'                 : 'var(--text-muted,#6b6b8a)';
+    });
+  }
+
+  /* Public: called by tab buttons */
+  window._seSwitchComp = function(type) {
+    if (!_compMap[type] || type === _activeComp) { return; }
+
+    /* Save current index */
+    _compIdx[_activeComp] = window.currentQuestionIndex || 0;
+
+    /* Switch — update window.examQuestions so student-exam.js reads correct set */
+    _activeComp              = type;
+    window.examQuestions     = _compMap[type];
+    window.currentQuestionIndex = _compIdx[type] !== undefined ? _compIdx[type] : 0;
+
+    _updateTabs();
+
+    /* Render using student-exam.js render function */
+    if (typeof window.renderStudentQuestion === 'function') {
+      window.renderStudentQuestion(window.currentQuestionIndex);
+    }
+
+    /* Update nav counters */
+    var totalEl = document.getElementById('sTotalNum');
+    var navTotalEl = document.getElementById('sNavTotal');
+    if (totalEl)    { totalEl.textContent    = window.examQuestions.length; }
+    if (navTotalEl) { navTotalEl.textContent = window.examQuestions.length; }
+
+    /* Rebuild nav grid */
+    if (typeof window.buildNavGrid === 'function') { window.buildNavGrid(); }
+
+    var examBody = document.getElementById('sExamInterface');
+    if (examBody) { examBody.scrollTop = 0; }
+  };
+
+  /* Watch for exam interface becoming visible */
+  var _initialized = false;
+  var _obs = new MutationObserver(function() {
+    if (_initialized) { return; }
+    var iface = document.getElementById('sExamInterface');
+    if (!iface || iface.style.display === 'none' || !iface.style.display) { return; }
+
+    /* Wait for examQuestions to be populated by the sState bridge */
+    setTimeout(function() {
+      _isMulti = _partition();
+      if (!_isMulti) { _obs.disconnect(); return; }
+
+      var types = Object.keys(_compMap);
+      _activeComp          = types[0];
+      window.examQuestions = _compMap[_activeComp] || window.examQuestions;
+
+      _injectTabBar();
+
+      /* Update total counts for initial component */
+      var totalEl = document.getElementById('sTotalNum');
+      var navTotalEl = document.getElementById('sNavTotal');
+      if (totalEl)    { totalEl.textContent    = window.examQuestions.length; }
+      if (navTotalEl) { navTotalEl.textContent = window.examQuestions.length; }
+
+      if (typeof window.renderStudentQuestion === 'function') {
+        window.renderStudentQuestion(0);
+      }
+
+      _initialized = true;
+      _obs.disconnect();
+    }, 400);
+  });
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var target = document.getElementById('sExamInterface') || document.body;
+    _obs.observe(target, {
+      attributes:      true,
+      attributeFilter: ['style'],
+      subtree:         false
+    });
+  });
+
+})();
+</script>
 </body>
 </html>

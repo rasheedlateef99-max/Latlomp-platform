@@ -230,6 +230,38 @@
       border-radius: 50%; animation: spin 0.8s linear infinite;
     }
 
+
+/* ✅ FINAL STEP: Component switcher tabs */
+    #compTabBar {
+      display: none;            /* shown by exam.js when multi-component */
+      flex-shrink: 0;
+      background: var(--dark-2, #1a1a2e);
+      border-bottom: 1px solid var(--border, rgba(255,255,255,0.08));
+      padding: 0 12px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .comp-tab-btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 10px 18px; font-size: 13px; font-weight: 700;
+      color: var(--text-muted, #6b6b8a); background: none; border: none;
+      border-bottom: 3px solid transparent; cursor: pointer;
+      font-family: inherit; white-space: nowrap; transition: all 0.15s;
+    }
+    .comp-tab-btn:hover { color: #fff; }
+    .comp-tab-btn.active {
+      color: var(--primary-light, #a78bfa);
+      border-bottom-color: var(--primary, #6c63ff);
+    }
+    .comp-tab-count {
+      font-size: 10px; font-weight: 800;
+      background: rgba(108,99,255,0.15); color: #a78bfa;
+      padding: 2px 7px; border-radius: 20px;
+    }
+    .comp-tab-btn.active .comp-tab-count {
+      background: rgba(108,99,255,0.3);
+    }
+
     /* ---- Subject transition ---- */
     .subject-banner {
       position: fixed; inset: 0; background: rgba(0,0,0,0.9);
@@ -272,6 +304,11 @@
   <div class="exam-progress">
     <div class="exam-progress-fill" id="progressFill" style="width:0%;"></div>
   </div>
+
+  <!-- ✅ FINAL STEP: Component tab bar.
+       Hidden for single-component sessions.
+       exam.js populates and shows when session.components exists. -->
+  <div id="compTabBar" role="tablist" aria-label="Examination Components"></div>
 
   <!-- Scrollable question area -->
   <div class="exam-body" id="examBody">

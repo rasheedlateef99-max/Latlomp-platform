@@ -18,6 +18,15 @@ var _submitted    = false;
 var _startTime    = Date.now();
 var _currentSubjectId = null;
 
+/* ✅ FINAL STEP: Component switching state.
+   _allQuestions = complete list from session (all types).
+   _componentMap = { objective: [...], theory: [...] }
+   _activeComponent = currently displayed type. */
+var _allQuestions    = [];
+var _componentMap    = {};
+var _activeComponent = 'objective';
+var _isMultiComp     = false;
+
 
 /* ============================================
    ✅ STEP 2 — ENSURE THEORY TEXTAREA EXISTS
@@ -111,6 +120,12 @@ document.addEventListener('DOMContentLoaded', function() {
     return;
   }
 
+  /* ✅ FINAL STEP: Initialise component switching.
+     Must run before the _questions.length === 0 check
+     so _questions is correctly set to the first component. */
+  _allQuestions = _questions.slice();
+  _initComponents();
+
   if (_questions.length === 0) {
     document.getElementById('loadingScreen').style.display = 'none';
     document.getElementById('noSessionScreen').style.display = 'flex';
@@ -191,6 +206,125 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 /* ============================================
+   ✅ FINAL STEP — COMPONENT SWITCHING
+   
+   _initComponents():
+     Partitions _allQuestions by questionType.
+     If > 1 type found, builds tab bar and sets
+     _questions to the first available component.
+     If only 1 type, tab bar stays hidden and
+     behavior is identical to the previous version.
+   
+   switchComponent(type):
+     Saves current index per-component, switches
+     _questions filter, re-renders from saved index
+     (or 0 for first visit).
+   
+   _buildCompTabs():
+     Renders tab buttons into #compTabBar.
+     Auto-detects icon and label per type.
+============================================ */
+
+/* Per-component index memory — preserves position when switching */
+var _compIndex = {};
+
+var _COMP_INFO = {
+  objective:     { icon: '🔘', label: 'Objective',     order: 0 },
+  theory:        { icon: '📝', label: 'Theory / Essay', order: 1 },
+  fill_in_blank: { icon: '✏️', label: 'Fill in Blank', order: 2 },
+  true_false:    { icon: '✅', label: 'True / False',  order: 3 },
+  practical:     { icon: '🔬', label: 'Practical',     order: 4 },
+  oral:          { icon: '🎤', label: 'Oral',           order: 5 }
+};
+
+function _initComponents() {
+  _componentMap = {};
+
+  /* Partition questions by type */
+  _allQuestions.forEach(function(q) {
+    /* Normalise: any non-theory type defaults to 'objective' for rendering
+       but keeps its original type for the component map */
+    var type = q.questionType || 'objective';
+    if (!_componentMap[type]) { _componentMap[type] = []; }
+    _componentMap[type].push(q);
+  });
+
+  var typeKeys = Object.keys(_componentMap);
+  _isMultiComp = (typeKeys.length > 1);
+
+  if (!_isMultiComp) {
+    /* Single component — no tabs, no change to existing behavior */
+    _questions       = _allQuestions;
+    _activeComponent = typeKeys[0] || 'objective';
+    return;
+  }
+
+  /* Multi-component: default to first type in order */
+  var orderedTypes = typeKeys.sort(function(a, b) {
+    var oa = (_COMP_INFO[a] || { order: 99 }).order;
+    var ob = (_COMP_INFO[b] || { order: 99 }).order;
+    return oa - ob;
+  });
+
+  _activeComponent = orderedTypes[0];
+  _questions       = _componentMap[_activeComponent] || [];
+
+  /* Build tab bar UI */
+  _buildCompTabs(orderedTypes);
+}
+
+function _buildCompTabs(types) {
+  var tabBar = document.getElementById('compTabBar');
+  if (!tabBar) { return; }
+
+  tabBar.innerHTML = types.map(function(type) {
+    var info  = _COMP_INFO[type] || { icon: '📝', label: type };
+    var count = (_componentMap[type] || []).length;
+    var isActive = (type === _activeComponent);
+    return '<button class="comp-tab-btn' + (isActive ? ' active' : '') + '" ' +
+      'role="tab" aria-selected="' + isActive + '" ' +
+      'data-comp="' + type + '" ' +
+      'onclick="switchComponent(\'' + type + '\')">' +
+      info.icon + ' ' + info.label +
+      '<span class="comp-tab-count">' + count + '</span>' +
+    '</button>';
+  }).join('');
+
+  tabBar.style.display = 'flex';
+}
+
+function switchComponent(type) {
+  if (!_componentMap[type]) { return; }
+  if (type === _activeComponent) { return; }
+
+  /* Save current position before switching */
+  _compIndex[_activeComponent] = _currentIdx;
+
+  /* Switch */
+  _activeComponent = type;
+  _questions       = _componentMap[type] || [];
+
+  /* Update tab active state */
+  document.querySelectorAll('.comp-tab-btn').forEach(function(btn) {
+    var isActive = (btn.dataset.comp === type);
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-selected', String(isActive));
+  });
+
+  /* Restore previous position for this component, or start at 0 */
+  var restoreIdx = _compIndex[type] !== undefined ? _compIndex[type] : 0;
+  _currentIdx    = Math.min(restoreIdx, _questions.length - 1);
+
+  /* Rebuild grid and render */
+  buildQGrid();
+  renderQuestion(_currentIdx);
+
+  /* Scroll exam body to top */
+  var body = document.getElementById('examBody');
+  if (body) { body.scrollTop = 0; }
+}
+
+/* ============================================
    SUBJECT BANNER
 ============================================ */
 function showSubjectBanner(questionIdx, callback) {
@@ -246,86 +380,43 @@ function renderQuestion(idx) {
     return;
   }
 
-  /* Counter */
-  document.getElementById('qCounter').textContent =
-    'Question ' + (idx + 1) + ' of ' + _questions.length;
+  /* Counter — shows per-component count when multi-component */
+  var counterText = _isMultiComp
+    ? 'Question ' + (idx + 1) + ' of ' + _questions.length +
+      ' (' + (_COMP_INFO[_activeComponent] || { label: _activeComponent }).label + ')'
+    : 'Question ' + (idx + 1) + ' of ' + _questions.length;
+  document.getElementById('qCounter').textContent = counterText;
 
   /* Question text */
   document.getElementById('qText').textContent = q.question || '';
 
-  /* ✅ STEP 2: Theory-aware question rendering */
+  /* ✅ FINAL STEP: Universal answer renderer.
+     Selects the correct input UI based on question type.
+     Extensible: add new types by adding cases to renderAnswer(). */
   var listEl      = document.getElementById('optionsList');
   var theoryEl    = document.getElementById('theoryAnswer');
-  var options     = q.options || [];
   var qId         = q._id ? q._id.toString() : '';
   var savedAnswer = _answers[qId];
-  var isTheory    = (q.questionType === 'theory');
 
- /* ✅ STEP 2: Re-read theoryEl every render — defensive in case element
-     was injected after the var was first declared. */
-  theoryEl = document.getElementById('theoryAnswer');
+  _ensureTheoryTextarea();   /* defensive: ensure textarea exists in DOM */
+  theoryEl = document.getElementById('theoryAnswer');  /* re-read after ensure */
 
-  if (isTheory) {
-    /* ── Theory question ── */
-    if (listEl)   { listEl.innerHTML = ''; listEl.style.display = 'none'; }
+  renderAnswer(q, listEl, theoryEl, qId, savedAnswer, letters);
 
-    /* Inject a "📝 Theory Question" label above the textarea if absent */
-    var theoryLabelId = 'theoryInputLabel';
-    if (!document.getElementById(theoryLabelId) && theoryEl && theoryEl.parentNode) {
-      var lbl = document.createElement('div');
-      lbl.id  = theoryLabelId;
-      lbl.style.cssText =
-        'font-size:12px;font-weight:700;color:var(--text-muted,#6b6b8a);' +
-        'text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;margin-top:4px;';
-      lbl.textContent = '📝 Theory / Essay — Type your answer below';
-      theoryEl.parentNode.insertBefore(lbl, theoryEl);
-    }
-
-    if (theoryEl) {
-      theoryEl.style.display = 'block';
-      theoryEl.dataset.qid   = qId;
-      theoryEl.value = (typeof savedAnswer === 'string') ? savedAnswer : '';
-      /* Auto-focus so student can type immediately */
-      setTimeout(function() { theoryEl.focus && theoryEl.focus(); }, 80);
-    }
-
-    /* Show theory badge in question header */
-    var badge = document.getElementById('qTypeBadge');
-    if (badge) {
-      badge.textContent        = '📝 Theory';
-      badge.style.background   = 'rgba(255,165,0,0.1)';
-      badge.style.color        = '#ffa500';
-      badge.style.display      = 'inline-block';
-    }
-
-  } else {
-    /* ── Objective question ── */
-    if (theoryEl) { theoryEl.style.display = 'none'; theoryEl.value = ''; }
-
-    /* Hide the theory label when switching back to objective */
-    var existingLabel = document.getElementById('theoryInputLabel');
-    if (existingLabel) { existingLabel.style.display = 'none'; }
-
-    /* Reset question type badge */
-    var badge = document.getElementById('qTypeBadge');
-    if (badge) {
-      badge.textContent      = 'Objective';
-      badge.style.background = 'rgba(108,99,255,0.12)';
-      badge.style.color      = 'var(--primary-light,#a78bfa)';
-      badge.style.display    = 'inline-block';
-    }
-
-    if (listEl) {
-      listEl.style.display = '';
-      listEl.innerHTML = options.map(function(opt, i) {
-        var isSelected = savedAnswer === i;
-        return '<button class="option-btn' + (isSelected ? ' selected' : '') + '" ' +
-          'onclick="selectAnswer(' + i + ')">' +
-          '<span class="option-letter">' + (letters[i] || i) + '</span>' +
-          '<span class="option-text">' + opt + '</span>' +
-        '</button>';
-      }).join('');
-    }
+  /* Question type badge */
+  var qTypeBadge = document.getElementById('qTypeBadge');
+  if (qTypeBadge) {
+    var badgeInfo = {
+      theory:        { text: '📝 Theory',      bg: 'rgba(255,165,0,0.1)',    color: '#ffa500' },
+      fill_in_blank: { text: '✏️ Fill-In',     bg: 'rgba(67,233,123,0.1)',  color: '#43e97b' },
+      true_false:    { text: '✅ True/False',   bg: 'rgba(67,233,123,0.1)',  color: '#43e97b' },
+      objective:     { text: '🔘 Objective',   bg: 'rgba(108,99,255,0.12)', color: '#a78bfa' }
+    };
+    var bi = badgeInfo[q.questionType] || badgeInfo.objective;
+    qTypeBadge.textContent       = bi.text;
+    qTypeBadge.style.background  = bi.bg;
+    qTypeBadge.style.color       = bi.color;
+    qTypeBadge.style.display     = 'inline-block';
   }
 
   /* Subject tag in topbar */
@@ -357,7 +448,123 @@ function renderQuestion(idx) {
   if (typeof eceNavigationUpdateDot === 'function') { eceNavigationUpdateDot(idx); }
 }
 
+/* ============================================
+   ✅ FINAL STEP — UNIVERSAL ANSWER RENDERER
+   
+   Selects the correct input UI based on question type.
+   Called by renderQuestion() on every navigation.
+   
+   Supported types:
+     objective     → A/B/C/D buttons
+     true_false    → True / False buttons
+     fill_in_blank → single-line text input
+     theory/essay  → resizable textarea
+   
+   Adding a new type: add a case to the switch statement.
+   All types write to _answers[qId] via the same mechanism.
+============================================ */
+function renderAnswer(q, listEl, theoryEl, qId, savedAnswer, letters) {
+  var type    = q.questionType || 'objective';
+  var options = q.options || [];
 
+  /* Reset all input areas */
+  if (theoryEl) {
+    theoryEl.style.display = 'none';
+    theoryEl.value         = '';
+    /* Remove fill-in-blank input if present */
+    var fibEl = document.getElementById('fibAnswer');
+    if (fibEl) { fibEl.style.display = 'none'; fibEl.value = ''; }
+  }
+
+  switch (type) {
+
+    /* ---- THEORY / ESSAY ---- */
+    case 'theory':
+    case 'essay':
+      if (listEl) { listEl.innerHTML = ''; listEl.style.display = 'none'; }
+      if (theoryEl) {
+        theoryEl.style.display = 'block';
+        theoryEl.dataset.qid   = qId;
+        theoryEl.value         = (typeof savedAnswer === 'string') ? savedAnswer : '';
+        theoryEl.placeholder   = 'Write your answer here...\n\n' +
+          'For multi-part questions:\n(a) Answer to part (a)\n(b) Answer to part (b)';
+        setTimeout(function() { if (theoryEl) theoryEl.focus && theoryEl.focus(); }, 80);
+      }
+      break;
+
+    /* ---- FILL IN THE BLANK ---- */
+    case 'fill_in_blank':
+      if (listEl) { listEl.innerHTML = ''; listEl.style.display = 'none'; }
+      /* Inject a text input if not present */
+      var fibInp = document.getElementById('fibAnswer');
+      if (!fibInp) {
+        fibInp       = document.createElement('input');
+        fibInp.type  = 'text';
+        fibInp.id    = 'fibAnswer';
+        fibInp.style.cssText =
+          'width:100%; padding:16px 18px; border-radius:12px;' +
+          'background:rgba(255,255,255,0.04);' +
+          'border:2px solid rgba(255,255,255,0.08);' +
+          'color:#fff; font-size:16px; font-family:inherit;' +
+          'outline:none; box-sizing:border-box; margin-bottom:16px;' +
+          'transition:border-color 0.2s;';
+        fibInp.addEventListener('focus', function() { fibInp.style.borderColor = 'var(--primary,#6c63ff)'; });
+        fibInp.addEventListener('blur',  function() { fibInp.style.borderColor = 'rgba(255,255,255,0.08)'; });
+        fibInp.addEventListener('input', function() {
+          _answers[fibInp.dataset.qid || ''] = fibInp.value;
+          try { sessionStorage.setItem('cbtAnswers', JSON.stringify(_answers)); } catch(e) {}
+          updateQDot(_currentIdx);
+        });
+        if (theoryEl && theoryEl.parentNode) {
+          theoryEl.parentNode.insertBefore(fibInp, theoryEl);
+        }
+      }
+      fibInp.dataset.qid   = qId;
+      fibInp.value         = (typeof savedAnswer === 'string') ? savedAnswer : '';
+      fibInp.placeholder   = 'Type your answer here...';
+      fibInp.style.display = 'block';
+      setTimeout(function() { fibInp.focus && fibInp.focus(); }, 80);
+      break;
+
+    /* ---- TRUE / FALSE ---- */
+    case 'true_false':
+      if (listEl) {
+        listEl.style.display = '';
+        var tfOpts = ['True', 'False'];
+        listEl.innerHTML = tfOpts.map(function(opt, i) {
+          var isSelected = savedAnswer === i;
+          return '<button class="option-btn' + (isSelected ? ' selected' : '') + '" ' +
+            'onclick="selectAnswer(' + i + ')">' +
+            '<span class="option-letter" style="font-size:18px;">' + (i === 0 ? '✓' : '✗') + '</span>' +
+            '<span class="option-text" style="font-weight:700;">' + opt + '</span>' +
+          '</button>';
+        }).join('');
+      }
+      break;
+
+    /* ---- OBJECTIVE / MCQ (default) ---- */
+    case 'objective':
+    default:
+      if (theoryEl) { theoryEl.style.display = 'none'; }
+      if (listEl) {
+        listEl.style.display = '';
+        if (options.length === 0) {
+          listEl.innerHTML = '<div style="padding:20px; color:var(--text-muted,#6b6b8a); font-style:italic;">' +
+            'No options available for this question.</div>';
+        } else {
+          listEl.innerHTML = options.map(function(opt, i) {
+            var isSelected = savedAnswer === i;
+            return '<button class="option-btn' + (isSelected ? ' selected' : '') + '" ' +
+              'onclick="selectAnswer(' + i + ')">' +
+              '<span class="option-letter">' + (letters[i] || i) + '</span>' +
+              '<span class="option-text">' + opt + '</span>' +
+            '</button>';
+          }).join('');
+        }
+      }
+      break;
+  }
+}
 
 /* ============================================
    ANSWER SELECTION
