@@ -350,32 +350,52 @@ router.post('/session/start', protect, async (req, res) => {
         }
       }
 
-      /* ---- 2. Assemble from Question Engine ---- */
+     /* ---- 2. Assemble from Question Engine ---- */
       var qmsEng = getQMSEngine();
+
+      /* ✅ FINAL FIX: 'both' mode — first assembly is ALWAYS 'objective'.
+         Theory is assembled separately in the isBothMode block below.
+         Passing 'both' to the QMS engine caused it to return 0 questions
+         which is why all 13 questions showed as Objective: the engine
+         silently failed and a fallback path assembled objective questions
+         using the wrong count (subject.questionCount = 40, not 10).
+
+         Per-component counts:
+           Objective → subject.objectiveCount (admin-configured, e.g. 10)
+           Theory    → subject.theoryCount    (admin-configured, e.g. 3)
+         Both fall back to legacy questionCount / blueprint if not set. */
+      var _firstAssemblyType  = isBothMode ? 'objective' : questionType;
+      var _firstAssemblyCount = isBothMode
+        ? (subject.objectiveCount || assemblyCount)
+        : assemblyCount;
+
       if (qmsEng) {
         try {
           var engResult;
-
-          if (diffDistribution) {
+if (diffDistribution) {
             /* Blueprint with difficulty distribution → weighted assembly */
             engResult = await qmsEng.assembleFromBlueprint(
               subject._id.toString(),
               examCategory,
-              questionType,
+              /* ✅ FINAL FIX: Use corrected type ('objective' not 'both') */
+              _firstAssemblyType,
               {
-                count:                  assemblyCount,
+                /* ✅ FINAL FIX: Use per-component count */
+                count:                  _firstAssemblyCount,
                 difficultyDistribution: diffDistribution,
                 randomize:              blueprintUsed ? blueprintUsed.randomize : true
               },
               true
             );
           } else {
-            /* Standard random assembly — blueprint count or subject default */
+            /* Standard random assembly — per-component count */
             engResult = await qmsEng.assemble({
               subjectId:    subject._id.toString(),
               examType:     examCategory,
-              questionType: questionType,
-              count:        assemblyCount,
+              /* ✅ FINAL FIX: 'objective' not 'both' — engine doesn't know 'both' */
+              questionType: _firstAssemblyType,
+              /* ✅ FINAL FIX: objectiveCount (10) not questionCount (40) */
+              count:        _firstAssemblyCount,
               shuffle:      true
             });
           }
@@ -437,7 +457,11 @@ router.post('/session/start', protect, async (req, res) => {
             thBP = await ExamBP.findOne({ subjectId: subject._id, questionType: 'theory', examType: examCategory }).lean()
                 || await ExamBP.findOne({ subjectId: subject._id, questionType: 'theory', examType: 'all' }).lean();
           }
-          var thCount = (thBP ? thBP.count : null) || subject.theoryCount || 5;
+          /* ✅ FINAL FIX: Prefer subject.theoryCount (admin-configured, e.g. 3)
+             over blueprint count or hardcoded 5 default. */
+          var thCount = (subject.theoryCount > 0 ? subject.theoryCount : null)
+                      || (thBP ? thBP.count : null)
+                      || 5;
           var thResult = await qmsEng.assemble({
             subjectId:    subject._id.toString(),
             examType:     examCategory,
@@ -467,8 +491,10 @@ router.post('/session/start', protect, async (req, res) => {
       /* Shuffle question ORDER (anti-cheat) */
       var shuffledQs = shuffle(allSubjectQs);
 
-      /* ✅ STAGE 4: Cap uses blueprint.count (or subject.questionCount if no blueprint) */
-      var cap    = Math.min(assemblyCount, shuffledQs.length);
+      /* ✅ FINAL FIX: Cap uses per-component count.
+         In 'both' mode: _firstAssemblyCount = objectiveCount (e.g. 10).
+         In single mode: _firstAssemblyCount = assemblyCount (blueprint or questionCount). */
+      var cap    = Math.min(_firstAssemblyCount, shuffledQs.length);
       var picked = shuffledQs.slice(0, cap);
 
       /* Options stay in ORIGINAL order — index matches DB correctAnswer */

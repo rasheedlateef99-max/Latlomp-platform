@@ -876,6 +876,20 @@ function openCbtSubjModal(editId) {
 
   var modal = document.getElementById('cbtSubjModal');
   if (modal) modal.style.display = 'flex';
+
+  /* ✅ FINAL FIX: Populate component controls after modal opens.
+     The IIFE observer injects the controls ~100ms after display:flex.
+     We wait 250ms to ensure controls exist before writing values.
+     Create mode: controls keep injected defaults (ON, OFF, 40, 5).
+     Edit mode: controls are overwritten with the subject's saved values. */
+  if (editId) {
+    var _editingSubj = _cbtSubjects.find(function(s) { return s._id === editId; });
+    if (_editingSubj && typeof window._populateSubjectComponentValues === 'function') {
+      setTimeout(function() {
+        window._populateSubjectComponentValues(_editingSubj);
+      }, 250);
+    }
+  }
 }
 
 async function saveCbtSubj(e) {
@@ -884,14 +898,25 @@ async function saveCbtSubj(e) {
   if (btn) { btn.textContent = 'Saving...'; btn.disabled = true; }
 
   var editId = ((document.getElementById('editCbtSubjId') || {}).value || '').trim();
+  /* ✅ FINAL FIX: Read component ON/OFF values from the injected controls.
+     _getSubjectComponentPayload() is defined by the IIFE at the bottom.
+     Falls back to safe defaults if controls are not yet in DOM. */
+  var _compVals = (typeof window._getSubjectComponentPayload === 'function')
+    ? window._getSubjectComponentPayload()
+    : { objectiveEnabled: true, theoryEnabled: false, objectiveCount: 40, theoryCount: 5 };
+
   var payload = {
     name:          ((document.getElementById('cbtSubjName')    || {}).value || '').trim(),
     department:    ((document.getElementById('cbtSubjDeptSel') || {}).value || '').trim(),
     timeLimit:     parseInt((document.getElementById('cbtSubjTime')   || {}).value) || 30,
     questionCount: parseInt((document.getElementById('cbtSubjQCount') || {}).value) || 40,
     instructions:  ((document.getElementById('cbtSubjInstr')   || {}).value || '').trim(),
-    /* ✅ FIX: Tag with current category so filtering works */
-    examCategories: [_cbtCat === 'practice' ? 'all' : _cbtCat]
+    examCategories: [_cbtCat === 'practice' ? 'all' : _cbtCat],
+    /* ✅ FINAL FIX: Component settings — now actually sent to and saved by server */
+    objectiveEnabled: _compVals.objectiveEnabled,
+    theoryEnabled:    _compVals.theoryEnabled,
+    objectiveCount:   _compVals.objectiveCount,
+    theoryCount:      _compVals.theoryCount
   };
 
   if (!payload.name)       { adminToast('Subject name is required.',   'error'); if (btn) { btn.textContent = editId?'Save Changes':'Create Subject'; btn.disabled=false; } return; }

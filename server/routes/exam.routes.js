@@ -303,7 +303,12 @@ router.post('/admin/subjects', adminOrPlatformStaff('cbt'), async function (req,
       questionCount:  parseInt(req.body.questionCount) || 40,
       instructions:   (req.body.instructions || '').trim(),
       isActive:       req.body.isActive !== false,
-      createdBy:      req.user.id
+      createdBy:      req.user.id,
+      /* ✅ FINAL FIX: Component settings on creation */
+      objectiveEnabled: req.body.objectiveEnabled !== false,
+      theoryEnabled:    !!req.body.theoryEnabled,
+      objectiveCount:   parseInt(req.body.objectiveCount) || 40,
+      theoryCount:      parseInt(req.body.theoryCount)    || 5
     });
 
     const populated = await Subject.findById(subject._id).populate('department', 'name');
@@ -325,6 +330,11 @@ router.put('/admin/subjects/:id', adminOrPlatformStaff('cbt'), async function (r
     if (req.body.questionCount  !== undefined) updates.questionCount  = parseInt(req.body.questionCount);
     if (req.body.instructions   !== undefined) updates.instructions   = req.body.instructions.trim();
     if (req.body.isActive       !== undefined) updates.isActive       = req.body.isActive !== false;
+    /* ✅ FINAL FIX: Component ON/OFF settings — previously silently dropped */
+    if (req.body.objectiveEnabled !== undefined) updates.objectiveEnabled = req.body.objectiveEnabled !== false;
+    if (req.body.theoryEnabled    !== undefined) updates.theoryEnabled    = !!req.body.theoryEnabled;
+    if (req.body.objectiveCount   !== undefined) updates.objectiveCount   = parseInt(req.body.objectiveCount) || 40;
+    if (req.body.theoryCount      !== undefined) updates.theoryCount      = parseInt(req.body.theoryCount)    || 5;
 
     const subject = await Subject.findByIdAndUpdate(req.params.id, { $set: updates }, { new: true }).populate('department', 'name');
     if (!subject) return res.status(404).json({ success: false, message: 'Subject not found.' });
