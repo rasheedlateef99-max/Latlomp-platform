@@ -873,7 +873,9 @@ router.post('/subject-components', async (req, res) => {
     var ExamBP    = getExaminationBlueprint();
     var QMSQModel = getQMSQuestion();
 
-    if (!ExamBP || !QMSQModel) {
+    /* QMSQModel is required for question counting.
+       ExamBP is no longer required for component detection. */
+    if (!QMSQModel) {
       return res.json({ success: true, components: components });
     }
 
@@ -902,39 +904,103 @@ router.post('/subject-components', async (req, res) => {
       console.warn('[CBT] subject-components Subject settings check failed:', subjErr.message);
     }
 
-    /* Find all blueprints for these subjects + examType */
-    var bps = await ExamBP.find({
-      subjectId: { $in: objectIds },
-      examType:  { $in: [examCategory, 'all'] }
-    }).select('questionType').lean();
+   /* ✅ FINAL FIX: Component availability = Subject settings + QMS questions.
+       Blueprint is NOT required. Blueprint controls count/duration only.
 
-    if (bps.length === 0) {
-      return res.json({ success: true, components: components });
-    }
+       Previous requirement: blueprint must exist → always blocked theory
+       because most subjects have no theory blueprint configured.
 
-    /* Unique questionTypes that have blueprints */
-    var typesWithBP = bps.reduce(function (acc, bp) {
-      if (!acc.includes(bp.questionType)) { acc.push(bp.questionType); }
-      return acc;
-    }, []);
+       New requirement: Subject.theoryEnabled = true + approved QMS questions. */
 
-    /* For each type, verify approved questions actually exist */
-    for (var i = 0; i < typesWithBP.length; i++) {
-      var qt = typesWithBP[i];
-
-      /* Objective: include legacy documents (null/missing questionType) */
-      var qtFilter = (qt === 'objective')
-        ? { $in: [null, 'objective'] }
-        : qt;
-
-      var count = await QMSQModel.countDocuments({
+    /* OBJECTIVE: verify questions exist (QMS or legacy fallback) */
+    if (components.objective) {
+      var objQCount = await QMSQModel.countDocuments({
         subjectId:    { $in: objectIds },
         examType:     { $in: [examCategory, 'all'] },
-        questionType: qtFilter,
+        questionType: { $in: [null, 'objective'] },
         status:       'approved'
       });
+      if (objQCount === 0) {
+        /* Fallback: legacy Question model */
+        try {
+          var LegacyQ   = require('../models/Question.model');
+          var legFilter = { isActive: true, subjectId: { $in: objectIds } };
+          if (examCategory !== 'practice') {
+            legFilter.$or = [{ examCategory: examCategory }, { examCategory: 'all' }];
+          }
+          var legCount = await LegacyQ.countDocuments(legFilter);
+          if (legCount === 0) { components.objective = false; }
+        } catch (legErr) { /* keep objective:true as safe default */ }
+      }
+    }
 
-      if (count > 0) { components[qt] = true; }
+    /* THEORY: Subject.theoryEnabled must be true AND questions must exist */
+    try {
+      var subjRows = await Subject.find({ _id: { $in: objectIds } })
+        .select('theoryEnabled').lean();
+
+      var allTheoryOn = subjRows.length > 0 && subjRows.every(function(s) {
+        return s.theoryEnabled === true;
+      });
+
+      if (allTheoryOn) {
+        var thQCount = await QMSQModel.countDocuments({
+          subjectId:    { $in: objectIds },
+          examType:     { $in: [examCategory, 'all'] },
+          questionType: 'theory',
+          status:       'approved'
+        });
+        if (thQCount > 0) { components.theory = true; }
+        /* thQCount === 0: theory ON but no questions → keep false, don't crash */
+      }
+    } catch (thErr) {
+      console.warn('[CBT] theory component check failed:', thErr.message);
+      /* components.theory stays false — safe default */
+    }
+
+    /* --- THEORY: only if Subject.theoryEnabled AND questions exist --- */
+    /* components.theory starts false. Subject settings check above sets it
+       to false if theoryEnabled is false. We only need to handle the case
+       where theoryEnabled IS true — check if questions actually exist. */
+    if (!components.theory) {
+      /* Theory was blocked by Subject settings (theoryEnabled:false).
+         Nothing more to check — keep false. */
+    } else {
+      /* theoryEnabled is true on all selected subjects — verify questions */
+      var theoryQCount = await QMSQModel.countDocuments({
+        subjectId:    { $in: objectIds },
+        examType:     { $in: [examCategory, 'all'] },
+        questionType: 'theory',
+        status:       'approved'
+      });
+      if (theoryQCount === 0) {
+        /* Theory enabled in Subject settings but no questions imported yet */
+        components.theory = false;
+      }
+      /* else: theoryQCount > 0 → components.theory stays true from Subject check */
+    }
+
+    /* Re-read theoryEnabled from subjects to set initial theory flag
+       (Subject settings check above only sets false, never true) */
+    try {
+      var subjForTheory = await Subject.find({ _id: { $in: objectIds } })
+        .select('theoryEnabled').lean();
+      var allTheoryEnabled = subjForTheory.length > 0 && subjForTheory.every(function(s) {
+        return s.theoryEnabled === true;
+      });
+
+      if (allTheoryEnabled) {
+        /* Check QMS for theory questions */
+        var tCount = await QMSQModel.countDocuments({
+          subjectId:    { $in: objectIds },
+          examType:     { $in: [examCategory, 'all'] },
+          questionType: 'theory',
+          status:       'approved'
+        });
+        if (tCount > 0) { components.theory = true; }
+      }
+    } catch (thErr) {
+      console.warn('[CBT] theory component check failed:', thErr.message);
     }
 
     /* Objective fallback: check legacy Question model */
