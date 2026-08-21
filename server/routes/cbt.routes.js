@@ -486,6 +486,10 @@ if (diffDistribution) {
         }
       }
 
+      /* ✅ FINAL FIX: Don't skip subject if theory questions exist.
+         Original check skipped the entire subject when objective=0,
+         silently discarding all theory questions assembled in isBothMode.
+         Now: only skip if BOTH objective AND theory are empty. */
       if (allSubjectQs.length === 0 && theorySubjectQs.length === 0) continue;
 
       /* Shuffle question ORDER (anti-cheat) */
