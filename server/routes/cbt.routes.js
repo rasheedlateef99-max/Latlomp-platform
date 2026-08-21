@@ -448,20 +448,39 @@ if (diffDistribution) {
         console.error('[CBT Stage4] Question Engine not available — subject "' + subject.name + '" skipped.');
       }
 
-      /* ✅ FINAL STEP: if 'both' mode, also assemble theory questions */
+     
+     /* ✅ DEFINITIVE FIX: Theory assembly MUST happen BEFORE the
+         continue check. Previous patches placed it after, so
+         theorySubjectQs was always [] when checked → continue
+         fired → subject skipped → "No questions found" error.
+
+         Order:
+           1. Objective assembled above (allSubjectQs)
+           2. Theory assembled here (theorySubjectQs)
+           3. THEN check if both empty → only skip if truly no questions
+      */
+
+      /* ---- STEP 2: Assemble theory questions (both mode) ---- */
       var theorySubjectQs = [];
       if (isBothMode && qmsEng) {
         try {
           var thBP = null;
-          if (ExamBP) {
-            thBP = await ExamBP.findOne({ subjectId: subject._id, questionType: 'theory', examType: examCategory }).lean()
-                || await ExamBP.findOne({ subjectId: subject._id, questionType: 'theory', examType: 'all' }).lean();
+          var ExamBP2 = getExaminationBlueprint();
+          if (ExamBP2) {
+            thBP = await ExamBP2.findOne({
+              subjectId: subject._id, questionType: 'theory', examType: examCategory
+            }).lean();
+            if (!thBP) {
+              thBP = await ExamBP2.findOne({
+                subjectId: subject._id, questionType: 'theory', examType: 'all'
+              }).lean();
+            }
           }
-          /* ✅ FINAL FIX: Prefer subject.theoryCount (admin-configured, e.g. 3)
-             over blueprint count or hardcoded 5 default. */
+
           var thCount = (subject.theoryCount > 0 ? subject.theoryCount : null)
                       || (thBP ? thBP.count : null)
                       || 5;
+
           var thResult = await qmsEng.assemble({
             subjectId:    subject._id.toString(),
             examType:     examCategory,
@@ -469,6 +488,7 @@ if (diffDistribution) {
             count:        thCount,
             shuffle:      true
           });
+
           if (thResult.success && thResult.questions.length > 0) {
             theorySubjectQs = thResult.questions.map(function(q) {
               return {
@@ -486,11 +506,11 @@ if (diffDistribution) {
         }
       }
 
-      /* ✅ FINAL FIX: Don't skip subject if theory questions exist.
-         Original check skipped the entire subject when objective=0,
-         silently discarding all theory questions assembled in isBothMode.
-         Now: only skip if BOTH objective AND theory are empty. */
-      if (allSubjectQs.length === 0 && theorySubjectQs.length === 0) continue;
+      /* ---- STEP 3: Skip subject only if BOTH types returned nothing ---- */
+      if (allSubjectQs.length === 0 && theorySubjectQs.length === 0) {
+        console.warn('[CBT] No questions for subject "' + subject.name + '" — skipped.');
+        continue;
+      }
 
       /* Shuffle question ORDER (anti-cheat) */
       var shuffledQs = shuffle(allSubjectQs);
