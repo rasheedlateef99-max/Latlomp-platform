@@ -54,26 +54,17 @@ var TH_BOUNDARY_RE = /^[ \t]*(?:QUESTION\s+\d+|Q(?:n|uestion)?\.?\s*\d+)(?=\s|\[
 /* Matches "[8 MARKS]" or "(8 MARKS)" or "[8 marks]" anywhere in a line */
 var TH_MARKS_HDR_RE = /[\[\(](\d+)\s*MARKS?[\]\)]/i;
 
-/* Matches solution/answer section headers on their own line */
-/* ✅ FIX: Broader match — handles "&", "and", ":", spacing variations.
-   Also catches section labels like "SOLUTION:" or "Answers:" alone.
-   The $ anchor now allows trailing whitespace and optional colon. */
-var TH_SOL_HEADER_RE = new RegExp(
-  '^[ \\t]*(?:' +
-    '(?:DETAILED\\s+)?SOLUTION(?:\\s*[&+]\\s*MARKING\\s+SCHEME|\\s+AND\\s+MARKING\\s+SCHEME)?' + '|' +
-    '(?:DETAILED\\s+)?MARKING\\s+SCHEME' + '|' +
-    'MARK(?:ING)?\\s+SCHEME' + '|' +
-    'MODEL\\s+ANSWERS?' + '|' +
-    'EXPECTED\\s+ANSWERS?' + '|' +
-    'REFERENCE\\s+ANSWERS?' + '|' +
-    'WORKED\\s+SOLUTIONS?' + '|' +
-    'FULL\\s+SOLUTIONS?' + '|' +
-    'OFFICIAL\\s+ANSWERS?' + '|' +
-    'ANSWERS?\\s+(?:AND\\s+)?SOLUTIONS?' + '|' +
-    'SOLUTIONS?\\s+(?:AND\\s+)?MARKING'  +
-  ')[ \\t]*:?[ \\t]*$',
-  'im'
-);
+/* ✅ DEFINITIVE FIX: Broader solution header regex.
+   Handles all real-world variants found in WAEC/NECO documents:
+   - "DETAILED SOLUTION & MARKING SCHEME"
+   - "DETAILED SOLUTION AND MARKING SCHEME"
+   - "SOLUTION & MARKING SCHEME"
+   - "MARKING SCHEME"
+   - "MODEL ANSWER"
+   - "WORKED SOLUTION"
+   - Any of the above with trailing colon or whitespace.
+   Case-insensitive. Allows leading whitespace. */
+var TH_SOL_HEADER_RE = /^[ \t]*(?:(?:DETAILED\s+)?SOLUTION(?:\s*[&+]\s*MARKING\s+SCHEME|\s+AND\s+MARKING\s+SCHEME)?|(?:DETAILED\s+)?MARKING\s+SCHEME|MARK(?:ING)?\s+SCHEME|MODEL\s+ANSWERS?|EXPECTED\s+ANSWERS?|WORKED\s+SOLUTIONS?|FULL\s+SOLUTIONS?|REFERENCE\s+ANSWERS?|ANSWERS?\s*[:&]\s*SOLUTIONS?|OFFICIAL\s+ANSWERS?)[ \t]*:?[ \t]*$/im;
 
 /* Matches labeled model answer in paste format: "ModelAnswer: ..." */
 var TH_MODEL_INLINE_RE = /^(?:model[\s_-]?answer|expected[\s_-]?answer|reference[\s_-]?answer|model|expected|scheme|marking[\s_-]?guide|mark[\s_-]?scheme)\s*[:=]\s*(.+)/i;

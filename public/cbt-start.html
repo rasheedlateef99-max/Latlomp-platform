@@ -971,18 +971,15 @@ async function startExam() {
   btn.disabled    = true;
 
   try {
-    /* ✅ FINAL STEP: If both components are available and enabled,
-       send 'both' so server assembles objective + theory in one session.
-       exam.html will show component tabs when session.components exists. */
-    var effectiveType = _selectedComponent || 'objective';
-    if (_availableComponents.objective && _availableComponents.theory) {
-      effectiveType = 'both';
-    }
-
+    /* ✅ DEFINITIVE FIX: Send exactly what the student selected.
+       Never override with 'both'. The component selector exists
+       precisely so the student chooses ONE component per session.
+       'both' mode was causing both components to fail when either
+       type had assembly issues. Each component is now independent. */
     var res = await apiRequest('/cbt/session/start', 'POST', {
       examCategory: _category,
       subjectIds:   _selectedSubjectIds,
-      questionType: effectiveType
+      questionType: _selectedComponent || 'objective'
     });
 
     if (!res.ok) {

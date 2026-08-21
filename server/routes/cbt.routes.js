@@ -288,10 +288,9 @@ router.post('/session/start', protect, async (req, res) => {
     var sessionSubjects    = [];
     var allQuestions       = [];
     var totalTimeSeconds   = 0;
-    /* ✅ FINAL STEP: 'both' mode — assembles objective + theory in one session.
-       Components metadata tells exam.html which tabs to render. */
-    var isBothMode     = (questionType === 'both');
-    var componentsMeta = {};   /* populated when isBothMode = true */
+    /* ✅ DEFINITIVE FIX: No 'both' mode. Student selects one component.
+       questionType is always 'objective' or 'theory' from cbt-start.html.
+       Each session assembles exactly one question type. */
 
     for (var i = 0; i < subjects.length; i++) {
       var subject = subjects[i];
@@ -304,12 +303,23 @@ router.post('/session/start', protect, async (req, res) => {
          If QMS returns no questions, the subject is skipped.       */
 
       var allSubjectQs     = [];
-      var questionType     = req.body.questionType || 'objective';
+      /* ✅ DEFINITIVE FIX: questionType is always a single type now.
+         Use per-component count from Subject settings as the primary source.
+         Blueprint count is used as fallback. Legacy questionCount last. */
       var blueprintUsed    = null;
-      var assemblyCount    = subject.questionCount;  /* subject default */
-      var assemblyTime     = subject.timeLimit;       /* subject default */
-      var assemblyPassMark = 50;                      /* platform default */
+      var assemblyTime     = subject.timeLimit;
+      var assemblyPassMark = 50;
       var diffDistribution = null;
+
+      /* Per-component count: subject.objectiveCount or subject.theoryCount
+         takes priority over blueprint or legacy questionCount */
+      var _perCompCount = (questionType === 'theory')
+        ? (subject.theoryCount    || 0)
+        : (subject.objectiveCount || 0);
+
+      var assemblyCount = _perCompCount > 0
+        ? _perCompCount
+        : subject.questionCount;  /* fallback to legacy field */
 
       /* ---- 1. Load ExaminationBlueprint ---- */
       var ExamBP = getExaminationBlueprint();
@@ -506,9 +516,11 @@ if (diffDistribution) {
         }
       }
 
-      /* ---- STEP 3: Skip subject only if BOTH types returned nothing ---- */
-      if (allSubjectQs.length === 0 && theorySubjectQs.length === 0) {
-        console.warn('[CBT] No questions for subject "' + subject.name + '" — skipped.');
+      /* ✅ DEFINITIVE FIX: Single-type assembly only.
+         Skip subject only when no questions found for the selected type. */
+      if (allSubjectQs.length === 0) {
+        console.warn('[CBT] No questions for subject "' + subject.name +
+          '" type "' + questionType + '" examType "' + examCategory + '" — skipped.');
         continue;
       }
 
@@ -535,18 +547,7 @@ if (diffDistribution) {
         };
       });
 
-      /* ✅ FINAL STEP: Append theory questions for 'both' mode */
-      var theoryPicked = theorySubjectQs;
-      if (theoryPicked.length > 0) {
-        tagged = tagged.concat(theoryPicked);
-        /* Track component metadata for exam.html tabs */
-        if (!componentsMeta.objective) { componentsMeta.objective = 0; }
-        if (!componentsMeta.theory)    { componentsMeta.theory    = 0; }
-        componentsMeta.objective += picked.length;
-        componentsMeta.theory    += theoryPicked.length;
-        /* Add theory time (30 mins per theory component by default) */
-        totalTimeSeconds += 30 * 60;
-      }
+      
 
       /* ✅ STAGE 4: Session subject includes blueprint values when available */
       sessionSubjects.push({
@@ -583,11 +584,7 @@ if (diffDistribution) {
         totalQuestions:   finalQuestions.length,
         totalTimeSeconds: totalTimeSeconds,
         questions:        finalQuestions,
-        /* ✅ FINAL STEP: Component metadata for exam.html tab bar.
-           Empty when single-type session. */
-        components:       Object.keys(componentsMeta).length > 0
-          ? componentsMeta
-          : null,
+        
         /* ✅ ECE PHASE 5: Rules config for client display and result page */
         rules: {
           negativeMarking:   _rules.negative_marking,
