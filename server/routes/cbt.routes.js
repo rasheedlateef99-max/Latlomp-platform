@@ -292,8 +292,9 @@ router.post('/session/start', protect, async (req, res) => {
     /* ✅ CLEAN FIX: questionType declared once here from request body.
        Always a single type: 'objective' or 'theory'.
        Never 'both' — cbt-start.html sends the student's chosen component. */
-    var questionType = (req.body.questionType || 'objective').toLowerCase().trim();
-    if (questionType !== 'theory') { questionType = 'objective'; }
+   var questionType = (req.body.questionType || 'objective').toLowerCase().trim();
+    var isBothMode   = (questionType === 'both');
+    if (!isBothMode && questionType !== 'theory') { questionType = 'objective'; }
 
     for (var i = 0; i < subjects.length; i++) {
       var subject = subjects[i];
@@ -399,10 +400,38 @@ router.post('/session/start', protect, async (req, res) => {
         console.error('[CBT] Question Engine not available — subject skipped.');
       }
 
-      /* Skip subject if no questions found */
-      if (allSubjectQs.length === 0) {
-        console.warn('[CBT] Skipping subject "' + subject.name +
-          '" — 0 questions for type:' + questionType + ' examType:' + examCategory);
+      /* ---- 3. If both mode, also assemble theory ---- */
+      var theorySubjectQs = [];
+      if (isBothMode && qmsEng) {
+        try {
+          var thCount = (subject.theoryCount > 0 ? subject.theoryCount : null) || 5;
+          var thRes   = await qmsEng.assemble({
+            subjectId:    subject._id.toString(),
+            examType:     examCategory,
+            questionType: 'theory',
+            count:        thCount,
+            shuffle:      true
+          });
+          if (thRes.success && thRes.questions.length > 0) {
+            theorySubjectQs = thRes.questions.map(function (q) {
+              return {
+                _id:          q._id,
+                question:     q.question,
+                options:      [],
+                questionType: 'theory',
+                _subjectId:   subject._id.toString(),
+                _subjectName: subject.name
+              };
+            });
+          }
+        } catch (thErr) {
+          console.warn('[CBT] both-mode theory assembly failed:', thErr.message);
+        }
+      }
+
+      /* Skip subject only when truly no questions */
+      if (allSubjectQs.length === 0 && theorySubjectQs.length === 0) {
+        console.warn('[CBT] Skipping "' + subject.name + '" — 0 questions.');
         continue;
       }
 
@@ -415,11 +444,11 @@ router.post('/session/start', protect, async (req, res) => {
           _id:          q._id,
           question:     q.question,
           options:      q.options || [],
-          questionType: q.questionType || questionType,
+          questionType: q.questionType || (isBothMode ? 'objective' : questionType),
           _subjectId:   subject._id.toString(),
           _subjectName: subject.name
         };
-      });
+      }).concat(theorySubjectQs);
 
       sessionSubjects.push({
         subjectId:     subject._id,

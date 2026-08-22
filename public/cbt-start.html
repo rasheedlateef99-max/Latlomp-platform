@@ -848,7 +848,8 @@ async function loadComponents() {
     _selectedComponent = available[0];
   }
 
-  compRow.innerHTML = available.map(function(type) {
+  /* Build individual component buttons */
+  var btnHtml = available.map(function(type) {
     var info     = INFO[type] || { icon: '📝', name: type, desc: '' };
     var isActive = (_selectedComponent === type);
     return '<button class="comp-btn' + (isActive ? ' active' : '') + '" ' +
@@ -859,6 +860,18 @@ async function loadComponents() {
     '</button>';
   }).join('');
 
+  /* Add "Objective + Theory" combined button when both are available */
+  if (_availableComponents.objective && _availableComponents.theory) {
+    var isBothActive = (_selectedComponent === 'both');
+    btnHtml += '<button class="comp-btn' + (isBothActive ? ' active' : '') + '" ' +
+      'id="compBtn_both" ' +
+      'onclick="selectComponent(\'both\', this)">' +
+      '<div class="comp-btn-name">🔘📝 Objective + Theory</div>' +
+      '<div class="comp-btn-desc">Both components in one session</div>' +
+    '</button>';
+  }
+
+  compRow.innerHTML = btnHtml;
   compWrap.style.display = 'block';
 }
 
