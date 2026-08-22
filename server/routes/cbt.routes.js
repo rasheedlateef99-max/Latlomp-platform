@@ -285,54 +285,41 @@ router.post('/session/start', protect, async (req, res) => {
       }
     }
 
-    var sessionSubjects    = [];
-    var allQuestions       = [];
-    var totalTimeSeconds   = 0;
-    /* ✅ DEFINITIVE FIX: No 'both' mode. Student selects one component.
-       questionType is always 'objective' or 'theory' from cbt-start.html.
-       Each session assembles exactly one question type. */
+   var sessionSubjects  = [];
+    var allQuestions     = [];
+    var totalTimeSeconds = 0;
+
+    /* ✅ CLEAN FIX: questionType declared once here from request body.
+       Always a single type: 'objective' or 'theory'.
+       Never 'both' — cbt-start.html sends the student's chosen component. */
+    var questionType = (req.body.questionType || 'objective').toLowerCase().trim();
+    if (questionType !== 'theory') { questionType = 'objective'; }
 
     for (var i = 0; i < subjects.length; i++) {
       var subject = subjects[i];
 
-     /* ✅ STAGE 4: Blueprint-driven QMS-only assembly.
-         Legacy Question.find() fallback is removed.
-         ExaminationBlueprint drives count, duration, passMark
-         and difficulty distribution when configured.
-         Subject defaults are used when no blueprint exists.
-         If QMS returns no questions, the subject is skipped.       */
-
       var allSubjectQs     = [];
-      /* ✅ DEFINITIVE FIX: questionType is always a single type now.
-         Use per-component count from Subject settings as the primary source.
-         Blueprint count is used as fallback. Legacy questionCount last. */
       var blueprintUsed    = null;
-      var assemblyTime     = subject.timeLimit;
+      var assemblyTime     = subject.timeLimit     || 30;
       var assemblyPassMark = 50;
       var diffDistribution = null;
 
-      /* Per-component count: subject.objectiveCount or subject.theoryCount
-         takes priority over blueprint or legacy questionCount */
-      var _perCompCount = (questionType === 'theory')
+      /* Per-component count from Subject settings (admin-configured).
+         Falls back to legacy questionCount if not set. */
+      var _compCount = (questionType === 'theory')
         ? (subject.theoryCount    || 0)
         : (subject.objectiveCount || 0);
+      var assemblyCount = _compCount > 0 ? _compCount : (subject.questionCount || 40);
 
-      var assemblyCount = _perCompCount > 0
-        ? _perCompCount
-        : subject.questionCount;  /* fallback to legacy field */
-
-      /* ---- 1. Load ExaminationBlueprint ---- */
+      /* ---- 1. Load ExaminationBlueprint (optional — improves count/duration) ---- */
       var ExamBP = getExaminationBlueprint();
       if (ExamBP) {
         try {
-          /* Look for exam-specific blueprint (e.g. Biology + JAMB + objective) */
           var bp = await ExamBP.findOne({
             subjectId:    subject._id,
             questionType: questionType,
             examType:     examCategory
           }).lean();
-
-          /* Fall back to 'all' blueprint if no exam-specific one exists */
           if (!bp) {
             bp = await ExamBP.findOne({
               subjectId:    subject._id,
@@ -340,216 +327,100 @@ router.post('/session/start', protect, async (req, res) => {
               examType:     'all'
             }).lean();
           }
-
           if (bp) {
-            blueprintUsed    = bp;
-            assemblyCount    = bp.count    || subject.questionCount;
-            assemblyTime     = bp.duration || subject.timeLimit;
+            blueprintUsed = bp;
+            /* Blueprint count only overrides if no Subject-level count was set */
+            if (_compCount === 0 && bp.count) { assemblyCount = bp.count; }
+            assemblyTime     = bp.duration || assemblyTime;
             assemblyPassMark = bp.passMark !== undefined ? bp.passMark : 50;
-
-            /* Only use difficulty distribution when percentages sum to ~100% */
             var dd  = bp.difficultyDistribution;
             var sum = dd ? ((dd.easy || 0) + (dd.medium || 0) + (dd.hard || 0)) : 0;
-            if (dd && sum >= 95 && sum <= 105) {
-              diffDistribution = dd;
-            }
+            if (dd && sum >= 95 && sum <= 105) { diffDistribution = dd; }
           }
         } catch (bpErr) {
-          /* Blueprint lookup failure must never break a student's exam */
-          console.warn('[CBT] Blueprint lookup failed for subject', subject._id, ':', bpErr.message);
+          console.warn('[CBT] Blueprint lookup failed:', bpErr.message);
         }
       }
 
-     /* ---- 2. Assemble from Question Engine ---- */
+      /* ---- 2. Assemble from Question Engine ---- */
       var qmsEng = getQMSEngine();
-
-      /* ✅ FINAL FIX: 'both' mode — first assembly is ALWAYS 'objective'.
-         Theory is assembled separately in the isBothMode block below.
-         Passing 'both' to the QMS engine caused it to return 0 questions
-         which is why all 13 questions showed as Objective: the engine
-         silently failed and a fallback path assembled objective questions
-         using the wrong count (subject.questionCount = 40, not 10).
-
-         Per-component counts:
-           Objective → subject.objectiveCount (admin-configured, e.g. 10)
-           Theory    → subject.theoryCount    (admin-configured, e.g. 3)
-         Both fall back to legacy questionCount / blueprint if not set. */
-      var _firstAssemblyType  = isBothMode ? 'objective' : questionType;
-      var _firstAssemblyCount = isBothMode
-        ? (subject.objectiveCount || assemblyCount)
-        : assemblyCount;
-
       if (qmsEng) {
         try {
           var engResult;
-if (diffDistribution) {
-            /* Blueprint with difficulty distribution → weighted assembly */
+          if (diffDistribution) {
             engResult = await qmsEng.assembleFromBlueprint(
-              subject._id.toString(),
-              examCategory,
-              /* ✅ FINAL FIX: Use corrected type ('objective' not 'both') */
-              _firstAssemblyType,
-              {
-                /* ✅ FINAL FIX: Use per-component count */
-                count:                  _firstAssemblyCount,
-                difficultyDistribution: diffDistribution,
-                randomize:              blueprintUsed ? blueprintUsed.randomize : true
-              },
+              subject._id.toString(), examCategory, questionType,
+              { count: assemblyCount, difficultyDistribution: diffDistribution,
+                randomize: blueprintUsed ? blueprintUsed.randomize : true },
               true
             );
           } else {
-            /* Standard random assembly — per-component count */
             engResult = await qmsEng.assemble({
               subjectId:    subject._id.toString(),
               examType:     examCategory,
-              /* ✅ FINAL FIX: 'objective' not 'both' — engine doesn't know 'both' */
-              questionType: _firstAssemblyType,
-              /* ✅ FINAL FIX: objectiveCount (10) not questionCount (40) */
-              count:        _firstAssemblyCount,
+              questionType: questionType,
+              count:        assemblyCount,
               shuffle:      true
             });
           }
 
           if (engResult.success && engResult.questions.length > 0) {
-            /* Strip correctAnswer — never sent to client.
-               ✅ ECE PHASE 5: When shuffle_options is enabled, shuffle each
-               question's options and compute the new correct answer index.
-               _correctAnswerIdx is stored in client sessionStorage (not
-               rendered in the UI) so session/submit can grade correctly. */
             allSubjectQs = engResult.questions.map(function (q) {
-              /* ✅ STEP 2: (q.options || []) — theory questions have no options.
-                 .slice() on undefined would throw; default to [] prevents that. */
               var opts = (q.options || []).slice();
               var qObj = {
                 _id:          q._id,
                 question:     q.question,
                 options:      opts,
-                questionType: q.questionType || 'objective'  /* ✅ STEP 2: pass type to client */
+                questionType: q.questionType || questionType
               };
-
               if (_rules.shuffle_options && opts.length > 1) {
-                /* Fisher-Yates shuffle on index array */
-                var idx = opts.map(function (_, i) { return i; });
+                var idx = opts.map(function (_, k) { return k; });
                 for (var si = idx.length - 1; si > 0; si--) {
-                  var sj   = Math.floor(Math.random() * (si + 1));
-                  var stmp = idx[si]; idx[si] = idx[sj]; idx[sj] = stmp;
+                  var sj = Math.floor(Math.random() * (si + 1));
+                  var st = idx[si]; idx[si] = idx[sj]; idx[sj] = st;
                 }
-                qObj.options = idx.map(function (i) { return opts[i]; });
-                /* New position of correct answer in shuffled order */
+                qObj.options = idx.map(function (k) { return opts[k]; });
                 qObj._correctAnswerIdx = idx.indexOf(q.correctAnswer);
               }
-
               return qObj;
             });
             if (engResult.warning) {
-              console.warn('[CBT Stage4] Subject', subject.name, '—', engResult.warning);
+              console.warn('[CBT]', subject.name, '—', engResult.warning);
             }
           } else {
-            console.warn('[CBT Stage4] No questions returned for subject "' + subject.name + '"',
-              'examType:', examCategory, 'questionType:', questionType,
-              '— subject skipped.',
+            console.warn('[CBT] No questions — subject:', subject.name,
+              'type:', questionType, 'examType:', examCategory,
               engResult.message || '');
           }
-
         } catch (engErr) {
-          console.error('[CBT Stage4] Engine error for subject "' + subject.name + '":', engErr.message);
+          console.error('[CBT] Engine error for', subject.name, ':', engErr.message);
         }
       } else {
-        console.error('[CBT Stage4] Question Engine not available — subject "' + subject.name + '" skipped.');
+        console.error('[CBT] Question Engine not available — subject skipped.');
       }
 
-     
-     /* ✅ DEFINITIVE FIX: Theory assembly MUST happen BEFORE the
-         continue check. Previous patches placed it after, so
-         theorySubjectQs was always [] when checked → continue
-         fired → subject skipped → "No questions found" error.
-
-         Order:
-           1. Objective assembled above (allSubjectQs)
-           2. Theory assembled here (theorySubjectQs)
-           3. THEN check if both empty → only skip if truly no questions
-      */
-
-      /* ---- STEP 2: Assemble theory questions (both mode) ---- */
-      var theorySubjectQs = [];
-      if (isBothMode && qmsEng) {
-        try {
-          var thBP = null;
-          var ExamBP2 = getExaminationBlueprint();
-          if (ExamBP2) {
-            thBP = await ExamBP2.findOne({
-              subjectId: subject._id, questionType: 'theory', examType: examCategory
-            }).lean();
-            if (!thBP) {
-              thBP = await ExamBP2.findOne({
-                subjectId: subject._id, questionType: 'theory', examType: 'all'
-              }).lean();
-            }
-          }
-
-          var thCount = (subject.theoryCount > 0 ? subject.theoryCount : null)
-                      || (thBP ? thBP.count : null)
-                      || 5;
-
-          var thResult = await qmsEng.assemble({
-            subjectId:    subject._id.toString(),
-            examType:     examCategory,
-            questionType: 'theory',
-            count:        thCount,
-            shuffle:      true
-          });
-
-          if (thResult.success && thResult.questions.length > 0) {
-            theorySubjectQs = thResult.questions.map(function(q) {
-              return {
-                _id:          q._id,
-                question:     q.question,
-                options:      [],
-                questionType: 'theory',
-                _subjectId:   subject._id.toString(),
-                _subjectName: subject.name
-              };
-            });
-          }
-        } catch (thErr) {
-          console.warn('[CBT] both-mode theory assembly failed:', thErr.message);
-        }
-      }
-
-      /* ✅ DEFINITIVE FIX: Single-type assembly only.
-         Skip subject only when no questions found for the selected type. */
+      /* Skip subject if no questions found */
       if (allSubjectQs.length === 0) {
-        console.warn('[CBT] No questions for subject "' + subject.name +
-          '" type "' + questionType + '" examType "' + examCategory + '" — skipped.');
+        console.warn('[CBT] Skipping subject "' + subject.name +
+          '" — 0 questions for type:' + questionType + ' examType:' + examCategory);
         continue;
       }
 
-      /* Shuffle question ORDER (anti-cheat) */
       var shuffledQs = shuffle(allSubjectQs);
+      var cap        = Math.min(assemblyCount, shuffledQs.length);
+      var picked     = shuffledQs.slice(0, cap);
 
-      /* ✅ FINAL FIX: Cap uses per-component count.
-         In 'both' mode: _firstAssemblyCount = objectiveCount (e.g. 10).
-         In single mode: _firstAssemblyCount = assemblyCount (blueprint or questionCount). */
-      var cap    = Math.min(_firstAssemblyCount, shuffledQs.length);
-      var picked = shuffledQs.slice(0, cap);
-
-      /* Options stay in ORIGINAL order — index matches DB correctAnswer */
-      /* ✅ STEP 2: questionType included so exam.js renderQuestion()
-         can switch between MCQ options and theory textarea. */
       var tagged = picked.map(function (q) {
         return {
           _id:          q._id,
           question:     q.question,
           options:      q.options || [],
-          questionType: q.questionType || 'objective',
+          questionType: q.questionType || questionType,
           _subjectId:   subject._id.toString(),
           _subjectName: subject.name
         };
       });
 
-      
-
-      /* ✅ STAGE 4: Session subject includes blueprint values when available */
       sessionSubjects.push({
         subjectId:     subject._id,
         subjectName:   subject.name,
