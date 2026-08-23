@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Parent Portal — LatLomp</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --dark:#0f0f1a;--dark-2:#1a1a2e;--primary:#6c63ff;
+      --border:rgba(255,255,255,0.08);--text:#fff;
+      --secondary:#a0a0c0;--muted:#6b6b8a;
+      --success:#43e97b;--error:#ff6584;
+    }
+    body{background:var(--dark);color:var(--text);font-family:'Inter',sans-serif;
+      min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+    .card{background:var(--dark-2);border:1px solid var(--border);border-radius:20px;
+      padding:40px 36px;width:100%;max-width:420px;}
+    .logo{text-align:center;margin-bottom:32px;}
+    .logo-icon{font-size:44px;margin-bottom:10px;}
+    .logo-title{font-size:22px;font-weight:800;}
+    .logo-sub{font-size:13px;color:var(--muted);margin-top:4px;}
+    .invite-box{background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.25);
+      border-radius:12px;padding:16px 18px;margin-bottom:24px;display:none;}
+    .invite-school{font-size:12px;font-weight:700;color:#a78bfa;text-transform:uppercase;
+      letter-spacing:0.4px;margin-bottom:6px;}
+    .invite-title{font-size:15px;font-weight:800;color:#fff;margin-bottom:8px;}
+    .invite-children{display:flex;flex-direction:column;gap:4px;}
+    .invite-child{font-size:13px;color:var(--secondary);display:flex;align-items:center;gap:6px;}
+    .divider{text-align:center;font-size:12px;color:var(--muted);margin:20px 0;
+      position:relative;}
+    .divider::before,.divider::after{content:'';position:absolute;top:50%;
+      width:42%;height:1px;background:var(--border);}
+    .divider::before{left:0} .divider::after{right:0}
+    /* Google button */
+    .g-btn{width:100%;padding:13px 16px;background:#fff;border:none;border-radius:10px;
+      display:flex;align-items:center;justify-content:center;gap:12px;
+      font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;
+      color:#1f1f1f;transition:box-shadow 0.2s;}
+    .g-btn:hover{box-shadow:0 4px 20px rgba(255,255,255,0.15);}
+    .g-btn:disabled{opacity:0.6;cursor:not-allowed;}
+    .g-btn img{width:20px;height:20px;}
+    .g-btn-text{font-size:15px;font-weight:600;}
+    .return-note{text-align:center;font-size:13px;color:var(--muted);
+      margin-top:20px;line-height:1.6;}
+    .err{background:rgba(255,101,132,0.1);border:1px solid rgba(255,101,132,0.3);
+      border-radius:8px;padding:10px 14px;font-size:13px;color:var(--error);
+      margin-bottom:16px;display:none;line-height:1.5;}
+    .ok{background:rgba(67,233,123,0.1);border:1px solid rgba(67,233,123,0.3);
+      border-radius:8px;padding:10px 14px;font-size:13px;color:var(--success);
+      margin-bottom:16px;display:none;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(0,0,0,0.2);
+      border-top-color:#1f1f1f;border-radius:50%;animation:spin 0.7s linear infinite;}
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">👨‍👩‍👧</div>
+    <div class="logo-title" id="portalTitle">Parent Portal</div>
+    <div class="logo-sub">LatLomp Education Platform</div>
+  </div>
+
+  <!-- Invite info box — shown when ?invite= is in URL -->
+  <div class="invite-box" id="inviteBox">
+    <div class="invite-school" id="inviteSchoolName"></div>
+    <div class="invite-title" id="inviteHeading"></div>
+    <div class="invite-children" id="inviteChildren"></div>
+  </div>
+
+  <div id="errBox" class="err"></div>
+  <div id="okBox"  class="ok"></div>
+
+  <!-- Google Sign-In button -->
+  <button class="g-btn" id="gBtn" onclick="startGoogleSignIn()">
+    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
+    <span class="g-btn-text" id="gBtnText">Continue with Google</span>
+  </button>
+
+  <div class="return-note" id="returnNote">
+    Returning parent? Sign in with the same Google account<br>you used to accept your invitation.
+  </div>
+</div>
+
+<!-- Google Identity Services renders its credential picker here -->
+<div id="g_id_onload"
+     data-client_id=""
+     data-callback="onGoogleCredential"
+     data-auto_prompt="false"
+     style="display:none;">
+</div>
+
+<script>
+/* ============================================
+   CONFIGURATION
+   Client ID is read from meta or env.
+   Set GOOGLE_CLIENT_ID in your deployment env.
+============================================ */
+var GOOGLE_CLIENT_ID = '';  /* set below from meta tag or hardcode for static */
+
+/* Attempt to read from a meta tag if present */
+(function () {
+  var m = document.querySelector('meta[name="google-client-id"]');
+  if (m) { GOOGLE_CLIENT_ID = m.getAttribute('content') || ''; }
+  /* Fallback: set from window if injected by server */
+  if (!GOOGLE_CLIENT_ID && window.__GOOGLE_CLIENT_ID) {
+    GOOGLE_CLIENT_ID = window.__GOOGLE_CLIENT_ID;
+  }
+})();
+
+var _inviteToken = null;
+var _inviteEmail = null;
+
+/* ============================================
+   INIT
+============================================ */
+document.addEventListener('DOMContentLoaded', async function () {
+  /* Redirect if already logged in */
+  if (localStorage.getItem('parentToken')) {
+    window.location.href = '/institution/parent/dashboard.html';
+    return;
+  }
+
+  /* Read invite token from URL */
+  var params = new URLSearchParams(window.location.search);
+  _inviteToken = params.get('invite') || null;
+
+  if (_inviteToken) {
+    await loadInviteInfo(_inviteToken);
+  }
+
+  /* Initialize Google Identity Services */
+  if (GOOGLE_CLIENT_ID) {
+    var onloadEl = document.getElementById('g_id_onload');
+    if (onloadEl) { onloadEl.setAttribute('data-client_id', GOOGLE_CLIENT_ID); }
+  }
+});
+
+/* ============================================
+   LOAD INVITE INFO
+============================================ */
+async function loadInviteInfo(token) {
+  try {
+    var res  = await fetch('/api/institution/parent/auth/invite-info/' + token);
+    var data = await res.json();
+
+    if (!data.success) {
+      showErr(data.message || 'Invalid or expired invitation.');
+      document.getElementById('gBtn').disabled = true;
+      return;
+    }
+
+    /* Show invitation box */
+    var box = document.getElementById('inviteBox');
+    if (box) box.style.display = 'block';
+
+    var schoolEl = document.getElementById('inviteSchoolName');
+    if (schoolEl && data.school) schoolEl.textContent = '🏫 ' + data.school.name;
+
+    var headEl = document.getElementById('inviteHeading');
+    if (headEl) headEl.textContent = 'You have been invited to access ' +
+      (data.childCount === 1 ? '1 child\'s records' : data.childCount + ' children\'s records');
+
+    var childrenEl = document.getElementById('inviteChildren');
+    if (childrenEl && data.students) {
+      childrenEl.innerHTML = data.students.map(function (s) {
+        return '<div class="invite-child">👤 <strong style="color:#fff;">' + esc(s.name) + '</strong>' +
+          (s.class ? ' — ' + esc(s.class) + (s.arm ? ' ' + esc(s.arm) : '') : '') + '</div>';
+      }).join('');
+    }
+
+    /* Store email for post-auth validation hint */
+    _inviteEmail = data.parentEmail;
+
+    /* Update button + title */
+    var btn = document.getElementById('gBtnText');
+    if (btn) btn.textContent = 'Accept Invitation with Google';
+
+    var title = document.getElementById('portalTitle');
+    if (title) title.textContent = 'Accept Invitation';
+
+    var note = document.getElementById('returnNote');
+    if (note) {
+      note.textContent = _inviteEmail
+        ? 'Please sign in with: ' + _inviteEmail
+        : 'Sign in with your Google account to accept.';
+    }
+
+  } catch (e) {
+    showErr('Could not load invitation details. Please check your link.');
+  }
+}
+
+/* ============================================
+   GOOGLE SIGN-IN TRIGGER
+============================================ */
+function startGoogleSignIn() {
+  clearMsg();
+  var btn = document.getElementById('gBtn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner"></div><span class="g-btn-text">Signing in...</span>'; }
+
+  /* Use Google Identity Services prompt */
+  if (window.google && window.google.accounts && window.google.accounts.id) {
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback:  onGoogleCredential,
+      auto_select: false
+    });
+    google.accounts.id.prompt(function (notification) {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        /* One-Tap not available — fall back to popup */
+        google.accounts.id.renderButton(
+          document.createElement('div'),
+          { theme: 'outline', size: 'large' }
+        );
+        google.accounts.id.prompt();
+        resetGBtn();
+      }
+    });
+  } else {
+    showErr('Google Sign-In is not available. Please refresh the page and try again.');
+    resetGBtn();
+  }
+}
+
+function resetGBtn() {
+  var btn = document.getElementById('gBtn');
+  if (btn) {
+    btn.disabled  = false;
+    btn.innerHTML = '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style="width:20px;height:20px;" />' +
+      '<span class="g-btn-text" id="gBtnText">' +
+      (_inviteToken ? 'Accept Invitation with Google' : 'Continue with Google') + '</span>';
+  }
+}
+
+/* ============================================
+   GOOGLE CREDENTIAL CALLBACK
+============================================ */
+async function onGoogleCredential(response) {
+  if (!response || !response.credential) {
+    showErr('Sign-in was cancelled or failed. Please try again.');
+    resetGBtn();
+    return;
+  }
+
+  try {
+    var body = { credential: response.credential };
+    if (_inviteToken) { body.inviteToken = _inviteToken; }
+
+    var res  = await fetch('/api/institution/parent/auth/google', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(body)
+    });
+    var data = await res.json();
+
+    if (data.success) {
+      localStorage.setItem('parentToken', data.token);
+      localStorage.setItem('parentUser',  JSON.stringify(data.parent));
+      showOk(data.message || 'Signed in! Redirecting...');
+      setTimeout(function () {
+        window.location.href = data.redirectTo || '/institution/parent/dashboard.html';
+      }, 800);
+    } else {
+      showErr(data.message || 'Sign-in failed. Please try again.');
+      resetGBtn();
+    }
+  } catch (e) {
+    showErr('Network error. Please check your connection and try again.');
+    resetGBtn();
+  }
+}
+
+/* ============================================
+   HELPERS
+============================================ */
+function showErr(msg) {
+  var e = document.getElementById('errBox');
+  if (e) { e.textContent = msg; e.style.display = 'block'; }
+  document.getElementById('okBox').style.display = 'none';
+}
+function showOk(msg) {
+  var o = document.getElementById('okBox');
+  if (o) { o.textContent = msg; o.style.display = 'block'; }
+  document.getElementById('errBox').style.display = 'none';
+}
+function clearMsg() {
+  document.getElementById('errBox').style.display = 'none';
+  document.getElementById('okBox').style.display  = 'none';
+}
+function esc(str) {
+  if (!str) { return ''; }
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

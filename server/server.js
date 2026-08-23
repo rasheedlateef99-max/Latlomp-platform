@@ -79,6 +79,10 @@ app.use("/api/institution/timetable",      require("./institution/routes/inst.ti
 app.use("/api/institution/attendance",     require("./institution/routes/inst.attendance.routes"));
 /* ✅ PHASE P: Student Authenticated Portal */
 app.use("/api/institution/student-portal", require("./institution/routes/inst.student.portal.routes"));
+
+/* ✅ PHASE Q: Parent Portal */
+app.use("/api/institution/parent/auth", require("./institution/routes/parent.auth.routes"));
+app.use("/api/institution/parent",      require("./institution/routes/parent.routes"));
 /* ============================================
    PLATFORM ADMINISTRATION ROUTES
    Separate from all existing route namespaces.
