@@ -207,6 +207,7 @@
       <span class="nav-icon">⚡</span> ECE Settings
     </button>
     <div class="sb-sep">Links</div>
+    <button class="nav-item" data-sec="parents" onclick="showSection('parents')"><span class="nav-icon">👨‍👩‍👧</span> Parent Portal</button>
     <!-- ✅ PHASE K.3: Paper Exams nav link -->
     <a class="nav-item" href="/institution/teacher/paper-exam.html">           <span class="nav-icon">📄</span> Paper Exams</a>
     <!-- ✅ PHASE L.5: Score Entry nav link -->
@@ -407,6 +408,26 @@
     </div>
 
   </div>
+
+    <!-- PARENT PORTAL -->
+    <div class="section" id="sec-parents">
+      <div class="page-header">
+        <div><h1>Parent Portal</h1><p>Invite parents to view their children's records</p></div>
+        <button class="btn btn-primary" onclick="openTeacherParentInviteModal()">+ Invite Parent</button>
+      </div>
+      <div style="background:rgba(108,99,255,0.07);border:1px solid rgba(108,99,255,0.2);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:13px;color:#a78bfa;line-height:1.7;">
+        💡 Enter the parent's Gmail address and select which student(s) they may access.
+        The invitation link is single-use and expires in 7 days.
+        Parents sign in with Google — no password required.
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Sent Invitations</h3><span id="tParentInvCountBadge" style="font-size:12px;color:var(--muted);"></span></div>
+        <div id="tParentInvContainer"><div style="text-align:center;padding:28px;color:var(--muted);font-size:14px;">Loading...</div></div>
+      </div>
+    </div>
+
+  </div>
+
 </div>
 
 <!-- ===== CREATE/EDIT EXAM MODAL ===== -->
@@ -985,8 +1006,8 @@ function showSection(name) {
   if(name==='results'){loadResults();}
   if(name==='grading'){loadGradingExamList();}
   if(name==='ece'){loadEceConfig();}
+  if(name==='parents'){loadTeacherParentSection();}
 }
-
 function openSidebar()  { document.getElementById('sidebar').classList.add('open');    document.getElementById('sidebarOverlay').classList.add('visible');    document.body.style.overflow='hidden'; }
 function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('visible'); document.body.style.overflow=''; }
 
@@ -1444,6 +1465,204 @@ async function saveEceConfig() {
   } else {
     instToast(res.data.message || 'Failed to save.', 'error');
   }
+}
+
+/* ============================================
+   ✅ PHASE Q: PARENT PORTAL — TEACHER VIEW
+   Uses canManageStudents RBAC (already on server).
+   Teachers can invite parents and view their
+   sent invitations.
+============================================ */
+var _tParentStudents = [];
+var _tParentInvites  = [];
+
+async function loadTeacherParentSection() {
+  await Promise.all([loadTParentInvites(), loadTParentStudents()]);
+}
+
+async function loadTParentStudents() {
+  /* Load students this teacher can see — scoped by their RBAC on server */
+  var res = await instApi('/students/list?limit=200');
+  _tParentStudents = (res.ok && res.data.students) ? res.data.students : [];
+}
+
+async function loadTParentInvites() {
+  var res           = await instApi('/parent/invite/list');
+  _tParentInvites   = (res.ok && res.data.invitations) ? res.data.invitations : [];
+  var countEl       = document.getElementById('tParentInvCountBadge');
+  var container     = document.getElementById('tParentInvContainer');
+  if (countEl) countEl.textContent = _tParentInvites.length + ' invitation' + (_tParentInvites.length !== 1 ? 's' : '');
+  if (!container) return;
+
+  if (!_tParentInvites.length) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">📨</div><div class="empty-title">No invitations yet</div><div class="empty-sub">Click "+ Invite Parent" to create one.</div></div>';
+    return;
+  }
+
+  var statusColors = { pending:'badge-orange', accepted:'badge-green', expired:'badge-red', cancelled:'badge-muted' };
+  container.innerHTML = '<div class="table-wrap"><table><thead><tr>' +
+    '<th>Parent Email</th><th>Children</th><th>Status</th><th>Sent</th><th>Actions</th>' +
+    '</tr></thead><tbody>' +
+    _tParentInvites.map(function (inv) {
+      var students  = (inv.studentIds || []).map(function (s) { return s.name || '—'; }).join(', ');
+      var isExpired = (inv.status === 'pending' && new Date(inv.expiresAt) < new Date());
+      var status    = isExpired ? 'expired' : inv.status;
+      return '<tr>' +
+        '<td style="font-weight:700;color:#fff;">'  + escHtml(inv.parentEmail) + '</td>' +
+        '<td style="font-size:12px;color:var(--secondary);">' + escHtml(students || '—') + '</td>' +
+        '<td><span class="badge ' + (statusColors[status] || 'badge-muted') + '">' + status + '</span></td>' +
+        '<td style="font-size:12px;color:var(--muted);">' + instFmtDate(inv.createdAt) + '</td>' +
+        '<td><div style="display:flex;gap:5px;">' +
+          (inv.status === 'pending' && !isExpired
+            ? '<button class="btn btn-sm btn-secondary" onclick="tCopyParentLink(\'' + inv.token + '\')">📋 Copy</button>' +
+              '<button class="btn btn-sm btn-danger"    onclick="tCancelParentInv(\'' + inv._id + '\')">Cancel</button>'
+            : '—') +
+        '</div></td>' +
+      '</tr>';
+    }).join('') +
+    '</tbody></table></div>';
+}
+
+function openTeacherParentInviteModal() {
+  var existing = document.getElementById('tParentInviteModal');
+  if (!existing) { buildTParentInviteModal(); }
+  var errEl = document.getElementById('tParentInvErr');
+  var sucEl = document.getElementById('tParentInvSuccess');
+  var emailEl = document.getElementById('tParentInvEmail');
+  var nameEl  = document.getElementById('tParentInvName');
+  if (errEl)   errEl.style.display   = 'none';
+  if (sucEl)   sucEl.style.display   = 'none';
+  if (emailEl) emailEl.value          = '';
+  if (nameEl)  nameEl.value           = '';
+
+  var cbWrap = document.getElementById('tParentStudentCheckboxes');
+  if (cbWrap) {
+    if (!_tParentStudents.length) {
+      cbWrap.innerHTML = '<span style="font-size:13px;color:var(--muted);">No students found in your scope.</span>';
+    } else {
+      cbWrap.innerHTML = _tParentStudents.map(function (s) {
+        var lbl = escHtml(s.name) + (s.class ? ' — ' + escHtml(s.class) : '') +
+                  (s.admissionNo ? ' (' + escHtml(s.admissionNo) + ')' : '');
+        return '<label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--secondary);' +
+          'cursor:pointer;padding:8px 10px;border-radius:8px;border:1px solid var(--border);' +
+          'background:rgba(255,255,255,0.02);">' +
+          '<input type="checkbox" class="t-parent-student-cb" value="' + s._id + '" ' +
+            'style="width:15px;height:15px;accent-color:var(--primary);cursor:pointer;" />' +
+          lbl + '</label>';
+      }).join('');
+    }
+  }
+
+  document.getElementById('tParentInviteModal').style.display = 'flex';
+  setTimeout(function () { var el = document.getElementById('tParentInvEmail'); if (el) el.focus(); }, 100);
+}
+
+function buildTParentInviteModal() {
+  var div = document.createElement('div');
+  div.className = 'modal-overlay';
+  div.id = 'tParentInviteModal';
+  div.style.display = 'none';
+  div.innerHTML =
+    '<div class="modal-box">' +
+      '<div class="modal-header">' +
+        '<h2>Invite Parent</h2>' +
+        '<button class="modal-close" onclick="closeModal(\'tParentInviteModal\')">✕</button>' +
+      '</div>' +
+      '<div id="tParentInvErr" style="display:none;background:rgba(255,101,132,0.1);border:1px solid rgba(255,101,132,0.3);color:var(--red);padding:12px;border-radius:8px;font-size:13px;margin-bottom:16px;"></div>' +
+      '<div id="tParentInvSuccess" style="display:none;background:rgba(67,233,123,0.1);border:1px solid rgba(67,233,123,0.3);color:var(--green);padding:14px;border-radius:8px;font-size:13px;margin-bottom:16px;line-height:1.7;word-break:break-all;"></div>' +
+      '<div style="font-size:13px;color:var(--secondary);margin-bottom:16px;line-height:1.6;">Enter the parent\'s exact Gmail address. They will sign in with Google — no password needed.</div>' +
+      '<div class="field">' +
+        '<label>Parent Gmail Address <span style="color:var(--red);">*</span></label>' +
+        '<input type="email" id="tParentInvEmail" class="inp" placeholder="parent@gmail.com" />' +
+        '<div class="field-hint">Must be their exact Google account email.</div>' +
+      '</div>' +
+      '<div class="field">' +
+        '<label>Parent Name (optional)</label>' +
+        '<input type="text" id="tParentInvName" class="inp" placeholder="e.g. Mrs. Ngozi Okafor" />' +
+      '</div>' +
+      '<div class="field">' +
+        '<label>Select Child(ren) <span style="color:var(--red);">*</span></label>' +
+        '<div id="tParentStudentCheckboxes" style="max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:4px 0;">' +
+          '<span style="font-size:13px;color:var(--muted);">Loading...</span>' +
+        '</div>' +
+        '<div class="field-hint">Parent will only see the students you select.</div>' +
+      '</div>' +
+      '<div class="modal-footer">' +
+        '<button class="btn btn-secondary" onclick="closeModal(\'tParentInviteModal\')">Cancel</button>' +
+        '<button class="btn btn-primary" id="tParentInvBtn" onclick="sendTeacherParentInvite()">Send Invitation →</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(div);
+}
+
+async function sendTeacherParentInvite() {
+  var btn   = document.getElementById('tParentInvBtn');
+  var errEl = document.getElementById('tParentInvErr');
+  var sucEl = document.getElementById('tParentInvSuccess');
+  if (errEl) errEl.style.display = 'none';
+  if (sucEl) sucEl.style.display = 'none';
+
+  var email = (document.getElementById('tParentInvEmail') || {}).value.trim();
+  var name  = (document.getElementById('tParentInvName')  || {}).value.trim();
+  var selectedIds = [];
+  document.querySelectorAll('.t-parent-student-cb:checked').forEach(function (cb) {
+    selectedIds.push(cb.value);
+  });
+
+  if (!email) {
+    if (errEl) { errEl.textContent = 'Parent email is required.'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (!selectedIds.length) {
+    if (errEl) { errEl.textContent = 'Please select at least one child.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  if (btn) { btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true; }
+
+  var res = await instApi('/parent/invite', 'POST', {
+    parentEmail: email,
+    parentName:  name,
+    studentIds:  selectedIds
+  });
+
+  if (btn) { btn.innerHTML = 'Send Invitation →'; btn.disabled = false; }
+
+  if (res.ok) {
+    var link = res.data.inviteLink || '';
+    if (sucEl) {
+      sucEl.innerHTML = '✅ Invitation sent to <strong>' + escHtml(email) + '</strong>.<br/>' +
+        '<br/>Share this link with the parent:<br/>' +
+        '<div style="background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:6px;' +
+          'padding:8px 12px;margin-top:8px;font-family:monospace;font-size:12px;color:#a78bfa;word-break:break-all;">' +
+          escHtml(link) + '</div>' +
+        '<button onclick="navigator.clipboard.writeText(\'' + link.replace(/'/g, "\\'") + '\').then(function(){instToast(\'Link copied!\',\'success\')})" ' +
+          'style="margin-top:10px;padding:6px 14px;border-radius:7px;border:1px solid var(--border);' +
+          'background:rgba(255,255,255,0.06);color:var(--secondary);font-size:12px;cursor:pointer;font-family:inherit;">📋 Copy Link</button>';
+      sucEl.style.display = 'block';
+    }
+    instToast('Parent invitation created!', 'success');
+    await loadTParentInvites();
+  } else {
+    if (errEl) { errEl.textContent = (res.data && res.data.message) || 'Failed.'; errEl.style.display = 'block'; }
+  }
+}
+
+function tCopyParentLink(token) {
+  var link = window.location.protocol + '//' + window.location.host +
+    '/institution/parent/login.html?invite=' + token;
+  navigator.clipboard.writeText(link).then(function () {
+    instToast('📋 Invite link copied!', 'success');
+  }).catch(function () {
+    instToast('Link: ' + link, 'info');
+  });
+}
+
+async function tCancelParentInv(id) {
+  if (!confirm('Cancel this invitation?')) return;
+  var res = await instApi('/parent/invite/' + id, 'DELETE');
+  if (res.ok) { instToast('Invitation cancelled.', 'success'); loadTParentInvites(); }
+  else instToast((res.data && res.data.message) || 'Failed.', 'error');
 }
 
 function closeModal(id){var el=document.getElementById(id);if(el)el.style.display='none';}
