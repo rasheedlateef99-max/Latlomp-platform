@@ -410,6 +410,334 @@ router.get('/children/:studentId/fees', async (req, res) => {
 });
 
 /* ============================================
+   R2: Fee payment breakdown (preview before paying)
+   GET /api/institution/parent/children/:studentId/fees/breakdown
+   Query: ?assignmentId=xxx
+============================================ */
+router.get('/children/:studentId/fees/breakdown', async (req, res) => {
+  try {
+    if (!isLinkedTo(req.parent, req.params.studentId)) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+    if (!req.query.assignmentId) {
+      return res.status(400).json({ success: false, message: 'assignmentId query parameter is required.' });
+    }
+
+    var SchoolFeeAssignment  = require('../models/SchoolFeeAssignment.model');
+    var SchoolFeeStructure   = require('../models/SchoolFeeStructure.model');
+    var SchoolPaymentAccount = require('../models/SchoolPaymentAccount.model');
+    var { calculateFeeBreakdown } = require('../config/fee.config');
+
+    /* Get student's schoolId from parent link */
+    var link = req.parent.linkedStudents.find(function (ls) {
+      return ls.studentId.toString() === req.params.studentId;
+    });
+    if (!link) return res.status(403).json({ success: false, message: 'Access denied.' });
+
+    var assignment = await SchoolFeeAssignment.findOne({
+      _id:      req.query.assignmentId,
+      schoolId: link.schoolId,
+      studentId: req.params.studentId
+    }).populate('feeStructureId', 'name category currency').lean();
+
+    if (!assignment) {
+      return res.status(404).json({ success: false, message: 'Fee assignment not found.' });
+    }
+    if (['paid', 'waived', 'cancelled'].includes(assignment.status)) {
+      return res.status(400).json({ success: false, message: 'This fee is already ' + assignment.status + '.' });
+    }
+    if (assignment.balance <= 0) {
+      return res.status(400).json({ success: false, message: 'This fee has no outstanding balance.' });
+    }
+
+    /* Check school has active payment account */
+    var payAccount = await SchoolPaymentAccount.findOne({
+      schoolId: link.schoolId, status: 'active', onlinePaymentsEnabled: true
+    }).lean();
+    if (!payAccount) {
+      return res.status(400).json({
+        success: false,
+        message: 'Online payments are not available for this institution. Please pay at the school.',
+        onlineAvailable: false
+      });
+    }
+
+    var currency   = assignment.currency || payAccount.currency || 'NGN';
+    var breakdown  = await calculateFeeBreakdown(assignment.balance, currency);
+
+    return res.status(200).json({
+      success: true,
+      onlineAvailable: true,
+      breakdown: {
+        feeName:           assignment.feeStructureId ? assignment.feeStructureId.name : 'Fee',
+        currency,
+        schoolFeeAmount:   breakdown.schoolFeeAmount,
+        platformFeePercent:breakdown.platformFeePercent,
+        platformFeeAmount: breakdown.platformFeeAmount,
+        totalCharged:      breakdown.totalCharged,
+        providerFeeNote:   breakdown.providerFeeNote,
+        assignmentId:      assignment._id,
+        assignmentStatus:  assignment.status
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   R2: Initialize online payment
+   POST /api/institution/parent/children/:studentId/fees/pay/initialize
+   Body: { assignmentId }
+============================================ */
+router.post('/children/:studentId/fees/pay/initialize', async (req, res) => {
+  try {
+    if (!isLinkedTo(req.parent, req.params.studentId)) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    var { assignmentId } = req.body;
+    if (!assignmentId) {
+      return res.status(400).json({ success: false, message: 'assignmentId is required.' });
+    }
+
+    var SchoolFeeAssignment  = require('../models/SchoolFeeAssignment.model');
+    var SchoolPaymentAccount = require('../models/SchoolPaymentAccount.model');
+    var PlatformConfig       = require('../models/PlatformConfig.model');
+    var { getProvider }      = require('../providers/payment.provider');
+    var { calculateFeeBreakdown } = require('../config/fee.config');
+
+    /* Get trusted schoolId from parent link — never from request body */
+    var link = req.parent.linkedStudents.find(function (ls) {
+      return ls.studentId.toString() === req.params.studentId;
+    });
+    if (!link) return res.status(403).json({ success: false, message: 'Access denied.' });
+
+    /* Validate assignment belongs to student + school */
+    var assignment = await SchoolFeeAssignment.findOne({
+      _id:       assignmentId,
+      schoolId:  link.schoolId,
+      studentId: req.params.studentId
+    });
+    if (!assignment) {
+      return res.status(404).json({ success: false, message: 'Fee assignment not found.' });
+    }
+    if (['paid', 'waived', 'cancelled'].includes(assignment.status)) {
+      return res.status(400).json({ success: false, message: 'This fee is already ' + assignment.status + '.' });
+    }
+    if (assignment.balance <= 0) {
+      return res.status(400).json({ success: false, message: 'No outstanding balance.' });
+    }
+
+    /* Verify online payments are enabled */
+    var payAccount = await SchoolPaymentAccount.findOne({
+      schoolId: link.schoolId, status: 'active', onlinePaymentsEnabled: true
+    }).lean();
+    if (!payAccount) {
+      return res.status(400).json({
+        success: false,
+        message: 'Online payments are not configured for this institution.'
+      });
+    }
+
+    /* Check platform master switch */
+    var onlineEnabled = await PlatformConfig.getValue('online_payments_enabled', true);
+    if (!onlineEnabled) {
+      return res.status(503).json({ success: false, message: 'Online payments are temporarily unavailable.' });
+    }
+
+    var currency   = assignment.currency || payAccount.currency || 'NGN';
+    var breakdown  = await calculateFeeBreakdown(assignment.balance, currency);
+
+    /* Generate unique reference */
+    var reference  = 'FEE-' + link.schoolId.toString().slice(-6).toUpperCase() +
+                     '-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+
+    var appUrl     = (process.env.APP_URL || 'https://latlompsystem.up.railway.app').replace(/\/$/, '');
+    var callbackUrl = appUrl + '/institution/parent/dashboard.html?feeRef=' + reference;
+
+    /* Call provider */
+    var provider = getProvider(payAccount.provider || 'paystack');
+    var initResult = await provider.initializePayment({
+      email:              req.parent.email,
+      schoolFeeAmount:    breakdown.schoolFeeAmount,
+      platformFeeAmount:  breakdown.platformFeeAmount,
+      currency,
+      subaccountCode:     payAccount.providerAccountCode,
+      reference,
+      callbackUrl,
+      metadata: {
+        parentId:       req.parent._id.toString(),
+        studentId:      req.params.studentId,
+        assignmentId:   assignmentId,
+        schoolId:       link.schoolId.toString(),
+        feeStructureId: assignment.feeStructureId ? assignment.feeStructureId.toString() : '',
+        termId:         assignment.termId ? assignment.termId.toString() : ''
+      }
+    });
+
+    return res.status(200).json({
+      success:           true,
+      reference:         initResult.reference,
+      authorizationUrl:  initResult.authorizationUrl,
+      accessCode:        initResult.accessCode,
+      breakdown: {
+        currency,
+        schoolFeeAmount:   breakdown.schoolFeeAmount,
+        platformFeePercent:breakdown.platformFeePercent,
+        platformFeeAmount: breakdown.platformFeeAmount,
+        totalCharged:      breakdown.totalCharged
+      }
+    });
+  } catch (err) {
+    console.error('[ParentFeeInit] error:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   R2: Verify online payment (browser return path)
+   POST /api/institution/parent/children/:studentId/fees/pay/verify
+   Body: { reference }
+   Idempotent: safe to call multiple times.
+============================================ */
+router.post('/children/:studentId/fees/pay/verify', async (req, res) => {
+  try {
+    if (!isLinkedTo(req.parent, req.params.studentId)) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    var { reference } = req.body;
+    if (!reference) {
+      return res.status(400).json({ success: false, message: 'Payment reference is required.' });
+    }
+
+    var SchoolFeePayment    = require('../models/SchoolFeePayment.model');
+    var SchoolFeeAssignment = require('../models/SchoolFeeAssignment.model');
+    var SchoolPaymentAccount= require('../models/SchoolPaymentAccount.model');
+    var PlatformConfig      = require('../models/PlatformConfig.model');
+    var { getProvider }     = require('../providers/payment.provider');
+
+    /* Idempotency check */
+    var existing = await SchoolFeePayment.findOne({ paystackRef: reference, status: 'confirmed' });
+    if (existing) {
+      return res.status(200).json({
+        success:       true,
+        alreadyRecorded: true,
+        receiptNumber: existing.receiptNumber,
+        amount:        existing.amount,
+        currency:      existing.currency,
+        message:       'Payment already recorded.'
+      });
+    }
+
+    /* Get trusted schoolId from parent link */
+    var link = req.parent.linkedStudents.find(function (ls) {
+      return ls.studentId.toString() === req.params.studentId;
+    });
+    if (!link) return res.status(403).json({ success: false, message: 'Access denied.' });
+
+    /* Get payment account */
+    var payAccount = await SchoolPaymentAccount.findOne({
+      schoolId: link.schoolId, status: 'active'
+    }).lean();
+    if (!payAccount) {
+      return res.status(400).json({ success: false, message: 'School payment account not configured.' });
+    }
+
+    /* Verify with provider */
+    var provider   = getProvider(payAccount.provider || 'paystack');
+    var result     = await provider.verifyPayment(reference);
+
+    if (result.status !== 'success') {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment was not completed. Status: ' + result.status
+      });
+    }
+
+    /* Extract assignmentId from provider metadata */
+    var assignmentId = result.metadata && result.metadata.assignmentId;
+    if (!assignmentId) {
+      return res.status(400).json({ success: false, message: 'Payment metadata missing. Contact support.' });
+    }
+
+    /* Validate assignment is for this student + school */
+    var assignment = await SchoolFeeAssignment.findOne({
+      _id:       assignmentId,
+      schoolId:  link.schoolId,
+      studentId: req.params.studentId
+    });
+    if (!assignment) {
+      return res.status(404).json({ success: false, message: 'Assignment not found for this payment.' });
+    }
+
+    /* Snapshot platform fee percent */
+    var platformFeePercent = await PlatformConfig.getValue('platform_fee_percent', 0.5);
+
+    /* Generate receipt number */
+    var receiptCount  = await SchoolFeePayment.countDocuments({ schoolId: link.schoolId });
+    var receiptNumber = 'RCP-' + new Date().toISOString().slice(0,10).replace(/-/g,'') +
+                        '-' + String(receiptCount + 1).padStart(4, '0');
+
+    /* Create payment record */
+    var payment = await SchoolFeePayment.create({
+      schoolId:          link.schoolId,
+      studentId:         req.params.studentId,
+      assignmentId:      assignment._id,
+      feeStructureId:    assignment.feeStructureId,
+      termId:            assignment.termId,
+      amount:            result.schoolFeeAmount,
+      currency:          result.currency,
+      method:            'paystack',
+      paystackRef:       reference,
+      externalRef:       reference,
+      receiptNumber,
+      status:            'confirmed',
+      totalCharged:      result.totalCharged,
+      platformFeePercent,
+      platformFeeAmount: result.platformFeeAmount,
+      providerFeeAmount: result.providerFeeAmount,
+      recordedAt:        result.paidAt || new Date()
+    });
+
+    /* Sync assignment balance */
+    var payments  = await SchoolFeePayment.find({ assignmentId: assignment._id, status: 'confirmed' });
+    var totalPaid = payments.reduce(function (s, p) { return s + p.amount; }, 0);
+    var netDue    = assignment.amountDue - (assignment.discount || 0);
+    var balance   = Math.max(0, netDue - totalPaid);
+    var newStatus = totalPaid <= 0 ? 'pending'
+                  : balance  >  0 ? 'partial'
+                  :                  'paid';
+
+    await SchoolFeeAssignment.findByIdAndUpdate(assignment._id, {
+      $set: { amountPaid: totalPaid, balance, status: newStatus,
+              paidAt: newStatus === 'paid' ? new Date() : null }
+    });
+
+    return res.status(200).json({
+      success:       true,
+      message:       '₦' + result.schoolFeeAmount.toLocaleString() + ' payment confirmed.',
+      receiptNumber,
+      payment: {
+        amount:            result.schoolFeeAmount,
+        currency:          result.currency,
+        totalCharged:      result.totalCharged,
+        platformFeeAmount: result.platformFeeAmount,
+        providerFeeAmount: result.providerFeeAmount,
+        receiptNumber,
+        paidAt:            result.paidAt
+      },
+      updatedBalance: balance,
+      assignmentStatus: newStatus
+    });
+  } catch (err) {
+    console.error('[ParentFeeVerify] error:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
    Q7: Notifications for parent
    GET /api/institution/parent/notifications
 ============================================ */

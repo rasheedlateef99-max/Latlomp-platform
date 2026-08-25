@@ -126,6 +126,7 @@
 <div class="tabs" id="tabBar" style="display:none;">
   <button class="tab-btn active" onclick="showTab('overview')">📊 Overview</button>
   <button class="tab-btn"        onclick="showTab('results')">📋 Results</button>
+  <button class="tab-btn"        onclick="showTab('fees')">💳 Fees</button>
   <button class="tab-btn"        onclick="showTab('attendance')">✅ Attendance</button>
   <button class="tab-btn"        onclick="showTab('timetable')">📅 Timetable</button>
   <button class="tab-btn"        onclick="showTab('notifications')">🔔 Notifications</button>
@@ -323,6 +324,7 @@ function showTab(tab) {
 
   if      (tab === 'overview')       renderOverview();
   else if (tab === 'results')        loadResults();
+  else if (tab === 'fees')           loadFees();
   else if (tab === 'attendance')     loadAttendance();
   else if (tab === 'timetable')      loadTimetable();
   else if (tab === 'notifications')  loadNotifications();
@@ -411,6 +413,213 @@ function renderResults(results) {
     }).join('') +
     '</tbody></table></div>';
   document.getElementById('resultsContent').innerHTML = html;
+}
+
+/* ============================================
+   FEES — View outstanding + Pay online
+============================================ */
+var _feeBreakdown = null;
+
+async function loadFees() {
+  if (!_activeChild) { return; }
+  var secEl = document.getElementById('sec-fees');
+  if (!secEl) {
+    /* Build the section dynamically if missing */
+    buildFeeSection();
+  }
+  var contentEl = document.getElementById('feeContent');
+  if (contentEl) contentEl.innerHTML = loadingHTML();
+
+  var cacheKey = _activeChild._id + '_fees';
+  var res = await api('/children/' + _activeChild._id + '/fees');
+  if (!res.success) {
+    if (contentEl) contentEl.innerHTML =
+      '<div class="empty"><div class="empty-icon">💳</div>' +
+      '<div class="empty-text">' + esc(res.message || 'Could not load fees.') + '</div></div>';
+    return;
+  }
+
+  _cache[cacheKey] = res;
+  renderFees(res);
+}
+
+function buildFeeSection() {
+  var existing = document.getElementById('sec-fees');
+  if (existing) return;
+  var div = document.createElement('div');
+  div.className = 'section';
+  div.id = 'sec-fees';
+  div.innerHTML =
+    '<div class="card">' +
+      '<div class="card-head">' +
+        '<div class="card-title">💳 Fee Summary</div>' +
+        '<div id="feeSummaryBadges" style="display:flex;gap:8px;flex-wrap:wrap;"></div>' +
+      '</div>' +
+      '<div id="feeContent"></div>' +
+    '</div>' +
+    '<div class="card" id="feePayHistoryCard" style="display:none;">' +
+      '<div class="card-head"><div class="card-title">📜 Payment History</div></div>' +
+      '<div id="feePayHistoryContent"></div>' +
+    '</div>';
+  var mainContent = document.getElementById('mainContent');
+  if (mainContent) mainContent.appendChild(div);
+}
+
+function renderFees(data) {
+  buildFeeSection();
+  var s       = data.summary || {};
+  var content = document.getElementById('feeContent');
+  var badges  = document.getElementById('feeSummaryBadges');
+  var cur     = _activeChild && _activeChild.school && _activeChild.school.currency || 'NGN';
+
+  if (badges) {
+    badges.innerHTML =
+      '<span style="font-size:12px;font-weight:700;color:var(--error);">Outstanding: ' + cur + ' ' + Number(s.totalOutstanding || 0).toLocaleString() + '</span>' +
+      ' · <span style="font-size:12px;color:var(--success);">Paid: ' + cur + ' ' + Number(s.totalPaid || 0).toLocaleString() + '</span>';
+  }
+
+  var assignments = data.assignments || [];
+  var outstanding  = assignments.filter(function (a) { return ['pending','partial'].includes(a.status); });
+  var paid         = assignments.filter(function (a) { return a.status === 'paid'; });
+
+  if (!assignments.length) {
+    if (content) content.innerHTML =
+      '<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">No fees assigned yet.</div></div>';
+    return;
+  }
+
+  var html = '<div style="display:flex;flex-direction:column;gap:12px;padding:16px;">';
+
+  if (outstanding.length) {
+    html += '<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px;">Outstanding</div>';
+    outstanding.forEach(function (a) {
+      var fee     = a.feeStructureId || {};
+      var term    = a.termId || {};
+      var balance = a.balance || 0;
+      html +=
+        '<div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:16px;">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">' +
+            '<div>' +
+              '<div style="font-size:15px;font-weight:700;color:#fff;">' + esc(fee.name || 'Fee') + '</div>' +
+              '<div style="font-size:12px;color:var(--muted);margin-top:3px;">' +
+                (term.name ? esc(term.name) + ' · ' : '') +
+                'Balance: <strong style="color:var(--error);">' + cur + ' ' + Number(balance).toLocaleString() + '</strong>' +
+                (a.dueDate ? ' · Due: ' + new Date(a.dueDate).toLocaleDateString('en-NG') : '') +
+              '</div>' +
+            '</div>' +
+            '<button class="btn btn-primary btn-sm" onclick="initiateFeePay(\'' + a._id + '\',' + balance + ',\'' + cur + '\')">💳 Pay Now</button>' +
+          '</div>' +
+        '</div>';
+    });
+  }
+
+  if (paid.length) {
+    html += '<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin:8px 0 4px;">Settled</div>';
+    paid.forEach(function (a) {
+      var fee = a.feeStructureId || {};
+      html +=
+        '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.04);">' +
+          '<div style="font-size:14px;color:var(--secondary);">' + esc(fee.name || 'Fee') + '</div>' +
+          '<span class="badge badge-green">Paid</span>' +
+        '</div>';
+    });
+  }
+
+  html += '</div>';
+  if (content) content.innerHTML = html;
+
+  /* Payment history */
+  var payments = data.payments || [];
+  var histCard  = document.getElementById('feePayHistoryCard');
+  var histCont  = document.getElementById('feePayHistoryContent');
+  if (histCard && histCont) {
+    if (payments.length) {
+      histCard.style.display = 'block';
+      histCont.innerHTML = payments.map(function (p) {
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.04);">' +
+          '<div>' +
+            '<div style="font-size:13px;font-weight:700;color:#fff;">' + cur + ' ' + Number(p.amount).toLocaleString() + '</div>' +
+            '<div style="font-size:11px;color:var(--muted);">' + esc(p.method) + ' · ' + new Date(p.recordedAt || p.createdAt).toLocaleDateString('en-NG') + '</div>' +
+          '</div>' +
+          '<span style="font-size:12px;font-family:monospace;color:#a78bfa;">' + esc(p.receiptNumber || '') + '</span>' +
+        '</div>';
+      }).join('');
+    } else {
+      histCard.style.display = 'none';
+    }
+  }
+}
+
+/* ---- Initiate Paystack inline payment ---- */
+async function initiateFeePay(assignmentId, balance, currency) {
+  /* Step 1: get breakdown from server */
+  var breakdownRes = await api('/children/' + _activeChild._id + '/fees/breakdown?assignmentId=' + assignmentId);
+  if (!breakdownRes.success) {
+    showToast('❌ ' + (breakdownRes.message || 'Could not load fee details.'), 'var(--error)');
+    if (!breakdownRes.onlineAvailable) {
+      showToast('Online payments not available. Please pay at the school.', 'var(--warn)');
+    }
+    return;
+  }
+
+  _feeBreakdown = breakdownRes.breakdown;
+  var bd = _feeBreakdown;
+
+  /* Show confirmation before opening Paystack */
+  var confirmMsg =
+    'Fee: ' + esc(bd.feeName) + '\n' +
+    'School fee: ' + bd.currency + ' ' + bd.schoolFeeAmount.toLocaleString() + '\n' +
+    'LatLomp service fee: ' + bd.currency + ' ' + bd.platformFeeAmount.toLocaleString() + ' (' + bd.platformFeePercent + '%)\n' +
+    'Total you will pay: ' + bd.currency + ' ' + bd.totalCharged.toLocaleString();
+
+  if (!confirm(confirmMsg + '\n\nProceed to payment?')) { return; }
+
+  /* Step 2: initialize payment on server */
+  var initRes = await api('/children/' + _activeChild._id + '/fees/pay/initialize', 'POST', { assignmentId });
+  if (!initRes.success) {
+    showToast('❌ ' + (initRes.message || 'Payment initialization failed.'), 'var(--error)');
+    return;
+  }
+
+  /* Step 3: open Paystack inline */
+  if (typeof PaystackPop === 'undefined') {
+    /* Load Paystack JS if not already loaded */
+    var script = document.createElement('script');
+    script.src = 'https://js.paystack.co/v1/inline.js';
+    script.onload = function () { openPaystackPopup(initRes, _activeChild._id, assignmentId); };
+    document.head.appendChild(script);
+  } else {
+    openPaystackPopup(initRes, _activeChild._id, assignmentId);
+  }
+}
+
+function openPaystackPopup(initRes, studentId, assignmentId) {
+  /* Get parent Paystack public key from payment account currency */
+  var handler = PaystackPop.setup({
+    key:       initRes.publicKey || '',  /* populated from server in a real deployment */
+    email:     localStorage.getItem('parentUser') ? JSON.parse(localStorage.getItem('parentUser')).email : '',
+    amount:    Math.round((_feeBreakdown.totalCharged) * 100),
+    currency:  _feeBreakdown.currency || 'NGN',
+    ref:       initRes.reference,
+    onClose:   function () { showToast('Payment cancelled.', 'var(--warn)'); },
+    callback:  function (response) {
+      showToast('✅ Payment completed. Verifying...', 'var(--success)');
+      verifyFeePay(studentId, response.reference);
+    }
+  });
+  handler.openIframe();
+}
+
+async function verifyFeePay(studentId, reference) {
+  var res = await api('/children/' + studentId + '/fees/pay/verify', 'POST', { reference });
+  if (res.success) {
+    showToast('✅ Payment recorded! Receipt: ' + res.receiptNumber, 'var(--success)');
+    /* Refresh fees tab */
+    _cache = {};
+    loadFees();
+  } else {
+    showToast('⚠️ ' + (res.message || 'Verification pending. Your payment will be confirmed shortly.'), 'var(--warn)');
+  }
 }
 
 /* ============================================

@@ -313,11 +313,53 @@ async function sendResultsReleased({ toEmail, studentName, examTitle, schoolName
   );
 }
 
+/* ============================================
+   R2: FEE PAYMENT CONFIRMATION EMAIL
+============================================ */
+async function sendFeePaymentConfirmed({
+  toEmail, parentName, studentName, feeName,
+  schoolName, amount, currency, totalCharged,
+  platformFeeAmount, receiptNumber, paidAt
+}) {
+  var amountStr   = (currency || 'NGN') + ' ' + Number(amount).toLocaleString();
+  var totalStr    = (currency || 'NGN') + ' ' + Number(totalCharged).toLocaleString();
+  var platformStr = (currency || 'NGN') + ' ' + Number(platformFeeAmount || 0).toLocaleString();
+  var dateStr     = paidAt
+    ? new Date(paidAt).toLocaleDateString('en-NG', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })
+    : new Date().toLocaleDateString('en-NG');
+
+  var content = `
+    <h2>Fee Payment Confirmed ✅</h2>
+    <p>Hi ${parentName || 'Parent'},</p>
+    <p>Your fee payment for <strong>${studentName}</strong> at <strong>${schoolName}</strong> has been successfully processed.</p>
+
+    <div class="info-box success">
+      <strong>Student:</strong> ${studentName}<br/>
+      <strong>Fee:</strong> ${feeName || 'School Fee'}<br/>
+      <strong>School Fee:</strong> ${amountStr}<br/>
+      <strong>LatLomp Service Fee:</strong> ${platformStr}<br/>
+      <strong>Total Paid:</strong> ${totalStr}<br/>
+      <strong>Receipt No:</strong> ${receiptNumber}<br/>
+      <strong>Date:</strong> ${dateStr}
+    </div>
+
+    <p>You can view this receipt and your payment history from the Parent Portal.</p>
+    <a href="${APP_URL}/institution/parent/dashboard.html" class="btn btn-green">View Parent Portal →</a>
+  `;
+
+  return sendEmail(
+    toEmail,
+    'Fee payment confirmed — ' + receiptNumber + ' | ' + schoolName,
+    baseTemplate(content, 'Fee payment receipt for ' + schoolName + ' via LatLomp Schools.')
+  );
+}
+
 module.exports = {
   sendTeacherInvite,
   sendSchoolWelcome,
   sendSubscriptionConfirmed,
   sendExpiryWarning,
   sendSubscriptionExpired,
-  sendResultsReleased
+  sendResultsReleased,
+  sendFeePaymentConfirmed
 };

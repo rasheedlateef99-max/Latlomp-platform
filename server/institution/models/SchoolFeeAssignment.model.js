@@ -36,11 +36,16 @@ const schoolFeeAssignmentSchema = new mongoose.Schema({
   paidAt:     { type: Date, default: null },  /* when fully settled */
 
   /* ---- Status ---- */
+  /* ---- Currency ---- */
+  currency: { type: String, default: 'NGN' },
+
   status: {
     type:    String,
-    enum:    ['pending', 'partial', 'paid', 'waived', 'cancelled'],
+    /* overpaid: paid > obligation after adjustment — staff resolves manually (Option C) */
+    enum:    ['pending', 'partial', 'paid', 'waived', 'cancelled', 'overpaid'],
     default: 'pending'
   },
+  overpaymentAmount: { type: Number, default: 0 }, /* populated when status = overpaid */
 
   /* ---- Waiver ---- */
   waivedBy:     { type: mongoose.Schema.Types.ObjectId, ref: 'SchoolUser', default: null },

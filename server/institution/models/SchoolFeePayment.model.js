@@ -53,6 +53,20 @@ const schoolFeePaymentSchema = new mongoose.Schema({
     default: 'confirmed'  /* manual payments are immediately confirmed */
   },
 
+  /* ---- Currency ---- */
+  currency: { type: String, default: 'NGN' },
+
+  /* ---- R2: Online payment breakdown (null for manual payments) ---- */
+  totalCharged:      { type: Number, default: null }, /* amount parent actually paid */
+  platformFeePercent:{ type: Number, default: null }, /* snapshot of LatLomp rate */
+  platformFeeAmount: { type: Number, default: null }, /* LatLomp's share */
+  providerFeeAmount: { type: Number, default: null }, /* what Paystack/provider kept */
+
+  /* ---- Attempt tracking ---- */
+  /* A payment attempt is NOT the same as a confirmed payment.
+     Only status='confirmed' records affect assignment balance. */
+  attemptRef: { type: String, default: '' }, /* reference from provider init */
+
   /* ---- Audit ---- */
   recordedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'SchoolUser', default: null },
   recordedAt: { type: Date, default: Date.now }

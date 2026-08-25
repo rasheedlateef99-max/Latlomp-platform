@@ -218,6 +218,8 @@
     <button class="nav-item"        data-sec="exams"        onclick="showSection('exams')">        <span class="nav-icon">📝</span> Exams</button>
     <button class="nav-item"        data-sec="results"      onclick="showSection('results')">      <span class="nav-icon">📊</span> Results</button>
     <button class="nav-item" onclick="window.location='/institution/school/analytics.html'">       <span class="nav-icon">📈</span> Analytics</button>
+    <button class="nav-item" data-sec="payments" onclick="showSection('payments')"><span class="nav-icon">💳</span> Fees & Payments</button>
+    <button class="nav-item" onclick="window.location='/institution/parent/dashboard.html'">👨‍👩‍👧 Parent Portal</button>
     <div class="sb-sep">Settings</div>
     <button class="nav-item"        data-sec="subscription" onclick="showSection('subscription')"> <span class="nav-icon">💳</span> Subscription</button>
     <button class="nav-item"        data-sec="settings"     onclick="showSection('settings')">     <span class="nav-icon">⚙️</span> School Settings</button>
@@ -501,6 +503,115 @@
             <strong style="color:var(--secondary);">📚 Period / Lecture</strong> — One mark per student per lecture or period.
             Best for polytechnics, colleges, and universities.
           </div>
+        </div>
+      </div>
+    </div>
+
+<!-- FEES & PAYMENTS -->
+    <div class="section" id="sec-payments">
+      <div class="page-header">
+        <div><h1>Fees &amp; Payments</h1><p>Payment account, online collection, and fee records</p></div>
+        <button class="btn btn-primary" onclick="showSection('fees-setup')" style="display:none;" id="goToFeeSetupBtn">Configure Fees →</button>
+      </div>
+
+      <!-- Payment Account Status Card -->
+      <div class="card" id="payAccountCard">
+        <div class="card-head">
+          <h3>💳 Payment Account</h3>
+          <span id="payAccountStatusBadge" class="badge badge-muted">Loading...</span>
+        </div>
+        <div class="card-body" id="payAccountBody">
+          <div style="text-align:center;padding:20px;color:var(--muted);">Loading...</div>
+        </div>
+      </div>
+
+      <!-- Platform Fee Info -->
+      <div class="card">
+        <div class="card-head"><h3>📊 Service Fee</h3></div>
+        <div class="card-body">
+          <p style="font-size:13px;color:var(--secondary);line-height:1.7;margin:0 0 12px;">
+            LatLomp charges a small service fee on online payments.
+            This is added to the parent's payment — it does not reduce your school's fee.
+          </p>
+          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+            <div style="background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.2);border-radius:10px;padding:14px 20px;text-align:center;">
+              <div id="platformFeeDisplay" style="font-size:28px;font-weight:900;color:#a78bfa;">0.5%</div>
+              <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-top:3px;">LatLomp Service Fee</div>
+            </div>
+            <div style="font-size:13px;color:var(--secondary);line-height:1.8;flex:1;">
+              <strong style="color:#fff;">Example:</strong> Student owes ₦50,000<br/>
+              LatLomp service fee: ₦250 (0.5%)<br/>
+              Parent pays: ₦50,250<br/>
+              Your school receives: ₦50,000 (minus Paystack's charge)
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Connect Bank Account Form (shown when not connected) -->
+      <div class="card" id="connectBankCard" style="display:none;">
+        <div class="card-head"><h3>🏦 Connect Settlement Account</h3></div>
+        <div class="card-body">
+          <p style="font-size:13px;color:var(--secondary);margin:0 0 16px;line-height:1.7;">
+            Enter your school's bank account. Paystack will verify and link it.
+            Payments from parents will be settled directly to this account.
+            <strong style="color:#fff;">No Paystack account needed.</strong>
+          </p>
+          <div id="connectBankErr" style="display:none;background:rgba(255,101,132,0.1);border:1px solid rgba(255,101,132,0.3);color:var(--red);padding:12px;border-radius:8px;font-size:13px;margin-bottom:16px;"></div>
+          <div id="connectBankSuccess" style="display:none;background:rgba(67,233,123,0.1);border:1px solid rgba(67,233,123,0.3);color:var(--green);padding:12px;border-radius:8px;font-size:13px;margin-bottom:16px;"></div>
+
+          <!-- Step 1: Enter bank details -->
+          <div id="bankStep1">
+            <div class="field">
+              <label>Currency</label>
+              <select id="payAccountCurrency" class="sel" style="width:auto;min-width:200px;">
+                <option value="NGN">🇳🇬 NGN — Nigerian Naira</option>
+                <option value="GHS">🇬🇭 GHS — Ghanaian Cedi</option>
+                <option value="USD">🇺🇸 USD — US Dollar</option>
+                <option value="KES">🇰🇪 KES — Kenyan Shilling</option>
+                <option value="ZAR">🇿🇦 ZAR — South African Rand</option>
+              </select>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Bank</label>
+                <select id="payAccountBank" class="sel" onchange="onBankChange()">
+                  <option value="">Loading banks...</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Account Number</label>
+                <input type="text" id="payAccountNumber" class="inp" placeholder="10-digit account number" maxlength="10" oninput="onAccountNumberInput()" />
+              </div>
+            </div>
+            <div id="bankVerifyStatus" style="font-size:13px;color:var(--secondary);margin:8px 0 16px;"></div>
+            <div id="bankVerifiedBox" style="display:none;background:rgba(67,233,123,0.08);border:1px solid rgba(67,233,123,0.2);border-radius:8px;padding:12px 16px;margin-bottom:16px;">
+              <div style="font-size:12px;color:var(--muted);margin-bottom:3px;">Verified Account Name</div>
+              <div id="verifiedAccountName" style="font-size:16px;font-weight:800;color:var(--green);"></div>
+            </div>
+            <div class="field">
+              <label>Business Name (how it appears to payers)</label>
+              <input type="text" id="payAccountBizName" class="inp" placeholder="e.g. Bright Future Schools" />
+            </div>
+            <div style="display:flex;gap:10px;">
+              <button class="btn btn-secondary" id="verifyBankBtn" onclick="verifyBankAccount()" disabled>Verify Account</button>
+              <button class="btn btn-primary"   id="connectBankBtn" onclick="connectPaymentAccount()" disabled>Connect Account →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Payments (shown when connected) -->
+      <div class="card" id="recentFeePaymentsCard" style="display:none;">
+        <div class="card-head">
+          <h3>Recent Online Payments</h3>
+          <button class="btn btn-secondary btn-sm" onclick="loadPaymentSection()">↺ Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Student</th><th>Fee</th><th>Amount</th><th>Platform Fee</th><th>Total Charged</th><th>Method</th><th>Date</th><th>Receipt</th></tr></thead>
+            <tbody id="feePaymentsTableBody"><tr><td colspan="8" style="text-align:center;padding:20px;color:var(--muted);">Loading...</td></tr></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -830,6 +941,7 @@ function showSection(name) {
   if (name === 'subscription') loadSubscriptionSection();
   if (name === 'settings')     loadSettingsSection();
   if (name === 'parents')      loadParentSection();
+  if (name === 'payments')     loadPaymentSection();
 }
 
 /* ============================================ DASHBOARD */
@@ -1585,6 +1697,214 @@ async function confirmRelease() {
   if (btn) {btn.innerHTML='📤 Release Results'; btn.disabled=false;}
   if (res.ok) {instToast((res.data&&res.data.message)||'Results released!','success'); closeModal('releaseModal'); loadAllResults();}
   else instToast((res.data&&res.data.message)||'Failed.','error');
+}
+
+/* ============================================
+   FEES & PAYMENTS SECTION
+============================================ */
+var _payAccountData   = null;
+var _bankList         = [];
+var _verifiedBankData = null;
+
+async function loadPaymentSection() {
+  await Promise.all([loadPayAccountStatus(), loadPlatformFee(), loadRecentFeePayments()]);
+}
+
+async function loadPlatformFee() {
+  var res = await instApi('/fee/platform-fee');
+  if (res.ok) {
+    var pct = res.data.platformFeePercent || 0.5;
+    var el  = document.getElementById('platformFeeDisplay');
+    if (el) el.textContent = pct + '%';
+  }
+}
+
+async function loadPayAccountStatus() {
+  var res = await instApi('/fee/payment-account/status');
+  if (!res.ok) { return; }
+  _payAccountData = res.data.account;
+
+  var badgeEl = document.getElementById('payAccountStatusBadge');
+  var bodyEl  = document.getElementById('payAccountBody');
+  var connectCard = document.getElementById('connectBankCard');
+  var recentCard  = document.getElementById('recentFeePaymentsCard');
+
+  var statusBadgeMap = {
+    'not_connected':         '<span class="badge badge-red">Not Connected</span>',
+    'pending_verification':  '<span class="badge badge-orange">Pending</span>',
+    'active':                '<span class="badge badge-green">Connected ✅</span>',
+    'suspended':             '<span class="badge badge-red">Suspended</span>',
+    'failed':                '<span class="badge badge-red">Failed</span>'
+  };
+
+  var status = (_payAccountData && _payAccountData.status) || 'not_connected';
+  if (badgeEl) badgeEl.outerHTML = statusBadgeMap[status] || '<span class="badge badge-muted">' + status + '</span>';
+
+  if (!_payAccountData || status === 'not_connected' || status === 'failed') {
+    /* Show connect form */
+    if (bodyEl) bodyEl.innerHTML =
+      '<p style="font-size:14px;color:var(--secondary);margin:0 0 12px;">Connect your school\'s bank account to accept online fee payments from parents.</p>' +
+      '<button class="btn btn-primary" onclick="showConnectBankForm()">🏦 Connect Bank Account →</button>';
+    if (connectCard)  connectCard.style.display  = 'none';
+    if (recentCard)   recentCard.style.display   = 'none';
+  } else {
+    /* Show connected state */
+    var acc = _payAccountData;
+    if (bodyEl) bodyEl.innerHTML =
+      '<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">' +
+        '<div style="flex:1;">' +
+          '<div style="font-size:13px;color:var(--muted);margin-bottom:4px;">Business</div>' +
+          '<div style="font-size:16px;font-weight:800;color:#fff;">' + esc(acc.businessName || '') + '</div>' +
+        '</div>' +
+        '<div>' +
+          '<div style="font-size:13px;color:var(--muted);margin-bottom:4px;">Bank Account</div>' +
+          '<div style="font-size:14px;font-weight:700;color:#fff;">' + esc(acc.settlementAccountName || '') + '</div>' +
+          '<div style="font-size:12px;color:var(--muted);">' + esc(acc.settlementBankName || '') + ' · ' + esc(acc.settlementAccountNumber || '') + '</div>' +
+        '</div>' +
+        '<div>' +
+          '<div style="font-size:13px;color:var(--muted);margin-bottom:4px;">Currency</div>' +
+          '<div style="font-size:16px;font-weight:800;color:#a78bfa;">' + esc(acc.currency || 'NGN') + '</div>' +
+        '</div>' +
+        '<div style="text-align:center;">' +
+          '<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">Online Payments</div>' +
+          '<button class="btn btn-sm ' + (acc.onlinePaymentsEnabled ? 'btn-danger' : 'btn-green') + '" onclick="toggleOnlinePayments()">' +
+            (acc.onlinePaymentsEnabled ? '⏸ Disable' : '▶ Enable') +
+          '</button>' +
+        '</div>' +
+      '</div>';
+    if (connectCard) connectCard.style.display = 'none';
+    if (recentCard)  recentCard.style.display  = 'block';
+  }
+}
+
+async function showConnectBankForm() {
+  var connectCard = document.getElementById('connectBankCard');
+  if (connectCard) connectCard.style.display = 'block';
+  /* Load bank list */
+  if (!_bankList.length) {
+    var sel = document.getElementById('payAccountBank');
+    if (sel) sel.innerHTML = '<option value="">Loading banks...</option>';
+    var res = await instApi('/fee/payment-account/banks?currency=NGN');
+    if (res.ok) {
+      _bankList = res.data.banks || [];
+      if (sel) {
+        sel.innerHTML = '<option value="">-- Select Bank --</option>' +
+          _bankList.map(function (b) {
+            return '<option value="' + esc(b.code) + '" data-name="' + esc(b.name) + '">' + esc(b.name) + '</option>';
+          }).join('');
+      }
+    }
+  }
+}
+
+function onBankChange() { _verifiedBankData = null; document.getElementById('bankVerifiedBox').style.display='none'; checkCanVerify(); }
+function onAccountNumberInput() { _verifiedBankData = null; document.getElementById('bankVerifiedBox').style.display='none'; checkCanVerify(); }
+
+function checkCanVerify() {
+  var bankCode = (document.getElementById('payAccountBank') || {}).value || '';
+  var acctNum  = (document.getElementById('payAccountNumber') || {}).value || '';
+  var verifyBtn= document.getElementById('verifyBankBtn');
+  if (verifyBtn) verifyBtn.disabled = !(bankCode && acctNum.length >= 10);
+  var connectBtn = document.getElementById('connectBankBtn');
+  if (connectBtn) connectBtn.disabled = !_verifiedBankData;
+}
+
+async function verifyBankAccount() {
+  var bankCode = (document.getElementById('payAccountBank') || {}).value || '';
+  var acctNum  = ((document.getElementById('payAccountNumber') || {}).value || '').trim();
+  var statusEl = document.getElementById('bankVerifyStatus');
+  var errEl    = document.getElementById('connectBankErr');
+  if (errEl) errEl.style.display = 'none';
+  if (statusEl) statusEl.textContent = 'Verifying...';
+
+  var res = await instApi('/fee/payment-account/verify-bank', 'POST', { accountNumber: acctNum, bankCode });
+  if (res.ok) {
+    _verifiedBankData = res.data;
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--green);">✅ Account verified</span>';
+    var boxEl = document.getElementById('bankVerifiedBox');
+    var nameEl = document.getElementById('verifiedAccountName');
+    if (boxEl)  boxEl.style.display = 'block';
+    if (nameEl) nameEl.textContent  = res.data.accountName;
+    /* Pre-fill biz name if empty */
+    var bizEl = document.getElementById('payAccountBizName');
+    if (bizEl && !bizEl.value && _school) bizEl.value = _school.name || '';
+    checkCanVerify();
+  } else {
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--red);">❌ ' + (res.data.message || 'Verification failed') + '</span>';
+  }
+}
+
+async function connectPaymentAccount() {
+  if (!_verifiedBankData) { instToast('Please verify your bank account first.', 'error'); return; }
+  var bankSel  = document.getElementById('payAccountBank');
+  var bankOpt  = bankSel && bankSel.selectedOptions[0];
+  var currency = (document.getElementById('payAccountCurrency') || {}).value || 'NGN';
+  var bizName  = ((document.getElementById('payAccountBizName') || {}).value || '').trim();
+  var btn      = document.getElementById('connectBankBtn');
+  var errEl    = document.getElementById('connectBankErr');
+  var sucEl    = document.getElementById('connectBankSuccess');
+  if (errEl) errEl.style.display = 'none';
+  if (sucEl) sucEl.style.display = 'none';
+
+  if (!bizName) { instToast('Business name is required.', 'error'); return; }
+  if (btn) { btn.innerHTML = '<span class="spinner"></span> Connecting...'; btn.disabled = true; }
+
+  var res = await instApi('/fee/payment-account/connect', 'POST', {
+    bankCode:      _verifiedBankData.bankCode,
+    bankName:      bankOpt ? bankOpt.dataset.name : '',
+    accountNumber: _verifiedBankData.accountNumber,
+    accountName:   _verifiedBankData.accountName,
+    currency,
+    businessName:  bizName,
+    provider:      'paystack'
+  });
+
+  if (btn) { btn.innerHTML = 'Connect Account →'; btn.disabled = false; }
+
+  if (res.ok) {
+    if (sucEl) { sucEl.textContent = '✅ Payment account connected! Online payments are now enabled.'; sucEl.style.display = 'block'; }
+    instToast('Payment account connected!', 'success');
+    setTimeout(function () { loadPayAccountStatus(); }, 1200);
+  } else {
+    if (errEl) { errEl.textContent = res.data.message || 'Connection failed.'; errEl.style.display = 'block'; }
+  }
+}
+
+async function toggleOnlinePayments() {
+  var res = await instApi('/fee/payment-account/toggle', 'PUT');
+  if (res.ok) {
+    instToast('Online payments ' + (res.data.onlinePaymentsEnabled ? 'enabled' : 'disabled') + '.', 'success');
+    loadPayAccountStatus();
+  } else {
+    instToast(res.data.message || 'Failed.', 'error');
+  }
+}
+
+async function loadRecentFeePayments() {
+  var tbody = document.getElementById('feePaymentsTableBody');
+  if (!tbody) return;
+  var res = await instApi('/fee/payments?method=paystack&limit=20');
+  if (!res.ok) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--red);">Failed to load.</td></tr>'; return; }
+  var payments = res.data.payments || [];
+  if (!payments.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted);">No online payments yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = payments.map(function (p) {
+    var student = p.studentId || {};
+    var fee     = p.feeStructureId || {};
+    var cur     = p.currency || 'NGN';
+    return '<tr>' +
+      '<td style="font-weight:700;color:#fff;">' + esc(student.name || '—') + '</td>' +
+      '<td>' + esc(fee.name || '—') + '</td>' +
+      '<td style="font-weight:700;color:var(--green);">' + cur + ' ' + Number(p.amount).toLocaleString() + '</td>' +
+      '<td style="color:#a78bfa;">' + (p.platformFeeAmount ? cur + ' ' + Number(p.platformFeeAmount).toLocaleString() : '—') + '</td>' +
+      '<td style="font-weight:700;">' + (p.totalCharged ? cur + ' ' + Number(p.totalCharged).toLocaleString() : '—') + '</td>' +
+      '<td><span class="badge badge-purple">' + esc(p.method || 'paystack') + '</span></td>' +
+      '<td style="font-size:12px;color:var(--muted);">' + instFmtDate(p.createdAt) + '</td>' +
+      '<td><span style="font-size:12px;font-family:monospace;color:#a78bfa;">' + esc(p.receiptNumber || '—') + '</span></td>' +
+    '</tr>';
+  }).join('');
 }
 
 /* ============================================

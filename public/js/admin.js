@@ -304,7 +304,21 @@ async function loadAdminStats() {
   setEl('statActiveProducts', products.filter(function(p) { return p.isActive; }).length);
   setEl('statFeatured',       products.filter(function(p) { return p.isFeatured; }).length);
   setEl('statOutOfStock',     products.filter(function(p) { return (p.stock || 0) === 0; }).length);
+
+/* Add payment settings button to overview if not present */
+  var qaBtns = document.querySelector('[onclick*="openCreateProduct"]');
+  if (qaBtns && !document.getElementById('platformFeeBtn')) {
+    var btn = document.createElement('button');
+    btn.id        = 'platformFeeBtn';
+    btn.className = 'btn btn-secondary';
+    btn.textContent = '⚙️ Payment Settings';
+    btn.onclick   = function () { openPlatformFeeModal(); };
+    var wrap = qaBtns.closest('.card-body') || qaBtns.parentNode;
+    if (wrap) wrap.appendChild(btn);
+  }
+
 }
+
 
 /* ============================================
    PRODUCTS
@@ -5628,5 +5642,116 @@ async function examTypeDelete(id, label) {
     });
   });
 })();
+
+/* ============================================
+   ✅ R2: PLATFORM FEE & PAYMENT SETTINGS
+   Accessible from admin Overview → Quick Actions
+   or via direct call.
+============================================ */
+async function openPlatformFeeModal() {
+  var existing = document.getElementById('platformFeeModal');
+  if (existing) { existing.style.display = 'flex'; await loadPlatformFeeModal(); return; }
+
+  var div = document.createElement('div');
+  div.className = 'modal-overlay';
+  div.id = 'platformFeeModal';
+  div.style.display = 'flex';
+  div.innerHTML =
+    '<div class="modal-box">' +
+      '<div class="modal-header">' +
+        '<h2>⚙️ Platform Payment Settings</h2>' +
+        '<button class="modal-close" onclick="document.getElementById(\'platformFeeModal\').style.display=\'none\'">✕</button>' +
+      '</div>' +
+      '<div id="platformFeeErr" style="display:none;background:rgba(255,101,132,0.1);border:1px solid rgba(255,101,132,0.3);color:var(--red);padding:12px;border-radius:8px;font-size:13px;margin-bottom:16px;"></div>' +
+      '<div id="platformFeeSuccess" style="display:none;background:rgba(67,233,123,0.1);border:1px solid rgba(67,233,123,0.3);color:var(--green);padding:12px;border-radius:8px;font-size:13px;margin-bottom:16px;"></div>' +
+      '<div id="platformFeeBody"><div style="text-align:center;padding:24px;color:var(--muted);">Loading...</div></div>' +
+      '<div class="modal-footer">' +
+        '<button class="btn-cancel" onclick="document.getElementById(\'platformFeeModal\').style.display=\'none\'">Close</button>' +
+        '<button class="btn-primary" onclick="savePlatformFeeConfig()">Save Changes</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(div);
+  await loadPlatformFeeModal();
+}
+
+async function loadPlatformFeeModal() {
+  var bodyEl = document.getElementById('platformFeeBody');
+  if (!bodyEl) return;
+  var res = await apiRequest('/admin/platform-config');
+  if (!res.ok) {
+    bodyEl.innerHTML = '<div style="color:var(--red);padding:16px;">' + (res.data.message || 'Failed to load.') + '</div>';
+    return;
+  }
+  var configs = res.data.configs || [];
+  var feeConfig    = configs.find(function (c) { return c.key === 'platform_fee_percent'; }) || { value: 0.5 };
+  var paystackConf = configs.find(function (c) { return c.key === 'paystack_enabled'; })    || { value: true };
+  var onlineConf   = configs.find(function (c) { return c.key === 'online_payments_enabled'; }) || { value: true };
+
+  bodyEl.innerHTML =
+    '<div style="margin-bottom:20px;">' +
+      '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">LatLomp Platform Service Fee</div>' +
+      '<div style="display:flex;align-items:center;gap:10px;">' +
+        '<input type="number" id="pfFeePercent" value="' + esc(String(feeConfig.value)) + '" ' +
+          'min="0" max="20" step="0.1" ' +
+          'style="width:100px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:10px;color:#fff;font-size:16px;font-family:inherit;outline:none;" />' +
+        '<span style="font-size:20px;font-weight:900;color:#a78bfa;">%</span>' +
+      '</div>' +
+      '<div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.7;">' +
+        'Applied to every online fee payment from parents. Does not affect school subscription payments.<br/>' +
+        '<strong style="color:var(--secondary);">Changes apply to future payments only. Historical payments are not affected.</strong>' +
+      '</div>' +
+    '</div>' +
+    '<div style="display:flex;flex-direction:column;gap:14px;">' +
+      '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;">' +
+        '<input type="checkbox" id="pfPaystackEnabled" ' + (paystackConf.value ? 'checked' : '') + ' style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;" />' +
+        '<div>' +
+          '<div style="font-size:14px;font-weight:700;color:#fff;">Paystack Provider Enabled</div>' +
+          '<div style="font-size:12px;color:var(--muted);">Allow institutions to connect Paystack for fee collection</div>' +
+        '</div>' +
+      '</label>' +
+      '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;">' +
+        '<input type="checkbox" id="pfOnlineEnabled" ' + (onlineConf.value ? 'checked' : '') + ' style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;" />' +
+        '<div>' +
+          '<div style="font-size:14px;font-weight:700;color:#fff;">Online Payments Master Switch</div>' +
+          '<div style="font-size:12px;color:var(--muted);">Master switch — disabling blocks all online fee payments platform-wide</div>' +
+        '</div>' +
+      '</label>' +
+    '</div>';
+}
+
+async function savePlatformFeeConfig() {
+  var feeVal     = parseFloat((document.getElementById('pfFeePercent') || {}).value) || 0;
+  var paystackOn = (document.getElementById('pfPaystackEnabled') || {}).checked !== false;
+  var onlineOn   = (document.getElementById('pfOnlineEnabled') || {}).checked !== false;
+  var errEl      = document.getElementById('platformFeeErr');
+  var sucEl      = document.getElementById('platformFeeSuccess');
+  if (errEl) errEl.style.display = 'none';
+  if (sucEl) sucEl.style.display = 'none';
+
+  if (isNaN(feeVal) || feeVal < 0 || feeVal > 20) {
+    if (errEl) { errEl.textContent = 'Platform fee must be between 0% and 20%.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  var results = await Promise.all([
+    apiRequest('/admin/platform-config/platform_fee_percent', 'PUT', {
+      value:       feeVal,
+      description: 'LatLomp platform service fee on online institution fee payments'
+    }),
+    apiRequest('/admin/platform-config/paystack_enabled', 'PUT', { value: paystackOn }),
+    apiRequest('/admin/platform-config/online_payments_enabled', 'PUT', { value: onlineOn })
+  ]);
+
+  var allOk = results.every(function (r) { return r.ok; });
+  if (allOk) {
+    if (sucEl) {
+      sucEl.textContent = '✅ Settings saved. New fee rate (' + feeVal + '%) applies to future payments only.';
+      sucEl.style.display = 'block';
+    }
+    adminToast('Platform payment settings saved.', 'success');
+  } else {
+    if (errEl) { errEl.textContent = 'One or more settings failed to save. Please try again.'; errEl.style.display = 'block'; }
+  }
+}
 
 console.log('🔧 Admin Dashboard loaded');

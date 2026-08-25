@@ -95,10 +95,14 @@ router.post('/webhook', async (req, res) => {
       var ref  = data.reference;
       var paid = data.amount / 100;   /* kobo → naira */
 
-      /* Only process institution subscriptions */
+      /* ---- Route to the correct handler by payment type ---- */
+      if (meta.type === 'institution_fee_payment') {
+        /* ✅ R2: School fee payment webhook */
+        await handleFeePaymentWebhook(event.data, meta, ref, paid, req);
+        return res.status(200).json({ status: true });
+      }
+
       if (meta.type !== 'institution_subscription') {
-        /* ✅ STAGE 3: Log skipped non-institution payments
-           so we know they arrived but were intentionally ignored */
         logAudit({
           req,
           action:  'institution.payment.webhook.skipped',
@@ -436,5 +440,103 @@ router.get('/verify/:ref', async (req, res) => {
     return res.status(500).json({ success: false, message: err.message });
   }
 });
+
+/* ============================================
+   ✅ R2: Fee payment webhook handler
+   Idempotent — safe to call multiple times.
+   Same end-state whether called via webhook
+   or via /parent/fees/pay/verify endpoint.
+============================================ */
+async function handleFeePaymentWebhook(data, meta, ref, paid, req) {
+  try {
+    var SchoolFeePayment    = null;
+    var SchoolFeeAssignment = null;
+    try {
+      SchoolFeePayment    = require('../models/SchoolFeePayment.model');
+      SchoolFeeAssignment = require('../models/SchoolFeeAssignment.model');
+    } catch (e) { console.error('[FeeWebhook] Model load failed:', e.message); return; }
+
+    /* Idempotency: skip if already processed */
+    var existing = await SchoolFeePayment.findOne({ paystackRef: ref, status: 'confirmed' });
+    if (existing) {
+      logAudit({ req, action: 'institution.fee.webhook.duplicate', success: true,
+        message: 'Fee payment already recorded for ref: ' + ref });
+      return;
+    }
+
+    var assignmentId = meta.assignmentId;
+    if (!assignmentId) {
+      logAudit({ req, action: 'institution.fee.webhook.no_assignment', success: false,
+        message: 'Fee webhook missing assignmentId. ref=' + ref });
+      return;
+    }
+
+    var assignment = await SchoolFeeAssignment.findById(assignmentId);
+    if (!assignment) {
+      logAudit({ req, action: 'institution.fee.webhook.assignment_not_found', success: false,
+        message: 'Assignment not found. assignmentId=' + assignmentId + ' ref=' + ref });
+      return;
+    }
+
+    /* Generate receipt number */
+    var receiptCount  = await SchoolFeePayment.countDocuments({ schoolId: assignment.schoolId });
+    var receiptNumber = 'RCP-' + new Date().toISOString().slice(0,10).replace(/-/g,'') +
+                        '-' + String(receiptCount + 1).padStart(4, '0');
+
+    /* Extract amounts from Paystack data */
+    var totalChargedKobo    = data.amount                 || 0;
+    var platformFeeKobo     = data.transaction_charge     || 0;
+    var schoolFeeKobo       = totalChargedKobo - platformFeeKobo;
+    var providerFeeKobo     = data.fees                   || 0;
+
+    /* Fetch platform fee percent used */
+    var PlatformConfig = require('../models/PlatformConfig.model');
+    var platformFeePercent = await PlatformConfig.getValue('platform_fee_percent', 0.5);
+
+    /* Create confirmed payment record */
+    await SchoolFeePayment.create({
+      schoolId:          assignment.schoolId,
+      studentId:         assignment.studentId,
+      assignmentId:      assignment._id,
+      feeStructureId:    assignment.feeStructureId,
+      termId:            assignment.termId,
+      amount:            schoolFeeKobo / 100,          /* school's portion */
+      currency:          data.currency || assignment.currency || 'NGN',
+      method:            'paystack',
+      paystackRef:       ref,
+      externalRef:       ref,
+      receiptNumber,
+      status:            'confirmed',
+      totalCharged:      totalChargedKobo / 100,
+      platformFeePercent,
+      platformFeeAmount: platformFeeKobo / 100,
+      providerFeeAmount: providerFeeKobo / 100,
+      recordedAt:        new Date()
+    });
+
+    /* Sync assignment balance */
+    var payments  = await SchoolFeePayment.find({ assignmentId: assignment._id, status: 'confirmed' });
+    var totalPaid = payments.reduce(function (s, p) { return s + p.amount; }, 0);
+    var netDue    = assignment.amountDue - (assignment.discount || 0);
+    var balance   = Math.max(0, netDue - totalPaid);
+    var newStatus = totalPaid <= 0 ? 'pending'
+                  : balance  >  0 ? 'partial'
+                  :                  'paid';
+
+    await SchoolFeeAssignment.findByIdAndUpdate(assignment._id, {
+      $set: { amountPaid: totalPaid, balance, status: newStatus,
+              paidAt: newStatus === 'paid' ? new Date() : null }
+    });
+
+    logAudit({ req, action: 'institution.fee.webhook.processed', success: true,
+      message: 'Fee payment recorded via webhook. ref=' + ref +
+               ' amount=' + (schoolFeeKobo/100) + ' student=' + assignment.studentId });
+
+  } catch (err) {
+    logAudit({ req, action: 'institution.fee.webhook.error', success: false,
+      message: 'Fee webhook error: ' + err.message + ' ref=' + ref });
+    console.error('[FeeWebhook] Error:', err.message);
+  }
+}
 
 module.exports = router;

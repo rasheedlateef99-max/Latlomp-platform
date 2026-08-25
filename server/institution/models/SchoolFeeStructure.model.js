@@ -39,6 +39,9 @@ const schoolFeeStructureSchema = new mongoose.Schema({
   /* ---- Due date ---- */
   dueDate: { type: Date, default: null },
 
+  /* ---- Currency (ISO code) ---- */
+  currency: { type: String, default: 'NGN' },
+
   /* ---- Status ---- */
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });

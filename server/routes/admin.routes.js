@@ -623,6 +623,52 @@ router.put('/institutions/:id/subscription', async (req, res) => {
 });
 
 /* ============================================
+   R2: PLATFORM FEE & PAYMENT PROVIDER CONFIG
+   Root admin only. Updated from admin.html.
+   Changes apply to future payments only.
+   Historical payments retain their recorded rate.
+============================================ */
+router.get('/platform-config', async (req, res) => {
+  try {
+    const PlatformConfig = require('../institution/models/PlatformConfig.model');
+    await PlatformConfig.seedDefaults();
+    const configs = await PlatformConfig.find({}).sort({ key: 1 }).lean();
+    return res.status(200).json({ success: true, configs });
+  } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
+});
+
+router.put('/platform-config/:key', async (req, res) => {
+  try {
+    const { value, description } = req.body;
+    if (value === undefined) {
+      return res.status(400).json({ success: false, message: 'Value is required.' });
+    }
+    const PlatformConfig = require('../institution/models/PlatformConfig.model');
+
+    /* Validate platform_fee_percent */
+    if (req.params.key === 'platform_fee_percent') {
+      const pct = parseFloat(value);
+      if (isNaN(pct) || pct < 0 || pct > 20) {
+        return res.status(400).json({
+          success: false,
+          message: 'Platform fee must be between 0% and 20%.'
+        });
+      }
+    }
+
+    const config = await PlatformConfig.setValue(
+      req.params.key, value, description || '',
+      req.user.id, req.user.name || 'Admin'
+    );
+    return res.status(200).json({
+      success: true,
+      message: 'Platform configuration updated. New rate applies to future payments only.',
+      config
+    });
+  } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
+});
+
+/* ============================================
    SUBSCRIPTION PLAN MANAGEMENT
 ============================================ */
 router.get('/subscription-plans', async (req, res) => {
