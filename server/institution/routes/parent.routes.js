@@ -347,6 +347,69 @@ router.get('/children/:studentId/timetable', async (req, res) => {
 });
 
 /* ============================================
+   R7 (Parent view): Fee summary for a child
+   GET /api/institution/parent/children/:studentId/fees
+============================================ */
+router.get('/children/:studentId/fees', async (req, res) => {
+  try {
+    if (!isLinkedTo(req.parent, req.params.studentId)) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    var SchoolFeeAssignment = null;
+    var SchoolFeePayment    = null;
+    try {
+      SchoolFeeAssignment = require('../models/SchoolFeeAssignment.model');
+      SchoolFeePayment    = require('../models/SchoolFeePayment.model');
+    } catch (e) {}
+
+    if (!SchoolFeeAssignment) {
+      return res.status(200).json({
+        success: true, assignments: [], payments: [],
+        summary: { totalCharged: 0, totalPaid: 0, totalOutstanding: 0 }
+      });
+    }
+
+    /* Get schoolId from the parent's link for this student */
+    var link = req.parent.linkedStudents.find(function (ls) {
+      return ls.studentId.toString() === req.params.studentId;
+    });
+    if (!link) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    var assignments = await SchoolFeeAssignment.find({
+      schoolId:  link.schoolId,
+      studentId: req.params.studentId
+    })
+    .populate('feeStructureId', 'name category amount')
+    .populate('termId',         'name session')
+    .lean();
+
+    var payments = await SchoolFeePayment.find({
+      schoolId:  link.schoolId,
+      studentId: req.params.studentId,
+      status:    'confirmed'
+    }).select('amount method receiptNumber recordedAt createdAt').lean();
+
+    var totalCharged     = assignments.reduce(function (s, a) { return s + a.amountDue; }, 0);
+    var totalPaid        = payments.reduce(function (s, p)    { return s + p.amount; }, 0);
+    var totalOutstanding = assignments
+      .filter(function (a) { return ['pending','partial'].includes(a.status); })
+      .reduce(function (s, a) { return s + a.balance; }, 0);
+
+    return res.status(200).json({
+      success: true,
+      summary: { totalCharged, totalPaid, totalOutstanding },
+      assignments,
+      payments
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: 'Failed to load fee information.' });
+  }
+});
+
+/* ============================================
    Q7: Notifications for parent
    GET /api/institution/parent/notifications
 ============================================ */
