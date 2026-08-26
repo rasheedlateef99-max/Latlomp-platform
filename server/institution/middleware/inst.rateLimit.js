@@ -72,5 +72,7 @@ module.exports = {
   releaseLimit,
   inviteLimit,
   examCreateLimit,
-  questionAddLimit
+  questionAddLimit,
+  /* ✅ R2 FIX: export the factory so routes can create custom limiters */
+  makeSchoolLimit
 };

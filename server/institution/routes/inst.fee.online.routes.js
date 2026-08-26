@@ -17,15 +17,12 @@ const {
 } = require('../middleware/inst.auth');
 const { requireActiveSubscription } = require('../middleware/inst.tenant');
 
-let rateLimit;
-try {
-  const { makeSchoolLimit } = require('../middleware/inst.rateLimit');
-  rateLimit = makeSchoolLimit;
-} catch (e) { rateLimit = function () { return function (req, res, next) { next(); }; }; }
+/* ✅ R2 FIX: Use exported makeSchoolLimit from inst.rateLimit.js */
+const { makeSchoolLimit } = require('../middleware/inst.rateLimit');
 
-const paymentConnectLimit = rateLimit(15, 5,
+const paymentConnectLimit = makeSchoolLimit(15, 5,
   'Too many payment account connection attempts. Please wait 15 minutes.');
-const bankVerifyLimit = rateLimit(5, 10,
+const bankVerifyLimit = makeSchoolLimit(5, 10,
   'Too many bank verification attempts. Please wait 5 minutes.');
 
 var adminGuard       = [instProtect, schoolAdminOnly, requireActiveSubscription];

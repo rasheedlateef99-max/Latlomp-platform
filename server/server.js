@@ -82,6 +82,8 @@ app.use("/api/institution/student-portal", require("./institution/routes/inst.st
 
 /* ✅ PHASE R: Fee Management */
 app.use("/api/institution/fee", require("./institution/routes/inst.fee.routes"));
+/* ✅ PHASE R2: Register payment providers (must come before routes) */
+require("./institution/providers/registry");
 /* ✅ PHASE R2: Online Payments + Adjustments */
 app.use("/api/institution/fee", require("./institution/routes/inst.fee.online.routes"));
 /* ✅ PHASE Q: Parent Portal */

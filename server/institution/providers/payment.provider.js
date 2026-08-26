@@ -60,12 +60,7 @@ function getAvailableProviders() {
   });
 }
 
-/* ---- Auto-register Paystack ---- */
-try {
-  const PaystackFeeProvider = require('./paystack.fee.provider');
-  registerProvider('paystack', new PaystackFeeProvider());
-} catch (e) {
-  console.warn('[PaymentProvider] Paystack adapter load failed:', e.message);
-}
+/* ---- Providers are registered externally to avoid circular requires.
+   See server/institution/providers/registry.js ---- */
 
 module.exports = { PaymentProvider, registerProvider, getProvider, getAvailableProviders };
