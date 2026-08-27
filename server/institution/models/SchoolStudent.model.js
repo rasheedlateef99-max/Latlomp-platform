@@ -37,10 +37,10 @@ const classHistoryEntrySchema = new mongoose.Schema({
   session:    { type: String, default: '' },
   term:       { type: String, default: '' },
   action: {
-    type: String,
-    enum: ['enrolled', 'promoted', 'repeated', 'transferred_in', 'transferred_out', 'graduated'],
-    default: 'enrolled'
-  },
+      type: String,
+      enum: ['enrolled', 'promoted', 'repeated', 'transferred_in', 'transferred_out', 'graduated', 'rolled_back'],
+      default: 'enrolled'
+    },
   recordedAt: { type: Date, default: Date.now }
 }, { _id: false });
 

@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Academic Promotions — LatLomp Institution</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --primary:#6c63ff; --pd:#574fd6;
+      --green:#43e97b;   --red:#ff6584;
+      --orange:#ffa500;  --yellow:#ffd600;
+      --dark:#0f0f1a;    --dark-2:#1a1a2e;
+      --border:rgba(255,255,255,0.08);
+      --text:#fff;       --muted:#6b6b8a; --secondary:#a0a0c0;
+    }
+    html, body { margin:0; padding:0; background:var(--dark); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+    @keyframes spin   { to { transform:rotate(360deg); } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+
+    /* ---- Layout ---- */
+    .topbar { display:flex; align-items:center; justify-content:space-between; padding:0 20px; height:60px; background:var(--dark-2); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100; gap:12px; }
+    .topbar-brand { font-size:15px; font-weight:800; white-space:nowrap; }
+    .topbar-brand span { color:var(--primary); }
+    .page-content { padding:24px; max-width:1100px; margin:0 auto; }
+
+    /* ---- Tabs ---- */
+    .tab-row { display:flex; gap:4px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:12px; padding:4px; margin-bottom:24px; flex-wrap:wrap; }
+    .tab-btn { flex:1; min-width:80px; padding:10px 14px; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; border:none; background:none; color:var(--secondary); text-align:center; transition:all 0.15s; white-space:nowrap; }
+    .tab-btn:hover  { color:#fff; background:rgba(255,255,255,0.06); }
+    .tab-btn.active { background:rgba(108,99,255,0.2); color:#a78bfa; }
+    .section { display:none; animation:fadeUp 0.25s ease; }
+    .section.active { display:block; }
+
+    /* ---- Cards ---- */
+    .card { background:var(--dark-2); border:1px solid var(--border); border-radius:16px; overflow:hidden; margin-bottom:20px; }
+    .card-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:10px; }
+    .card-head h3 { font-size:15px; font-weight:700; color:#fff; margin:0; }
+    .card-body { padding:20px; }
+
+    /* ---- Buttons ---- */
+    .btn { display:inline-flex; align-items:center; gap:7px; padding:9px 18px; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; border:none; transition:all 0.2s; text-decoration:none; white-space:nowrap; }
+    .btn-primary   { background:linear-gradient(135deg,var(--primary),var(--pd)); color:#fff; }
+    .btn-green     { background:linear-gradient(135deg,var(--green),#38f9d7); color:#0f0f1a; }
+    .btn-secondary { background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--secondary); }
+    .btn-secondary:hover { color:#fff; background:rgba(255,255,255,0.1); }
+    .btn-danger    { background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); }
+    .btn-orange    { background:rgba(255,165,0,0.1); border:1px solid rgba(255,165,0,0.3); color:var(--orange); }
+    .btn-sm { padding:6px 12px; font-size:12px; border-radius:7px; }
+    .btn:disabled { opacity:0.5; cursor:not-allowed; }
+
+    /* ---- Badges ---- */
+    .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+    .badge-green  { background:rgba(67,233,123,0.12);  color:var(--green); }
+    .badge-red    { background:rgba(255,101,132,0.12); color:var(--red); }
+    .badge-orange { background:rgba(255,165,0,0.12);   color:var(--orange); }
+    .badge-purple { background:rgba(108,99,255,0.12);  color:#a78bfa; }
+    .badge-muted  { background:rgba(255,255,255,0.06); color:var(--secondary); }
+    .badge-yellow { background:rgba(255,214,0,0.12);   color:var(--yellow); }
+
+    /* ---- Forms ---- */
+    .field { display:flex; flex-direction:column; gap:6px; margin-bottom:16px; }
+    .field label { font-size:12px; font-weight:700; color:var(--secondary); text-transform:uppercase; letter-spacing:0.4px; }
+    .field label span { color:var(--red); }
+    .inp, .sel { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:9px; padding:11px 13px; color:#fff; font-size:14px; font-family:inherit; outline:none; width:100%; transition:border-color 0.2s; }
+    .inp:focus, .sel:focus { border-color:var(--primary); }
+    .sel option { background:var(--dark-2); }
+    .field-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .field-hint { font-size:11px; color:var(--muted); margin-top:2px; line-height:1.5; }
+
+    /* ---- Toggle switch ---- */
+    .toggle-row { display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--border); }
+    .toggle-row:last-child { border-bottom:none; }
+    .toggle-label { font-size:14px; font-weight:600; color:#fff; }
+    .toggle-desc  { font-size:12px; color:var(--muted); margin-top:2px; }
+    .toggle { position:relative; display:inline-block; width:44px; height:24px; cursor:pointer; flex-shrink:0; }
+    .toggle input { opacity:0; width:0; height:0; }
+    .toggle-slider { position:absolute; inset:0; background:rgba(255,255,255,0.1); border-radius:24px; transition:all 0.3s; }
+    .toggle-slider::before { content:''; position:absolute; height:18px; width:18px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:0.3s; }
+    .toggle input:checked + .toggle-slider { background:var(--green); }
+    .toggle input:checked + .toggle-slider::before { transform:translateX(20px); }
+
+    /* ---- Table ---- */
+    .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    table { width:100%; border-collapse:collapse; min-width:700px; }
+    th { padding:11px 14px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); background:rgba(255,255,255,0.02); border-bottom:1px solid var(--border); white-space:nowrap; }
+    td { padding:12px 14px; font-size:13px; color:var(--secondary); border-bottom:1px solid var(--border); vertical-align:middle; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:rgba(255,255,255,0.02); }
+
+    /* ---- Stat bar ---- */
+    .stat-bar { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:20px; }
+    @media (max-width:700px) { .stat-bar { grid-template-columns:repeat(2,1fr); } }
+    .stat-box { background:var(--dark-2); border:1px solid var(--border); border-radius:12px; padding:16px; text-align:center; }
+    .stat-val { font-size:26px; font-weight:900; color:#fff; }
+    .stat-lbl { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; margin-top:3px; }
+
+    /* ---- Eligibility badges ---- */
+    .elig-eligible            { color:var(--green);  background:rgba(67,233,123,0.1);  border:1px solid rgba(67,233,123,0.3);  padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700; white-space:nowrap; }
+    .elig-not_eligible        { color:var(--red);    background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700; white-space:nowrap; }
+    .elig-graduation_candidate{ color:var(--yellow); background:rgba(255,214,0,0.1);   border:1px solid rgba(255,214,0,0.3);   padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700; white-space:nowrap; }
+    .elig-requires_review     { color:var(--orange); background:rgba(255,165,0,0.1);   border:1px solid rgba(255,165,0,0.3);   padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700; white-space:nowrap; }
+    .elig-financial_hold      { color:var(--red);    background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700; white-space:nowrap; }
+    .elig-attendance_hold     { color:var(--orange); background:rgba(255,165,0,0.1);   border:1px solid rgba(255,165,0,0.3);   padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700; white-space:nowrap; }
+
+    /* ---- Alert box ---- */
+    .alert { border-radius:10px; padding:14px 16px; font-size:13px; line-height:1.6; margin-bottom:16px; display:none; }
+    .alert-warn { background:rgba(255,165,0,0.08); border:1px solid rgba(255,165,0,0.25); color:var(--orange); }
+    .alert-success { background:rgba(67,233,123,0.08); border:1px solid rgba(67,233,123,0.2); color:var(--green); }
+    .alert-err { background:rgba(255,101,132,0.08); border:1px solid rgba(255,101,132,0.25); color:var(--red); }
+    .alert-info { background:rgba(108,99,255,0.08); border:1px solid rgba(108,99,255,0.2); color:#a78bfa; }
+
+    /* ---- Decision select ---- */
+    .decision-sel { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:7px; padding:6px 8px; color:#fff; font-size:12px; font-family:inherit; outline:none; max-width:130px; }
+    .decision-sel:focus { border-color:var(--primary); }
+
+    /* ---- Spinner ---- */
+    .spinner { width:18px; height:18px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block; }
+
+    /* ---- Empty ---- */
+    .empty { text-align:center; padding:48px 20px; }
+    .empty-icon { font-size:44px; margin-bottom:12px; }
+    .empty-title { font-size:15px; font-weight:700; color:var(--secondary); margin-bottom:6px; }
+    .empty-sub   { font-size:13px; color:var(--muted); line-height:1.6; }
+
+    /* ---- Recommendation pill ---- */
+    .rec-promote  { color:var(--green);  font-weight:700; font-size:12px; }
+    .rec-repeat   { color:var(--red);    font-weight:700; font-size:12px; }
+    .rec-graduate { color:var(--yellow); font-weight:700; font-size:12px; }
+    .rec-review   { color:var(--orange); font-weight:700; font-size:12px; }
+
+    /* ---- Filter tabs ---- */
+    .filter-tabs { display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+    .filter-tab { padding:6px 14px; border-radius:20px; font-size:12px; font-weight:700; cursor:pointer; border:1px solid var(--border); background:rgba(255,255,255,0.03); color:var(--secondary); font-family:inherit; transition:all 0.15s; }
+    .filter-tab:hover { color:#fff; }
+    .filter-tab.active { background:rgba(108,99,255,0.15); border-color:rgba(108,99,255,0.4); color:#a78bfa; }
+
+    /* ---- Execution result box ---- */
+    .exec-result-box { border-radius:12px; padding:20px 24px; margin-bottom:20px; }
+    .exec-result-box.success { background:rgba(67,233,123,0.06); border:1px solid rgba(67,233,123,0.2); }
+    .exec-result-box.partial { background:rgba(255,165,0,0.06); border:1px solid rgba(255,165,0,0.2); }
+    .exec-result-box.error   { background:rgba(255,101,132,0.06); border:1px solid rgba(255,101,132,0.2); }
+
+    /* Modal */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:500; display:flex; align-items:center; justify-content:center; padding:20px; }
+    .modal-box { background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:28px; width:100%; max-width:480px; max-height:90vh; overflow-y:auto; }
+    .modal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+    .modal-header h2 { font-size:17px; font-weight:800; color:#fff; margin:0; }
+    .modal-close { width:30px; height:30px; border-radius:7px; background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--muted); cursor:pointer; font-size:14px; font-family:inherit; }
+    .modal-footer { display:flex; justify-content:flex-end; gap:10px; margin-top:20px; padding-top:16px; border-top:1px solid var(--border); }
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="topbar-brand">⚡ <span>LatLomp</span> · Academic Promotions</div>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <a href="/institution/school/dashboard.html" class="btn btn-secondary btn-sm">← Dashboard</a>
+    <button class="btn btn-secondary btn-sm" onclick="instLogout()">Logout</button>
+  </div>
+</header>
+
+<div class="page-content">
+
+  <!-- TAB NAVIGATION -->
+  <div class="tab-row">
+    <button class="tab-btn active" onclick="showTab('setup')">📋 Setup</button>
+    <button class="tab-btn"        onclick="showTab('review')">👥 Student Review</button>
+    <button class="tab-btn"        onclick="showTab('history')">📜 History</button>
+    <button class="tab-btn"        onclick="showTab('policy')">⚙️ Policy</button>
+  </div>
+
+  <!-- ============ SETUP TAB ============ -->
+  <div class="section active" id="sec-setup">
+    <div class="card">
+      <div class="card-head">
+        <h3>🎓 New Promotion Batch</h3>
+        <span id="setupBatchBadge" class="badge badge-muted" style="display:none;"></span>
+      </div>
+      <div class="card-body">
+        <div id="setupAlert" class="alert"></div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>Source Term (being reviewed) <span>*</span></label>
+            <select id="setupSourceTerm" class="sel" onchange="onSourceTermChange()">
+              <option value="">-- Select Term --</option>
+            </select>
+            <div class="field-hint">The academic period students are transitioning FROM.</div>
+          </div>
+          <div class="field">
+            <label>Source Class <span>*</span></label>
+            <select id="setupSourceClass" class="sel">
+              <option value="">-- Select Class --</option>
+            </select>
+            <div class="field-hint">The class being reviewed for promotion.</div>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Target Term (next period)</label>
+            <select id="setupTargetTerm" class="sel">
+              <option value="">-- Select Target Term --</option>
+            </select>
+            <div class="field-hint">The academic period students will enter after transition.</div>
+          </div>
+          <div class="field">
+            <label>Notes (optional)</label>
+            <input type="text" id="setupNotes" class="inp" placeholder="e.g. End of 2024/2025 session" />
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
+          <button class="btn btn-primary" id="createBatchBtn" onclick="createBatch()">Create Batch & Evaluate →</button>
+          <button class="btn btn-secondary" onclick="loadSetupData()">↺ Refresh</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Existing batches quick list -->
+    <div class="card">
+      <div class="card-head"><h3>Recent Batches</h3><button class="btn btn-secondary btn-sm" onclick="showTab('history')">View All</button></div>
+      <div id="recentBatchesList"><div style="text-align:center;padding:24px;color:var(--muted);font-size:14px;">Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- ============ REVIEW TAB ============ -->
+  <div class="section" id="sec-review">
+    <div id="reviewNoBatch" class="empty">
+      <div class="empty-icon">📋</div>
+      <div class="empty-title">No batch loaded</div>
+      <div class="empty-sub">Create a batch in Setup, or select one from History.</div>
+      <button class="btn btn-secondary" style="margin-top:16px;" onclick="showTab('setup')">Go to Setup</button>
+    </div>
+
+    <div id="reviewContent" style="display:none;">
+      <!-- Batch info bar -->
+      <div style="background:rgba(108,99,255,0.06);border:1px solid rgba(108,99,255,0.2);border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+        <div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Active Batch</div>
+          <div style="font-size:17px;font-weight:800;color:#fff;" id="reviewBatchTitle">—</div>
+          <div style="font-size:12px;color:#a78bfa;margin-top:3px;" id="reviewBatchRef">—</div>
+        </div>
+        <div id="reviewBatchStatus" class="badge badge-muted">—</div>
+      </div>
+
+      <!-- Stat bar -->
+      <div class="stat-bar">
+        <div class="stat-box"><div class="stat-val" id="rv-total">0</div><div class="stat-lbl">Total</div></div>
+        <div class="stat-box"><div class="stat-val" style="color:var(--green);" id="rv-eligible">0</div><div class="stat-lbl">Eligible</div></div>
+        <div class="stat-box"><div class="stat-val" style="color:var(--red);" id="rv-not-eligible">0</div><div class="stat-lbl">Not Eligible</div></div>
+        <div class="stat-box"><div class="stat-val" style="color:var(--yellow);" id="rv-grad">0</div><div class="stat-lbl">Grad Candidate</div></div>
+        <div class="stat-box"><div class="stat-val" style="color:var(--orange);" id="rv-review">0</div><div class="stat-lbl">Needs Review</div></div>
+      </div>
+
+      <div id="reviewAlert" class="alert"></div>
+
+      <!-- Action bar -->
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+        <div class="filter-tabs">
+          <button class="filter-tab active" onclick="filterReview('all')">All</button>
+          <button class="filter-tab" onclick="filterReview('eligible')">Eligible</button>
+          <button class="filter-tab" onclick="filterReview('not_eligible')">Not Eligible</button>
+          <button class="filter-tab" onclick="filterReview('graduation_candidate')">Grad Candidates</button>
+          <button class="filter-tab" onclick="filterReview('requires_review')">Needs Review</button>
+          <button class="filter-tab" onclick="filterReview('pending')">Undecided</button>
+        </div>
+      </div>
+
+      <!-- Bulk actions -->
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap;padding:12px 16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;">
+        <span style="font-size:12px;color:var(--muted);font-weight:700;">BULK:</span>
+        <button class="btn btn-green btn-sm" onclick="bulkDecide('promote')">✓ Promote All Eligible</button>
+        <button class="btn btn-orange btn-sm" onclick="bulkDecide('repeat')">↩ Repeat All Not Eligible</button>
+        <button class="btn btn-secondary btn-sm" onclick="bulkDecide('graduate')">🎓 Graduate All Candidates</button>
+        <span style="flex:1;"></span>
+        <button class="btn btn-primary" id="executeBtn" onclick="confirmExecute()" style="display:none;">▶ Execute Batch</button>
+        <button class="btn btn-danger btn-sm" id="rollbackBtn" onclick="openRollbackModal()" style="display:none;">↩ Rollback</button>
+      </div>
+
+      <!-- IMPORTANT NOTICE -->
+      <div class="alert alert-info" id="eligibilityNotice" style="display:block;">
+        ⚠️ <strong>System recommendations shown below are advisory only.</strong>
+        Authorized administrators make the final promotion decision.
+        Use the Decision dropdown for each student to confirm or override the recommendation.
+      </div>
+
+      <!-- Student table -->
+      <div class="card">
+        <div class="card-head">
+          <h3>Student Review</h3>
+          <span id="reviewCount" style="font-size:12px;color:var(--muted);"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)" style="cursor:pointer;" /></th>
+              <th>Student</th>
+              <th>Current Level</th>
+              <th>Academic Score</th>
+              <th>Attendance</th>
+              <th>Fees Cleared</th>
+              <th>System Rec.</th>
+              <th>Eligibility</th>
+              <th>Target Level</th>
+              <th>FINAL DECISION ★</th>
+              <th>Override Reason</th>
+            </tr></thead>
+            <tbody id="reviewTableBody">
+              <tr><td colspan="11" style="text-align:center;padding:28px;color:var(--muted);">Evaluate batch to load students.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ HISTORY TAB ============ -->
+  <div class="section" id="sec-history">
+    <div class="card">
+      <div class="card-head"><h3>📜 Promotion Batch History</h3><button class="btn btn-secondary btn-sm" onclick="loadHistory()">↺ Refresh</button></div>
+      <div id="historyContent"><div style="text-align:center;padding:28px;color:var(--muted);">Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- ============ POLICY TAB ============ -->
+  <div class="section" id="sec-policy">
+    <div class="card">
+      <div class="card-head"><h3>⚙️ Promotion Policy</h3><span style="font-size:12px;color:var(--muted);">Applied to all academic transitions</span></div>
+      <div class="card-body">
+        <div id="policyAlert" class="alert"></div>
+        <p style="font-size:13px;color:var(--secondary);line-height:1.7;margin:0 0 20px;">
+          Configure the rules used to evaluate each student's eligibility.
+          These are <strong>recommendations only</strong> — authorized staff always make the final decision.
+        </p>
+
+        <div class="toggle-row">
+          <div><div class="toggle-label">Academic Performance Check</div><div class="toggle-desc">Evaluate student results against minimum score.</div></div>
+          <label class="toggle"><input type="checkbox" id="polAcademic" checked /><span class="toggle-slider"></span></label>
+        </div>
+        <div class="field" style="margin-top:12px;margin-bottom:20px;" id="polScoreRow">
+          <label>Minimum Score (%) to be recommended for promotion</label>
+          <input type="number" id="polMinScore" class="inp" value="50" min="0" max="100" style="max-width:120px;" />
+        </div>
+
+        <div class="toggle-row">
+          <div><div class="toggle-label">Attendance Check</div><div class="toggle-desc">Evaluate attendance rate against minimum threshold.</div></div>
+          <label class="toggle"><input type="checkbox" id="polAttendance" /><span class="toggle-slider"></span></label>
+        </div>
+        <div class="field" style="margin-top:12px;margin-bottom:20px;" id="polAttendanceRow">
+          <label>Minimum Attendance (%)</label>
+          <input type="number" id="polMinAttendance" class="inp" value="0" min="0" max="100" style="max-width:120px;" />
+        </div>
+
+        <div class="toggle-row">
+          <div><div class="toggle-label">Financial Clearance Required</div><div class="toggle-desc">Flag students with outstanding fees for this term.</div></div>
+          <label class="toggle"><input type="checkbox" id="polFees" /><span class="toggle-slider"></span></label>
+        </div>
+
+        <div class="toggle-row">
+          <div><div class="toggle-label">Allow Administrative Override</div><div class="toggle-desc">Authorized staff can override the system recommendation.</div></div>
+          <label class="toggle"><input type="checkbox" id="polOverride" checked /><span class="toggle-slider"></span></label>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:24px;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="savePolicy()">💾 Save Policy</button>
+          <button class="btn btn-secondary" onclick="loadPolicy()">↺ Reset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end page-content -->
+
+<!-- ROLLBACK MODAL -->
+<div id="rollbackModal" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>↩ Rollback Batch</h2>
+      <button class="modal-close" onclick="closeRollbackModal()">✕</button>
+    </div>
+    <div class="alert alert-warn" style="display:block;margin-bottom:16px;">
+      ⚠️ Rollback will restore all students to their pre-promotion academic state.
+      The original promotion event is preserved in history. A reversal event is added.
+    </div>
+    <div class="field">
+      <label>Reason for Rollback <span>*</span></label>
+      <input type="text" id="rollbackReason" class="inp" placeholder="e.g. Data entry error in results" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeRollbackModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="executeRollback()">↩ Confirm Rollback</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXECUTE CONFIRM MODAL -->
+<div id="executeModal" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-header"><h2>▶ Execute Promotion Batch</h2><button class="modal-close" onclick="closeExecuteModal()">✕</button></div>
+    <div class="alert alert-warn" style="display:block;margin-bottom:16px;">
+      ⚠️ This action will update academic records for all students with a final decision.
+      Students with no decision set will be skipped.
+      Ensure all decisions are reviewed before proceeding.
+    </div>
+    <div id="executePreview" style="font-size:14px;color:var(--secondary);line-height:1.9;margin-bottom:16px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeExecuteModal()">Cancel</button>
+      <button class="btn btn-green" onclick="executeBatch()">✓ Execute Now</button>
+    </div>
+  </div>
+</div>
+
+<script src="/institution/js/inst.api.js"></script>
+<script>
+/* ============================================
+   PROMOTIONS PAGE SCRIPT
+============================================ */
+var _activeBatch = null;
+var _filterMode  = 'all';
+var _terms       = [];
+var _classes     = [];
+
+/* -------- INIT -------- */
+document.addEventListener('DOMContentLoaded', async function () {
+  if (typeof instRequireAuth === 'function' && !instRequireAuth()) { return; }
+  await loadSetupData();
+});
+
+function showTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(function(b, i) {
+    var tabs = ['setup','review','history','policy'];
+    b.classList.toggle('active', tabs[i] === tab);
+  });
+  document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
+  var sec = document.getElementById('sec-' + tab);
+  if (sec) sec.classList.add('active');
+  if (tab === 'history') loadHistory();
+  if (tab === 'policy')  loadPolicy();
+  if (tab === 'review' && _activeBatch) renderBatch();
+}
+
+/* -------- SETUP -------- */
+async function loadSetupData() {
+  var [termsRes, classesRes] = await Promise.all([
+    instApi('/promotion/terms'),
+    instApi('/promotion/classes')
+  ]);
+
+  _terms   = (termsRes.ok && termsRes.data.terms)   || [];
+  _classes = (classesRes.ok && classesRes.data.classes) || [];
+
+  populateSelect('setupSourceTerm', _terms, function(t) {
+    return { value: t._id, label: t.name + ' — ' + t.session + (t.isCurrent ? ' (Current)' : '') };
+  });
+  populateSelect('setupTargetTerm', _terms, function(t) {
+    return { value: t._id, label: t.name + ' — ' + t.session };
+  });
+  populateSelect('setupSourceClass', _classes, function(c) {
+    return { value: c._id, label: c.name + (c.activeStudentCount ? ' (' + c.activeStudentCount + ' students)' : '') };
+  });
+
+  loadRecentBatches();
+}
+
+function onSourceTermChange() {
+  /* Auto-select different target term */
+  var src = document.getElementById('setupSourceTerm').value;
+  var tgt = document.getElementById('setupTargetTerm');
+  if (tgt && tgt.value === src) { tgt.value = ''; }
+}
+
+function populateSelect(id, items, mapper) {
+  var sel = document.getElementById(id);
+  if (!sel) return;
+  sel.innerHTML = '<option value="">-- Select --</option>' +
+    items.map(function(item) {
+      var mapped = mapper(item);
+      return '<option value="' + mapped.value + '">' + esc(mapped.label) + '</option>';
+    }).join('');
+}
+
+async function loadRecentBatches() {
+  var res  = await instApi('/promotion/batches');
+  var list = document.getElementById('recentBatchesList');
+  if (!list) return;
+  var batches = (res.ok && res.data.batches) || [];
+
+  if (!batches.length) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">No batches yet</div><div class="empty-sub">Create your first promotion batch above.</div></div>';
+    return;
+  }
+
+  var statusMap = {
+    draft:'badge-muted', evaluating:'badge-orange', reviewed:'badge-purple',
+    executing:'badge-orange', completed:'badge-green', partial:'badge-orange',
+    rolled_back:'badge-red', cancelled:'badge-muted'
+  };
+
+  list.innerHTML = '<div style="padding:8px 0;">' + batches.slice(0, 8).map(function(b) {
+    var src = (b.sourceTermSnapshot && b.sourceTermSnapshot.name) || '—';
+    var cls = (b.sourceClassSnapshot && b.sourceClassSnapshot.name) || '—';
+    return '<div style="display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--border);">' +
+      '<div style="flex:1;">' +
+        '<div style="font-size:14px;font-weight:700;color:#fff;">' + esc(cls) + ' · ' + esc(src) + '</div>' +
+        '<div style="font-size:12px;color:var(--muted);">' + esc(b.batchRef) + ' · ' + fmtDate(b.createdAt) + '</div>' +
+      '</div>' +
+      '<span class="badge ' + (statusMap[b.status] || 'badge-muted') + '">' + b.status + '</span>' +
+      '<button class="btn btn-secondary btn-sm" onclick="loadBatch(\'' + b._id + '\')">Open</button>' +
+    '</div>';
+  }).join('') + '</div>';
+}
+
+async function createBatch() {
+  var srcTerm  = document.getElementById('setupSourceTerm').value;
+  var srcClass = document.getElementById('setupSourceClass').value;
+  var tgtTerm  = document.getElementById('setupTargetTerm').value;
+  var notes    = document.getElementById('setupNotes').value.trim();
+  var alertEl  = document.getElementById('setupAlert');
+  alertEl.style.display = 'none';
+
+  if (!srcTerm || !srcClass) {
+    showAlert('setupAlert', 'Source term and source class are required.', 'err');
+    return;
+  }
+
+  var btn = document.getElementById('createBatchBtn');
+  btn.innerHTML = '<span class="spinner"></span> Creating...'; btn.disabled = true;
+
+  var res = await instApi('/promotion/batches', 'POST', {
+    sourceTermId: srcTerm,
+    sourceClassId: srcClass,
+    targetTermId: tgtTerm || undefined,
+    notes
+  });
+
+  if (res.ok) {
+    showAlert('setupAlert', '✅ Batch created. Running eligibility evaluation...', 'success');
+    /* Immediately evaluate */
+    var evalRes = await instApi('/promotion/batches/' + res.data.batchId + '/evaluate', 'POST');
+    if (evalRes.ok) {
+      showAlert('setupAlert', '✅ ' + evalRes.data.evaluated + ' student(s) evaluated. Opening review...', 'success');
+      await loadBatch(res.data.batchId);
+      setTimeout(function() { showTab('review'); }, 800);
+    } else {
+      showAlert('setupAlert', evalRes.data.message || 'Evaluation failed.', 'err');
+    }
+  } else {
+    /* Check if an existing batch was found */
+    if (res.data.existingBatchId) {
+      showAlert('setupAlert', res.data.message, 'warn');
+      await loadBatch(res.data.existingBatchId);
+    } else {
+      showAlert('setupAlert', res.data.message || 'Failed to create batch.', 'err');
+    }
+  }
+
+  btn.innerHTML = 'Create Batch & Evaluate →'; btn.disabled = false;
+  loadRecentBatches();
+}
+
+/* -------- REVIEW -------- */
+async function loadBatch(batchId) {
+  var res = await instApi('/promotion/batches/' + batchId);
+  if (!res.ok) {
+    instToast(res.data.message || 'Failed to load batch.', 'error');
+    return;
+  }
+  _activeBatch = res.data.batch;
+  renderBatch();
+}
+
+function renderBatch() {
+  if (!_activeBatch) { return; }
+  var b = _activeBatch;
+
+  document.getElementById('reviewNoBatch').style.display    = 'none';
+  document.getElementById('reviewContent').style.display    = 'block';
+  document.getElementById('reviewBatchTitle').textContent   =
+    (b.sourceClassSnapshot && b.sourceClassSnapshot.name || '—') + ' — ' +
+    (b.sourceTermSnapshot && b.sourceTermSnapshot.name || '—');
+  document.getElementById('reviewBatchRef').textContent    = b.batchRef;
+
+  var statusMap = { draft:'badge-muted', evaluating:'badge-orange', reviewed:'badge-purple',
+    executing:'badge-orange', completed:'badge-green', partial:'badge-orange',
+    rolled_back:'badge-red', cancelled:'badge-muted' };
+  document.getElementById('reviewBatchStatus').className = 'badge ' + (statusMap[b.status] || 'badge-muted');
+  document.getElementById('reviewBatchStatus').textContent = b.status;
+
+  /* Stats */
+  var students = b.students || [];
+  var counts = { total: students.length, eligible: 0, not_eligible: 0, grad: 0, review: 0 };
+  students.forEach(function(s) {
+    if (s.eligibilityStatus === 'eligible')             { counts.eligible++; }
+    else if (s.eligibilityStatus === 'not_eligible')    { counts.not_eligible++; }
+    else if (s.eligibilityStatus === 'graduation_candidate') { counts.grad++; }
+    else                                                 { counts.review++; }
+  });
+  document.getElementById('rv-total').textContent       = counts.total;
+  document.getElementById('rv-eligible').textContent    = counts.eligible;
+  document.getElementById('rv-not-eligible').textContent= counts.not_eligible;
+  document.getElementById('rv-grad').textContent        = counts.grad;
+  document.getElementById('rv-review').textContent      = counts.review;
+
+  /* Show/hide action buttons */
+  var isExecutable = ['reviewed'].includes(b.status);
+  var isRollable   = ['completed', 'partial'].includes(b.status);
+  var execBtn = document.getElementById('executeBtn');
+  var rbBtn   = document.getElementById('rollbackBtn');
+  if (execBtn) execBtn.style.display = isExecutable ? 'inline-flex' : 'none';
+  if (rbBtn)   rbBtn.style.display   = isRollable   ? 'inline-flex' : 'none';
+
+  renderReviewTable(students);
+}
+
+function renderReviewTable(students) {
+  var tbody = document.getElementById('reviewTableBody');
+  var filtered = students.filter(function(s) {
+    if (_filterMode === 'all')     return true;
+    if (_filterMode === 'pending') return s.finalDecision === 'pending';
+    return s.eligibilityStatus === _filterMode;
+  });
+
+  var countEl = document.getElementById('reviewCount');
+  if (countEl) countEl.textContent = filtered.length + ' of ' + students.length;
+
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="11"><div class="empty"><div class="empty-icon">🔍</div><div class="empty-title">No students match this filter.</div></div></td></tr>';
+    return;
+  }
+
+  var isCompleted = _activeBatch && ['completed', 'rolled_back', 'cancelled'].includes(_activeBatch.status);
+
+  tbody.innerHTML = filtered.map(function(s) {
+    var scoreText     = s.academicScore    !== null ? s.academicScore + '%'    : '<span style="color:var(--muted);">N/A</span>';
+    var attendText    = s.attendanceRate   !== null ? s.attendanceRate + '%'   : '<span style="color:var(--muted);">N/A</span>';
+    var feesText      = s.feesCleared === null ? '<span style="color:var(--muted);">N/A</span>'
+                      : s.feesCleared ? '<span style="color:var(--green);">✓</span>'
+                      :                 '<span style="color:var(--red);">✗</span>';
+    var eligClass     = 'elig-' + (s.eligibilityStatus || 'requires_review');
+    var eligLabel     = (s.eligibilityStatus || 'review').replace(/_/g,' ');
+    var recClass      = 'rec-' + (s.recommendation || 'review');
+    var recLabel      = (s.recommendation || 'review').replace(/_/g,' ');
+    var sid           = esc(s.studentId);
+
+    var decisionHtml = isCompleted
+      ? '<span class="badge ' + (s.finalDecision === 'promote' ? 'badge-green' : s.finalDecision === 'graduate' ? 'badge-yellow' : 'badge-muted') + '">' + esc(s.finalDecision) + '</span>'
+      : '<select class="decision-sel" id="dec_' + sid + '" onchange="onDecisionChange(\'' + sid + '\',this.value)">' +
+          '<option value="pending"' + (s.finalDecision==='pending'?' selected':'') + '>— Pending —</option>' +
+          '<option value="promote"' + (s.finalDecision==='promote'?' selected':'') + '>✓ Promote</option>' +
+          '<option value="repeat"'  + (s.finalDecision==='repeat'?' selected':'') + '>↩ Repeat</option>' +
+          '<option value="graduate"'+ (s.finalDecision==='graduate'?' selected':'') + '>🎓 Graduate</option>' +
+          '<option value="transfer_out"'+(s.finalDecision==='transfer_out'?' selected':'') + '>✈ Transfer Out</option>' +
+        '</select>';
+
+    var overrideHtml = isCompleted
+      ? esc(s.overrideReason || '—')
+      : '<input type="text" class="inp" style="max-width:140px;padding:5px 8px;font-size:12px;" ' +
+          'id="ovr_' + sid + '" placeholder="Reason if overriding" value="' + esc(s.overrideReason || '') + '" />';
+
+    return '<tr>' +
+      '<td><input type="checkbox" class="student-cb" data-id="' + sid + '" style="cursor:pointer;" /></td>' +
+      '<td><div style="font-weight:700;color:#fff;">' + esc(s.studentName) + '</div>' +
+           '<div style="font-size:11px;color:var(--muted);">' + esc(s.studentAdmissionNo || '') + '</div></td>' +
+      '<td>' + esc(s.currentClassName || '—') + '</td>' +
+      '<td>' + scoreText + '</td>' +
+      '<td>' + attendText + '</td>' +
+      '<td>' + feesText + '</td>' +
+      '<td><span class="' + recClass + '">' + recLabel + '</span></td>' +
+      '<td><span class="' + eligClass + '">' + esc(eligLabel) + '</span>' +
+           (s.overridden ? ' <span style="font-size:10px;color:#a78bfa;font-weight:700;">OVERRIDE</span>' : '') + '</td>' +
+      '<td style="font-size:12px;">' + esc(s.targetClassName || '—') + '</td>' +
+      '<td>' + decisionHtml + '</td>' +
+      '<td>' + overrideHtml + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function filterReview(mode) {
+  _filterMode = mode;
+  document.querySelectorAll('.filter-tab').forEach(function(b) {
+    b.classList.toggle('active', b.textContent.toLowerCase().includes(mode) || (mode === 'all' && b.textContent === 'All'));
+  });
+  if (_activeBatch) renderReviewTable(_activeBatch.students || []);
+}
+
+function onDecisionChange(studentId, decision) {
+  /* Update local batch state */
+  if (!_activeBatch) return;
+  var s = _activeBatch.students.find(function(st) { return st.studentId.toString() === studentId; });
+  if (s) { s.finalDecision = decision; }
+}
+
+function toggleSelectAll(cb) {
+  document.querySelectorAll('.student-cb').forEach(function(c) { c.checked = cb.checked; });
+}
+
+async function bulkDecide(decision) {
+  if (!_activeBatch) return;
+  var selected = [];
+  document.querySelectorAll('.student-cb:checked').forEach(function(cb) { selected.push(cb.dataset.id); });
+
+  /* If none selected, apply to recommended students */
+  if (!selected.length) {
+    if (decision === 'promote') {
+      selected = (_activeBatch.students || [])
+        .filter(function(s) { return s.eligibilityStatus === 'eligible'; })
+        .map(function(s) { return s.studentId.toString(); });
+    } else if (decision === 'repeat') {
+      selected = (_activeBatch.students || [])
+        .filter(function(s) { return s.eligibilityStatus === 'not_eligible'; })
+        .map(function(s) { return s.studentId.toString(); });
+    } else if (decision === 'graduate') {
+      selected = (_activeBatch.students || [])
+        .filter(function(s) { return s.eligibilityStatus === 'graduation_candidate'; })
+        .map(function(s) { return s.studentId.toString(); });
+    }
+  }
+
+  if (!selected.length) {
+    instToast('No students selected or matched.', 'error');
+    return;
+  }
+
+  var res = await instApi('/promotion/batches/' + _activeBatch._id + '/decisions', 'PUT', {
+    bulkDecision: decision,
+    studentIds:   selected
+  });
+
+  if (res.ok) {
+    instToast(res.data.updated + ' decision(s) set to ' + decision + '.', 'success');
+    await loadBatch(_activeBatch._id);
+  } else {
+    instToast(res.data.message || 'Failed.', 'error');
+  }
+}
+
+/* -------- EXECUTE -------- */
+function confirmExecute() {
+  if (!_activeBatch) return;
+  var students = _activeBatch.students || [];
+  var decided  = students.filter(function(s) { return s.finalDecision !== 'pending'; });
+  var pending  = students.filter(function(s) { return s.finalDecision === 'pending'; });
+  var promote  = decided.filter(function(s) { return s.finalDecision === 'promote'; }).length;
+  var repeat   = decided.filter(function(s) { return s.finalDecision === 'repeat'; }).length;
+  var graduate = decided.filter(function(s) { return s.finalDecision === 'graduate'; }).length;
+  var transfer = decided.filter(function(s) { return s.finalDecision === 'transfer_out'; }).length;
+
+  document.getElementById('executePreview').innerHTML =
+    '<strong style="color:#fff;">Will process ' + decided.length + ' of ' + students.length + ' students:</strong><br/>' +
+    (promote  ? '✓ Promote: '      + promote  + '<br/>' : '') +
+    (repeat   ? '↩ Repeat: '       + repeat   + '<br/>' : '') +
+    (graduate ? '🎓 Graduate: '    + graduate + '<br/>' : '') +
+    (transfer ? '✈ Transfer Out: ' + transfer + '<br/>' : '') +
+    (pending.length ? '<span style="color:var(--orange);">⚠️ ' + pending.length + ' student(s) with no decision will be skipped.</span>' : '');
+
+  if (!_activeBatch.targetTermId) {
+    document.getElementById('executePreview').innerHTML +=
+      '<div style="margin-top:10px;color:var(--red);">⚠️ No target term set. Set a target term before executing.</div>';
+  }
+
+  document.getElementById('executeModal').style.display = 'flex';
+}
+
+function closeExecuteModal() { document.getElementById('executeModal').style.display = 'none'; }
+
+async function executeBatch() {
+  if (!_activeBatch) return;
+  closeExecuteModal();
+
+  /* Save any in-table overrideReason edits before executing */
+  await saveInlineDecisions();
+
+  var res = await instApi('/promotion/batches/' + _activeBatch._id + '/execute', 'POST');
+  if (res.ok) {
+    var s = res.data.summary;
+    var msg = '✅ Executed: ' + s.promoted + ' promoted, ' + s.repeated + ' repeated, ' +
+              s.graduated + ' graduated, ' + s.transferred + ' transferred. ' +
+              (s.failed > 0 ? s.failed + ' failed. ' : '') +
+              (s.skipped > 0 ? s.skipped + ' skipped.' : '');
+    instToast(msg, 'success');
+    await loadBatch(_activeBatch._id);
+  } else {
+    instToast(res.data.message || 'Execution failed.', 'error');
+  }
+}
+
+async function saveInlineDecisions() {
+  if (!_activeBatch || !['reviewed'].includes(_activeBatch.status)) { return; }
+  var students = _activeBatch.students || [];
+  var decisions = students.map(function(s) {
+    var selEl = document.getElementById('dec_' + s.studentId);
+    var ovrEl = document.getElementById('ovr_' + s.studentId);
+    return {
+      studentId:     s.studentId,
+      finalDecision: selEl ? selEl.value : s.finalDecision,
+      overrideReason: ovrEl ? ovrEl.value.trim() : s.overrideReason
+    };
+  }).filter(function(d) { return d.finalDecision !== 'pending'; });
+
+  if (!decisions.length) return;
+  await instApi('/promotion/batches/' + _activeBatch._id + '/decisions', 'PUT', { decisions });
+}
+
+/* -------- ROLLBACK -------- */
+function openRollbackModal()  { document.getElementById('rollbackModal').style.display = 'flex'; }
+function closeRollbackModal() { document.getElementById('rollbackModal').style.display = 'none'; }
+
+async function executeRollback() {
+  var reason = (document.getElementById('rollbackReason').value || '').trim();
+  if (!reason) { instToast('Rollback reason is required.', 'error'); return; }
+  if (!_activeBatch) return;
+  closeRollbackModal();
+  var res = await instApi('/promotion/batches/' + _activeBatch._id + '/rollback', 'POST', { reason });
+  if (res.ok) {
+    instToast('↩ ' + res.data.rolledBack + ' student(s) rolled back.', 'success');
+    if (res.data.blocked > 0) {
+      instToast(res.data.blocked + ' student(s) need manual review. Check history.', 'error');
+    }
+    await loadBatch(_activeBatch._id);
+  } else {
+    instToast(res.data.message || 'Rollback failed.', 'error');
+  }
+}
+
+/* -------- HISTORY -------- */
+async function loadHistory() {
+  var res     = await instApi('/promotion/batches');
+  var content = document.getElementById('historyContent');
+  if (!res.ok) { content.innerHTML = '<div style="color:var(--red);padding:20px;">Failed to load.</div>'; return; }
+  var batches = res.data.batches || [];
+
+  if (!batches.length) {
+    content.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">No batches yet.</div></div>';
+    return;
+  }
+
+  var statusMap = { draft:'badge-muted', reviewed:'badge-purple', completed:'badge-green',
+    partial:'badge-orange', rolled_back:'badge-red', cancelled:'badge-muted' };
+
+  content.innerHTML = '<div class="table-wrap"><table><thead><tr>' +
+    '<th>Ref</th><th>Class</th><th>Source Term</th><th>Target Term</th><th>Status</th>' +
+    '<th>Students</th><th>Executed</th><th>Actions</th>' +
+    '</tr></thead><tbody>' +
+    batches.map(function(b) {
+      var src = (b.sourceTermSnapshot && b.sourceTermSnapshot.name) || '—';
+      var tgt = (b.targetTermSnapshot && b.targetTermSnapshot.name) || '—';
+      var cls = (b.sourceClassSnapshot && b.sourceClassSnapshot.name) || '—';
+      var total = b.summary && b.summary.total || 0;
+      return '<tr>' +
+        '<td style="font-family:monospace;font-size:12px;color:#a78bfa;">' + esc(b.batchRef) + '</td>' +
+        '<td style="font-weight:700;color:#fff;">' + esc(cls) + '</td>' +
+        '<td>' + esc(src) + '</td>' +
+        '<td>' + esc(tgt) + '</td>' +
+        '<td><span class="badge ' + (statusMap[b.status] || 'badge-muted') + '">' + b.status + '</span></td>' +
+        '<td style="font-weight:700;">' + total + '</td>' +
+        '<td style="font-size:12px;color:var(--muted);">' + (b.executedAt ? fmtDate(b.executedAt) : '—') + '</td>' +
+        '<td><button class="btn btn-secondary btn-sm" onclick="openBatchReview(\'' + b._id + '\')">Open</button></td>' +
+      '</tr>';
+    }).join('') +
+    '</tbody></table></div>';
+}
+
+async function openBatchReview(batchId) {
+  await loadBatch(batchId);
+  showTab('review');
+}
+
+/* -------- POLICY -------- */
+async function loadPolicy() {
+  var res = await instApi('/promotion/policy');
+  if (!res.ok) return;
+  var p = res.data.schoolWide;
+  if (!p) return;
+  if (document.getElementById('polAcademic'))  document.getElementById('polAcademic').checked  = !!p.checkAcademicPerformance;
+  if (document.getElementById('polMinScore'))  document.getElementById('polMinScore').value   = p.minScorePercent || 50;
+  if (document.getElementById('polAttendance'))document.getElementById('polAttendance').checked= !!p.checkAttendance;
+  if (document.getElementById('polMinAttendance')) document.getElementById('polMinAttendance').value = p.minAttendancePercent || 0;
+  if (document.getElementById('polFees'))      document.getElementById('polFees').checked      = !!p.requireFeesClearance;
+  if (document.getElementById('polOverride'))  document.getElementById('polOverride').checked  = !!p.allowOverride;
+}
+
+async function savePolicy() {
+  var payload = {
+    checkAcademicPerformance: (document.getElementById('polAcademic') || {}).checked !== false,
+    minScorePercent:          parseFloat((document.getElementById('polMinScore') || {}).value) || 50,
+    checkAttendance:          (document.getElementById('polAttendance') || {}).checked === true,
+    minAttendancePercent:     parseFloat((document.getElementById('polMinAttendance') || {}).value) || 0,
+    requireFeesClearance:     (document.getElementById('polFees') || {}).checked === true,
+    allowOverride:            (document.getElementById('polOverride') || {}).checked !== false
+  };
+  var res = await instApi('/promotion/policy', 'PUT', payload);
+  if (res.ok) {
+    showAlert('policyAlert', '✅ Policy saved. New evaluations will use these settings.', 'success');
+    instToast('Promotion policy saved.', 'success');
+  } else {
+    showAlert('policyAlert', res.data.message || 'Failed to save.', 'err');
+  }
+}
+
+/* -------- HELPERS -------- */
+function showAlert(id, msg, type) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  var classMap = { err:'alert-err', success:'alert-success', warn:'alert-warn', info:'alert-info' };
+  el.className = 'alert ' + (classMap[type] || 'alert-info');
+  el.textContent = msg;
+  el.style.display = 'block';
+  if (type === 'success') { setTimeout(function() { el.style.display='none'; }, 4000); }
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+}
+
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function instLogout() {
+  if (!confirm('Log out?')) return;
+  localStorage.removeItem('latlomp_inst_token');
+  localStorage.removeItem('latlomp_inst_user');
+  window.location.replace('/institution/index.html');
+}
+</script>
+</body>
+</html>
