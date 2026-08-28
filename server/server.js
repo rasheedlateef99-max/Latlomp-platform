@@ -85,7 +85,14 @@ app.use("/api/institution/fee", require("./institution/routes/inst.fee.routes"))
 /* ✅ PHASE R2: Register payment providers (must come before routes) */
 require("./institution/providers/registry");
 /* ✅ PHASE S: Academic Promotion System */
-app.use("/api/institution/promotion", require("./institution/routes/inst.promotion.routes"));
+app.use("/api/institution/promotion",   require("./institution/routes/inst.promotion.routes"));
+/* ✅ E1A: Academic Progression Engine (read-only evaluation) */
+app.use("/api/institution/progression", require("./institution/routes/inst.progression.routes"));
+/* ✅ E1B: Result Access Portal (institution admin) */
+var portalRoutes = require("./institution/routes/inst.result.portal.routes");
+app.use("/api/institution/portal", portalRoutes.adminRouter);
+/* ✅ E1B: Result Access Portal (public) */
+app.use("/api/portal",             portalRoutes.publicRouter);
 /* ✅ PHASE R2: Online Payments + Adjustments */
 app.use("/api/institution/fee", require("./institution/routes/inst.fee.online.routes"));
 /* ✅ PHASE Q: Parent Portal */

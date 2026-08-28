@@ -86,7 +86,17 @@ const schoolSchema = new mongoose.Schema(
       requireApproval:          { type: Boolean, default: true  },
       allowParentPortal:        { type: Boolean, default: false },
       timezone:                 { type: String,  default: 'Africa/Lagos' },
-      language:                 { type: String,  default: 'en' }
+      language:                 { type: String,  default: 'en' },
+      /* ✅ E1B: Result Access Portal configuration */
+      resultPortalEnabled:    { type: Boolean, default: false },
+      resultPortalMode: {
+        type:    String,
+        enum:    ['free', 'paid', 'staff_issued'],
+        default: 'staff_issued'
+      },
+      resultPortalFee:        { type: Number, default: 0,  min: 0 },
+      resultPortalExpiryDays: { type: Number, default: 7,  min: 1 },
+      resultPortalMaxUsage:   { type: Number, default: 5,  min: 1 }
     },
 
     /* ---- Phase N: Timetable period config ---- */

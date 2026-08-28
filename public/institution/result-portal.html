@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Result Portal — LatLomp</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --dark: #0f0f1a; --dark-2: #1a1a2e; --primary: #6c63ff; --pd: #574fd6;
+      --green: #43e97b; --red: #ff6584; --orange: #ffa500;
+      --border: rgba(255,255,255,0.08); --text: #fff;
+      --secondary: #a0a0c0; --muted: #6b6b8a;
+    }
+    body { background: var(--dark); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; }
+    @keyframes spin   { to { transform: rotate(360deg); } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+
+    /* Screen */
+    .portal-wrap { max-width: 520px; margin: 0 auto; padding: 40px 20px; }
+    .card { background: var(--dark-2); border: 1px solid var(--border); border-radius: 20px; padding: 32px; margin-bottom: 20px; animation: fadeUp 0.3s ease; }
+    .portal-header { text-align: center; margin-bottom: 28px; }
+    .portal-logo { width: 72px; height: 72px; border-radius: 16px; object-fit: cover; background: linear-gradient(135deg, var(--primary), var(--pd)); display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 900; color: #fff; margin: 0 auto 12px; overflow: hidden; }
+    .portal-logo img { width: 100%; height: 100%; object-fit: cover; }
+    .portal-title { font-size: 20px; font-weight: 800; color: #fff; }
+    .portal-sub   { font-size: 13px; color: var(--muted); margin-top: 4px; }
+    .field        { margin-bottom: 16px; }
+    .field label  { display: block; font-size: 11px; font-weight: 700; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+    .inp, .sel { width: 100%; padding: 12px 14px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 10px; color: #fff; font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.2s; }
+    .inp:focus, .sel:focus { border-color: var(--primary); }
+    .inp::placeholder { color: var(--muted); }
+    .sel option { background: var(--dark-2); }
+    .btn { width: 100%; padding: 13px; background: linear-gradient(135deg, var(--primary), var(--pd)); border: none; border-radius: 10px; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; margin-top: 6px; transition: opacity 0.2s; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-green { background: linear-gradient(135deg, var(--green), #38f9d7); color: #0f0f1a; }
+    .btn-secondary { background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--secondary); }
+    .err { background: rgba(255,101,132,0.1); border: 1px solid rgba(255,101,132,0.3); border-radius: 8px; padding: 10px 14px; font-size: 13px; color: var(--red); margin-bottom: 14px; display: none; }
+    .ok  { background: rgba(67,233,123,0.1);  border: 1px solid rgba(67,233,123,0.3);  border-radius: 8px; padding: 10px 14px; font-size: 13px; color: var(--green); margin-bottom: 14px; display: none; }
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    .step-hint { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.6; }
+    .identity-box { background: rgba(108,99,255,0.08); border: 1px solid rgba(108,99,255,0.2); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; }
+    .identity-name { font-size: 17px; font-weight: 800; color: #fff; }
+    .identity-sub  { font-size: 12px; color: #a78bfa; margin-top: 3px; }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+    .badge-green  { background: rgba(67,233,123,0.12); color: var(--green); }
+    .badge-muted  { background: rgba(255,255,255,0.06); color: var(--secondary); }
+    .powered      { text-align: center; font-size: 12px; color: var(--muted); margin-top: 24px; }
+
+    /* ============================================
+       RESULT SLIP (screen + print)
+    ============================================ */
+    #resultSlip { display: none; }
+    .slip-header { display: flex; align-items: center; gap: 16px; padding: 20px; border-bottom: 1px solid var(--border); }
+    .slip-school-logo { width: 60px; height: 60px; border-radius: 10px; object-fit: cover; }
+    .slip-school-name  { font-size: 18px; font-weight: 800; color: #fff; }
+    .slip-school-sub   { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .slip-student-bar  { display: flex; gap: 16px; align-items: center; padding: 16px 20px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+    .slip-avatar { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; background: rgba(108,99,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; color: #a78bfa; flex-shrink: 0; }
+    .slip-student-name { font-size: 16px; font-weight: 800; color: #fff; }
+    .slip-student-meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    .slip-term-bar { padding: 10px 20px; background: rgba(108,99,255,0.06); border-bottom: 1px solid var(--border); font-size: 13px; color: #a78bfa; font-weight: 700; }
+    table.result-table { width: 100%; border-collapse: collapse; }
+    .result-table th { padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .result-table td { padding: 12px 16px; font-size: 13px; color: var(--secondary); border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .result-table tr:last-child td { border-bottom: none; }
+    .result-table tr.core-subject td:first-child::after { content: ' ★'; color: #a78bfa; font-size: 10px; }
+    .summary-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 16px 20px; border-top: 1px solid var(--border); }
+    .summary-stat { text-align: center; }
+    .summary-val  { font-size: 22px; font-weight: 900; color: #fff; }
+    .summary-lbl  { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin-top: 2px; }
+    .slip-footer  { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    .print-btn { padding: 9px 20px; background: linear-gradient(135deg, var(--primary), var(--pd)); border: none; border-radius: 8px; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .term-selector { padding: 8px 12px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 8px; color: #fff; font-size: 13px; font-family: inherit; outline: none; }
+    .no-results { text-align: center; padding: 32px; color: var(--muted); }
+
+    /* ============================================
+       PRINT STYLES
+    ============================================ */
+    @media print {
+      body { background: #fff !important; color: #000 !important; }
+      .portal-wrap { padding: 0 !important; max-width: 100% !important; }
+      #lookupSection, #tokenSection, #paymentSection, .slip-footer, .powered { display: none !important; }
+      #resultSlip { display: block !important; }
+      .card { border: 1px solid #ddd !important; border-radius: 0 !important; box-shadow: none !important; }
+      .slip-header, .slip-student-bar, .slip-term-bar, summary-bar { background: #f9f9f9 !important; color: #000 !important; }
+      .result-table th { background: #eee !important; color: #333 !important; }
+      .result-table td { color: #000 !important; }
+      .slip-school-name, .slip-student-name, .summary-val { color: #000 !important; }
+      .slip-school-sub, .slip-student-meta, .summary-lbl, .slip-term-bar { color: #555 !important; }
+    }
+  </style>
+</head>
+<body>
+<div class="portal-wrap">
+
+  <!-- STEP 1: LOOKUP -->
+  <div id="lookupSection" class="card">
+    <div class="portal-header">
+      <div class="portal-logo" id="portalLogoBox">📄</div>
+      <div class="portal-title" id="portalSchoolTitle">Result Portal</div>
+      <div class="portal-sub">Enter your details to access your academic result</div>
+    </div>
+
+    <div id="lookupErr" class="err"></div>
+
+    <div class="field">
+      <label>Admission Number / Student ID</label>
+      <input type="text" id="admissionInput" class="inp" placeholder="e.g. BFS-2025-0001" autocomplete="off" />
+    </div>
+    <button class="btn" id="lookupBtn" onclick="doLookup()">Continue →</button>
+    <div class="step-hint">Enter the admission number shown on your result slip or school document.</div>
+  </div>
+
+  <!-- STEP 2: TOKEN ENTRY (hidden initially) -->
+  <div id="tokenSection" class="card" style="display:none;">
+    <div id="identityBox" class="identity-box"></div>
+
+    <div id="tokenErr" class="err"></div>
+    <div id="tokenOk"  class="ok"></div>
+
+    <!-- Free mode: no token needed -->
+    <div id="freeModeBox" style="display:none;">
+      <div class="ok" style="display:block;">✅ This institution provides free result access. Click below to view your result.</div>
+      <button class="btn btn-green" onclick="viewFreeResult()">View My Result →</button>
+    </div>
+
+    <!-- Staff issued / Paid mode: enter token -->
+    <div id="tokenEntryBox" style="display:none;">
+      <div class="field">
+        <label>Access Token</label>
+        <input type="text" id="tokenInput" class="inp" placeholder="XXXX-XXXX-XXXX" maxlength="14"
+               oninput="formatTokenInput(this)" autocomplete="off" autocapitalize="characters" />
+      </div>
+      <button class="btn" id="accessBtn" onclick="doAccess()">Access My Result →</button>
+      <div class="step-hint" id="tokenHint"></div>
+    </div>
+
+    <!-- Paid mode payment button -->
+    <div id="paymentBox" style="display:none;">
+      <div class="field">
+        <label>Select Academic Term (optional)</label>
+        <select id="payTermSelect" class="sel">
+          <option value="">All terms</option>
+        </select>
+      </div>
+      <button class="btn" id="payBtn" onclick="initiatePayment()">💳 Purchase Access Token →</button>
+      <div class="step-hint">You will be redirected to Paystack to complete payment.</div>
+    </div>
+
+    <div style="margin-top:16px;">
+      <button class="btn-secondary btn" style="margin-top:0;" onclick="resetPortal()">← Back</button>
+    </div>
+  </div>
+
+  <!-- RESULT SLIP -->
+  <div id="resultSlip" class="card" style="padding:0;overflow:hidden;">
+    <div class="slip-header">
+      <img id="slipSchoolLogo" src="" style="display:none;" class="slip-school-logo" alt="School Logo" />
+      <div id="slipSchoolLogoInit" class="slip-school-logo"></div>
+      <div>
+        <div class="slip-school-name" id="slipSchoolName">—</div>
+        <div class="slip-school-sub"  id="slipSchoolSub">—</div>
+      </div>
+    </div>
+
+    <div class="slip-student-bar">
+      <div id="slipStudentPhotoWrap">
+        <div class="slip-avatar" id="slipStudentInitial">S</div>
+      </div>
+      <div style="flex:1;">
+        <div class="slip-student-name" id="slipStudentName">—</div>
+        <div class="slip-student-meta" id="slipStudentMeta">—</div>
+      </div>
+      <div>
+        <select class="term-selector" id="termSelectorEl" onchange="switchTerm(this.value)">
+          <option value="">All Terms</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="slip-term-bar" id="slipTermBar">—</div>
+
+    <div id="slipSubjectsWrap">
+      <table class="result-table" id="slipSubjectsTable" style="display:none;">
+        <thead><tr>
+          <th>Subject</th><th>Total</th><th>Max</th><th>%</th><th>Grade</th><th>Remark</th><th>Position</th>
+        </tr></thead>
+        <tbody id="slipSubjectsBody"></tbody>
+      </table>
+      <div id="slipNoResults" class="no-results">No results available for this period.</div>
+    </div>
+
+    <div class="summary-bar" id="slipSummaryBar" style="display:none;">
+      <div class="summary-stat"><div class="summary-val" id="sumAvg">—</div><div class="summary-lbl">Average %</div></div>
+      <div class="summary-stat"><div class="summary-val" id="sumGrade" style="color:var(--primary);">—</div><div class="summary-lbl">Overall Grade</div></div>
+      <div class="summary-stat"><div class="summary-val" style="color:var(--green);" id="sumPassed">—</div><div class="summary-lbl">Passed</div></div>
+      <div class="summary-stat"><div class="summary-val" style="color:var(--red);"   id="sumFailed">—</div><div class="summary-lbl">Failed</div></div>
+    </div>
+
+    <div class="slip-footer">
+      <div style="font-size:12px;color:var(--muted);">
+        Generated via LatLomp Result Portal · <span id="slipGeneratedAt">—</span>
+      </div>
+      <button class="print-btn" onclick="window.print()">🖨 Print Result</button>
+    </div>
+  </div>
+
+  <div class="powered">⚡ Powered by <strong style="color:var(--primary);">LatLomp Education Platform</strong></div>
+</div>
+
+<script>
+/* ============================================
+   RESULT PORTAL SCRIPT
+============================================ */
+var _schoolSlug   = '';
+var _admissionNo  = '';
+var _portalMode   = 'staff_issued';
+var _portalFee    = 0;
+var _resultData   = null;
+var _availableTerms = [];
+var _payRef       = '';
+
+/* ---- INIT ---- */
+document.addEventListener('DOMContentLoaded', async function () {
+  var params    = new URLSearchParams(window.location.search);
+  _schoolSlug   = params.get('school') || '';
+  var payRef    = params.get('ref')    || '';
+
+  if (_schoolSlug) {
+    await loadSchoolInfo(_schoolSlug);
+  }
+
+  /* Handle payment callback */
+  if (payRef && _schoolSlug) {
+    document.getElementById('lookupSection').style.display = 'none';
+    document.getElementById('tokenSection').style.display  = 'block';
+    await handlePaymentReturn(payRef);
+  }
+});
+
+async function loadSchoolInfo(slug) {
+  try {
+    var res  = await fetch('/api/portal/school/' + encodeURIComponent(slug));
+    var data = await res.json();
+    if (!data.success) {
+      showErr('lookupErr', data.message || 'School portal not available.');
+      document.getElementById('lookupBtn').disabled = true;
+      return;
+    }
+    /* Update branding */
+    var titleEl = document.getElementById('portalSchoolTitle');
+    if (titleEl) titleEl.textContent = data.schoolName;
+    var logoBox = document.getElementById('portalLogoBox');
+    if (logoBox && data.schoolLogo) {
+      logoBox.innerHTML = '<img src="' + esc(data.schoolLogo) + '" alt="Logo" style="width:72px;height:72px;object-fit:cover;border-radius:16px;" />';
+    } else if (logoBox) {
+      logoBox.textContent = (data.schoolName || 'S').charAt(0).toUpperCase();
+    }
+    document.title = (data.schoolName || 'School') + ' — Result Portal';
+    _portalMode = data.portal.mode;
+    _portalFee  = data.portal.fee  || 0;
+  } catch (e) {
+    showErr('lookupErr', 'Could not load school information.');
+  }
+}
+
+async function doLookup() {
+  var btn        = document.getElementById('lookupBtn');
+  _admissionNo   = (document.getElementById('admissionInput').value || '').trim();
+  if (!_admissionNo) { showErr('lookupErr', 'Please enter your admission number.'); return; }
+  if (!_schoolSlug)  { showErr('lookupErr', 'School not identified. Add ?school=SLUG to the URL.'); return; }
+
+  btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
+  clearMsg('lookupErr');
+
+  var res  = await fetch('/api/portal/lookup', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ schoolSlug: _schoolSlug, admissionNo: _admissionNo })
+  });
+  var data = await res.json();
+  btn.innerHTML = 'Continue →'; btn.disabled = false;
+
+  if (!data.success) { showErr('lookupErr', data.message || 'Student not found.'); return; }
+
+  /* Show token entry section */
+  document.getElementById('lookupSection').style.display = 'none';
+  document.getElementById('tokenSection').style.display  = 'block';
+
+  /* Identity confirmation */
+  var idBox = document.getElementById('identityBox');
+  idBox.innerHTML =
+    '<div class="identity-name">🎓 ' + esc(data.maskedName) + '</div>' +
+    '<div class="identity-sub">' + esc(data.class || '') + ' &nbsp;·&nbsp; Adm: ' + esc(_admissionNo) + '</div>';
+
+  _portalMode = data.portalMode || _portalMode;
+  renderTokenSection();
+}
+
+function renderTokenSection() {
+  document.getElementById('freeModeBox').style.display    = _portalMode === 'free'         ? 'block' : 'none';
+  document.getElementById('tokenEntryBox').style.display  = (_portalMode === 'staff_issued' || (_portalMode === 'paid' && _payRef)) ? 'block' : 'none';
+  document.getElementById('paymentBox').style.display     = (_portalMode === 'paid' && !_payRef) ? 'block' : 'none';
+
+  var hintEl = document.getElementById('tokenHint');
+  if (hintEl) {
+    hintEl.textContent = _portalMode === 'staff_issued'
+      ? 'Your access token was issued by the institution. Format: XXXX-XXXX-XXXX'
+      : 'Enter the token received after payment. Format: XXXX-XXXX-XXXX';
+  }
+}
+
+function formatTokenInput(el) {
+  var raw = el.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 12);
+  var formatted = '';
+  for (var i = 0; i < raw.length; i++) {
+    if (i === 4 || i === 8) formatted += '-';
+    formatted += raw[i];
+  }
+  el.value = formatted;
+}
+
+async function viewFreeResult() {
+  /* Free mode: request access token automatically */
+  var res  = await fetch('/api/portal/request-access', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ schoolSlug: _schoolSlug, admissionNo: _admissionNo })
+  });
+  var data = await res.json();
+  if (data.success && data.token) {
+    await fetchAndShowResult(data.token);
+  } else {
+    showErr('tokenErr', data.message || 'Could not retrieve result.');
+  }
+}
+
+async function doAccess() {
+  var token = (document.getElementById('tokenInput').value || '').trim();
+  var btn   = document.getElementById('accessBtn');
+  if (!token) { showErr('tokenErr', 'Please enter your access token.'); return; }
+  clearMsg('tokenErr');
+  btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
+  await fetchAndShowResult(token);
+  btn.innerHTML = 'Access My Result →'; btn.disabled = false;
+}
+
+async function fetchAndShowResult(token, termId) {
+  var body = { schoolSlug: _schoolSlug, admissionNo: _admissionNo, token: token };
+  if (termId) body.termId = termId;
+
+  var res  = await fetch('/api/portal/access', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  var data = await res.json();
+
+  if (!data.success) {
+    showErr('tokenErr', data.message || 'Invalid or expired access token.');
+    return;
+  }
+
+  _resultData     = data.result;
+  _availableTerms = data.availableTerms || [];
+  renderResult(_resultData);
+}
+
+function renderResult(r) {
+  if (!r) return;
+
+  document.getElementById('lookupSection').style.display = 'none';
+  document.getElementById('tokenSection').style.display  = 'none';
+  document.getElementById('resultSlip').style.display    = 'block';
+
+  /* School */
+  var school = r.school || {};
+  document.getElementById('slipSchoolName').textContent = school.name || '—';
+  document.getElementById('slipSchoolSub').textContent  = (school.address || '') + (school.phone ? ' · ' + school.phone : '');
+  var logoImg  = document.getElementById('slipSchoolLogo');
+  var logoInit = document.getElementById('slipSchoolLogoInit');
+  if (school.logo) {
+    logoImg.src = school.logo; logoImg.style.display = 'block';
+    logoInit.style.display = 'none';
+  } else {
+    logoInit.textContent  = (school.name || 'S').charAt(0).toUpperCase();
+    logoInit.style.display = 'flex';
+    logoImg.style.display  = 'none';
+  }
+
+  /* Student */
+  var student = r.student || {};
+  document.getElementById('slipStudentName').textContent = student.name || '—';
+  document.getElementById('slipStudentMeta').textContent =
+    'Adm: ' + (student.admissionNo || '—') + (student.class ? ' · ' + student.class : '') +
+    (student.studentId ? ' · ID: ' + student.studentId : '');
+  document.getElementById('slipStudentInitial').textContent = (student.name || 'S').charAt(0).toUpperCase();
+
+  /* Term */
+  var term = r.term;
+  document.getElementById('slipTermBar').textContent = term
+    ? term.name + ' — ' + term.session
+    : 'All Academic Periods';
+
+  /* Populate term selector */
+  var termSel = document.getElementById('termSelectorEl');
+  termSel.innerHTML = '<option value="">All Terms</option>' +
+    _availableTerms.map(function(t) {
+      return '<option value="' + t._id + '">' + esc(t.name) + ' — ' + esc(t.session) + '</option>';
+    }).join('');
+  if (term) termSel.value = term._id;
+
+  renderSubjects(r.subjects || [], r.summary || {});
+  document.getElementById('slipGeneratedAt').textContent = new Date(r.generatedAt || Date.now()).toLocaleString('en-GB');
+}
+
+function renderSubjects(subjects, summary) {
+  var tbody  = document.getElementById('slipSubjectsBody');
+  var table  = document.getElementById('slipSubjectsTable');
+  var noRes  = document.getElementById('slipNoResults');
+  var sumBar = document.getElementById('slipSummaryBar');
+
+  if (!subjects.length) {
+    if (table) table.style.display  = 'none';
+    if (noRes) noRes.style.display  = 'block';
+    if (sumBar) sumBar.style.display = 'none';
+    return;
+  }
+
+  if (table)  table.style.display  = 'table';
+  if (noRes)  noRes.style.display  = 'none';
+  if (sumBar) sumBar.style.display = 'grid';
+
+  tbody.innerHTML = subjects.map(function(s) {
+    var pct     = s.percentage || 0;
+    var color   = pct >= 70 ? 'var(--green)' : pct >= 50 ? 'var(--orange)' : 'var(--red)';
+    var posText = s.position ? s.position + '/' + s.positionOutOf : '—';
+    var clsRow  = s.isCore ? 'core-subject' : '';
+    return '<tr class="' + clsRow + '">' +
+      '<td style="font-weight:700;color:#fff;">' + esc(s.subjectName) + (s.subjectCode ? ' <span style="font-size:10px;color:var(--muted);">(' + esc(s.subjectCode) + ')</span>' : '') + '</td>' +
+      '<td>' + (s.total || 0) + '</td>' +
+      '<td>' + (s.maxPossible || 100) + '</td>' +
+      '<td style="font-weight:800;color:' + color + ';">' + pct + '%</td>' +
+      '<td><span style="font-weight:700;color:' + color + ';">' + esc(s.grade || '—') + '</span></td>' +
+      '<td>' + esc(s.remark || '—') + '</td>' +
+      '<td style="font-size:12px;">' + posText + '</td>' +
+    '</tr>';
+  }).join('');
+
+  /* Summary */
+  document.getElementById('sumAvg').textContent    = (summary.overallAverage || 0) + '%';
+  document.getElementById('sumGrade').textContent  = summary.overallGrade  || '—';
+  document.getElementById('sumPassed').textContent = summary.passed        || 0;
+  document.getElementById('sumFailed').textContent = summary.failed        || 0;
+}
+
+async function switchTerm(termId) {
+  if (!_resultData) return;
+  var token = (document.getElementById('tokenInput').value || '').trim();
+  /* Free mode: need to fetch again with new termId */
+  if (!token && _portalMode === 'free') {
+    /* Re-request a free token for the new term */
+    var res = await fetch('/api/portal/request-access', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ schoolSlug: _schoolSlug, admissionNo: _admissionNo, termId: termId || undefined })
+    });
+    var data = await res.json();
+    if (data.success && data.token) { await fetchAndShowResult(data.token, termId); }
+    return;
+  }
+  await fetchAndShowResult(token, termId || undefined);
+}
+
+/* Payment flow */
+async function initiatePayment() {
+  var termId = (document.getElementById('payTermSelect') || {}).value || undefined;
+  var btn = document.getElementById('payBtn');
+  btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
+
+  var res = await fetch('/api/portal/request-access', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ schoolSlug: _schoolSlug, admissionNo: _admissionNo, termId })
+  });
+  var data = await res.json();
+  btn.innerHTML = '💳 Purchase Access Token →'; btn.disabled = false;
+
+  if (data.success && data.paymentUrl) {
+    window.location.href = data.paymentUrl;
+  } else if (data.success && data.token) {
+    /* Already free or free after all */
+    await fetchAndShowResult(data.token, termId);
+  } else {
+    showErr('tokenErr', data.message || 'Could not initiate payment.');
+  }
+}
+
+async function handlePaymentReturn(payRef) {
+  showOk('tokenOk', 'Verifying payment...');
+  var res  = await fetch('/api/portal/verify-payment', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ paymentReference: payRef, schoolSlug: _schoolSlug })
+  });
+  var data = await res.json();
+
+  if (data.success && data.token) {
+    showOk('tokenOk', '✅ Payment verified! Your access token: ' + data.token);
+    /* Pre-fill token input */
+    var ti = document.getElementById('tokenInput');
+    if (ti) ti.value = data.token;
+    _payRef = payRef;
+    renderTokenSection();
+    document.getElementById('tokenEntryBox').style.display = 'block';
+  } else {
+    showErr('tokenErr', data.message || 'Payment verification failed.');
+  }
+}
+
+function resetPortal() {
+  document.getElementById('lookupSection').style.display = 'block';
+  document.getElementById('tokenSection').style.display  = 'none';
+  document.getElementById('resultSlip').style.display    = 'none';
+  clearMsg('lookupErr'); clearMsg('tokenErr');
+  _admissionNo = ''; _resultData = null; _payRef = '';
+  document.getElementById('admissionInput').value = '';
+  if (document.getElementById('tokenInput')) { document.getElementById('tokenInput').value = ''; }
+}
+
+function showErr(id, msg)  { var el=document.getElementById(id); if(el){el.textContent=msg; el.style.display='block';} }
+function showOk(id, msg)   { var el=document.getElementById(id); if(el){el.textContent=msg; el.style.display='block';} }
+function clearMsg(id)      { var el=document.getElementById(id); if(el){ el.style.display='none'; } }
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
