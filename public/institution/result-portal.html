@@ -94,8 +94,31 @@
 <body>
 <div class="portal-wrap">
 
+  <!-- STEP 0: SCHOOL IDENTIFIER (shown only when ?school= not in URL) -->
+  <div id="schoolStep" class="card" style="display:none;">
+    <div class="portal-header">
+      <div class="portal-logo">📄</div>
+      <div class="portal-title">Result Portal</div>
+      <div class="portal-sub">Enter your institution's identifier to get started</div>
+    </div>
+    <div id="schoolStepErr" class="err"></div>
+    <div class="field">
+      <label>School / Institution Identifier</label>
+      <input type="text" id="schoolSlugInput" class="inp"
+             placeholder="e.g. bright-future-school"
+             autocomplete="off"
+             onkeydown="if(event.key==='Enter')doSchoolStep()" />
+      <div class="step-hint">
+        This is the short name in your school's result portal link.<br/>
+        Example: if your link is <em>…/result-portal.html?school=<strong>my-school</strong></em>, enter <strong>my-school</strong>.<br/>
+        If you don't have this, ask your institution for their result portal link.
+      </div>
+    </div>
+    <button class="btn" onclick="doSchoolStep()">Continue →</button>
+  </div>
+
   <!-- STEP 1: LOOKUP -->
-  <div id="lookupSection" class="card">
+  <div id="lookupSection" class="card" style="display:none;">
     <div class="portal-header">
       <div class="portal-logo" id="portalLogoBox">📄</div>
       <div class="portal-title" id="portalSchoolTitle">Result Portal</div>
@@ -228,7 +251,14 @@ document.addEventListener('DOMContentLoaded', async function () {
   var payRef    = params.get('ref')    || '';
 
   if (_schoolSlug) {
+    /* School known from URL — go straight to lookup */
     await loadSchoolInfo(_schoolSlug);
+    document.getElementById('schoolStep').style.display    = 'none';
+    document.getElementById('lookupSection').style.display = 'block';
+  } else {
+    /* No school in URL — show school identifier step */
+    document.getElementById('schoolStep').style.display    = 'block';
+    document.getElementById('lookupSection').style.display = 'none';
   }
 
   /* Handle payment callback */
@@ -238,6 +268,48 @@ document.addEventListener('DOMContentLoaded', async function () {
     await handlePaymentReturn(payRef);
   }
 });
+
+/* ---- STEP 0: School identifier entry ---- */
+async function doSchoolStep() {
+  var slug  = ((document.getElementById('schoolSlugInput') || {}).value || '').trim().toLowerCase();
+  var errEl = document.getElementById('schoolStepErr');
+  if (errEl) errEl.style.display = 'none';
+
+  if (!slug) {
+    if (errEl) { errEl.textContent = 'Please enter your school identifier.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  /* Validate slug format — letters, numbers, hyphens only */
+  if (!/^[a-z0-9][a-z0-9-]{0,49}$/.test(slug)) {
+    if (errEl) { errEl.textContent = 'Invalid identifier format. Use lowercase letters, numbers, and hyphens only.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  await loadSchoolInfo(slug);
+
+  /* loadSchoolInfo updates portalLogoBox and portalSchoolTitle.
+     If school not found, it disables lookupBtn and shows error.
+     Only proceed if school was found (lookupBtn still enabled). */
+  var btn = document.getElementById('lookupBtn');
+  if (btn && btn.disabled) {
+    /* loadSchoolInfo set an error — show it in schoolStepErr */
+    var lookupErr = document.getElementById('lookupErr');
+    if (lookupErr && lookupErr.style.display === 'block') {
+      if (errEl) { errEl.textContent = lookupErr.textContent; errEl.style.display = 'block'; }
+      lookupErr.style.display = 'none';
+    } else {
+      if (errEl) { errEl.textContent = 'School not found. Please check the identifier and try again.'; errEl.style.display = 'block'; }
+    }
+    return;
+  }
+
+  _schoolSlug = slug;
+
+  /* Transition to lookup step */
+  document.getElementById('schoolStep').style.display    = 'none';
+  document.getElementById('lookupSection').style.display = 'block';
+}
 
 async function loadSchoolInfo(slug) {
   try {
