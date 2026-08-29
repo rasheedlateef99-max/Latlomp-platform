@@ -88,6 +88,8 @@ require("./institution/providers/registry");
 app.use("/api/institution/promotion",   require("./institution/routes/inst.promotion.routes"));
 /* ✅ E1A: Academic Progression Engine (read-only evaluation) */
 app.use("/api/institution/progression", require("./institution/routes/inst.progression.routes"));
+/* ✅ E2: Lifetime Academic Portfolio */
+app.use("/api/institution/portfolio", require("./institution/routes/inst.portfolio.routes"));
 /* ✅ E1B: Result Access Portal (institution admin) */
 var portalRoutes = require("./institution/routes/inst.result.portal.routes");
 app.use("/api/institution/portal", portalRoutes.adminRouter);

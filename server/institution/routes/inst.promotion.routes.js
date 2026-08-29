@@ -750,6 +750,11 @@ router.post('/batches/:id/execute', adminGuard, async function (req, res) {
               recordedAt: executionTimestamp
             });
             await student.save();
+            /* ✅ E2: sync portfolio lifecycle — non-blocking */
+            try {
+              var PortfolioSvc = require('../services/portfolio.service');
+              await PortfolioSvc.updateLifecycle(s.studentId, req.schoolId, 'graduated');
+            } catch (_pe) {}
             s.executionStatus = 'success';
             summary.graduated++;
             break;
@@ -766,6 +771,11 @@ router.post('/batches/:id/execute', adminGuard, async function (req, res) {
               recordedAt: executionTimestamp
             });
             await student.save();
+            /* ✅ E2: sync portfolio lifecycle — non-blocking */
+            try {
+              var PortfolioSvc2 = require('../services/portfolio.service');
+              await PortfolioSvc2.updateLifecycle(s.studentId, req.schoolId, 'transferred');
+            } catch (_pe2) {}
             s.executionStatus = 'success';
             summary.transferred++;
             break;

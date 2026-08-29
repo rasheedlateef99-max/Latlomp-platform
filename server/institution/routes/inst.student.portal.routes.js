@@ -435,6 +435,39 @@ router.get('/portal/attendance', studentProtect, async function (req, res) {
 });
 
 /* ============================================
+   ✅ E2: GET /portal/portfolio
+   Student's own academic portfolio.
+   Read-only. Released scores only.
+   No confidential entries.
+============================================ */
+router.get('/portal/portfolio', studentProtect, async function (req, res) {
+  try {
+    if (!await subscriptionActive(req.schoolId)) {
+      return res.status(403).json({ success: false, message: 'School subscription is not active.' });
+    }
+
+    var portfolioService = require('../services/portfolio.service');
+    var data = await portfolioService.getPortfolioData(
+      req.studentId,
+      req.schoolId,
+      {
+        releasedScoresOnly:  true,  /* student sees only released scores */
+        includeConfidential: false  /* student never sees confidential entries */
+      }
+    );
+
+    if (!data) {
+      return res.status(404).json({ success: false, message: 'Portfolio not found.' });
+    }
+
+    return res.json({ success: true, portfolio: data });
+  } catch (err) {
+    console.error('[student.portal] GET /portfolio:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
    PUT /portal/admin/students/:studentId/set-pin
    ✅ STAGE 4: manageGuard + scope check.
    class_teacher can now set PINs for students
