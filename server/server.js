@@ -90,6 +90,8 @@ app.use("/api/institution/promotion",   require("./institution/routes/inst.promo
 app.use("/api/institution/progression", require("./institution/routes/inst.progression.routes"));
 /* ✅ E2: Lifetime Academic Portfolio */
 app.use("/api/institution/portfolio", require("./institution/routes/inst.portfolio.routes"));
+/* ✅ E3: Digital Result Archive */
+app.use("/api/institution/archive", require("./institution/routes/inst.result.archive.routes"));
 /* ✅ E1B: Result Access Portal (institution admin) */
 var portalRoutes = require("./institution/routes/inst.result.portal.routes");
 app.use("/api/institution/portal", portalRoutes.adminRouter);

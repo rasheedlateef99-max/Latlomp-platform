@@ -334,4 +334,68 @@ router.put('/student/:studentId/lifecycle', adminGuard, async function (req, res
   }
 });
 
+/* ============================================
+   ✅ E4: GET /api/institution/portfolio/student/:studentId/timeline
+   Full academic timeline for authorized staff.
+   Senior/admin: includeConfidential=true.
+   Other staff:  includeConfidential=false.
+   Query: ?type= &session= &termId= &includeAdmin=1
+============================================ */
+router.get('/student/:studentId/timeline', manageGuard, async function (req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.studentId)) {
+      return res.status(400).json({ success: false, message: 'Invalid student ID.' });
+    }
+
+    var timelineService = require('../services/timeline.service');
+    var canSeeConfidential = isUnrestricted(req.schoolUser);
+    var canSeeAdmin        = isUnrestricted(req.schoolUser); /* rolled_back events */
+
+    var result = await timelineService.getTimeline(
+      req.params.studentId,
+      req.schoolId,
+      {
+        includeConfidential: canSeeConfidential,
+        includeAdmin:        canSeeAdmin && req.query.includeAdmin === '1',
+        releasedResultsOnly: false, /* staff sees all archive records */
+        filterType:          req.query.type    || null,
+        filterSession:       req.query.session || null,
+        filterTermId:        req.query.termId  || null
+      }
+    );
+
+    if (!result) {
+      return res.status(404).json({ success: false, message: 'Student not found.' });
+    }
+
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('[inst.portfolio] GET /student/:id/timeline:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ E4: GET /api/institution/portfolio/student/:studentId/timeline/summary
+   Lightweight counts for dashboard widgets.
+============================================ */
+router.get('/student/:studentId/timeline/summary', manageGuard, async function (req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.studentId)) {
+      return res.status(400).json({ success: false, message: 'Invalid student ID.' });
+    }
+
+    var timelineService = require('../services/timeline.service');
+    var summary = await timelineService.getTimelineSummary(req.params.studentId, req.schoolId);
+    if (!summary) {
+      return res.status(404).json({ success: false, message: 'Student not found.' });
+    }
+
+    return res.json({ success: true, summary });
+  } catch (err) {
+    console.error('[inst.portfolio] GET /student/:id/timeline/summary:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

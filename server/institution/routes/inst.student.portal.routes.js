@@ -468,6 +468,250 @@ router.get('/portal/portfolio', studentProtect, async function (req, res) {
 });
 
 /* ============================================
+   ✅ E4: GET /portal/timeline
+   Student's own chronological academic timeline.
+   No confidential entries. Only released archive records.
+   Query: ?type= &session=
+============================================ */
+router.get('/portal/timeline', studentProtect, async function (req, res) {
+  try {
+    if (!await subscriptionActive(req.schoolId)) {
+      return res.status(403).json({ success: false, message: 'School subscription is not active.' });
+    }
+
+    var timelineService = require('../services/timeline.service');
+
+    var result = await timelineService.getTimeline(
+      req.studentId,
+      req.schoolId,
+      {
+        includeConfidential: false, /* student never sees confidential */
+        includeAdmin:        false, /* student never sees rolled_back events */
+        releasedResultsOnly: true,  /* only released archive records */
+        filterType:          req.query.type    || null,
+        filterSession:       req.query.session || null,
+        filterTermId:        req.query.termId  || null
+      }
+    );
+
+    if (!result) {
+      return res.status(404).json({ success: false, message: 'Timeline not found.' });
+    }
+
+    /* Strip sensitive fields not appropriate for student self-view */
+    result.student.parentInfo = undefined;
+    result.timeline.forEach(function(event) {
+      /* Remove batch-level administrative metadata from student view */
+      if (event.metadata && event.metadata.batchRef) {
+        delete event.metadata.batchRef;
+        delete event.metadata.batchStatus;
+      }
+      /* Ensure no confidential flag leaks */
+      if (event.metadata) { delete event.metadata.isConfidential; }
+    });
+
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('[student.portal] GET /portal/timeline:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ E4: GET /portal/timeline/summary
+   Lightweight event counts for student dashboard widget.
+============================================ */
+router.get('/portal/timeline/summary', studentProtect, async function (req, res) {
+  try {
+    if (!await subscriptionActive(req.schoolId)) {
+      return res.status(403).json({ success: false, message: 'School subscription is not active.' });
+    }
+
+    var timelineService = require('../services/timeline.service');
+    var summary = await timelineService.getTimelineSummary(req.studentId, req.schoolId);
+
+    if (!summary) {
+      return res.status(404).json({ success: false, message: 'Not found.' });
+    }
+
+    return res.json({ success: true, summary });
+  } catch (err) {
+    console.error('[student.portal] GET /portal/timeline/summary:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ E3: GET /portal/archive/history
+   Lists academic terms with released scores.
+   Student sees only released terms.
+============================================ */
+router.get('/portal/archive/history', studentProtect, async function (req, res) {
+  try {
+    if (!await subscriptionActive(req.schoolId)) {
+      return res.status(403).json({ success: false, message: 'School subscription is not active.' });
+    }
+
+    var archiveService = require('../services/result.archive.service');
+    var history = await archiveService.getStudentTermHistory(
+      req.studentId, req.schoolId, { releasedOnly: true }
+    );
+
+    return res.json({ success: true, history, count: history.length });
+  } catch (err) {
+    console.error('[student.portal] GET /archive/history:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ E3: GET /portal/archive/term/:termId
+   Full report data for one term (student's own).
+   Only released results included.
+============================================ */
+router.get('/portal/archive/term/:termId', studentProtect, async function (req, res) {
+  try {
+    if (!await subscriptionActive(req.schoolId)) {
+      return res.status(403).json({ success: false, message: 'School subscription is not active.' });
+    }
+
+    var archiveService = require('../services/result.archive.service');
+    var data = await archiveService.assembleReportData(
+      req.studentId, req.schoolId, req.params.termId,
+      { releasedOnly: true }
+    );
+
+    if (!data) {
+      return res.status(404).json({ success: false, message: 'Academic record not found.' });
+    }
+    if (data.notReleased) {
+      return res.status(403).json({
+        success:    false,
+        message:    'Results for ' + (data.termName || 'this term') + ' have not been released yet.',
+        notReleased:true
+      });
+    }
+
+    return res.json({ success: true, data });
+  } catch (err) {
+    console.error('[student.portal] GET /archive/term:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ E3: GET /portal/archive/term/:termId/pdf
+   Download own released report card as PDF.
+   Only released terms accessible.
+============================================ */
+router.get('/portal/archive/term/:termId/pdf', studentProtect, async function (req, res) {
+  try {
+    if (!await subscriptionActive(req.schoolId)) {
+      return res.status(403).json({ success: false, message: 'School subscription is not active.' });
+    }
+
+    var archiveService = require('../services/result.archive.service');
+    var pdfService     = require('../services/result.pdf.service');
+
+    /* Check for stored PDF first */
+    var ResultArchiveRecord = require('../models/ResultArchiveRecord.model');
+    var stored = await ResultArchiveRecord.findOne({
+      schoolId:  req.schoolId,
+      studentId: req.studentId,
+      termId:    req.params.termId,
+      status:    { $in: ['generated', 'issued'] }
+    }).lean();
+
+    var pdfBuffer;
+    var studentName = '';
+    try {
+      var SchoolStudent = require('../models/SchoolStudent.model');
+      var st = await SchoolStudent.findOne({ _id: req.studentId, schoolId: req.schoolId })
+                                  .select('name').lean();
+      if (st) { studentName = st.name.replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_'); }
+    } catch (e) {}
+
+    if (stored && stored.storage && stored.storage.url && stored.storage.provider !== 'error') {
+      try {
+        pdfBuffer = await pdfService.retrieveDocument(stored.storage);
+      } catch (e) { /* fall through to regenerate */ }
+    }
+
+    if (!pdfBuffer) {
+      /* Assemble fresh (released only) + generate */
+      var reportData = await archiveService.assembleReportData(
+        req.studentId, req.schoolId, req.params.termId, { releasedOnly: true }
+      );
+      if (!reportData) {
+        return res.status(404).json({ success: false, message: 'Report not found.' });
+      }
+      if (reportData.notReleased) {
+        return res.status(403).json({
+          success: false,
+          message: 'Results for this term have not been released yet.'
+        });
+      }
+      try {
+        pdfBuffer = await pdfService.generateReportCardPDF(reportData);
+      } catch (pdfErr) {
+        if (pdfErr.message && pdfErr.message.includes('pdfkit')) {
+          return res.status(503).json({ success: false, message: 'PDF service temporarily unavailable.' });
+        }
+        throw pdfErr;
+      }
+    }
+
+    var AcademicTerm = require('../models/AcademicTerm.model');
+    var term = await AcademicTerm.findById(req.params.termId).select('name session').lean();
+    var termLabel = term ? (term.session || term.name) : '';
+    var filename  = 'ReportCard_' + studentName + '_' + termLabel + '.pdf';
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"');
+    res.setHeader('Content-Length', pdfBuffer.length);
+    return res.end(pdfBuffer);
+  } catch (err) {
+    console.error('[student.portal] GET /archive/term/pdf:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ E3: GET /portal/archive/term/:termId/excel
+   Download own released result as Excel.
+============================================ */
+router.get('/portal/archive/term/:termId/excel', studentProtect, async function (req, res) {
+  try {
+    if (!await subscriptionActive(req.schoolId)) {
+      return res.status(403).json({ success: false, message: 'School subscription is not active.' });
+    }
+
+    var archiveService = require('../services/result.archive.service');
+    var reportData = await archiveService.assembleReportData(
+      req.studentId, req.schoolId, req.params.termId, { releasedOnly: true }
+    );
+
+    if (!reportData)          { return res.status(404).json({ success: false, message: 'Report not found.' }); }
+    if (reportData.notReleased) {
+      return res.status(403).json({ success: false, message: 'Results not yet released.' });
+    }
+
+    var excelBuffer = archiveService.generateExcel(reportData);
+    var AcademicTerm = require('../models/AcademicTerm.model');
+    var term = await AcademicTerm.findById(req.params.termId).select('name session').lean();
+    var termLabel = term ? (term.session || term.name) : '';
+    var filename  = 'Results_' + termLabel + '.xlsx';
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"');
+    return res.end(excelBuffer);
+  } catch (err) {
+    console.error('[student.portal] GET /archive/term/excel:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
    PUT /portal/admin/students/:studentId/set-pin
    ✅ STAGE 4: manageGuard + scope check.
    class_teacher can now set PINs for students
