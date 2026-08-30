@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Transcript Verification — LatLomp</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --dark: #0f0f1a; --dark-2: #1a1a2e;
+      --primary: #6c63ff; --green: #43e97b;
+      --red: #ff6584; --orange: #ffa500; --yellow: #ffd600;
+      --border: rgba(255,255,255,0.08); --muted: #6b6b8a;
+      --secondary: #a0a0c0;
+    }
+    body { background: var(--dark); color: #fff; font-family: 'Inter', sans-serif; min-height: 100vh; }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes spin   { to { transform: rotate(360deg); } }
+
+    .wrap { max-width: 520px; margin: 0 auto; padding: 40px 20px; }
+
+    .header { text-align: center; margin-bottom: 36px; }
+    .header h1 { font-size: 22px; font-weight: 800; color: #fff; margin-bottom: 6px; }
+    .header p  { font-size: 13px; color: var(--muted); line-height: 1.6; }
+    .logo-link { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 20px; text-decoration: none; }
+    .logo-text { font-size: 18px; font-weight: 800; color: #fff; }
+    .logo-badge { background: linear-gradient(135deg, var(--primary), var(--green)); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+
+    .card { background: var(--dark-2); border: 1px solid var(--border); border-radius: 20px; padding: 32px; margin-bottom: 20px; animation: fadeUp 0.3s ease; }
+
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 11px; font-weight: 700; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+    .inp { width: 100%; padding: 12px 14px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 10px; color: #fff; font-size: 15px; font-family: 'Inter', monospace; outline: none; transition: border-color 0.2s; letter-spacing: 0.5px; }
+    .inp:focus { border-color: var(--primary); }
+    .inp::placeholder { color: var(--muted); }
+    .btn { width: 100%; padding: 13px; background: linear-gradient(135deg, var(--primary), #574fd6); border: none; border-radius: 10px; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'Inter', sans-serif; margin-top: 6px; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+
+    /* Verification result */
+    #resultCard { display: none; }
+    .status-icon { font-size: 56px; text-align: center; margin-bottom: 12px; }
+    .status-title { font-size: 22px; font-weight: 900; text-align: center; margin-bottom: 4px; }
+    .status-subtitle { font-size: 14px; color: var(--secondary); text-align: center; margin-bottom: 24px; line-height: 1.6; }
+
+    .info-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 11px 0; border-bottom: 1px solid var(--border); gap: 12px; }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { font-size: 12px; color: var(--muted); font-weight: 600; flex-shrink: 0; min-width: 130px; }
+    .info-value { font-size: 13px; color: #fff; font-weight: 600; text-align: right; word-break: break-all; }
+
+    .badge-valid     { background: rgba(67,233,123,0.12);  color: var(--green);  border: 1px solid rgba(67,233,123,0.3);  padding: 3px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .badge-invalid   { background: rgba(255,101,132,0.12); color: var(--red);    border: 1px solid rgba(255,101,132,0.3); padding: 3px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .badge-revoked   { background: rgba(255,101,132,0.12); color: var(--red);    border: 1px solid rgba(255,101,132,0.3); padding: 3px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .badge-warn      { background: rgba(255,165,0,0.12);   color: var(--orange); border: 1px solid rgba(255,165,0,0.3);  padding: 3px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .badge-purple    { background: rgba(108,99,255,0.12);  color: #a78bfa;       border: 1px solid rgba(108,99,255,0.3); padding: 3px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+    .disclaimer { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; font-size: 12px; color: var(--muted); line-height: 1.7; margin-top: 16px; }
+
+    .powered { text-align: center; font-size: 12px; color: var(--muted); margin-top: 28px; }
+    .powered a { color: var(--primary); text-decoration: none; }
+
+    .hint-box { background: rgba(108,99,255,0.06); border: 1px solid rgba(108,99,255,0.2); border-radius: 10px; padding: 12px 16px; font-size: 12px; color: #a78bfa; line-height: 1.7; margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div>
+      <a href="/institution/index.html" class="logo-link">
+        <span style="font-size:22px;">⚡</span>
+        <span class="logo-text">LatLomp</span>
+        <span class="logo-badge">Schools</span>
+      </a>
+    </div>
+    <h1>Transcript Verification</h1>
+    <p>Enter a verification reference from an official LatLomp academic transcript to confirm its authenticity.</p>
+  </div>
+
+  <!-- INPUT CARD -->
+  <div class="card" id="inputCard">
+    <div class="hint-box">
+      The verification reference is printed on the transcript and encoded in the QR code. It does not grant access to private academic records.
+    </div>
+    <div class="field">
+      <label>Verification Reference</label>
+      <input type="text" id="verifyInput" class="inp"
+             placeholder="e.g. aB3xZ9kL2mNq7vR4wT6p"
+             autocomplete="off"
+             autocapitalize="off"
+             onkeydown="if(event.key==='Enter')doVerify()" />
+    </div>
+    <button class="btn" id="verifyBtn" onclick="doVerify()">Verify Transcript →</button>
+  </div>
+
+  <!-- RESULT CARD -->
+  <div class="card" id="resultCard">
+    <div id="statusIcon"    class="status-icon"></div>
+    <div id="statusTitle"   class="status-title"></div>
+    <div id="statusSubtitle"class="status-subtitle"></div>
+
+    <hr class="divider" />
+
+    <div id="resultDetails"></div>
+
+    <div class="disclaimer">
+      This verification confirms the authenticity of an official academic transcript issued through the LatLomp Education Platform. Verification does not grant access to the student's private academic records or portal. For complete document access, contact the issuing institution directly.
+    </div>
+
+    <button class="btn" style="margin-top:16px; background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--secondary);" onclick="resetVerify()">← Verify Another</button>
+  </div>
+
+  <div class="powered">Powered by <a href="/institution/index.html">LatLomp Education Platform</a> · Transcript Verification System</div>
+</div>
+
+<script>
+var _currentRef = '';
+
+document.addEventListener('DOMContentLoaded', function() {
+  /* Auto-fill from URL query param ?ref=XXXX */
+  var params = new URLSearchParams(window.location.search);
+  var ref    = params.get('ref') || '';
+  if (ref) {
+    var inp = document.getElementById('verifyInput');
+    if (inp) { inp.value = ref; }
+    doVerify();
+  }
+});
+
+async function doVerify() {
+  var ref = ((document.getElementById('verifyInput') || {}).value || '').trim();
+  if (!ref) { return; }
+  _currentRef = ref;
+
+  var btn = document.getElementById('verifyBtn');
+  if (btn) { btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true; }
+
+  try {
+    var res  = await fetch('/api/verify/transcript/' + encodeURIComponent(ref));
+    var data = await res.json();
+
+    /* Hide input card, show result */
+    document.getElementById('inputCard').style.display  = 'none';
+    document.getElementById('resultCard').style.display = 'block';
+    document.getElementById('resultCard').style.animation = 'fadeUp 0.3s ease';
+
+    renderResult(data);
+  } catch(err) {
+    renderResult({
+      verified: false,
+      status:   'SERVER_ERROR',
+      message:  'Verification service temporarily unavailable. Please try again.'
+    });
+    document.getElementById('inputCard').style.display  = 'none';
+    document.getElementById('resultCard').style.display = 'block';
+  }
+
+  if (btn) { btn.innerHTML = 'Verify Transcript →'; btn.disabled = false; }
+}
+
+function renderResult(data) {
+  var iconEl     = document.getElementById('statusIcon');
+  var titleEl    = document.getElementById('statusTitle');
+  var subtitleEl = document.getElementById('statusSubtitle');
+  var detailsEl  = document.getElementById('resultDetails');
+
+  var statusConfig = {
+    'VALID':       { icon:'✅', title:'Transcript Verified', color: '#43e97b', badgeClass: 'badge-valid' },
+    'REVOKED':     { icon:'🚫', title:'Transcript Revoked',  color: '#ff6584', badgeClass: 'badge-revoked' },
+    'INVALIDATED': { icon:'⛔', title:'Transcript Invalidated', color: '#ff6584', badgeClass: 'badge-invalid' },
+    'SUPERSEDED':  { icon:'🔄', title:'Transcript Superseded', color: '#ffa500', badgeClass: 'badge-warn' },
+    'NOT_FOUND':   { icon:'❓', title:'Not Found',            color: '#6b6b8a', badgeClass: 'badge-invalid' },
+    'NOT_ISSUED':  { icon:'⏳', title:'Not Yet Issued',       color: '#ffa500', badgeClass: 'badge-warn' },
+    'SERVER_ERROR':{ icon:'⚠️', title:'Service Unavailable',  color: '#ffa500', badgeClass: 'badge-warn' }
+  };
+
+  var config  = statusConfig[data.status] || statusConfig['NOT_FOUND'];
+  if (iconEl)     iconEl.textContent       = config.icon;
+  if (titleEl)    { titleEl.textContent    = config.title; titleEl.style.color = config.color; }
+  if (subtitleEl) subtitleEl.textContent   = data.message || '';
+
+  if (!detailsEl) return;
+  var rows = [];
+
+  /* Verification reference */
+  rows.push(infoRow('Verification ID',
+    '<span style="font-family:monospace;font-size:12px;color:#a78bfa;">' + esc(_currentRef) + '</span>'));
+
+  /* Status badge */
+  rows.push(infoRow('Status', '<span class="' + config.badgeClass + '">' + esc(data.status) + '</span>'));
+
+  if (data.institution) {
+    rows.push(infoRow('Institution', esc(data.institution.name || '—')));
+    if (data.institution.address) rows.push(infoRow('Address', esc(data.institution.address)));
+  }
+
+  if (data.studentDisplay) {
+    rows.push(infoRow('Student', esc(data.studentDisplay.name || '—')));
+    if (data.studentDisplay.admissionNo) {
+      rows.push(infoRow('Admission No', esc(data.studentDisplay.admissionNo)));
+    }
+  }
+
+  if (data.documentType)  rows.push(infoRow('Document Type', esc(data.documentType)));
+  if (data.version)       rows.push(infoRow('Version', 'v' + data.version));
+  if (data.issuedAt)      rows.push(infoRow('Issued', fmtDate(data.issuedAt)));
+  if (data.revokedAt)     rows.push(infoRow('Revoked / Invalidated', fmtDate(data.revokedAt)));
+  if (data.reason)        rows.push(infoRow('Reason', esc(data.reason)));
+  if (data.scope) {
+    rows.push(infoRow('Scope', esc(
+      data.scope.type === 'session' ? 'Sessions: ' + (data.scope.sessions || []).join(', ')
+                                    : 'Complete Academic Record'
+    )));
+  }
+
+  /* Integrity */
+  if (data.dataIntegrityStatus) {
+    var intClass = data.dataIntegrityStatus === 'HASH_VERIFIED' ? 'badge-valid' :
+                   data.dataIntegrityStatus === 'HASH_MISMATCH' ? 'badge-invalid' : 'badge-purple';
+    rows.push(infoRow('Data Integrity', '<span class="' + intClass + '">' + esc(data.dataIntegrityStatus) + '</span>'));
+  }
+
+  /* Signature */
+  if (data.signatureStatus) {
+    var sigClass = data.signatureStatus === 'VALID' ? 'badge-valid' :
+                   data.signatureStatus === 'INVALID' ? 'badge-invalid' :
+                   data.signatureStatus === 'UNSIGNED' ? 'badge-warn' : 'badge-purple';
+    rows.push(infoRow('Cryptographic Signature',
+      '<span class="' + sigClass + '">' + esc(data.signatureStatus) + '</span>'));
+    if (data.algorithm) {
+      rows.push(infoRow('Signature Algorithm', esc(data.algorithm)));
+    }
+  }
+
+  detailsEl.innerHTML = rows.join('');
+}
+
+function infoRow(label, value) {
+  return '<div class="info-row">' +
+    '<div class="info-label">' + esc(label) + '</div>' +
+    '<div class="info-value">' + value + '</div>' +
+  '</div>';
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
+}
+
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function resetVerify() {
+  document.getElementById('inputCard').style.display  = 'block';
+  document.getElementById('resultCard').style.display = 'none';
+  var inp = document.getElementById('verifyInput');
+  if (inp) { inp.value = ''; inp.focus(); }
+}
+</script>
+</body>
+</html>

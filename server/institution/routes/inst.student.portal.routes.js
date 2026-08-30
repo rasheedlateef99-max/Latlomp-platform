@@ -542,6 +542,187 @@ router.get('/portal/timeline/summary', studentProtect, async function (req, res)
 });
 
 /* ============================================
+   ✅ E5: GET /portal/transcripts
+   Student's own issued transcripts.
+============================================ */
+router.get('/portal/transcripts', studentProtect, async function(req, res) {
+  try {
+    if (!await subscriptionActive(req.schoolId)) {
+      return res.status(403).json({ success: false, message: 'School subscription is not active.' });
+    }
+
+    var TranscriptRequest = require('../models/TranscriptRequest.model');
+    var transcripts = await TranscriptRequest.find({
+      schoolId:  req.schoolId,
+      studentId: req.studentId,
+      status:    { $in: ['issued', 'superseded', 'revoked'] }
+    })
+    .select('status version scope verificationId issuedAt revokedAt signature algorithm')
+    .sort({ version: -1 })
+    .lean();
+
+    var appUrl = (process.env.APP_URL || 'https://latlompsystem.up.railway.app').replace(/\/$/, '');
+
+    var result = transcripts.map(function(t) {
+      return {
+        _id:            t._id,
+        status:         t.status,
+        version:        t.version,
+        scope:          t.scope,
+        verificationId: t.verificationId || null,
+        verificationUrl:t.verificationId
+          ? appUrl + '/institution/transcript-verify.html?ref=' + t.verificationId : null,
+        issuedAt:       t.issuedAt,
+        isSigned:       !!t.signature,
+        algorithm:      t.algorithm || null,
+        isValid:        t.status === 'issued'
+      };
+    });
+
+    return res.json({ success: true, transcripts: result, count: result.length });
+  } catch(err) {
+    console.error('[student.portal] GET /portal/transcripts:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ E5: POST /portal/transcripts/request
+   Student self-requests a transcript.
+============================================ */
+router.post('/portal/transcripts/request', studentProtect, async function(req, res) {
+  try {
+    if (!await subscriptionActive(req.schoolId)) {
+      return res.status(403).json({ success: false, message: 'School subscription is not active.' });
+    }
+
+    var School = require('../models/School.model');
+    var school = await School.findById(req.schoolId)
+      .select('settings name').lean();
+
+    /* Check school settings — institution may restrict self-request */
+    var selfRequestAllowed = school && school.settings &&
+      school.settings.transcriptSelfRequestEnabled !== false;
+    /* Default: allowed (can be restricted via settings) */
+
+    if (!selfRequestAllowed) {
+      return res.status(403).json({
+        success: false,
+        message: 'Self-service transcript requests are not enabled for this institution. Please contact the school office.'
+      });
+    }
+
+    var TranscriptRequest = require('../models/TranscriptRequest.model');
+    var existing = await TranscriptRequest.findOne({
+      schoolId:  req.schoolId,
+      studentId: req.studentId,
+      status:    { $in: ['requested', 'generating'] }
+    }).select('_id status').lean();
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: 'A transcript request is already in progress. Please wait for it to be issued.'
+      });
+    }
+
+    var transcriptService = require('../services/transcript.service');
+    var transcript = await transcriptService.requestTranscript(
+      req.studentId,
+      req.schoolId,
+      { type: 'full', sessions: [] },
+      null, /* no staff actor */
+      'student_self'
+    );
+
+    return res.status(201).json({
+      success:      true,
+      message:      'Transcript request submitted. The institution will issue it when ready.',
+      transcriptId: transcript._id,
+      status:       transcript.status
+    });
+  } catch(err) {
+    console.error('[student.portal] POST /portal/transcripts/request:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ E5: GET /portal/transcripts/:id/download
+   Student downloads own issued transcript.
+============================================ */
+router.get('/portal/transcripts/:id/download', studentProtect, async function(req, res) {
+  try {
+    if (!await subscriptionActive(req.schoolId)) {
+      return res.status(403).json({ success: false, message: 'School subscription is not active.' });
+    }
+
+    var mongoose           = require('mongoose');
+    var TranscriptRequest  = require('../models/TranscriptRequest.model');
+    var pdfService         = require('../services/result.pdf.service');
+    var transcriptService  = require('../services/transcript.service');
+
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid transcript ID.' });
+    }
+
+    var transcript = await TranscriptRequest.findOne({
+      _id:       req.params.id,
+      schoolId:  req.schoolId,
+      studentId: req.studentId, /* ownership enforced — student can only access OWN transcript */
+      status:    'issued'
+    }).lean();
+
+    if (!transcript) {
+      return res.status(404).json({ success: false, message: 'Transcript not found or not yet issued.' });
+    }
+
+    var pdfBuffer;
+    if (transcript.storage && transcript.storage.url && transcript.storage.provider !== 'error') {
+      try { pdfBuffer = await pdfService.retrieveDocument(transcript.storage); }
+      catch(e) { /* fall through to regenerate */ }
+    }
+
+    if (!pdfBuffer) {
+      var assembled = await transcriptService.assembleCanonicalTranscriptData(
+        req.studentId, req.schoolId, transcript.scope
+      );
+      if (!assembled) {
+        return res.status(404).json({ success: false, message: 'Academic data not found.' });
+      }
+      assembled.canonicalData.transcriptId = transcript._id.toString();
+      assembled.canonicalData.version      = transcript.version;
+      assembled.canonicalData.issuedAt     = transcript.issuedAt
+        ? new Date(transcript.issuedAt).toISOString() : new Date().toISOString();
+
+      var appUrl = (process.env.APP_URL || 'https://latlompsystem.up.railway.app').replace(/\/$/, '');
+      pdfBuffer = await transcriptService.generateTranscriptPDF(assembled.canonicalData, {
+        school:          assembled.raw.school,
+        student:         assembled.raw.student,
+        verificationId:  transcript.verificationId,
+        verificationUrl: appUrl + '/institution/transcript-verify.html?ref=' + transcript.verificationId,
+        issuedAt:        transcript.issuedAt,
+        keyId:           transcript.signingKeyId
+      });
+    }
+
+    var studentName = '';
+    try {
+      var SchoolStudent = require('../models/SchoolStudent.model');
+      var st = await SchoolStudent.findById(req.studentId).select('name').lean();
+      if (st) { studentName = st.name.replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_'); }
+    } catch(e) {}
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="Transcript_' + studentName + '_v' + transcript.version + '.pdf"');
+    res.setHeader('Content-Length', pdfBuffer.length);
+    return res.end(pdfBuffer);
+  } catch(err) {
+    console.error('[student.portal] GET /portal/transcripts/:id/download:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
    ✅ E3: GET /portal/archive/history
    Lists academic terms with released scores.
    Student sees only released terms.

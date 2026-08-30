@@ -92,6 +92,10 @@ app.use("/api/institution/progression", require("./institution/routes/inst.progr
 app.use("/api/institution/portfolio", require("./institution/routes/inst.portfolio.routes"));
 /* ✅ E3: Digital Result Archive */
 app.use("/api/institution/archive", require("./institution/routes/inst.result.archive.routes"));
+/* ✅ E5: Digital Transcript & Verification (authenticated) */
+app.use("/api/institution/transcripts", require("./institution/routes/inst.transcript.routes"));
+/* ✅ E5: Public Transcript Verification */
+app.use("/api/verify", require("./institution/routes/inst.transcript.verify.routes"));
 /* ✅ E1B: Result Access Portal (institution admin) */
 var portalRoutes = require("./institution/routes/inst.result.portal.routes");
 app.use("/api/institution/portal", portalRoutes.adminRouter);
