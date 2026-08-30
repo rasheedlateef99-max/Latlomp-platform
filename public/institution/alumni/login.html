@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Alumni Portal — LatLomp Schools</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --primary:#6c63ff; --green:#43e97b; --dark:#0f0f1a; --dark-2:#1a1a2e; --border:rgba(255,255,255,0.08); --red:#ff6584; --muted:#6b6b8a; --secondary:#a0a0c0; }
+    body { background:var(--dark); color:#fff; font-family:'Inter',sans-serif; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .card { background:var(--dark-2); border:1px solid var(--border); border-radius:20px; padding:36px 32px; width:100%; max-width:420px; position:relative; overflow:hidden; }
+    .card::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; background:linear-gradient(90deg,var(--primary),var(--green)); }
+    .brand { text-align:center; margin-bottom:28px; }
+    .brand-logo { font-size:22px; font-weight:800; color:#fff; margin-bottom:4px; }
+    .brand-sub { font-size:12px; color:var(--muted); }
+    h1 { font-size:22px; font-weight:800; text-align:center; margin-bottom:6px; }
+    .subtitle { font-size:13px; color:var(--secondary); text-align:center; margin-bottom:28px; line-height:1.6; }
+    .field { margin-bottom:16px; }
+    .field label { display:block; font-size:11px; font-weight:700; color:var(--secondary); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px; }
+    .inp { width:100%; padding:12px 14px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:10px; color:#fff; font-size:14px; font-family:'Inter',sans-serif; outline:none; transition:border-color 0.2s; }
+    .inp:focus { border-color:var(--primary); }
+    .inp::placeholder { color:var(--muted); }
+    .btn { width:100%; padding:13px; background:linear-gradient(135deg,var(--primary),#574fd6); border:none; border-radius:10px; color:#fff; font-size:15px; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif; }
+    .btn:disabled { opacity:0.6; cursor:not-allowed; }
+    .err { background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); border-radius:8px; padding:10px 14px; font-size:13px; color:var(--red); margin-bottom:14px; display:none; line-height:1.6; }
+    .spinner { display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; }
+    .links { margin-top:20px; padding-top:16px; border-top:1px solid var(--border); display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+    .links a { font-size:12px; font-weight:700; text-decoration:none; padding:7px 14px; border-radius:8px; }
+    .link-student { color:var(--green); background:rgba(67,233,123,0.08); border:1px solid rgba(67,233,123,0.2); }
+    .link-home    { color:var(--secondary); background:rgba(255,255,255,0.04); border:1px solid var(--border); }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="brand">
+    <div class="brand-logo">⚡ LatLomp Alumni</div>
+    <div class="brand-sub">Schools Platform</div>
+  </div>
+
+  <h1 id="pageTitle">Alumni Portal</h1>
+  <div class="subtitle" id="pageSubtitle">Sign in with your school admission number and PIN to access your alumni profile.</div>
+
+  <!-- Step 1: School -->
+  <div id="schoolStep">
+    <div class="err" id="schoolErr"></div>
+    <div class="field">
+      <label>School Identifier</label>
+      <input type="text" id="schoolInput" class="inp" placeholder="e.g. bright-future-school"
+             autocomplete="off" autocapitalize="off"
+             onkeydown="if(event.key==='Enter')doSchoolStep()" />
+    </div>
+    <button class="btn" onclick="doSchoolStep()">Continue →</button>
+  </div>
+
+  <!-- Step 2: Login -->
+  <div id="loginStep" style="display:none;">
+    <div class="err" id="loginErr"></div>
+    <div class="field">
+      <label>Admission Number / Student ID</label>
+      <input type="text" id="admissionInput" class="inp" placeholder="e.g. BFS-2023-0042" autocomplete="off" />
+    </div>
+    <div class="field">
+      <label>PIN</label>
+      <input type="password" id="pinInput" class="inp" placeholder="Your school-issued PIN"
+             onkeydown="if(event.key==='Enter')doLogin()" />
+    </div>
+    <button class="btn" id="loginBtn" onclick="doLogin()">Sign In to Alumni Portal</button>
+    <button class="btn" style="margin-top:8px;background:transparent;border:1px solid var(--border);color:var(--secondary);" onclick="resetSchool()">← Change School</button>
+  </div>
+
+  <div class="links">
+    <a href="/institution/student/login.html" class="link-student">🧑‍🎓 Student Portal</a>
+    <a href="/institution/index.html" class="link-home">← Home</a>
+  </div>
+</div>
+
+<script>
+var _schoolSlug = '';
+
+document.addEventListener('DOMContentLoaded', function() {
+  var params = new URLSearchParams(window.location.search);
+  var slug   = params.get('school') || '';
+  if (slug) {
+    document.getElementById('schoolInput').value = slug;
+    doSchoolStep();
+  }
+  /* Redirect if already logged in as alumni */
+  var token = localStorage.getItem('latlomp_student_token');
+  if (token) {
+    /* Verify token type and redirect */
+    try {
+      var payload = JSON.parse(atob(token.split('.')[1]));
+      if (payload.role === 'student') {
+        window.location.replace('/institution/alumni/index.html');
+      }
+    } catch(e) {}
+  }
+});
+
+function showErr(id, msg) {
+  var el = document.getElementById(id);
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+}
+function clearErr(id) {
+  var el = document.getElementById(id);
+  if (el) { el.style.display = 'none'; }
+}
+
+async function doSchoolStep() {
+  var slug = (document.getElementById('schoolInput').value || '').trim().toLowerCase();
+  clearErr('schoolErr');
+  if (!slug) { showErr('schoolErr', 'Please enter your school identifier.'); return; }
+
+  try {
+    var res  = await fetch('/api/institution/school/by-slug/' + encodeURIComponent(slug));
+    var data = await res.json();
+    if (!data.success) { showErr('schoolErr', data.message || 'School not found.'); return; }
+
+    _schoolSlug = slug;
+    var titleEl = document.getElementById('pageTitle');
+    var subEl   = document.getElementById('pageSubtitle');
+    if (titleEl) titleEl.textContent = data.school.name;
+    if (subEl)   subEl.textContent   = 'Sign in as alumni of ' + data.school.name;
+
+    document.getElementById('schoolStep').style.display = 'none';
+    document.getElementById('loginStep').style.display  = 'block';
+    setTimeout(function() {
+      var inp = document.getElementById('admissionInput');
+      if (inp) inp.focus();
+    }, 100);
+  } catch(e) {
+    showErr('schoolErr', 'Network error. Please try again.');
+  }
+}
+
+function resetSchool() {
+  _schoolSlug = '';
+  document.getElementById('schoolStep').style.display = 'block';
+  document.getElementById('loginStep').style.display  = 'none';
+  clearErr('loginErr');
+}
+
+async function doLogin() {
+  var admissionNo = (document.getElementById('admissionInput').value || '').trim();
+  var pin         = (document.getElementById('pinInput').value         || '').trim();
+  var btn         = document.getElementById('loginBtn');
+  clearErr('loginErr');
+
+  if (!admissionNo || !pin) {
+    showErr('loginErr', 'Please enter your admission number and PIN.');
+    return;
+  }
+
+  btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
+
+  try {
+    var res  = await fetch('/api/institution/student-portal/portal/login', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ schoolSlug: _schoolSlug, admissionNo, pin })
+    });
+    var data = await res.json();
+
+    if (!data.success) {
+      btn.innerHTML = 'Sign In to Alumni Portal'; btn.disabled = false;
+      showErr('loginErr', data.message || 'Login failed.');
+      return;
+    }
+
+    /* Check graduation status */
+    if (data.student.status !== 'graduated') {
+      btn.innerHTML = 'Sign In to Alumni Portal'; btn.disabled = false;
+      showErr('loginErr', 'This portal is for graduated alumni. Active students should use the Student Portal.');
+      return;
+    }
+
+    /* Store token */
+    localStorage.setItem('latlomp_student_token', data.token);
+    localStorage.setItem('latlomp_student_user',  JSON.stringify(data.student));
+    localStorage.setItem('latlomp_student_school', JSON.stringify(data.school));
+
+    window.location.replace('/institution/alumni/index.html');
+  } catch(e) {
+    btn.innerHTML = 'Sign In to Alumni Portal'; btn.disabled = false;
+    showErr('loginErr', 'Network error. Please try again.');
+  }
+}
+</script>
+</body>
+</html>

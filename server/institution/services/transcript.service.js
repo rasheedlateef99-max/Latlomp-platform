@@ -748,8 +748,11 @@ async function generateAndIssue(transcriptId, schoolId, generatedBy) {
     var sigResult = signingService.signData(snapshot);
 
     /* ---- 6. Generate verification URL ---- */
-    var appUrl          = (process.env.APP_URL || 'https://latlompsystem.up.railway.app').replace(/\/$/, '');
-    var verificationUrl = appUrl + '/institution/transcript-verify.html?ref=' + verificationId;
+    /* ✅ E6 fix: Use env-configured public verification URL for deployment portability */
+    var verifyBase  = (process.env.PUBLIC_TRANSCRIPT_VERIFY_URL || '').trim() ||
+      ((process.env.APP_URL || 'https://latlompsystem.up.railway.app').replace(/\/$/, '') +
+       '/institution/transcript-verify.html');
+    var verificationUrl = verifyBase + '?ref=' + verificationId;
 
     /* ---- 7. Generate PDF ---- */
     var pdfBuffer = await generateTranscriptPDF(canonicalData, {

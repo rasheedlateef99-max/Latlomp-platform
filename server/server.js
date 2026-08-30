@@ -94,6 +94,10 @@ app.use("/api/institution/portfolio", require("./institution/routes/inst.portfol
 app.use("/api/institution/archive", require("./institution/routes/inst.result.archive.routes"));
 /* ✅ E5: Digital Transcript & Verification (authenticated) */
 app.use("/api/institution/transcripts", require("./institution/routes/inst.transcript.routes"));
+/* ✅ E6: Alumni Network — admin management (mount before self-service) */
+app.use("/api/institution/alumni", require("./institution/routes/inst.alumni.admin.routes"));
+/* ✅ E6: Alumni Network — self-service (alumni-authenticated) */
+app.use("/api/institution/alumni", require("./institution/routes/inst.alumni.routes"));
 /* ✅ E5: Public Transcript Verification */
 app.use("/api/verify", require("./institution/routes/inst.transcript.verify.routes"));
 /* ✅ E1B: Result Access Portal (institution admin) */

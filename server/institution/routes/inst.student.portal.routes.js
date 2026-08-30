@@ -130,7 +130,8 @@ router.post('/portal/login', async function (req, res) {
       return res.status(403).json({ success: false, message: 'Your school subscription is not active. Contact your school administrator.' });
     }
 
-    var studentQuery = { schoolId: school._id, status: 'active' };
+    /* ✅ E6: Allow 'graduated' students to log in (alumni PIN access) */
+    var studentQuery = { schoolId: school._id, status: { $in: ['active', 'graduated'] } };
     if (admissionNo) { studentQuery.admissionNo = admissionNo; }
     else             { studentQuery.studentId   = studentCode; }
 

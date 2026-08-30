@@ -96,9 +96,15 @@ router.post('/webhook', async (req, res) => {
       var paid = data.amount / 100;   /* kobo → naira */
 
       /* ---- Route to the correct handler by payment type ---- */
-      if (meta.type === 'institution_fee_payment') {
+     if (meta.type === 'institution_fee_payment') {
         /* ✅ R2: School fee payment webhook */
         await handleFeePaymentWebhook(event.data, meta, ref, paid, req);
+        return res.status(200).json({ status: true });
+      }
+
+      if (meta.type === 'alumni_contribution') {
+        /* ✅ E6: Alumni contribution payment webhook */
+        await handleAlumniContributionWebhook(event.data, meta, ref, req);
         return res.status(200).json({ status: true });
       }
 
@@ -447,6 +453,37 @@ router.get('/verify/:ref', async (req, res) => {
    Same end-state whether called via webhook
    or via /parent/fees/pay/verify endpoint.
 ============================================ */
+async function handleAlumniContributionWebhook(data, meta, ref, req) {
+  try {
+    var AlumniContribution = require('../models/AlumniContribution.model');
+    var existing = await AlumniContribution.findOne({
+      paymentRef: ref, paymentStatus: 'completed'
+    });
+    if (existing) { return; /* idempotent */ }
+
+    var totalKobo    = data.amount || 0;
+    var platformKobo = data.transaction_charge || 0;
+    var schoolKobo   = totalKobo - platformKobo;
+
+    await AlumniContribution.findOneAndUpdate(
+      { paymentRef: ref },
+      {
+        $set: {
+          paymentStatus: 'completed',
+          status:        'confirmed',
+          amount:        schoolKobo / 100
+        }
+      }
+    );
+    logAudit({ req, action: 'alumni.contribution.webhook.processed', success: true,
+      message: 'Alumni contribution confirmed via webhook. ref=' + ref });
+  } catch (err) {
+    logAudit({ req, action: 'alumni.contribution.webhook.error', success: false,
+      message: 'Error: ' + err.message + ' ref=' + ref });
+    console.error('[E6/ContribWebhook]', err.message);
+  }
+}
+
 async function handleFeePaymentWebhook(data, meta, ref, paid, req) {
   try {
     var SchoolFeePayment    = null;

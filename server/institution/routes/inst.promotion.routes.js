@@ -755,6 +755,38 @@ router.post('/batches/:id/execute', adminGuard, async function (req, res) {
               var PortfolioSvc = require('../services/portfolio.service');
               await PortfolioSvc.updateLifecycle(s.studentId, req.schoolId, 'graduated');
             } catch (_pe) {}
+            /* ✅ E6: auto-create AlumniProfile — non-blocking, never fails graduation */
+            try {
+              var AlumniProfileModel = require('../models/AlumniProfile.model');
+              var AcadPortfolio      = require('../models/AcademicPortfolio.model');
+              var existingAlumni = await AlumniProfileModel.findOne({
+                schoolId: req.schoolId, studentId: s.studentId
+              }).select('_id').lean();
+              if (!existingAlumni) {
+                var portfolioForAlumni = await AcadPortfolio.findOne({
+                  studentId: s.studentId, schoolId: req.schoolId
+                }).select('_id').lean();
+                if (portfolioForAlumni) {
+                  var newAlumniProfile = await AlumniProfileModel.create({
+                    schoolId:          req.schoolId,
+                    studentId:         s.studentId,
+                    portfolioId:       portfolioForAlumni._id,
+                    alumniSince:       new Date(),
+                    graduationSession: batch.targetTermSnapshot
+                      ? batch.targetTermSnapshot.session : '',
+                    lastClassName:     s.currentClassName || s.targetClassName || '',
+                    directoryVisibility: 'alumni_only',
+                    status:            'active',
+                    activatedBy:       req.schoolUser._id
+                  });
+                  await AcadPortfolio.findByIdAndUpdate(portfolioForAlumni._id, {
+                    $set: { alumniProfileId: newAlumniProfile._id }
+                  });
+                }
+              }
+            } catch (_ae) {
+              console.warn('[E6] AlumniProfile auto-create failed (non-fatal):', _ae.message);
+            }
             s.executionStatus = 'success';
             summary.graduated++;
             break;
