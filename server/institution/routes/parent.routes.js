@@ -7,6 +7,7 @@ const SchoolStudent          = require('../models/SchoolStudent.model');
 const SchoolResult           = require('../models/SchoolResult.model');
 const School                 = require('../models/School.model');
 const { parentProtect }      = require('../middleware/parent.auth');
+const mongoose               = require('mongoose');
 const {
   instProtect,
   getEffectiveRoles,
@@ -767,6 +768,521 @@ router.get('/notifications', async (req, res) => {
     return res.status(200).json({ success: true, count: notes.length, notifications: notes });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Failed to load notifications.' });
+  }
+});
+
+/* ============================================
+   ✅ E7: GET /children/:studentId/timeline
+   Academic timeline via E4 (released only, non-confidential).
+   No new timeline engine — reuses timeline.service.js directly.
+============================================ */
+router.get('/children/:studentId/timeline', async function(req, res) {
+  try {
+    if (!isLinkedTo(req.parent, req.params.studentId)) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    /* Get schoolId from link — never from request body */
+    var link = req.parent.linkedStudents.find(function(ls) {
+      return ls.studentId.toString() === req.params.studentId;
+    });
+    if (!link) { return res.status(403).json({ success: false, message: 'Access denied.' }); }
+
+    var timelineService = require('../services/timeline.service');
+    var result = await timelineService.getTimeline(
+      req.params.studentId,
+      link.schoolId.toString(),
+      {
+        includeConfidential: false, /* D1: never show confidential to parents */
+        includeAdmin:        false,
+        releasedResultsOnly: true,
+        filterType:          req.query.type    || null,
+        filterSession:       req.query.session || null
+      }
+    );
+
+    if (!result) {
+      return res.status(404).json({ success: false, message: 'Timeline not found.' });
+    }
+
+    return res.json({ success: true, ...result });
+  } catch(err) {
+    console.error('[Parent] GET /timeline:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ E7: GET /children/:studentId/portfolio
+   Academic portfolio via E2 (non-confidential, released scores).
+============================================ */
+router.get('/children/:studentId/portfolio', async function(req, res) {
+  try {
+    if (!isLinkedTo(req.parent, req.params.studentId)) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    var link = req.parent.linkedStudents.find(function(ls) {
+      return ls.studentId.toString() === req.params.studentId;
+    });
+    if (!link) { return res.status(403).json({ success: false, message: 'Access denied.' }); }
+
+    var portfolioService = require('../services/portfolio.service');
+    var data = await portfolioService.getPortfolioData(
+      req.params.studentId,
+      link.schoolId.toString(),
+      {
+        releasedScoresOnly:  true,  /* only released scores */
+        includeConfidential: false  /* D1: never show confidential to parents */
+      }
+    );
+
+    if (!data) {
+      return res.status(404).json({ success: false, message: 'Portfolio not found.' });
+    }
+
+    return res.json({ success: true, data });
+  } catch(err) {
+    console.error('[Parent] GET /portfolio:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ E7: GET /children/:studentId/progression
+   Progression history filtered from E4 timeline.
+   Only promotion/graduation/repetition events.
+============================================ */
+router.get('/children/:studentId/progression', async function(req, res) {
+  try {
+    if (!isLinkedTo(req.parent, req.params.studentId)) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    var link = req.parent.linkedStudents.find(function(ls) {
+      return ls.studentId.toString() === req.params.studentId;
+    });
+    if (!link) { return res.status(403).json({ success: false, message: 'Access denied.' }); }
+
+    var timelineService = require('../services/timeline.service');
+    var result = await timelineService.getTimeline(
+      req.params.studentId,
+      link.schoolId.toString(),
+      {
+        includeConfidential: false,
+        includeAdmin:        false,
+        releasedResultsOnly: true
+      }
+    );
+
+    if (!result) {
+      return res.status(404).json({ success: false, message: 'Progression data not found.' });
+    }
+
+    /* Filter to progression-relevant events only */
+    var progressionTypes = ['promotion','repetition','graduation','transfer','enrollment'];
+    var progressionEvents = result.timeline.filter(function(ev) {
+      return progressionTypes.includes(ev.type);
+    });
+
+    return res.json({
+      success:    true,
+      student:    result.student,
+      lifecycle:  result.lifecycle,
+      progression:progressionEvents,
+      count:      progressionEvents.length
+    });
+  } catch(err) {
+    console.error('[Parent] GET /progression:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ E7: GET /children/:studentId/homework
+   Homework for child's class. D4: scoped by classId.
+   Query: ?termId=&status=
+============================================ */
+router.get('/children/:studentId/homework', async function(req, res) {
+  try {
+    if (!isLinkedTo(req.parent, req.params.studentId)) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    var link = req.parent.linkedStudents.find(function(ls) {
+      return ls.studentId.toString() === req.params.studentId;
+    });
+    if (!link) { return res.status(403).json({ success: false, message: 'Access denied.' }); }
+
+    /* Get student's classId (needed for homework scope) */
+    var student = await SchoolStudent.findOne({
+      _id:      req.params.studentId,
+      schoolId: link.schoolId
+    }).select('classId class').lean();
+
+    if (!student || !student.classId) {
+      return res.json({ success: true, homework: [], message: 'No class assigned.' });
+    }
+
+    var SchoolHomework = require('../models/SchoolHomework.model');
+
+    /* MANDATORY: scope by classId — never by schoolId alone (Security Rule 5) */
+    var filter = {
+      schoolId: link.schoolId,
+      classId:  student.classId,
+      status:   'active'
+    };
+    if (req.query.termId) filter.termId = req.query.termId;
+    if (req.query.status) filter.status = req.query.status; /* allow viewing cancelled too */
+
+    var homework = await SchoolHomework.find(filter)
+      .sort({ dueDate: 1 })
+      .lean();
+
+    return res.json({
+      success:   true,
+      className: student.class || '',
+      homework,
+      count:     homework.length
+    });
+  } catch(err) {
+    console.error('[Parent] GET /homework:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ E7: GET /children/:studentId/alerts
+   Computed alerts via parent.alert.service.js.
+   4 parallel queries. No stored alert model.
+============================================ */
+router.get('/children/:studentId/alerts', async function(req, res) {
+  try {
+    if (!isLinkedTo(req.parent, req.params.studentId)) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    var link = req.parent.linkedStudents.find(function(ls) {
+      return ls.studentId.toString() === req.params.studentId;
+    });
+    if (!link) { return res.status(403).json({ success: false, message: 'Access denied.' }); }
+
+    var alertService = require('../services/parent.alert.service');
+    var alerts = await alertService.getAlertsForChild(
+      req.params.studentId,
+      link.schoolId.toString()
+    );
+
+    return res.json({ success: true, alerts, count: alerts.length });
+  } catch(err) {
+    console.error('[Parent] GET /alerts:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ E7: GET /children/:studentId/messages
+   Parent-side message threads for a specific child.
+============================================ */
+router.get('/children/:studentId/messages', async function(req, res) {
+  try {
+    if (!isLinkedTo(req.parent, req.params.studentId)) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    var SchoolMessage = require('../models/SchoolMessage.model');
+    var messages = await SchoolMessage.find({
+      parentId:  req.parent._id,
+      studentId: req.params.studentId
+    })
+    .sort({ lastMessageAt: -1 })
+    .lean();
+
+    return res.json({ success: true, messages, count: messages.length });
+  } catch(err) {
+    console.error('[Parent] GET /messages:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ E7: POST /children/:studentId/messages
+   Parent sends a new message or replies to thread.
+   Body: { body, subject? }
+============================================ */
+router.post('/children/:studentId/messages', async function(req, res) {
+  try {
+    if (!isLinkedTo(req.parent, req.params.studentId)) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    var { body, subject } = req.body;
+    if (!body || !body.trim()) {
+      return res.status(400).json({ success: false, message: 'Message body is required.' });
+    }
+
+    var link = req.parent.linkedStudents.find(function(ls) {
+      return ls.studentId.toString() === req.params.studentId;
+    });
+    if (!link) { return res.status(403).json({ success: false, message: 'Access denied.' }); }
+
+    var SchoolMessage = require('../models/SchoolMessage.model');
+
+    /* Find existing open thread or create new */
+    var existing = await SchoolMessage.findOne({
+      schoolId:  link.schoolId,
+      studentId: req.params.studentId,
+      parentId:  req.parent._id,
+      status:    'open'
+    });
+
+    if (existing) {
+      existing.thread.push({
+        senderId:   req.parent._id,
+        senderType: 'parent',
+        senderName: req.parent.name || '',
+        body:       body.trim(),
+        sentAt:     new Date()
+      });
+      existing.lastMessageAt = new Date();
+      existing.lastMessageBy = 'parent';
+      await existing.save();
+      return res.json({ success: true, message: 'Message sent.', messageId: existing._id });
+    }
+
+    /* New thread */
+    var newMessage = await SchoolMessage.create({
+      schoolId:     link.schoolId,
+      studentId:    req.params.studentId,
+      parentId:     req.parent._id,
+      subject:      (subject || '').trim(),
+      initiatedBy:  'parent',
+      status:       'open',
+      lastMessageAt:new Date(),
+      lastMessageBy:'parent',
+      thread: [{
+        senderId:   req.parent._id,
+        senderType: 'parent',
+        senderName: req.parent.name || '',
+        body:       body.trim(),
+        sentAt:     new Date()
+      }]
+    });
+
+    return res.status(201).json({
+      success:   true,
+      message:   'Message sent. A teacher will respond shortly.',
+      messageId: newMessage._id
+    });
+  } catch(err) {
+    console.error('[Parent] POST /messages:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ E7: PUT /messages/:messageId/read
+   Parent marks a message thread as read.
+   Only marks teacher messages as read.
+============================================ */
+router.put('/messages/:messageId/read', async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.messageId)) {
+      return res.status(400).json({ success: false, message: 'Invalid message ID.' });
+    }
+
+    var SchoolMessage = require('../models/SchoolMessage.model');
+    var msg = await SchoolMessage.findOne({
+      _id:      req.params.messageId,
+      parentId: req.parent._id /* parent can only mark their own threads */
+    });
+    if (!msg) {
+      return res.status(404).json({ success: false, message: 'Message not found.' });
+    }
+
+    /* Mark all unread teacher messages as read now */
+    var now = new Date();
+    var updated = false;
+    msg.thread.forEach(function(entry) {
+      if (entry.senderType === 'teacher' && !entry.readAt) {
+        entry.readAt = now;
+        updated = true;
+      }
+    });
+
+    if (updated) { await msg.save(); }
+
+    return res.json({ success: true, message: 'Thread marked as read.' });
+  } catch(err) {
+    console.error('[Parent] PUT /messages/read:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ E7: GET /announcements
+   Parent-facing school announcements.
+   Replaces the old GET /notifications behaviour
+   (which found no model — kept untouched for
+   backward compatibility).
+   Returns for ALL schools the parent has children in.
+============================================ */
+router.get('/announcements', async function(req, res) {
+  try {
+    /* Get all schoolIds from parent's linked students */
+    var schoolIds = [...new Set(
+      req.parent.linkedStudents.map(function(ls) { return ls.schoolId.toString(); })
+    )];
+
+    if (!schoolIds.length) {
+      return res.json({ success: true, announcements: [], count: 0 });
+    }
+
+    var SchoolAnnouncement = require('../models/SchoolAnnouncement.model');
+    var now                = new Date();
+
+    var announcements = await SchoolAnnouncement.find({
+      schoolId:       { $in: schoolIds },
+      status:         'published',
+      targetAudience: { $in: ['parents','all'] },
+      $or: [
+        { expiresAt: null },
+        { expiresAt: { $gt: now } }
+      ]
+    })
+    .sort({ priority: -1, publishedAt: -1 })
+    .lean();
+
+    return res.json({ success: true, announcements, count: announcements.length });
+  } catch(err) {
+    console.error('[Parent] GET /announcements:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ E7: GET /events
+   Parent-facing school events.
+   Returns upcoming events for all schools the parent
+   has children in. D3: SchoolEvent only — not AlumniEvent.
+============================================ */
+router.get('/events', async function(req, res) {
+  try {
+    var schoolIds = [...new Set(
+      req.parent.linkedStudents.map(function(ls) { return ls.schoolId.toString(); })
+    )];
+
+    if (!schoolIds.length) {
+      return res.json({ success: true, events: [], count: 0 });
+    }
+
+    var SchoolEvent = require('../models/SchoolEvent.model');
+    var now         = new Date();
+
+    var events = await SchoolEvent.find({
+      schoolId:   { $in: schoolIds },
+      status:     'published',
+      visibility: { $in: ['parents','all'] },
+      date:       { $gte: now }
+    })
+    .select('-registrations') /* don't expose other registrants to parents */
+    .sort({ date: 1 })
+    .lean();
+
+    /* Attach own registration status */
+    var SchoolEventWithRegs = require('../models/SchoolEvent.model');
+    var myRegistrations = await SchoolEventWithRegs.find({
+      _id:      { $in: events.map(function(ev) { return ev._id; }) },
+      'registrations.parentId': req.parent._id
+    }).select('_id registrations').lean();
+
+    var myRegMap = {};
+    myRegistrations.forEach(function(ev) {
+      var myReg = ev.registrations && ev.registrations.find(function(r) {
+        return r.parentId && r.parentId.toString() === req.parent._id.toString();
+      });
+      if (myReg) { myRegMap[ev._id.toString()] = myReg.status; }
+    });
+
+    var result = events.map(function(ev) {
+      return Object.assign({}, ev, {
+        myRegistrationStatus: myRegMap[ev._id.toString()] || null
+      });
+    });
+
+    return res.json({ success: true, events: result, count: result.length });
+  } catch(err) {
+    console.error('[Parent] GET /events:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ✅ E7: POST /events/:eventId/register
+   Parent registers for a school event.
+============================================ */
+router.post('/events/:eventId/register', async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.eventId)) {
+      return res.status(400).json({ success: false, message: 'Invalid event ID.' });
+    }
+
+    /* Verify event belongs to a school the parent is linked to */
+    var parentSchoolIds = req.parent.linkedStudents.map(function(ls) {
+      return ls.schoolId.toString();
+    });
+
+    var SchoolEvent = require('../models/SchoolEvent.model');
+    var event = await SchoolEvent.findOne({
+      _id:        req.params.eventId,
+      schoolId:   { $in: parentSchoolIds },
+      status:     'published',
+      visibility: { $in: ['parents','all'] }
+    });
+    if (!event) {
+      return res.status(404).json({ success: false, message: 'Event not found.' });
+    }
+    if (new Date(event.date) < new Date()) {
+      return res.status(400).json({ success: false, message: 'This event has already passed.' });
+    }
+
+    /* Check existing registration */
+    var alreadyRegistered = event.registrations && event.registrations.find(function(r) {
+      return r.parentId && r.parentId.toString() === req.parent._id.toString() &&
+             r.status === 'registered';
+    });
+    if (alreadyRegistered) {
+      return res.status(400).json({ success: false, message: 'Already registered.' });
+    }
+
+    var activeCount = event.registrations
+      ? event.registrations.filter(function(r) { return r.status === 'registered'; }).length
+      : 0;
+    var regStatus = (event.capacity && activeCount >= event.capacity) ? 'waitlisted' : 'registered';
+
+    var studentId = req.body.studentId;
+    /* Verify the student (if provided) is linked to this parent */
+    if (studentId && !isLinkedTo(req.parent, studentId)) {
+      return res.status(403).json({ success: false, message: 'Student not linked to your account.' });
+    }
+
+    event.registrations.push({
+      parentId:     req.parent._id,
+      parentName:   req.parent.name || '',
+      studentId:    studentId || null,
+      registeredAt: new Date(),
+      status:       regStatus
+    });
+    await event.save();
+
+    return res.json({
+      success: true,
+      message: regStatus === 'waitlisted' ? 'Added to waitlist.' : 'Registered successfully.',
+      status:  regStatus
+    });
+  } catch(err) {
+    console.error('[Parent] POST /events/register:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
   }
 });
 

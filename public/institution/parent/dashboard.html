@@ -130,6 +130,13 @@
   <button class="tab-btn"        onclick="showTab('attendance')">✅ Attendance</button>
   <button class="tab-btn"        onclick="showTab('timetable')">📅 Timetable</button>
   <button class="tab-btn"        onclick="showTab('notifications')">🔔 Notifications</button>
+  <button class="tab-btn" onclick="showTab('timeline')"    id="tab-timeline">📅 Timeline</button>
+  <button class="tab-btn" onclick="showTab('progress')"    id="tab-progress">📈 Progress</button>
+  <button class="tab-btn" onclick="showTab('homework')"    id="tab-homework">📚 Homework</button>
+  <button class="tab-btn" onclick="showTab('alerts')"      id="tab-alerts">🔔 Alerts</button>
+  <button class="tab-btn" onclick="showTab('messages')"    id="tab-messages">💬 Messages</button>
+  <button class="tab-btn" onclick="showTab('announcements')"id="tab-announcements">📢 News</button>
+  <button class="tab-btn" onclick="showTab('events')"      id="tab-events">🗓️ Events</button>
 </div>
 
 <!-- MAIN CONTENT -->
@@ -156,6 +163,54 @@
       <div id="resultsContent"></div>
     </div>
   </div>
+
+
+  <!-- ✅ E7: TIMELINE SECTION -->
+<div id="sec-timeline" class="tab-section" style="display:none;">
+  <div class="section-header"><h2>📅 Academic Timeline</h2></div>
+  <div id="timelineContent"><div class="loading-msg">Loading timeline...</div></div>
+</div>
+
+<!-- ✅ E7: PROGRESS SECTION -->
+<div id="sec-progress" class="tab-section" style="display:none;">
+  <div class="section-header"><h2>📈 Academic Progression</h2></div>
+  <div id="progressContent"><div class="loading-msg">Loading progression history...</div></div>
+</div>
+
+<!-- ✅ E7: HOMEWORK SECTION -->
+<div id="sec-homework" class="tab-section" style="display:none;">
+  <div class="section-header"><h2>📚 Homework</h2></div>
+  <div id="homeworkContent"><div class="loading-msg">Loading homework...</div></div>
+</div>
+
+<!-- ✅ E7: ALERTS SECTION -->
+<div id="sec-alerts" class="tab-section" style="display:none;">
+  <div class="section-header"><h2>🔔 Academic Alerts</h2></div>
+  <div id="alertsContent"><div class="loading-msg">Checking alerts...</div></div>
+</div>
+
+<!-- ✅ E7: MESSAGES SECTION -->
+<div id="sec-messages" class="tab-section" style="display:none;">
+  <div class="section-header"><h2>💬 Messages</h2></div>
+  <div id="messagesContent"><div class="loading-msg">Loading messages...</div></div>
+  <div id="newMessageForm" style="margin-top:16px;display:none;">
+    <textarea id="msgBody" placeholder="Type your message..." rows="3"
+              style="width:100%;padding:10px;border-radius:8px;border:1px solid #333;background:#1a1a2e;color:#fff;font-family:inherit;resize:vertical;"></textarea>
+    <button onclick="sendParentMessage()" style="margin-top:8px;padding:8px 20px;">Send Message</button>
+  </div>
+</div>
+
+<!-- ✅ E7: ANNOUNCEMENTS SECTION -->
+<div id="sec-announcements" class="tab-section" style="display:none;">
+  <div class="section-header"><h2>📢 School Announcements</h2></div>
+  <div id="announcementsContent"><div class="loading-msg">Loading announcements...</div></div>
+</div>
+
+<!-- ✅ E7: EVENTS SECTION -->
+<div id="sec-events" class="tab-section" style="display:none;">
+  <div class="section-header"><h2>🗓️ School Events</h2></div>
+  <div id="eventsContent"><div class="loading-msg">Loading events...</div></div>
+</div>
 
   <!-- ATTENDANCE -->
   <div class="section" id="sec-attendance">
@@ -807,6 +862,294 @@ function doLogout() {
   localStorage.removeItem('parentUser');
   window.location.href = '/institution/parent/login.html';
 }
+
+/* ✅ E7: New tab sections */
+var _currentStudentId = null; /* set when a child is selected */
+
+function selectChild(studentId) {
+  _currentStudentId = studentId;
+  /* existing child selection logic — call new sections too */
+  loadAlertsForChild(studentId);
+}
+
+/* Timeline */
+async function loadTimeline(studentId) {
+  var sid = studentId || _currentStudentId;
+  if (!sid) return;
+  var content = document.getElementById('timelineContent');
+  if (!content) return;
+  try {
+    var res  = await parentApi('/children/' + sid + '/timeline');
+    var data = res.data;
+    if (!data.success) { content.innerHTML = '<p>Could not load timeline.</p>'; return; }
+
+    var events = data.timeline || [];
+    if (!events.length) { content.innerHTML = '<p>No timeline events yet.</p>'; return; }
+
+    var typeIcons = { enrollment:'🏫', promotion:'⬆️', repetition:'🔄', graduation:'🎓',
+                      transfer:'✈️', result_available:'📊', award:'🏆', achievement:'⭐',
+                      skill:'🛠️', milestone:'🎯', portfolio_entry:'📝' };
+
+    content.innerHTML = '<div class="timeline-list">' + events.map(function(ev) {
+      var icon = typeIcons[ev.type] || '📌';
+      var date = ev.date ? new Date(ev.date).toLocaleDateString('en-GB') : '';
+      return '<div class="tl-item">' +
+        '<span class="tl-icon">' + icon + '</span>' +
+        '<div class="tl-text"><strong>' + esc(ev.title) + '</strong>' +
+        (ev.description ? '<br/><small>' + esc(ev.description) + '</small>' : '') +
+        (ev.session ? '<br/><small style="color:#888;">' + esc(ev.session) + '</small>' : '') +
+        '</div>' +
+        (date ? '<span class="tl-date">' + date + '</span>' : '') +
+      '</div>';
+    }).join('') + '</div>';
+  } catch(e) { content.innerHTML = '<p>Timeline unavailable.</p>'; }
+}
+
+/* Progress */
+async function loadProgression(studentId) {
+  var sid = studentId || _currentStudentId;
+  if (!sid) return;
+  var content = document.getElementById('progressContent');
+  if (!content) return;
+  try {
+    var res  = await parentApi('/children/' + sid + '/progression');
+    var data = res.data;
+    if (!data.success || !data.progression.length) {
+      content.innerHTML = '<p>No progression history yet.</p>'; return;
+    }
+    var actionLabels = { promoted:'Promoted', repeated:'Continued', graduation:'Graduated',
+                         transfer:'Transferred', enrollment:'Enrolled' };
+    content.innerHTML = data.progression.map(function(ev) {
+      var label = actionLabels[ev.type] || ev.title;
+      var date  = ev.date ? new Date(ev.date).toLocaleDateString('en-GB') : '';
+      return '<div class="prog-item"><strong>' + esc(label) + '</strong>' +
+        (ev.className ? ' → ' + esc(ev.className) : '') +
+        (ev.session   ? ' <small>(' + esc(ev.session) + ')</small>' : '') +
+        (date         ? ' <small style="color:#888;">' + date + '</small>' : '') +
+      '</div>';
+    }).join('');
+  } catch(e) { content.innerHTML = '<p>Progression data unavailable.</p>'; }
+}
+
+/* Homework */
+async function loadHomework(studentId) {
+  var sid = studentId || _currentStudentId;
+  if (!sid) return;
+  var content = document.getElementById('homeworkContent');
+  if (!content) return;
+  try {
+    var res  = await parentApi('/children/' + sid + '/homework');
+    var data = res.data;
+    if (!data.success || !data.homework.length) {
+      content.innerHTML = '<p>No active homework assignments.</p>'; return;
+    }
+    content.innerHTML = '<div class="hw-list">' + data.homework.map(function(hw) {
+      var dueDate = hw.dueDate ? new Date(hw.dueDate).toLocaleDateString('en-GB') : '';
+      var isPast  = hw.dueDate && new Date(hw.dueDate) < new Date();
+      var dueClass= isPast ? 'style="color:#ff6584;"' : '';
+      return '<div class="hw-item">' +
+        '<strong>' + esc(hw.title) + '</strong>' +
+        (hw.subjectName ? ' <small>· ' + esc(hw.subjectName) + '</small>' : '') +
+        '<br/>' + (hw.description ? '<small>' + esc(hw.description) + '</small><br/>' : '') +
+        '<small ' + dueClass + '>Due: ' + (dueDate || '—') + '</small>' +
+      '</div>';
+    }).join('') + '</div>';
+  } catch(e) { content.innerHTML = '<p>Homework data unavailable.</p>'; }
+}
+
+/* Alerts */
+async function loadAlertsForChild(studentId) {
+  var sid = studentId || _currentStudentId;
+  if (!sid) return;
+  var content = document.getElementById('alertsContent');
+  if (!content) return;
+  try {
+    var res  = await parentApi('/children/' + sid + '/alerts');
+    var data = res.data;
+    if (!data.success || !data.alerts.length) {
+      content.innerHTML = '<p style="color:#888;">No current alerts. All looks good! ✅</p>'; return;
+    }
+    content.innerHTML = data.alerts.map(function(a) {
+      var color = a.priority === 'urgent' ? '#ff6584' : '#ffd600';
+      return '<div style="padding:12px 16px;margin-bottom:8px;border-radius:10px;' +
+        'border-left:4px solid ' + color + ';background:rgba(255,255,255,0.03);">' +
+        '<strong style="color:' + color + ';">' + esc(a.title) + '</strong>' +
+        (a.date ? '<br/><small style="color:#888;">' + new Date(a.date).toLocaleDateString('en-GB') + '</small>' : '') +
+      '</div>';
+    }).join('');
+  } catch(e) { content.innerHTML = '<p>Alerts unavailable.</p>'; }
+}
+
+/* Messages */
+var _messageStudentId = null;
+async function loadMessages(studentId) {
+  var sid = studentId || _currentStudentId;
+  if (!sid) return;
+  _messageStudentId = sid;
+  var content = document.getElementById('messagesContent');
+  if (!content) return;
+  try {
+    var res  = await parentApi('/children/' + sid + '/messages');
+    var data = res.data;
+    var formEl = document.getElementById('newMessageForm');
+    if (formEl) formEl.style.display = 'block';
+    if (!data.success || !data.messages.length) {
+      content.innerHTML = '<p style="color:#888;">No messages yet. Use the form below to contact a teacher.</p>';
+      return;
+    }
+    content.innerHTML = data.messages.map(function(m) {
+      var lastMsg = m.thread && m.thread.length > 0 ? m.thread[m.thread.length - 1] : null;
+      var badge   = m.status === 'open' ? 'color:#43e97b;' : 'color:#888;';
+      return '<div style="padding:14px;border:1px solid #222;border-radius:10px;margin-bottom:10px;cursor:pointer;" onclick="viewMessageThread(\'' + m._id + '\')">' +
+        '<strong>' + esc(m.subject || 'Message Thread') + '</strong>' +
+        ' <small style="' + badge + '">[' + m.status + ']</small>' +
+        (lastMsg ? '<br/><small style="color:#888;">' + esc(lastMsg.senderName || '') + ': ' + esc((lastMsg.body || '').substring(0, 60)) + '...</small>' : '') +
+        '<br/><small style="color:#555;">' + (m.lastMessageAt ? new Date(m.lastMessageAt).toLocaleDateString('en-GB') : '') + '</small>' +
+      '</div>';
+    }).join('');
+  } catch(e) { content.innerHTML = '<p>Messages unavailable.</p>'; }
+}
+
+async function viewMessageThread(messageId) {
+  /* Mark as read then load full thread */
+  try { await parentApi('/messages/' + messageId + '/read', 'PUT'); } catch(e) {}
+  /* In a full implementation, open a modal or expand inline */
+  alert('Full thread view can be implemented as a modal. Thread ID: ' + messageId);
+}
+
+async function sendParentMessage() {
+  var body = (document.getElementById('msgBody') || {}).value || '';
+  if (!body.trim() || !_messageStudentId) { alert('Please type a message.'); return; }
+  try {
+    var res  = await parentApi('/children/' + _messageStudentId + '/messages', 'POST', { body });
+    var data = res.data;
+    if (data.success) {
+      document.getElementById('msgBody').value = '';
+      alert('Message sent! A teacher will respond shortly.');
+      loadMessages(_messageStudentId);
+    } else {
+      alert(data.message || 'Failed to send.');
+    }
+  } catch(e) { alert('Network error. Please try again.'); }
+}
+
+/* Announcements */
+async function loadAnnouncements() {
+  var content = document.getElementById('announcementsContent');
+  if (!content) return;
+  try {
+    var res  = await parentApi('/announcements');
+    var data = res.data;
+    if (!data.success || !data.announcements.length) {
+      content.innerHTML = '<p style="color:#888;">No announcements at this time.</p>'; return;
+    }
+    content.innerHTML = data.announcements.map(function(a) {
+      var date  = a.publishedAt ? new Date(a.publishedAt).toLocaleDateString('en-GB') : '';
+      var urgent= a.priority === 'urgent';
+      return '<div style="padding:16px;border-radius:10px;border:1px solid #222;margin-bottom:12px;' +
+        (urgent ? 'border-left:4px solid #ff6584;' : '') + '">' +
+        (urgent ? '<span style="color:#ff6584;font-size:12px;font-weight:700;">🚨 URGENT</span><br/>' : '') +
+        '<strong>' + esc(a.title) + '</strong>' +
+        '<p style="color:#aaa;font-size:13px;margin:8px 0;">' + esc(a.body) + '</p>' +
+        '<small style="color:#666;">' + date + '</small>' +
+      '</div>';
+    }).join('');
+  } catch(e) { content.innerHTML = '<p>Announcements unavailable.</p>'; }
+}
+
+/* Events */
+async function loadEvents() {
+  var content = document.getElementById('eventsContent');
+  if (!content) return;
+  try {
+    var res  = await parentApi('/events');
+    var data = res.data;
+    if (!data.success || !data.events.length) {
+      content.innerHTML = '<p style="color:#888;">No upcoming events.</p>'; return;
+    }
+    content.innerHTML = data.events.map(function(ev) {
+      var date  = ev.date ? new Date(ev.date).toLocaleDateString('en-GB',
+        { weekday:'short', day:'numeric', month:'long', year:'numeric' }) : '';
+      var myReg = ev.myRegistrationStatus;
+      return '<div style="padding:16px;border-radius:10px;border:1px solid #222;margin-bottom:12px;">' +
+        '<strong>' + esc(ev.title) + '</strong>' +
+        ' <small style="background:#222;padding:2px 8px;border-radius:8px;">' + esc(ev.eventType.replace('_',' ')) + '</small>' +
+        '<p style="color:#aaa;font-size:13px;margin:8px 0;">' + (ev.description ? esc(ev.description) : '') + '</p>' +
+        '<small>📅 ' + date + '</small>' +
+        (ev.location && ev.location.address ? '<br/><small>📍 ' + esc(ev.location.address) + '</small>' : '') +
+        '<br/><div style="margin-top:8px;">' +
+        (!myReg || myReg === 'cancelled'
+          ? '<button onclick="registerForEvent(\'' + ev._id + '\')" style="padding:6px 14px;border-radius:8px;">Register</button>'
+          : '<span style="color:#43e97b;font-size:13px;">✅ ' + esc(myReg) + '</span>' +
+            ' <button onclick="cancelEventReg(\'' + ev._id + '\')" style="padding:4px 10px;border-radius:6px;font-size:11px;margin-left:8px;">Cancel</button>'
+        ) + '</div>' +
+      '</div>';
+    }).join('');
+  } catch(e) { content.innerHTML = '<p>Events unavailable.</p>'; }
+}
+
+async function registerForEvent(eventId) {
+  try {
+    var res  = await parentApi('/events/' + eventId + '/register', 'POST',
+      { studentId: _currentStudentId || null });
+    var data = res.data;
+    if (data.success) { loadEvents(); }
+    else { alert(data.message || 'Registration failed.'); }
+  } catch(e) { alert('Network error.'); }
+}
+
+async function cancelEventReg(eventId) {
+  if (!confirm('Cancel your registration for this event?')) return;
+  /* Event cancellation (DELETE /events/:id/register) can be added to parent routes */
+  alert('Cancellation requires backend handler — extend parent.routes.js DELETE /events/:id/register');
+}
+
+/* ✅ E7: Hook new sections into existing showTab function */
+/* Find the existing showTab function and extend it: */
+var _e7TabLoaders = {
+  'timeline':      function(sid) { loadTimeline(sid); },
+  'progress':      function(sid) { loadProgression(sid); },
+  'homework':      function(sid) { loadHomework(sid); },
+  'alerts':        function(sid) { loadAlertsForChild(sid); },
+  'messages':      function(sid) { loadMessages(sid); },
+  'announcements': function() { loadAnnouncements(); },
+  'events':        function() { loadEvents(); }
+};
+
+/* Patch into existing showTab or create: */
+var _originalShowTab = window.showTab || function() {};
+window.showTab = function(tabName) {
+  _originalShowTab(tabName);
+  /* Show/hide E7 sections */
+  var e7Sections = ['timeline','progress','homework','alerts','messages','announcements','events'];
+  e7Sections.forEach(function(name) {
+    var sec = document.getElementById('sec-' + name);
+    if (sec) { sec.style.display = name === tabName ? 'block' : 'none'; }
+    var btn = document.getElementById('tab-' + name);
+    if (btn) { btn.classList.toggle('active', name === tabName); }
+  });
+  if (_e7TabLoaders[tabName]) {
+    _e7TabLoaders[tabName](_currentStudentId);
+  }
+};
+
+/* Helper API function (may already exist in dashboard — reuse if so) */
+function parentApi(path, method, body) {
+  var token = localStorage.getItem('parentToken') || '';
+  var opts  = {
+    method:  method || 'GET',
+    headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + token }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  return fetch('/api/institution/parent' + path, opts)
+    .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); });
+}
+
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 </script>
 </body>
 </html>

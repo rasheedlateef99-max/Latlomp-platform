@@ -96,6 +96,8 @@ app.use("/api/institution/archive", require("./institution/routes/inst.result.ar
 app.use("/api/institution/transcripts", require("./institution/routes/inst.transcript.routes"));
 /* ✅ E6: Alumni Network — admin management (mount before self-service) */
 app.use("/api/institution/alumni", require("./institution/routes/inst.alumni.admin.routes"));
+/* ✅ E7: Parent Portal Expansion — institution staff comms management */
+app.use("/api/institution/parent-comms", require("./institution/routes/inst.parent.comms.routes"));
 /* ✅ E6: Alumni Network — self-service (alumni-authenticated) */
 app.use("/api/institution/alumni", require("./institution/routes/inst.alumni.routes"));
 /* ✅ E5: Public Transcript Verification */
