@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Finance — LatLomp Schools</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary:#6c63ff; --pd:#574fd6; --green:#43e97b; --red:#ff6584;
+      --orange:#ffa500; --yellow:#ffd600; --dark:#0f0f1a; --dark-2:#1a1a2e;
+      --border:rgba(255,255,255,0.08); --muted:#6b6b8a; --secondary:#a0a0c0;
+    }
+    body { background:var(--dark); color:#fff; font-family:'Inter',sans-serif; min-height:100vh; }
+    @keyframes spin   { to { transform:rotate(360deg); } }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);} }
+
+    .topbar { display:flex; align-items:center; justify-content:space-between; padding:0 24px; height:60px; background:var(--dark-2); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100; gap:16px; }
+    .brand  { font-size:15px; font-weight:800; }
+    .brand span { color:var(--primary); }
+
+    .layout { display:flex; min-height:calc(100vh - 60px); }
+
+    .sidebar { width:210px; flex-shrink:0; background:var(--dark-2); border-right:1px solid var(--border); padding:16px 0; position:sticky; top:60px; height:calc(100vh - 60px); overflow-y:auto; }
+    @media(max-width:900px){.sidebar{display:none;}}
+    .nav-sec  { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; padding:12px 20px 4px; }
+    .nav-item { display:flex; align-items:center; gap:8px; padding:10px 20px; font-size:13px; font-weight:600; color:var(--secondary); cursor:pointer; border:none; background:none; font-family:'Inter',sans-serif; width:100%; text-align:left; text-decoration:none; }
+    .nav-item:hover  { color:#fff; background:rgba(255,255,255,0.04); }
+    .nav-item.active { color:#a78bfa; background:rgba(108,99,255,0.1); border-right:3px solid var(--primary); }
+
+    .main { flex:1; padding:24px; max-width:1100px; overflow-x:hidden; }
+    @media(max-width:768px){.main{padding:16px;}}
+
+    /* ---- Period selector ---- */
+    .period-bar { display:flex; align-items:center; gap:8px; margin-bottom:24px; flex-wrap:wrap; }
+    .period-btn { padding:7px 16px; border-radius:20px; font-size:12px; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif; border:1px solid var(--border); background:rgba(255,255,255,0.04); color:var(--secondary); transition:all 0.15s; }
+    .period-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+    .period-label { font-size:12px; color:var(--muted); font-weight:600; }
+
+    /* ---- Summary cards ---- */
+    .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:24px; }
+    .card { background:var(--dark-2); border:1px solid var(--border); border-radius:14px; padding:18px; position:relative; overflow:hidden; animation:fadeUp 0.25s ease; }
+    .card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--accent, var(--primary)); }
+    .card-label { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:8px; }
+    .card-value { font-size:22px; font-weight:900; color:#fff; }
+    .card-sub   { font-size:11px; color:var(--secondary); margin-top:4px; }
+
+    /* ---- Section panels ---- */
+    .panel { background:var(--dark-2); border:1px solid var(--border); border-radius:14px; margin-bottom:20px; overflow:hidden; }
+    .panel-head { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:8px; }
+    .panel-head h3 { font-size:14px; font-weight:700; }
+    .panel-body { padding:18px; }
+
+    /* ---- Sections ---- */
+    .section { display:none; }
+    .section.active { display:block; }
+
+    /* ---- Table ---- */
+    .tbl-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; min-width:580px; font-size:13px; }
+    th { padding:9px 12px; text-align:left; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; color:var(--muted); background:rgba(255,255,255,0.02); border-bottom:1px solid var(--border); }
+    td { padding:10px 12px; color:var(--secondary); border-bottom:1px solid var(--border); vertical-align:middle; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td     { background:rgba(255,255,255,0.01); }
+
+    /* ---- Badges ---- */
+    .badge { display:inline-block; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:700; }
+    .badge-green  { background:rgba(67,233,123,0.12); color:var(--green); }
+    .badge-red    { background:rgba(255,101,132,0.12); color:var(--red); }
+    .badge-orange { background:rgba(255,165,0,0.12);  color:var(--orange); }
+    .badge-muted  { background:rgba(255,255,255,0.06);color:var(--secondary); }
+    .badge-purple { background:rgba(108,99,255,0.12); color:#a78bfa; }
+
+    /* ---- Inputs ---- */
+    .inp { padding:9px 12px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; color:#fff; font-size:13px; font-family:'Inter',sans-serif; outline:none; }
+    .inp:focus { border-color:var(--primary); }
+    .inp::placeholder { color:var(--muted); }
+    .sel  { padding:9px 12px; background:var(--dark-2); border:1px solid var(--border); border-radius:8px; color:#fff; font-size:13px; font-family:'Inter',sans-serif; outline:none; }
+    .sel option { background:var(--dark-2); }
+
+    /* ---- Buttons ---- */
+    .btn { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif; border:none; transition:all 0.15s; text-decoration:none; white-space:nowrap; }
+    .btn-primary   { background:linear-gradient(135deg,var(--primary),var(--pd)); color:#fff; }
+    .btn-secondary { background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--secondary); }
+    .btn-green     { background:linear-gradient(135deg,var(--green),#38f9d7); color:#0f0f1a; }
+    .btn-sm        { padding:5px 12px; font-size:12px; }
+    .btn:disabled  { opacity:0.5; cursor:not-allowed; }
+
+    /* ---- Filters row ---- */
+    .filter-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; align-items:center; }
+
+    /* ---- Charts ---- */
+    .charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    @media(max-width:700px){.charts-grid{grid-template-columns:1fr;}}
+    .chart-box { background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:10px; padding:16px; }
+    .chart-title { font-size:12px; font-weight:700; color:var(--secondary); margin-bottom:12px; }
+
+    /* ---- Empty ---- */
+    .empty { text-align:center; padding:40px; }
+    .empty-icon  { font-size:36px; margin-bottom:10px; }
+    .empty-title { font-size:14px; font-weight:700; color:var(--secondary); }
+
+    /* ---- Toast ---- */
+    #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--dark-2); border:1px solid var(--border); border-radius:10px; padding:12px 20px; font-size:13px; font-weight:600; z-index:9999; display:none; max-width:90%; }
+    .spinner { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; }
+
+    /* ---- Mobile tab bar ---- */
+    .tab-row { display:none; overflow-x:auto; background:var(--dark-2); border-bottom:1px solid var(--border); padding:8px 12px; gap:6px; }
+    @media(max-width:900px){.tab-row{display:flex;}}
+    .tab-btn { flex-shrink:0; padding:7px 14px; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif; border:none; background:rgba(255,255,255,0.04); color:var(--secondary); white-space:nowrap; }
+    .tab-btn.active { background:rgba(108,99,255,0.15); color:#a78bfa; }
+
+    /* ---- Metric row ---- */
+    .metric-row { display:flex; gap:6px; flex-wrap:wrap; margin-top:12px; }
+    .metric-chip { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; padding:8px 14px; text-align:center; min-width:120px; }
+    .metric-chip-label { font-size:10px; color:var(--muted); font-weight:700; text-transform:uppercase; }
+    .metric-chip-value { font-size:14px; font-weight:800; color:#fff; margin-top:4px; }
+
+    /* Banking-style balance card */
+    .balance-card { background:linear-gradient(135deg,var(--primary),#574fd6); border-radius:16px; padding:24px; margin-bottom:24px; position:relative; overflow:hidden; }
+    .balance-card::before { content:''; position:absolute; top:-30px; right:-30px; width:100px; height:100px; background:rgba(255,255,255,0.06); border-radius:50%; }
+    .balance-card::after  { content:''; position:absolute; bottom:-20px; right:30px; width:60px; height:60px; background:rgba(255,255,255,0.04); border-radius:50%; }
+    .balance-label { font-size:11px; font-weight:700; color:rgba(255,255,255,0.7); text-transform:uppercase; letter-spacing:0.5px; }
+    .balance-amount{ font-size:36px; font-weight:900; color:#fff; margin:8px 0; letter-spacing:1px; }
+    .balance-period{ font-size:12px; color:rgba(255,255,255,0.6); }
+    .balance-row   { display:flex; gap:24px; margin-top:16px; flex-wrap:wrap; }
+    .balance-item  { }
+    .balance-item-label { font-size:10px; color:rgba(255,255,255,0.6); }
+    .balance-item-value { font-size:14px; font-weight:700; color:#fff; }
+
+    /* Form */
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    @media(max-width:600px){.form-grid{grid-template-columns:1fr;}}
+    .field { margin-bottom:14px; }
+    .field label { display:block; font-size:11px; font-weight:700; color:var(--secondary); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px; }
+    .inp-full { width:100%; }
+
+    /* Pagination */
+    .pagination { display:flex; gap:8px; align-items:center; justify-content:center; margin-top:16px; flex-wrap:wrap; }
+    .page-btn { padding:6px 14px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif; border:1px solid var(--border); background:rgba(255,255,255,0.04); color:var(--secondary); }
+    .page-btn.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+    .page-info { font-size:12px; color:var(--muted); }
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="brand">⚡ <span>LatLomp</span> Finance</div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div id="topbarSchool" style="font-size:13px;color:var(--secondary);font-weight:600;"></div>
+    <button class="btn btn-secondary btn-sm" onclick="doLogout()">Logout</button>
+  </div>
+</header>
+
+<!-- TAB BAR (mobile) -->
+<div class="tab-row">
+  <button class="tab-btn active" onclick="showSection('dashboard')">📊 Dashboard</button>
+  <button class="tab-btn" onclick="showSection('transactions')">💳 Transactions</button>
+  <button class="tab-btn" onclick="showSection('outstanding')">⚠️ Outstanding</button>
+  <button class="tab-btn" onclick="showSection('analytics')">📈 Analytics</button>
+  <button class="tab-btn" onclick="showSection('reconciliation')">🔎 Reconcile</button>
+  <button class="tab-btn" onclick="showSection('donations')">💛 Donations</button>
+  <button class="tab-btn" onclick="showSection('refunds')">↩️ Refunds</button>
+  <button class="tab-btn" onclick="showSection('statements')">📄 Statements</button>
+</div>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="nav-sec">Finance</div>
+    <button class="nav-item active" data-sec="dashboard"      onclick="showSection('dashboard')">📊 Dashboard</button>
+    <button class="nav-item"        data-sec="transactions"   onclick="showSection('transactions')">💳 Transactions</button>
+    <button class="nav-item"        data-sec="outstanding"    onclick="showSection('outstanding')">⚠️ Outstanding</button>
+    <button class="nav-item"        data-sec="analytics"      onclick="showSection('analytics')">📈 Analytics</button>
+    <div class="nav-sec">Operations</div>
+    <button class="nav-item"        data-sec="reconciliation" onclick="showSection('reconciliation')">🔎 Reconciliation</button>
+    <button class="nav-item"        data-sec="donations"      onclick="showSection('donations')">💛 Donations</button>
+    <button class="nav-item"        data-sec="refunds"        onclick="showSection('refunds')">↩️ Refunds</button>
+    <div class="nav-sec">Reports</div>
+    <button class="nav-item"        data-sec="statements"     onclick="showSection('statements')">📄 Statements</button>
+    <div class="nav-sec">Quick Links</div>
+    <a href="/institution/school/dashboard.html" class="nav-item">← Back to School</a>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- ============ DASHBOARD ============ -->
+    <div class="section active" id="sec-dashboard">
+
+      <!-- Period selector -->
+      <div class="period-bar">
+        <span class="period-label">Period:</span>
+        <button class="period-btn" onclick="setPeriod('today')">Today</button>
+        <button class="period-btn" onclick="setPeriod('week')">This Week</button>
+        <button class="period-btn active" onclick="setPeriod('month')">This Month</button>
+        <button class="period-btn" onclick="setPeriod('term')">This Term</button>
+        <button class="period-btn" onclick="setPeriod('session')">This Session</button>
+        <button class="period-btn" onclick="setPeriod('all')">All Time</button>
+      </div>
+
+      <!-- Banking balance card -->
+      <div class="balance-card" id="balanceCard">
+        <div class="balance-label">💰 Total Collected</div>
+        <div class="balance-amount" id="balanceAmount">₦0.00</div>
+        <div class="balance-period" id="balancePeriod">This Month</div>
+        <div class="balance-row">
+          <div class="balance-item">
+            <div class="balance-item-label">Transactions</div>
+            <div class="balance-item-value" id="balanceTxnCount">0</div>
+          </div>
+          <div class="balance-item">
+            <div class="balance-item-label">Outstanding</div>
+            <div class="balance-item-value" id="balanceOutstanding">₦0.00</div>
+          </div>
+          <div class="balance-item">
+            <div class="balance-item-label">Refunds</div>
+            <div class="balance-item-value" id="balanceRefunded">₦0.00</div>
+          </div>
+          <div class="balance-item">
+            <div class="balance-item-label">Donations</div>
+            <div class="balance-item-value" id="balanceDonations">₦0.00</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats cards -->
+      <div class="cards" id="summaryCards">
+        <div class="card" style="--accent:#ff6584;">
+          <div class="card-label">⚠️ Outstanding</div>
+          <div class="card-value" id="statOutstanding">₦0</div>
+          <div class="card-sub" id="statOutstandingCount">0 balances</div>
+        </div>
+        <div class="card" style="--accent:#43e97b;">
+          <div class="card-label">✅ Net Collected</div>
+          <div class="card-value" id="statNet">₦0</div>
+          <div class="card-sub">After refunds</div>
+        </div>
+        <div class="card" style="--accent:#ffd600;">
+          <div class="card-label">📊 Avg Transaction</div>
+          <div class="card-value" id="statAvg">₦0</div>
+          <div class="card-sub" id="statMinMax">Min ₦0 / Max ₦0</div>
+        </div>
+        <div class="card" style="--accent:#ffa500;">
+          <div class="card-label">⏳ Pending Payments</div>
+          <div class="card-value" id="statPending">0</div>
+          <div class="card-sub" id="statFailed">0 failed</div>
+        </div>
+      </div>
+
+      <!-- Recent transactions -->
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Recent Transactions</h3>
+          <button class="btn btn-secondary btn-sm" onclick="showSection('transactions')">View All →</button>
+        </div>
+        <div id="recentTxns"><div style="padding:24px;text-align:center;color:var(--muted);">Loading...</div></div>
+      </div>
+
+    </div>
+
+    <!-- ============ TRANSACTIONS ============ -->
+    <div class="section" id="sec-transactions">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>💳 Transaction History</h3>
+          <button class="btn btn-secondary btn-sm" onclick="exportTransactions()">⬇ Export CSV</button>
+        </div>
+        <div class="panel-body">
+          <div class="filter-row">
+            <input type="text"   class="inp" id="txnSearch"  placeholder="Search student or ref..." style="width:180px;" />
+            <input type="date"   class="inp" id="txnFrom"    />
+            <input type="date"   class="inp" id="txnTo"      />
+            <select class="sel"  id="txnStatus">
+              <option value="">All Statuses</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="pending">Pending</option>
+              <option value="failed">Failed</option>
+            </select>
+            <button class="btn btn-primary" onclick="loadTransactions(1)">Search</button>
+          </div>
+          <div id="txnTable"><div style="text-align:center;padding:24px;color:var(--muted);">Loading...</div></div>
+          <div id="txnPagination" class="pagination"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ OUTSTANDING ============ -->
+    <div class="section" id="sec-outstanding">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>⚠️ Outstanding Balances</h3>
+          <div id="outstandingTotal" style="font-size:14px;font-weight:700;color:var(--red);"></div>
+        </div>
+        <div class="panel-body">
+          <div class="filter-row">
+            <input type="text" class="inp" id="outSearch" placeholder="Search student..." style="width:200px;" />
+            <button class="btn btn-primary" onclick="loadOutstanding(1)">Search</button>
+          </div>
+          <div id="outTable"><div style="text-align:center;padding:24px;color:var(--muted);">Loading...</div></div>
+          <div id="outPagination" class="pagination"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ ANALYTICS ============ -->
+    <div class="section" id="sec-analytics">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>📈 Financial Analytics</h3>
+          <button class="btn btn-secondary btn-sm" onclick="loadAnalytics()">↺ Refresh</button>
+        </div>
+        <div class="panel-body">
+          <div class="charts-grid">
+            <div class="chart-box">
+              <div class="chart-title">Daily Collections (Last 30 Days)</div>
+              <canvas id="chartDaily" height="180"></canvas>
+            </div>
+            <div class="chart-box">
+              <div class="chart-title">Monthly Comparison</div>
+              <canvas id="chartMonthly" height="180"></canvas>
+            </div>
+            <div class="chart-box">
+              <div class="chart-title">By Fee Category</div>
+              <canvas id="chartCategory" height="180"></canvas>
+            </div>
+            <div class="chart-box">
+              <div class="chart-title">By Payment Method</div>
+              <canvas id="chartMethod" height="180"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ RECONCILIATION ============ -->
+    <div class="section" id="sec-reconciliation">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>🔎 Reconciliation</h3>
+          <div style="font-size:12px;color:var(--muted);">Match fee assignments to confirmed payments</div>
+        </div>
+        <div class="panel-body">
+          <div class="filter-row">
+            <input type="text" class="inp" id="recSearch" placeholder="Search student..." style="width:200px;" />
+            <select class="sel" id="recStatus">
+              <option value="">All Statuses</option>
+              <option value="paid">Paid</option>
+              <option value="partial">Partial</option>
+              <option value="pending">Pending</option>
+            </select>
+            <button class="btn btn-primary" onclick="loadReconciliation(1)">Search</button>
+          </div>
+          <div id="recTable"><div style="text-align:center;padding:24px;color:var(--muted);">Loading...</div></div>
+          <div id="recPagination" class="pagination"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ DONATIONS ============ -->
+    <div class="section" id="sec-donations">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>💛 Donation Campaigns</h3>
+          <button class="btn btn-primary btn-sm" onclick="showCampaignForm()">+ New Campaign</button>
+        </div>
+        <div id="campaignsContent"><div style="padding:24px;text-align:center;color:var(--muted);">Loading...</div></div>
+      </div>
+
+      <div id="campaignFormPanel" class="panel" style="display:none;">
+        <div class="panel-head">
+          <h3>Create Donation Campaign</h3>
+          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('campaignFormPanel').style.display='none'">✕</button>
+        </div>
+        <div class="panel-body">
+          <div class="form-grid">
+            <div class="field"><label>Campaign Title</label><input type="text" id="campTitle" class="inp inp-full" /></div>
+            <div class="field"><label>Category</label>
+              <select id="campCategory" class="sel" style="width:100%;">
+                <option value="general">General</option>
+                <option value="building">Building/Infrastructure</option>
+                <option value="scholarship">Scholarship</option>
+                <option value="equipment">Equipment</option>
+                <option value="library">Library</option>
+                <option value="sports">Sports</option>
+                <option value="bursary">Bursary</option>
+              </select>
+            </div>
+            <div class="field"><label>Target Amount (Optional)</label><input type="number" id="campTarget" class="inp inp-full" placeholder="e.g. 500000" /></div>
+            <div class="field"><label>End Date (Optional)</label><input type="date" id="campEndDate" class="inp inp-full" /></div>
+          </div>
+          <div class="field"><label>Description</label><textarea id="campDesc" class="inp inp-full" style="height:80px;resize:vertical;"></textarea></div>
+          <button class="btn btn-primary" onclick="createCampaign()">Create Campaign</button>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:16px;">
+        <div class="panel-head"><h3>Donation Records</h3>
+          <button class="btn btn-primary btn-sm" onclick="showDonationForm()">+ Record Donation</button>
+        </div>
+        <div id="donationsContent"><div style="padding:24px;text-align:center;color:var(--muted);">Loading...</div></div>
+      </div>
+
+      <div id="donationFormPanel" class="panel" style="display:none;margin-top:16px;">
+        <div class="panel-head">
+          <h3>Record Manual Donation</h3>
+          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('donationFormPanel').style.display='none'">✕</button>
+        </div>
+        <div class="panel-body">
+          <div class="form-grid">
+            <div class="field"><label>Donor Name</label><input type="text" id="donorName" class="inp inp-full" /></div>
+            <div class="field"><label>Donor Type</label>
+              <select id="donorType" class="sel" style="width:100%;">
+                <option value="external">External</option>
+                <option value="alumni">Alumni</option>
+                <option value="parent">Parent</option>
+                <option value="staff">Staff</option>
+              </select>
+            </div>
+            <div class="field"><label>Amount (NGN)</label><input type="number" id="donorAmount" class="inp inp-full" /></div>
+            <div class="field"><label>Campaign (Optional)</label>
+              <select id="donorCampaign" class="sel" style="width:100%;">
+                <option value="">No specific campaign</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-green" onclick="recordDonation()">Record Donation</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ REFUNDS ============ -->
+    <div class="section" id="sec-refunds">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>↩️ Refund Management</h3>
+          <button class="btn btn-secondary btn-sm" onclick="loadRefunds()">↺ Refresh</button>
+        </div>
+        <div class="panel-body">
+          <div id="refundInitForm" style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px;">
+            <h4 style="font-size:13px;margin-bottom:12px;">Initiate Refund Request</h4>
+            <div class="form-grid">
+              <div class="field"><label>Payment ID / Receipt No.</label><input type="text" id="refundPaymentId" class="inp inp-full" placeholder="Payment ObjectId" /></div>
+              <div class="field"><label>Amount (leave blank for full refund)</label><input type="number" id="refundAmount" class="inp inp-full" /></div>
+            </div>
+            <div class="field"><label>Reason</label><input type="text" id="refundReason" class="inp inp-full" placeholder="Reason for refund..." /></div>
+            <button class="btn btn-secondary" onclick="initiateRefund()">Request Refund</button>
+          </div>
+          <div id="refundsTable"><div style="text-align:center;padding:24px;color:var(--muted);">Loading...</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ STATEMENTS ============ -->
+    <div class="section" id="sec-statements">
+      <div class="panel">
+        <div class="panel-head"><h3>📄 Generate Financial Statement</h3></div>
+        <div class="panel-body">
+          <div style="background:rgba(108,99,255,0.06);border:1px solid rgba(108,99,255,0.2);border-radius:10px;padding:14px;margin-bottom:20px;font-size:13px;color:#a78bfa;line-height:1.7;">
+            Statements are generated from verified transaction records.
+            LatLomp is the financial management interface — not a bank account.
+            All monetary figures reflect verified payment records from your configured payment provider.
+          </div>
+          <div class="form-grid">
+            <div class="field">
+              <label>Reporting Period</label>
+              <select id="stmtPeriod" class="sel" style="width:100%;" onchange="onStmtPeriodChange()">
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month" selected>This Month</option>
+                <option value="term">This Term</option>
+                <option value="session">This Session</option>
+                <option value="all">All Time</option>
+                <option value="custom">Custom Range</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Format</label>
+              <select id="stmtFormat" class="sel" style="width:100%;">
+                <option value="pdf">PDF</option>
+                <option value="excel">Excel (full listing)</option>
+              </select>
+            </div>
+          </div>
+          <div id="stmtCustomRange" style="display:none;">
+            <div class="form-grid">
+              <div class="field"><label>From Date</label><input type="date" id="stmtFrom" class="inp inp-full" /></div>
+              <div class="field"><label>To Date</label><input type="date" id="stmtTo" class="inp inp-full" /></div>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="generateStatement()">Generate Statement</button>
+          <button class="btn btn-secondary" style="margin-left:8px;" onclick="previewStatement()">Preview Summary</button>
+
+          <div id="stmtPreview" style="margin-top:20px;display:none;"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end main -->
+</div><!-- end layout -->
+
+<div id="toast"></div>
+
+<script>
+/* ============================================
+   FINANCE DASHBOARD SCRIPT (E7B)
+============================================ */
+var _period    = 'month';
+var _token     = localStorage.getItem('instToken') || localStorage.getItem('latlomp_token') || '';
+var _charts    = {};
+var _txnPage   = 1;
+var _outPage   = 1;
+var _recPage   = 1;
+
+/* ---- Init ---- */
+document.addEventListener('DOMContentLoaded', function() {
+  if (!_token) { window.location.replace('/institution/login.html'); return; }
+  loadDashboard();
+  loadSchoolInfo();
+});
+
+async function loadSchoolInfo() {
+  try {
+    var res  = await api('/school');
+    var data = res.data;
+    if (data.success && data.school) {
+      var el = document.getElementById('topbarSchool');
+      if (el) el.textContent = data.school.name || '';
+    }
+  } catch(e) {}
+}
+
+function api(path, method, body) {
+  var opts = {
+    method:  method || 'GET',
+    headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + _token }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  return fetch('/api/institution/finance' + path, opts)
+    .then(function(r) { return r.json().then(function(d) { return { ok:r.ok, data:d, status:r.status }; }); });
+}
+
+function showSection(name) {
+  var sections = ['dashboard','transactions','outstanding','analytics','reconciliation','donations','refunds','statements'];
+  sections.forEach(function(s) {
+    var el = document.getElementById('sec-' + s);
+    if (el) el.style.display = s === name ? 'block' : 'none';
+  });
+  document.querySelectorAll('.nav-item, .tab-btn').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.sec === name ||
+      (b.textContent || '').toLowerCase().indexOf(name.split('-')[0]) > -1 && b.classList.contains('nav-item'));
+  });
+  document.querySelectorAll('[data-sec]').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.sec === name);
+  });
+
+  if (name === 'analytics')      loadAnalytics();
+  if (name === 'transactions')   loadTransactions(1);
+  if (name === 'outstanding')    loadOutstanding(1);
+  if (name === 'reconciliation') loadReconciliation(1);
+  if (name === 'donations')      { loadCampaigns(); loadDonations(); }
+  if (name === 'refunds')        loadRefunds();
+}
+
+/* ---- Period ---- */
+function setPeriod(period) {
+  _period = period;
+  document.querySelectorAll('.period-btn').forEach(function(b) {
+    b.classList.toggle('active', b.textContent.toLowerCase().includes(period) ||
+      (period === 'month' && b.textContent.includes('Month')) ||
+      (period === 'week'  && b.textContent.includes('Week'))  ||
+      (period === 'today' && b.textContent.includes('Today')) ||
+      (period === 'term'  && b.textContent.includes('Term'))  ||
+      (period === 'session' && b.textContent.includes('Session')) ||
+      (period === 'all'   && b.textContent.includes('All'))
+    );
+  });
+  loadDashboard();
+}
+
+async function loadDashboard() {
+  try {
+    var res  = await api('/summary?period=' + _period);
+    var data = res.data;
+    if (!data.success) { showToast('⚠️ Could not load summary.'); return; }
+    var s = data.summary;
+
+    /* Balance card */
+    var el = document.getElementById('balanceAmount');
+    if (el) el.textContent = fmt(s.totalCollected);
+    el = document.getElementById('balanceTxnCount');
+    if (el) el.textContent = (s.transactionCount || 0) + ' transactions';
+    el = document.getElementById('balanceOutstanding');
+    if (el) el.textContent = fmt(s.outstanding);
+    el = document.getElementById('balanceRefunded');
+    if (el) el.textContent = fmt(s.totalRefunded);
+    el = document.getElementById('balanceDonations');
+    if (el) el.textContent = fmt(s.totalDonations);
+
+    /* Stat cards */
+    setEl('statOutstanding',     fmt(s.outstanding));
+    setEl('statOutstandingCount',(s.outstandingCount || 0) + ' balances');
+    setEl('statNet',             fmt(s.netCollected));
+    setEl('statAvg',             fmt(s.avgAmount));
+    setEl('statMinMax',          'Min ' + fmt(s.minAmount) + ' / Max ' + fmt(s.maxAmount));
+    setEl('statPending',         s.pendingPayments || 0);
+    setEl('statFailed',          (s.failedPayments || 0) + ' failed');
+
+    /* Recent transactions */
+    loadRecentTransactions();
+  } catch(e) { console.error('dashboard error:', e); }
+}
+
+async function loadRecentTransactions() {
+  var content = document.getElementById('recentTxns');
+  if (!content) return;
+  try {
+    var res  = await api('/transactions?limit=10&status=confirmed');
+    var data = res.data;
+    if (!data.success || !data.transactions.length) {
+      content.innerHTML = '<div class="empty"><div class="empty-icon">💳</div><div class="empty-title">No transactions yet.</div></div>';
+      return;
+    }
+    content.innerHTML = '<div class="tbl-wrap">' + buildTxnTable(data.transactions) + '</div>';
+  } catch(e) { content.innerHTML = '<div style="padding:16px;color:var(--muted);">Could not load transactions.</div>'; }
+}
+
+function buildTxnTable(txns) {
+  return '<table><thead><tr><th>Date</th><th>Receipt</th><th>Student</th><th>Fee</th><th>Amount</th><th>Method</th><th>Status</th><th></th></tr></thead><tbody>' +
+    txns.map(function(t) {
+      var st     = t.studentId    || {};
+      var fs     = t.feeStructureId || {};
+      var status = t.status === 'confirmed' ? 'badge-green' : t.status === 'failed' ? 'badge-red' : 'badge-orange';
+      return '<tr>' +
+        '<td style="color:#fff;">' + fmtDate(t.recordedAt) + '</td>' +
+        '<td style="font-size:11px;color:var(--muted);">' + esc(t.receiptNumber || '—') + '</td>' +
+        '<td style="font-weight:700;color:#fff;">' + esc(st.name || '—') +
+          '<br/><span style="font-size:11px;color:var(--muted);">' + esc(st.admissionNo || '') + '</span></td>' +
+        '<td style="font-size:12px;">' + esc(fs.name || '—') + '</td>' +
+        '<td style="font-weight:700;color:var(--green);">' + fmt(t.amount) + '</td>' +
+        '<td style="font-size:12px;">' + esc(t.method || '—') + '</td>' +
+        '<td><span class="badge ' + status + '">' + esc(t.status || '—') + '</span></td>' +
+        '<td><a href="/api/institution/finance/transactions/' + t._id + '/receipt" target="_blank" class="btn btn-secondary btn-sm">⬇ Receipt</a></td>' +
+      '</tr>';
+    }).join('') + '</tbody></table>';
+}
+
+/* ---- Transactions ---- */
+async function loadTransactions(page) {
+  _txnPage = page || 1;
+  var content = document.getElementById('txnTable');
+  if (!content) return;
+  content.innerHTML = '<div style="text-align:center;padding:16px;"><span class="spinner"></span></div>';
+
+  var search = (document.getElementById('txnSearch') || {}).value || '';
+  var from   = (document.getElementById('txnFrom')   || {}).value || '';
+  var to     = (document.getElementById('txnTo')     || {}).value || '';
+  var status = (document.getElementById('txnStatus') || {}).value || '';
+
+  var query  = '?page=' + _txnPage + '&limit=20';
+  if (search) query += '&studentName=' + encodeURIComponent(search) + '&ref=' + encodeURIComponent(search);
+  if (from)   query += '&from=' + from;
+  if (to)     query += '&to='   + to;
+  if (status) query += '&status=' + status;
+
+  try {
+    var res  = await api('/transactions' + query);
+    var data = res.data;
+    if (!data.success) { content.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);">Could not load transactions.</div>'; return; }
+    if (!data.transactions.length) {
+      content.innerHTML = '<div class="empty"><div class="empty-icon">💳</div><div class="empty-title">No transactions found.</div></div>';
+      document.getElementById('txnPagination').innerHTML = '';
+      return;
+    }
+
+    content.innerHTML = '<div class="tbl-wrap">' + buildTxnTable(data.transactions) + '</div>';
+    renderPagination('txnPagination', data.page, data.pages, loadTransactions);
+  } catch(e) { content.innerHTML = '<div style="padding:16px;color:var(--muted);">Error loading transactions.</div>'; }
+}
+
+function exportTransactions() {
+  var from   = (document.getElementById('txnFrom')   || {}).value || '';
+  var to     = (document.getElementById('txnTo')     || {}).value || '';
+  var query  = '?format=excel&period=custom';
+  if (from) query += '&from=' + from;
+  if (to)   query += '&to='   + to;
+  /* Trigger statement download for current filters */
+  generateStatementForPeriod('custom', from, to, 'excel');
+}
+
+/* ---- Outstanding ---- */
+async function loadOutstanding(page) {
+  _outPage = page || 1;
+  var content  = document.getElementById('outTable');
+  var totalEl  = document.getElementById('outstandingTotal');
+  if (!content) return;
+  content.innerHTML = '<div style="text-align:center;padding:16px;"><span class="spinner"></span></div>';
+
+  var search = (document.getElementById('outSearch') || {}).value || '';
+  var query  = '?page=' + _outPage + '&limit=25' + (search ? '&studentName=' + encodeURIComponent(search) : '');
+
+  try {
+    var res  = await api('/outstanding' + query);
+    var data = res.data;
+    if (!data.success) { content.innerHTML = '<div style="padding:16px;color:var(--muted);">Could not load data.</div>'; return; }
+
+    if (totalEl) totalEl.textContent = 'Total outstanding: ' + fmt(data.totalBalance);
+
+    if (!data.assignments.length) {
+      content.innerHTML = '<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">No outstanding balances.</div></div>';
+      document.getElementById('outPagination').innerHTML = '';
+      return;
+    }
+
+    content.innerHTML = '<div class="tbl-wrap"><table><thead><tr><th>Student</th><th>Class</th><th>Fee</th><th>Total Due</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead><tbody>' +
+      data.assignments.map(function(a) {
+        var st = a.studentId    || {};
+        var fs = a.feeStructureId || {};
+        var tm = a.termId       || {};
+        var statusClass = a.status === 'paid' ? 'badge-green' : a.status === 'partial' ? 'badge-orange' : 'badge-red';
+        return '<tr>' +
+          '<td style="font-weight:700;color:#fff;">' + esc(st.name || '—') +
+            '<br/><span style="font-size:11px;color:var(--muted);">' + esc(st.admissionNo || '') + '</span></td>' +
+          '<td style="font-size:12px;">' + esc(st.class || '—') + '</td>' +
+          '<td style="font-size:12px;">' + esc(fs.name || '—') + '<br/><span style="font-size:10px;color:var(--muted);">' + esc(tm.name || '') + '</span></td>' +
+          '<td style="color:#fff;">' + fmt(a.amountDue) + '</td>' +
+          '<td style="color:var(--green);">' + fmt(a.amountPaid) + '</td>' +
+          '<td style="color:var(--red);font-weight:700;">' + fmt(a.balance) + '</td>' +
+          '<td><span class="badge ' + statusClass + '">' + esc(a.status) + '</span></td>' +
+        '</tr>';
+      }).join('') + '</tbody></table></div>';
+
+    renderPagination('outPagination', data.page || 1, Math.ceil((data.total || 0) / 25), loadOutstanding);
+  } catch(e) { content.innerHTML = '<div style="padding:16px;color:var(--muted);">Error loading data.</div>'; }
+}
+
+/* ---- Analytics ---- */
+var _analyticsLoaded = false;
+async function loadAnalytics() {
+  if (_analyticsLoaded) return; /* avoid re-fetch on tab switch */
+  _analyticsLoaded = true;
+  try {
+    var res  = await api('/analytics');
+    var data = res.data;
+    if (!data.success || !data.analytics) return;
+    var a = data.analytics;
+
+    renderChart('chartDaily', 'bar', a.dailyTrend.labels, a.dailyTrend.amounts,
+      'Daily Collections (NGN)', 'rgba(108,99,255,0.7)');
+    renderChart('chartMonthly', 'line', a.byMonth.labels, a.byMonth.amounts,
+      'Monthly Total (NGN)', 'rgba(67,233,123,0.7)');
+    renderPieChart('chartCategory', a.byCategory.map(function(c){return c.category;}),
+      a.byCategory.map(function(c){return c.total;}), 'By Category');
+    renderPieChart('chartMethod', a.byMethod.map(function(m){return m.method;}),
+      a.byMethod.map(function(m){return m.total;}), 'By Method');
+  } catch(e) { console.error('analytics error:', e); }
+}
+
+function renderChart(id, type, labels, data, label, color) {
+  var ctx = document.getElementById(id);
+  if (!ctx) return;
+  if (_charts[id]) { _charts[id].destroy(); }
+  _charts[id] = new Chart(ctx, {
+    type,
+    data: {
+      labels,
+      datasets: [{ label, data, backgroundColor: color, borderColor: color.replace('0.7','1'), borderWidth:1.5, tension:0.4, fill: type === 'line' }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#a0a0c0', font: { size: 10 } } } },
+      scales: type !== 'doughnut' ? {
+        x: { ticks: { color: '#6b6b8a', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { ticks: { color: '#6b6b8a', font: { size: 9 }, callback: function(v) { return '₦' + Number(v).toLocaleString(); } },
+             grid: { color: 'rgba(255,255,255,0.04)' } }
+      } : {}
+    }
+  });
+}
+
+function renderPieChart(id, labels, data, label) {
+  var ctx = document.getElementById(id);
+  if (!ctx) return;
+  if (_charts[id]) { _charts[id].destroy(); }
+  var colors = ['#6c63ff','#43e97b','#ff6584','#ffd600','#ffa500','#a78bfa','#38f9d7'];
+  _charts[id] = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ label, data, backgroundColor: colors, borderWidth:0 }] },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: { legend: { position:'right', labels: { color:'#a0a0c0', font:{size:10}, boxWidth:10 } } }
+    }
+  });
+}
+
+/* ---- Reconciliation ---- */
+async function loadReconciliation(page) {
+  _recPage = page || 1;
+  var content = document.getElementById('recTable');
+  if (!content) return;
+  content.innerHTML = '<div style="text-align:center;padding:16px;"><span class="spinner"></span></div>';
+
+  var search = (document.getElementById('recSearch') || {}).value || '';
+  var status = (document.getElementById('recStatus') || {}).value || '';
+  var query  = '?page=' + _recPage + '&limit=25';
+  if (search) query += '&studentName=' + encodeURIComponent(search);
+  if (status) query += '&status=' + status;
+
+  try {
+    var res  = await api('/reconciliation' + query);
+    var data = res.data;
+    if (!data.success) { content.innerHTML = '<div style="padding:16px;color:var(--muted);">Could not load.</div>'; return; }
+    if (!data.assignments.length) {
+      content.innerHTML = '<div class="empty"><div class="empty-icon">🔎</div><div class="empty-title">No records found.</div></div>';
+      document.getElementById('recPagination').innerHTML = '';
+      return;
+    }
+
+    content.innerHTML = '<div class="tbl-wrap"><table><thead><tr><th>Student</th><th>Fee</th><th>Due</th><th>Status</th><th>Payments</th><th>Reconciled?</th></tr></thead><tbody>' +
+      data.assignments.map(function(a) {
+        var st       = a.studentId    || {};
+        var fs       = a.feeStructureId || {};
+        var sc       = a.status === 'paid' ? 'badge-green' : a.status === 'partial' ? 'badge-orange' : 'badge-red';
+        var payments = a.payments || [];
+        var reconciled = a.isFullyReconciled ? '✅ Yes' : (a.hasPaymentRecord ? '⚠️ Partial' : '❌ No');
+        return '<tr>' +
+          '<td style="font-weight:700;color:#fff;">' + esc(st.name || '—') + '</td>' +
+          '<td style="font-size:12px;">' + esc(fs.name || '—') + '</td>' +
+          '<td style="color:#fff;">' + fmt(a.amountDue) + '</td>' +
+          '<td><span class="badge ' + sc + '">' + esc(a.status) + '</span></td>' +
+          '<td style="font-size:12px;">' + (payments.length ? payments.map(function(p) {
+            return '<span style="color:var(--green);">' + fmt(p.amount) + '</span> (' + esc(p.method || '?') + ')';
+          }).join(', ') : '—') + '</td>' +
+          '<td style="font-weight:700;">' + reconciled + '</td>' +
+        '</tr>';
+      }).join('') + '</tbody></table></div>';
+
+    renderPagination('recPagination', data.page || 1, data.pages || 1, loadReconciliation);
+  } catch(e) { content.innerHTML = '<div style="padding:16px;color:var(--muted);">Error.</div>'; }
+}
+
+/* ---- Donations ---- */
+async function loadCampaigns() {
+  var content = document.getElementById('campaignsContent');
+  if (!content) return;
+  try {
+    var res  = await api('/donations/campaigns');
+    var data = res.data;
+    if (!data.success || !data.campaigns.length) {
+      content.innerHTML = '<div class="empty"><div class="empty-icon">💛</div><div class="empty-title">No campaigns yet.</div></div>';
+      return;
+    }
+
+    /* Populate campaign dropdown for donation form */
+    var sel = document.getElementById('donorCampaign');
+    if (sel) {
+      sel.innerHTML = '<option value="">No specific campaign</option>' +
+        data.campaigns.filter(function(c){return c.status==='active';}).map(function(c) {
+          return '<option value="' + c._id + '">' + esc(c.title) + '</option>';
+        }).join('');
+    }
+
+    content.innerHTML = '<div class="tbl-wrap"><table><thead><tr><th>Campaign</th><th>Category</th><th>Target</th><th>Collected</th><th>Donations</th><th>Status</th></tr></thead><tbody>' +
+      data.campaigns.map(function(c) {
+        var sc = c.status === 'active' ? 'badge-green' : 'badge-muted';
+        return '<tr>' +
+          '<td style="font-weight:700;color:#fff;">' + esc(c.title) + '<br/><span style="font-size:11px;color:var(--muted);">' + esc(c.description || '') + '</span></td>' +
+          '<td style="text-transform:capitalize;">' + esc(c.category || '—') + '</td>' +
+          '<td>' + (c.targetAmount ? fmt(c.targetAmount) : '—') + '</td>' +
+          '<td style="color:var(--green);font-weight:700;">' + fmt(c.totalCollected) + '</td>' +
+          '<td>' + (c.donationCount || 0) + '</td>' +
+          '<td><span class="badge ' + sc + '">' + esc(c.status) + '</span></td>' +
+        '</tr>';
+      }).join('') + '</tbody></table></div>';
+  } catch(e) { content.innerHTML = '<div style="padding:16px;color:var(--muted);">Could not load campaigns.</div>'; }
+}
+
+async function loadDonations() {
+  var content = document.getElementById('donationsContent');
+  if (!content) return;
+  try {
+    var res  = await api('/donations');
+    var data = res.data;
+    if (!data.success || !data.donations.length) {
+      content.innerHTML = '<div class="empty"><div class="empty-icon">💛</div><div class="empty-title">No donations yet.</div></div>';
+      return;
+    }
+    content.innerHTML = '<div class="tbl-wrap"><table><thead><tr><th>Donor</th><th>Type</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead><tbody>' +
+      data.donations.map(function(d) {
+        var sc = d.paymentStatus === 'completed' ? 'badge-green' : 'badge-orange';
+        return '<tr>' +
+          '<td style="font-weight:700;color:#fff;">' + (d.isAnonymous ? '🕵️ Anonymous' : esc(d.donorName || '—')) + '</td>' +
+          '<td style="text-transform:capitalize;">' + esc(d.donorType || '—') + '</td>' +
+          '<td style="color:var(--green);font-weight:700;">' + fmt(d.amount) + '</td>' +
+          '<td><span class="badge ' + sc + '">' + esc(d.paymentStatus || '—') + '</span></td>' +
+          '<td style="font-size:12px;">' + fmtDate(d.createdAt) + '</td>' +
+        '</tr>';
+      }).join('') + '</tbody></table></div>';
+  } catch(e) {}
+}
+
+function showCampaignForm() {
+  var el = document.getElementById('campaignFormPanel');
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function showDonationForm() {
+  var el = document.getElementById('donationFormPanel');
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function createCampaign() {
+  var payload = {
+    title:        (document.getElementById('campTitle')   ||{}).value || '',
+    description:  (document.getElementById('campDesc')    ||{}).value || '',
+    category:     (document.getElementById('campCategory')||{}).value || 'general',
+    targetAmount: parseFloat((document.getElementById('campTarget') ||{}).value) || null,
+    endDate:      (document.getElementById('campEndDate') ||{}).value || null
+  };
+  if (!payload.title) { showToast('❌ Title is required.'); return; }
+  var res  = await api('/donations/campaigns', 'POST', payload);
+  var data = res.data;
+  if (data.success) {
+    showToast('✅ Campaign created!');
+    document.getElementById('campaignFormPanel').style.display = 'none';
+    loadCampaigns();
+  } else {
+    showToast('❌ ' + (data.message || 'Failed.'));
+  }
+}
+
+async function recordDonation() {
+  var payload = {
+    donorName:   (document.getElementById('donorName')    ||{}).value || '',
+    donorType:   (document.getElementById('donorType')    ||{}).value || 'external',
+    amount:      parseFloat((document.getElementById('donorAmount')||{}).value) || 0,
+    campaignId:  (document.getElementById('donorCampaign')||{}).value || null
+  };
+  if (!payload.amount) { showToast('❌ Enter a valid amount.'); return; }
+  var res  = await api('/donations', 'POST', payload);
+  var data = res.data;
+  if (data.success) {
+    showToast('✅ Donation recorded!');
+    document.getElementById('donationFormPanel').style.display = 'none';
+    loadDonations(); loadCampaigns();
+  } else {
+    showToast('❌ ' + (data.message || 'Failed.'));
+  }
+}
+
+/* ---- Refunds ---- */
+async function loadRefunds() {
+  var content = document.getElementById('refundsTable');
+  if (!content) return;
+  try {
+    var res  = await api('/refunds');
+    var data = res.data;
+    if (!data.success || !data.refunds.length) {
+      content.innerHTML = '<div class="empty"><div class="empty-icon">↩️</div><div class="empty-title">No refund requests.</div></div>';
+      return;
+    }
+    content.innerHTML = '<div class="tbl-wrap"><table><thead><tr><th>Student</th><th>Amount</th><th>Reason</th><th>Status</th><th>Requested</th><th>Action</th></tr></thead><tbody>' +
+      data.refunds.map(function(r) {
+        var st = r.studentId || {};
+        var sc = r.status === 'processed' ? 'badge-green' : r.status === 'pending' ? 'badge-orange' : r.status === 'cancelled' ? 'badge-muted' : 'badge-red';
+        var action = r.status === 'pending'
+          ? '<button class="btn btn-green btn-sm" onclick="processRefund(\'' + r._id + '\')">Process</button> ' +
+            '<button class="btn btn-secondary btn-sm" onclick="cancelRefund(\'' + r._id + '\')">Cancel</button>'
+          : '';
+        return '<tr>' +
+          '<td style="font-weight:700;color:#fff;">' + esc(st.name || '—') + '</td>' +
+          '<td style="color:var(--orange);font-weight:700;">' + fmt(r.amount) + '</td>' +
+          '<td style="font-size:12px;">' + esc(r.reason || '—') + '</td>' +
+          '<td><span class="badge ' + sc + '">' + esc(r.status) + '</span></td>' +
+          '<td style="font-size:12px;">' + fmtDate(r.requestedAt) + '</td>' +
+          '<td>' + action + '</td>' +
+        '</tr>';
+      }).join('') + '</tbody></table></div>';
+  } catch(e) { content.innerHTML = '<div style="padding:16px;color:var(--muted);">Error loading refunds.</div>'; }
+}
+
+async function initiateRefund() {
+  var paymentId = (document.getElementById('refundPaymentId')||{}).value || '';
+  var reason    = (document.getElementById('refundReason')   ||{}).value || '';
+  var amount    = parseFloat((document.getElementById('refundAmount')   ||{}).value) || null;
+  if (!paymentId || !reason) { showToast('❌ Payment ID and reason required.'); return; }
+  var res  = await api('/refunds', 'POST', { paymentId, reason, amount });
+  var data = res.data;
+  if (data.success) { showToast('✅ Refund requested.'); loadRefunds(); }
+  else              { showToast('❌ ' + (data.message || 'Failed.')); }
+}
+
+async function processRefund(id) {
+  var ref = prompt('Provider refund reference (optional):') || '';
+  var res  = await api('/refunds/' + id + '/process', 'PUT', { providerRefundRef: ref });
+  var data = res.data;
+  if (data.success) { showToast('✅ Refund processed.'); loadRefunds(); }
+  else              { showToast('❌ ' + (data.message || 'Failed.')); }
+}
+
+async function cancelRefund(id) {
+  if (!confirm('Cancel this refund request?')) return;
+  var res  = await api('/refunds/' + id + '/cancel', 'PUT', { reason: 'Cancelled by admin' });
+  var data = res.data;
+  if (data.success) { showToast('Refund request cancelled.'); loadRefunds(); }
+  else              { showToast('❌ ' + (data.message || 'Failed.')); }
+}
+
+/* ---- Statements ---- */
+function onStmtPeriodChange() {
+  var period = (document.getElementById('stmtPeriod') || {}).value || 'month';
+  var cr     = document.getElementById('stmtCustomRange');
+  if (cr) cr.style.display = period === 'custom' ? 'block' : 'none';
+}
+
+async function generateStatement() {
+  var period = (document.getElementById('stmtPeriod') || {}).value || 'month';
+  var format = (document.getElementById('stmtFormat') || {}).value || 'pdf';
+  var from   = (document.getElementById('stmtFrom')   || {}).value || '';
+  var to     = (document.getElementById('stmtTo')     || {}).value || '';
+  generateStatementForPeriod(period, from, to, format);
+}
+
+async function generateStatementForPeriod(period, from, to, format) {
+  showToast('⏳ Generating statement...');
+  try {
+    var body = { period: { type: period, from: from || null, to: to || null }, format };
+    var opts = {
+      method:  'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + _token },
+      body:    JSON.stringify(body)
+    };
+    var res = await fetch('/api/institution/finance/statements/generate', opts);
+    if (!res.ok) { var err = await res.json(); showToast('❌ ' + (err.message || 'Failed.')); return; }
+    var blob = await res.blob();
+    var ext  = format === 'excel' ? '.xlsx' : '.pdf';
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    a.href = url; a.download = 'FinancialStatement_' + period + ext;
+    a.click(); URL.revokeObjectURL(url);
+    showToast('✅ Statement downloaded!');
+  } catch(e) { showToast('❌ Download failed.'); }
+}
+
+async function previewStatement() {
+  var period = (document.getElementById('stmtPeriod') || {}).value || 'month';
+  var from   = (document.getElementById('stmtFrom')   || {}).value || '';
+  var to     = (document.getElementById('stmtTo')     || {}).value || '';
+  var preview= document.getElementById('stmtPreview');
+  if (!preview) return;
+  preview.style.display = 'block';
+  preview.innerHTML     = '<div style="text-align:center;padding:16px;"><span class="spinner"></span></div>';
+  try {
+    var res  = await api('/summary?period=' + period + (from ? '&from='+from : '') + (to ? '&to='+to : ''));
+    var data = res.data;
+    if (!data.success) { preview.innerHTML = '<p style="color:var(--muted);">Preview unavailable.</p>'; return; }
+    var s = data.summary;
+    preview.innerHTML = '<div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:20px;">' +
+      '<h4 style="margin-bottom:16px;font-size:14px;">Statement Preview</h4>' +
+      '<div class="metric-row">' +
+      chip('Total Collected',  fmt(s.totalCollected)) +
+      chip('Outstanding',      fmt(s.outstanding)) +
+      chip('Net After Refunds',fmt(s.netCollected)) +
+      chip('Transactions',     s.transactionCount || 0) +
+      chip('Min Transaction',  fmt(s.minAmount)) +
+      chip('Max Transaction',  fmt(s.maxAmount)) +
+      chip('Avg Transaction',  fmt(s.avgAmount)) +
+      chip('Refunds',          fmt(s.totalRefunded)) +
+      '</div></div>';
+  } catch(e) { preview.innerHTML = '<p style="color:var(--muted);">Preview error.</p>'; }
+}
+
+function chip(label, value) {
+  return '<div class="metric-chip"><div class="metric-chip-label">' + esc(String(label)) + '</div>' +
+    '<div class="metric-chip-value">' + esc(String(value)) + '</div></div>';
+}
+
+/* ---- Pagination ---- */
+function renderPagination(containerId, current, total, callback) {
+  var container = document.getElementById(containerId);
+  if (!container || total <= 1) { if (container) container.innerHTML = ''; return; }
+  var html = '';
+  if (current > 1) html += '<button class="page-btn" onclick="(' + callback.name + ')(' + (current-1) + ')">←</button>';
+  var start = Math.max(1, current - 2);
+  var end   = Math.min(total, current + 2);
+  for (var i = start; i <= end; i++) {
+    html += '<button class="page-btn' + (i === current ? ' active' : '') + '" onclick="(' + callback.name + ')(' + i + ')">' + i + '</button>';
+  }
+  if (current < total) html += '<button class="page-btn" onclick="(' + callback.name + ')(' + (current+1) + ')">→</button>';
+  html += '<span class="page-info">Page ' + current + ' of ' + total + '</span>';
+  container.innerHTML = html;
+}
+
+/* ---- Utilities ---- */
+function fmt(amount) {
+  return '₦' + Number(amount || 0).toLocaleString('en-NG', { minimumFractionDigits:2, maximumFractionDigits:2 });
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+}
+
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function setEl(id, val) {
+  var el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+function showToast(msg) {
+  var el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg; el.style.display = 'block';
+  clearTimeout(el._t);
+  el._t = setTimeout(function() { el.style.display = 'none'; }, 3500);
+}
+
+function doLogout() {
+  if (!confirm('Log out of Finance Portal?')) return;
+  localStorage.removeItem('instToken');
+  localStorage.removeItem('latlomp_token');
+  window.location.replace('/institution/login.html');
+}
+</script>
+</body>
+</html>

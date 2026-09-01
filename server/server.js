@@ -98,6 +98,8 @@ app.use("/api/institution/transcripts", require("./institution/routes/inst.trans
 app.use("/api/institution/alumni", require("./institution/routes/inst.alumni.admin.routes"));
 /* ✅ E7: Parent Portal Expansion — institution staff comms management */
 app.use("/api/institution/parent-comms", require("./institution/routes/inst.parent.comms.routes"));
+/* ✅ E7B: School Finance & Payment Management */
+app.use("/api/institution/finance", require("./institution/routes/inst.finance.routes"));
 /* ✅ E6: Alumni Network — self-service (alumni-authenticated) */
 app.use("/api/institution/alumni", require("./institution/routes/inst.alumni.routes"));
 /* ✅ E5: Public Transcript Verification */
