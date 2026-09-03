@@ -559,12 +559,52 @@ router.put('/refunds/:id/process', adminGuard, async function(req, res) {
       });
     }
 
-    refund.status           = 'processed';
-    refund.processedBy      = req.schoolUser._id;
-    refund.processedByName  = req.schoolUser.name || '';
-    refund.processedAt      = new Date();
-    refund.providerRefundRef= (req.body.providerRefundRef || '').trim();
-    refund.notes            = (req.body.notes || '').trim();
+    /* ✅ E7B AUDIT: Attempt provider refund if no manual ref supplied */
+    var providerRefundRef = (req.body.providerRefundRef || '').trim();
+    var providerResponse  = '';
+
+    if (!providerRefundRef) {
+      /* Attempt automatic Paystack refund */
+      try {
+        var SchoolFeePayment2   = require('../models/SchoolFeePayment.model');
+        var originalPayment     = await SchoolFeePayment2.findById(refund.paymentId)
+          .select('paystackRef externalRef schoolId').lean();
+        var txnRef = originalPayment && (originalPayment.paystackRef || originalPayment.externalRef);
+
+        if (txnRef) {
+          var SchoolPaymentAccount2 = require('../models/SchoolPaymentAccount.model');
+          var payAccount2 = await SchoolPaymentAccount2.findOne({
+            schoolId: req.schoolId, status: 'active'
+          }).lean();
+          if (payAccount2) {
+            var { getProvider: getP2 } = require('../providers/payment.provider');
+            var provider2 = getP2(payAccount2.provider || 'paystack');
+            if (typeof provider2.refundPayment === 'function') {
+              /* Amount in kobo (refund.amount is in NGN major units) */
+              var amountKobo = Math.round((refund.amount || 0) * 100);
+              var refundResult = await provider2.refundPayment(txnRef, amountKobo);
+              if (refundResult.success) {
+                providerRefundRef = refundResult.refundRef;
+                providerResponse  = refundResult.message;
+              } else {
+                providerResponse = 'Provider refund unsuccessful: ' + refundResult.message;
+              }
+            }
+          }
+        }
+      } catch (provErr) {
+        console.warn('[finance] Provider refund attempt failed (non-fatal):', provErr.message);
+        providerResponse = 'Provider refund attempt failed: ' + provErr.message;
+      }
+    }
+
+    refund.status            = 'processed';
+    refund.processedBy       = req.schoolUser._id;
+    refund.processedByName   = req.schoolUser.name || '';
+    refund.processedAt       = new Date();
+    refund.providerRefundRef = providerRefundRef;
+    refund.providerResponse  = providerResponse;
+    refund.notes             = (req.body.notes || '').trim();
     await refund.save();
 
     /* Rebalance the fee assignment */

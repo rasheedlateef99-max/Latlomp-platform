@@ -204,9 +204,9 @@
 
       <!-- Banking balance card -->
       <div class="balance-card" id="balanceCard">
-        <div class="balance-label">💰 Total Collected</div>
+        <div class="balance-label">💰 Total Collected (Verified Payments)</div>
         <div class="balance-amount" id="balanceAmount">₦0.00</div>
-        <div class="balance-period" id="balancePeriod">This Month</div>
+        <div class="balance-period" id="balancePeriod">This Month · Managed via payment provider</div>
         <div class="balance-row">
           <div class="balance-item">
             <div class="balance-item-label">Transactions</div>
@@ -517,20 +517,56 @@ var _recPage   = 1;
 
 /* ---- Init ---- */
 document.addEventListener('DOMContentLoaded', function() {
-  if (!_token) { window.location.replace('/institution/login.html'); return; }
+  /* ✅ FIX: Try every known institution token key.
+     If none found, redirect AFTER showing a brief message
+     so the styled page remains visible (no flash). */
+  _token = localStorage.getItem('instToken')
+        || localStorage.getItem('latlomp_token')
+        || localStorage.getItem('token')
+        || localStorage.getItem('schoolToken')
+        || '';
+
+  if (!_token) {
+    /* Show styled error rather than abruptly navigating away */
+    var toast = document.getElementById('toast');
+    if (toast) {
+      toast.textContent = '⚠️ Session expired. Redirecting...';
+      toast.style.display = 'block';
+    }
+    setTimeout(function() {
+      window.location.replace('/institution/login.html');
+    }, 1200);
+    return;
+  }
+
+  /* Explicitly initialise section display so JS and CSS stay consistent */
+  showSection('dashboard');
   loadDashboard();
   loadSchoolInfo();
 });
 
 async function loadSchoolInfo() {
+  /* ✅ FIX: /api/institution/finance/school does not exist.
+     Call the correct institution school endpoint instead.
+     Falls back to a stored name or stays empty on failure. */
   try {
-    var res  = await api('/school');
-    var data = res.data;
-    if (data.success && data.school) {
+    var opts = {
+      method:  'GET',
+      headers: { 'Authorization': 'Bearer ' + _token }
+    };
+    /* Try the existing institution school profile route */
+    var res  = await fetch('/api/institution/school', opts);
+    if (res.ok) {
+      var data = await res.json();
+      var name = (data.school && data.school.name)
+              || (data.name)
+              || '';
       var el = document.getElementById('topbarSchool');
-      if (el) el.textContent = data.school.name || '';
+      if (el && name) { el.textContent = name; }
     }
-  } catch(e) {}
+  } catch(e) {
+    /* Non-fatal — topbar school name stays blank */
+  }
 }
 
 function api(path, method, body) {

@@ -79,4 +79,13 @@ schoolFeePaymentSchema.index({ schoolId: 1, assignmentId: 1 });
 schoolFeePaymentSchema.index({ paystackRef: 1 }, { sparse: true });
 schoolFeePaymentSchema.index({ receiptNumber: 1 }, { sparse: true });
 
+/* ✅ E7B AUDIT: Performance indexes for finance dashboard queries */
+/* Only add if not already present */
+if (!schoolFeePaymentSchema.indexes().some(function(idx) {
+  return idx[0] && idx[0].recordedAt;
+})) {
+  schoolFeePaymentSchema.index({ schoolId: 1, status: 1, recordedAt: -1 });
+  schoolFeePaymentSchema.index({ schoolId: 1, termId: 1, status: 1 });
+  schoolFeePaymentSchema.index({ schoolId: 1, recordedAt: -1 });
+}
 module.exports = mongoose.model('SchoolFeePayment', schoolFeePaymentSchema);

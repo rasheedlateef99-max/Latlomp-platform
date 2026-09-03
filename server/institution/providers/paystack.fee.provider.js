@@ -168,4 +168,43 @@ class PaystackFeeProvider extends PaymentProvider {
   }
 }
 
+/* ============================================
+   ✅ E7B AUDIT: refundPayment(transactionRef, amountKobo)
+   Calls Paystack Refund API.
+   amountKobo = null means full refund.
+   Returns { success, refundRef, status, message }
+============================================ */
+PaystackFeeProvider.prototype.refundPayment = async function(transactionRef, amountKobo) {
+  var axios       = require('axios');
+  var secretKey   = process.env.PAYSTACK_SECRET_KEY || '';
+  if (!secretKey) { throw new Error('PAYSTACK_SECRET_KEY not configured.'); }
+
+  var body = { transaction: transactionRef };
+  if (amountKobo && amountKobo > 0) { body.amount = Math.round(amountKobo); }
+
+  try {
+    var response = await axios.post('https://api.paystack.co/refund', body, {
+      headers: {
+        Authorization: 'Bearer ' + secretKey,
+        'Content-Type': 'application/json'
+      },
+      timeout: 15000
+    });
+    var data = response.data;
+    if (data && data.status) {
+      return {
+        success:   true,
+        refundRef: data.data && data.data.id   ? String(data.data.id)     : '',
+        status:    data.data && data.data.status? data.data.status         : 'pending',
+        message:   data.message || 'Refund initiated with provider.'
+      };
+    }
+    return { success: false, refundRef: '', status: 'failed', message: data.message || 'Provider returned failure.' };
+  } catch (err) {
+    var errMsg = err.response && err.response.data && err.response.data.message
+      ? err.response.data.message
+      : err.message;
+    throw new Error('Paystack refund failed: ' + errMsg);
+  }
+};
 module.exports = PaystackFeeProvider;
