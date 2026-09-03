@@ -165,26 +165,25 @@ router.post('/payment-account/connect', adminGuard, paymentConnectLimit, async (
       { upsert: true, new: true }
     );
 
-    return res.status(200).json({
+    /* ✅ FIX: Return success — the adjustment code below was incorrectly
+       merged into this route during E7B implementation. It has been removed.
+       Fee adjustment belongs in a separate /fee/assignments/:id/adjust route. */
+    return res.status(201).json({
       success:  true,
       message:  'Payment account connected successfully. Online payments are now enabled.',
       account: {
         provider:              account.provider,
         status:                account.status,
-        currency:              account.currency,
         businessName:          account.businessName,
         settlementBankName:    account.settlementBankName,
         settlementAccountName: account.settlementAccountName,
-        onlinePaymentsEnabled: account.onlinePaymentsEnabled,
-        verifiedAt:            account.verifiedAt
+        currency:              account.currency,
+        onlinePaymentsEnabled: account.onlinePaymentsEnabled
       }
     });
   } catch (err) {
-    console.error('[FeeOnline] connect-account error:', err.message);
-    return res.status(400).json({
-      success: false,
-      message: err.message || 'Failed to connect payment account. Please try again.'
-    });
+    console.error('[PaymentAccount/connect] error:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
   }
 });
 

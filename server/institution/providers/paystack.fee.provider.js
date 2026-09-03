@@ -207,4 +207,80 @@ PaystackFeeProvider.prototype.refundPayment = async function(transactionRef, amo
     throw new Error('Paystack refund failed: ' + errMsg);
   }
 };
+
+/* ============================================
+   ✅ FIX: listBanks(currency)
+   Calls Paystack GET /bank API server-side.
+   Secret key NEVER exposed to browser.
+   Currency-to-country mapping for Paystack.
+   Returns: [{ id, name, code, longcode, type }]
+============================================ */
+PaystackFeeProvider.prototype.listBanks = async function(currency) {
+  var axios = require('axios');
+  var secretKey = process.env.PAYSTACK_SECRET_KEY || '';
+  if (!secretKey) {
+    throw new Error('PAYSTACK_SECRET_KEY is not configured.');
+  }
+
+  /* Paystack requires country for bank list — currency determines country */
+  var currencyCountryMap = {
+    NGN: 'nigeria',
+    GHS: 'ghana',
+    ZAR: 'south africa',
+    KES: 'kenya'
+    /* GBP is NOT supported for Paystack African subaccounts — excluded by design */
+  };
+
+  var country = currencyCountryMap[(currency || 'NGN').toUpperCase()];
+  if (!country) {
+    throw new Error('Currency ' + currency + ' is not supported by the payment provider for bank account setup.');
+  }
+
+  try {
+    var response = await axios.get('https://api.paystack.co/bank', {
+      headers: { Authorization: 'Bearer ' + secretKey },
+      params:  { country: country, use_cursor: false, perPage: 100 },
+      timeout: 15000
+    });
+
+    if (!response.data || !response.data.status) {
+      throw new Error(response.data && response.data.message ? response.data.message : 'Paystack bank list unavailable.');
+    }
+
+    var banks = (response.data.data || []).map(function(b) {
+      return {
+        id:       b.id,
+        name:     b.name,
+        code:     b.code,
+        longcode: b.longcode || '',
+        type:     b.type    || 'nuban'
+      };
+    }).sort(function(a, b) { return a.name.localeCompare(b.name); });
+
+    return banks;
+  } catch (err) {
+    var errMsg = err.response && err.response.data && err.response.data.message
+      ? err.response.data.message
+      : err.message;
+    throw new Error('Failed to load bank list from payment provider: ' + errMsg);
+  }
+};
+
+/* ============================================
+   ✅ FIX: getSupportedCurrencies()
+   Returns only currencies Paystack actually
+   supports for African subaccounts.
+   GBP is NOT listed — not supported.
+============================================ */
+PaystackFeeProvider.prototype.getSupportedCurrencies = async function() {
+  return [
+    { code: 'NGN', name: 'Nigerian Naira',      country: 'Nigeria',      flag: '🇳🇬', supported: true },
+    { code: 'GHS', name: 'Ghanaian Cedi',       country: 'Ghana',        flag: '🇬🇭', supported: true },
+    { code: 'ZAR', name: 'South African Rand',  country: 'South Africa', flag: '🇿🇦', supported: true },
+    { code: 'KES', name: 'Kenyan Shilling',     country: 'Kenya',        flag: '🇰🇪', supported: true }
+    /* GBP: NOT supported for Paystack subaccounts in Africa.
+       USD: Not available for settlement subaccounts in NGN/African markets. */
+  ];
+};
+
 module.exports = PaystackFeeProvider;

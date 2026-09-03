@@ -509,7 +509,8 @@
    FINANCE DASHBOARD SCRIPT (E7B)
 ============================================ */
 var _period    = 'month';
-var _token     = localStorage.getItem('instToken') || localStorage.getItem('latlomp_token') || '';
+/* ✅ FIX: Primary key confirmed from dashboard.html logout = 'latlomp_inst_token' */
+var _token = '';
 var _charts    = {};
 var _txnPage   = 1;
 var _outPage   = 1;
@@ -520,7 +521,9 @@ document.addEventListener('DOMContentLoaded', function() {
   /* ✅ FIX: Try every known institution token key.
      If none found, redirect AFTER showing a brief message
      so the styled page remains visible (no flash). */
-  _token = localStorage.getItem('instToken')
+  /* ✅ FIX: Correct key confirmed from dashboard.html: 'latlomp_inst_token' */
+  _token = localStorage.getItem('latlomp_inst_token')
+        || localStorage.getItem('instToken')
         || localStorage.getItem('latlomp_token')
         || localStorage.getItem('token')
         || localStorage.getItem('schoolToken')
@@ -1160,6 +1163,8 @@ function showToast(msg) {
 
 function doLogout() {
   if (!confirm('Log out of Finance Portal?')) return;
+  localStorage.removeItem('latlomp_inst_token');
+  localStorage.removeItem('latlomp_inst_user');
   localStorage.removeItem('instToken');
   localStorage.removeItem('latlomp_token');
   window.location.replace('/institution/login.html');

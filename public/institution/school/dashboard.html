@@ -558,35 +558,43 @@
         <div class="card-head"><h3>🏦 Connect Settlement Account</h3></div>
         <div class="card-body">
           <p style="font-size:13px;color:var(--secondary);margin:0 0 16px;line-height:1.7;">
-            Enter your school's bank account. Paystack will verify and link it.
-            Payments from parents will be settled directly to this account.
-            <strong style="color:#fff;">No Paystack account needed.</strong>
+            Enter your school's bank account details below. The payment provider will verify and securely link your account.
+            All parent payments will be settled directly to this bank account.
+            <strong style="color:#fff;">You do not need a Paystack account to proceed.</strong>
           </p>
+          <div style="background:rgba(108,99,255,0.06);border:1px solid rgba(108,99,255,0.2);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:#a78bfa;line-height:1.7;">
+            <strong>How it works:</strong> Enter your account number and select your bank → Click "Verify Account" to confirm ownership →
+            Enter your business name → Click "Connect Account" to complete setup.
+          </div>
           <div id="connectBankErr" style="display:none;background:rgba(255,101,132,0.1);border:1px solid rgba(255,101,132,0.3);color:var(--red);padding:12px;border-radius:8px;font-size:13px;margin-bottom:16px;"></div>
           <div id="connectBankSuccess" style="display:none;background:rgba(67,233,123,0.1);border:1px solid rgba(67,233,123,0.3);color:var(--green);padding:12px;border-radius:8px;font-size:13px;margin-bottom:16px;"></div>
 
           <!-- Step 1: Enter bank details -->
           <div id="bankStep1">
-            <div class="field">
+           <div class="field">
               <label>Currency</label>
-              <select id="payAccountCurrency" class="sel" style="width:auto;min-width:200px;">
+              <select id="payAccountCurrency" class="sel" style="width:auto;min-width:220px;"
+                      onchange="onCurrencyChange()">
                 <option value="NGN">🇳🇬 NGN — Nigerian Naira</option>
                 <option value="GHS">🇬🇭 GHS — Ghanaian Cedi</option>
-                <option value="USD">🇺🇸 USD — US Dollar</option>
                 <option value="KES">🇰🇪 KES — Kenyan Shilling</option>
                 <option value="ZAR">🇿🇦 ZAR — South African Rand</option>
+                <!-- GBP is not supported by payment provider for school settlement accounts -->
               </select>
+              <div class="field-hint">Select the currency your school's bank account uses. GBP is not supported by the payment provider for school settlement accounts.</div>
             </div>
+            <div id="bankRetryBox" style="display:none;margin-bottom:12px;"></div>
             <div class="field-row">
-              <div class="field">
-                <label>Bank</label>
-                <select id="payAccountBank" class="sel" onchange="onBankChange()">
-                  <option value="">Loading banks...</option>
-                </select>
-              </div>
               <div class="field">
                 <label>Account Number</label>
                 <input type="text" id="payAccountNumber" class="inp" placeholder="10-digit account number" maxlength="10" oninput="onAccountNumberInput()" />
+                <div class="field-hint">Enter your 10-digit bank account number first.</div>
+              </div>
+              <div class="field">
+                <label>Bank</label>
+                <select id="payAccountBank" class="sel" onchange="onBankChange()">
+                  <option value="">— Select your bank —</option>
+                </select>
               </div>
             </div>
             <div id="bankVerifyStatus" style="font-size:13px;color:var(--secondary);margin:8px 0 16px;"></div>
@@ -595,12 +603,22 @@
               <div id="verifiedAccountName" style="font-size:16px;font-weight:800;color:var(--green);"></div>
             </div>
             <div class="field">
-              <label>Business Name (how it appears to payers)</label>
-              <input type="text" id="payAccountBizName" class="inp" placeholder="e.g. Bright Future Schools" />
+              <label>Business Name <span style="font-size:11px;color:var(--muted);">(displayed to parents when they pay)</span></label>
+              <input type="text" id="payAccountBizName" class="inp inp-full"
+                     placeholder="e.g. Bright Future Schools"
+                     oninput="checkCanVerify()" />
+              <div class="field-hint">This is the name parents will see on their payment screen. Usually your school's full name.</div>
             </div>
-            <div style="display:flex;gap:10px;">
-              <button class="btn btn-secondary" id="verifyBankBtn" onclick="verifyBankAccount()" disabled>Verify Account</button>
-              <button class="btn btn-primary"   id="connectBankBtn" onclick="connectPaymentAccount()" disabled>Connect Account →</button>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+              <button class="btn btn-secondary" id="verifyBankBtn" onclick="verifyBankAccount()" disabled
+                      title="Enter your account number and select a bank first">
+                🔍 Verify Account
+              </button>
+              <button class="btn btn-primary" id="connectBankBtn" onclick="connectPaymentAccount()" disabled
+                      title="Verify your account first, then click here to connect">
+                ✅ Connect Account →
+              </button>
+              <span id="connectBtnHint" style="font-size:11px;color:var(--muted);">Verify your account first to enable this button.</span>
             </div>
           </div>
         </div>
@@ -1785,33 +1803,122 @@ async function loadPayAccountStatus() {
 async function showConnectBankForm() {
   var connectCard = document.getElementById('connectBankCard');
   if (connectCard) connectCard.style.display = 'block';
-  /* Load bank list */
-  if (!_bankList.length) {
-    var sel = document.getElementById('payAccountBank');
-    if (sel) sel.innerHTML = '<option value="">Loading banks...</option>';
-    var res = await instApi('/fee/payment-account/banks?currency=NGN');
-    if (res.ok) {
-      _bankList = res.data.banks || [];
-      if (sel) {
-        sel.innerHTML = '<option value="">-- Select Bank --</option>' +
-          _bankList.map(function (b) {
-            return '<option value="' + esc(b.code) + '" data-name="' + esc(b.name) + '">' + esc(b.name) + '</option>';
-          }).join('');
+  /* Get current currency selection */
+  var currencyEl = document.getElementById('payAccountCurrency');
+  var currency   = currencyEl ? currencyEl.value : 'NGN';
+  await loadBankListForCurrency(currency);
+}
+
+/* ✅ FIX: Separate bank-loading function — called on show and on currency change */
+async function loadBankListForCurrency(currency) {
+  _bankList = []; /* reset */
+  var sel = document.getElementById('payAccountBank');
+  if (!sel) return;
+
+  sel.innerHTML = '<option value="">Loading banks for ' + esc(currency) + '...</option>';
+  sel.disabled  = true;
+  checkCanVerify();
+
+  try {
+    var res = await instApi('/fee/payment-account/banks?currency=' + encodeURIComponent(currency));
+
+    if (res.ok && res.data && res.data.banks && res.data.banks.length > 0) {
+      _bankList = res.data.banks;
+      sel.innerHTML = '<option value="">— Select your bank —</option>' +
+        _bankList.map(function(b) {
+          return '<option value="' + esc(b.code) + '" data-name="' + esc(b.name) + '">' + esc(b.name) + '</option>';
+        }).join('');
+      sel.disabled = false;
+    } else {
+      /* ✅ FIX: Clear error state with retry — never stays "Loading..." */
+      var errMsg = (res.data && res.data.message) || 'Unable to load banks from payment provider.';
+      sel.innerHTML = '<option value="">⚠️ Banks unavailable — see retry below</option>';
+      sel.disabled  = true;
+
+      /* Show retry UI */
+      var retryBox = document.getElementById('bankRetryBox');
+      if (retryBox) {
+        retryBox.style.display = 'block';
+        retryBox.innerHTML = '<span style="font-size:12px;color:var(--red);">⚠️ ' + esc(errMsg) + '</span> ' +
+          '<button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="loadBankListForCurrency(\'' + esc(currency) + '\')">↺ Retry</button>';
       }
     }
+  } catch(e) {
+    sel.innerHTML = '<option value="">⚠️ Network error — see retry below</option>';
+    sel.disabled  = true;
+    var retryBox = document.getElementById('bankRetryBox');
+    if (retryBox) {
+      retryBox.style.display = 'block';
+      retryBox.innerHTML = '<span style="font-size:12px;color:var(--red);">⚠️ Could not reach payment provider.</span> ' +
+        '<button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="loadBankListForCurrency(\'' + esc(currency) + '\')">↺ Retry</button>';
+    }
   }
+
+  checkCanVerify();
+}
+
+/* ✅ FIX: Called when currency selector changes */
+function onCurrencyChange() {
+  /* Reset verification state */
+  _verifiedBankData = null;
+  _bankList         = [];
+  var verifiedBox   = document.getElementById('bankVerifiedBox');
+  var statusEl      = document.getElementById('bankVerifyStatus');
+  var acctEl        = document.getElementById('payAccountNumber');
+  if (verifiedBox) verifiedBox.style.display = 'none';
+  if (statusEl)    statusEl.textContent = '';
+  if (acctEl)      acctEl.value = '';
+  checkCanVerify();
+
+  var currencyEl = document.getElementById('payAccountCurrency');
+  var currency   = currencyEl ? currencyEl.value : 'NGN';
+  loadBankListForCurrency(currency);
 }
 
 function onBankChange() { _verifiedBankData = null; document.getElementById('bankVerifiedBox').style.display='none'; checkCanVerify(); }
 function onAccountNumberInput() { _verifiedBankData = null; document.getElementById('bankVerifiedBox').style.display='none'; checkCanVerify(); }
 
 function checkCanVerify() {
-  var bankCode = (document.getElementById('payAccountBank') || {}).value || '';
-  var acctNum  = (document.getElementById('payAccountNumber') || {}).value || '';
-  var verifyBtn= document.getElementById('verifyBankBtn');
-  if (verifyBtn) verifyBtn.disabled = !(bankCode && acctNum.length >= 10);
+  var bankCode   = (document.getElementById('payAccountBank')   || {}).value || '';
+  var acctNum    = ((document.getElementById('payAccountNumber') || {}).value || '').trim();
+  var bizName    = ((document.getElementById('payAccountBizName')|| {}).value || '').trim();
+  var verifyBtn  = document.getElementById('verifyBankBtn');
   var connectBtn = document.getElementById('connectBankBtn');
-  if (connectBtn) connectBtn.disabled = !_verifiedBankData;
+  var hintEl     = document.getElementById('connectBtnHint');
+
+  /* ✅ FIX: Verify enabled when bank selected AND 10-digit account number entered */
+  var canVerify  = !!(bankCode && acctNum.length >= 10);
+  if (verifyBtn) {
+    verifyBtn.disabled = !canVerify;
+    verifyBtn.title    = canVerify
+      ? 'Click to verify your bank account details'
+      : 'Enter a valid 10-digit account number and select your bank first';
+  }
+
+  /* Connect enabled only after successful verification AND business name filled */
+  var canConnect = !!(
+    _verifiedBankData &&
+    bizName.length >= 2
+  );
+  if (connectBtn) {
+    connectBtn.disabled = !canConnect;
+    connectBtn.title    = canConnect
+      ? 'Click to connect this verified account'
+      : !_verifiedBankData ? 'Verify your account first' : 'Enter a business name';
+  }
+
+  /* Update hint text */
+  if (hintEl) {
+    if (_verifiedBankData && !bizName) {
+      hintEl.textContent = 'Enter a business name to enable the Connect button.';
+    } else if (_verifiedBankData && bizName) {
+      hintEl.textContent = '';
+    } else if (canVerify) {
+      hintEl.textContent = 'Ready to verify — click "Verify Account".';
+    } else {
+      hintEl.textContent = 'Enter your 10-digit account number and select your bank first.';
+    }
+  }
 }
 
 async function verifyBankAccount() {
