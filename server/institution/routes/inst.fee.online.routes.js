@@ -75,14 +75,55 @@ router.get('/payment-account/status', staffGuard, async (req, res) => {
   }
 });
 
-/* GET /api/institution/fee/payment-account/banks?currency=NGN */
-router.get('/payment-account/banks', staffGuard, async (req, res) => {
+/* ============================================
+   GET /api/institution/fee/payment-account/supported-countries
+   Returns countries this school's provider supports.
+   Used by the frontend country selector.
+   No sensitive data exposed.
+============================================ */
+router.get('/payment-account/supported-countries', staffGuard, async (req, res) => {
   try {
-    var provider = getProvider('paystack');
-    var banks    = await provider.listBanks(req.query.currency || 'NGN');
-    return res.status(200).json({ success: true, banks });
+    /* ✅ INTERNATIONAL ARCHITECTURE:
+       Each school may eventually use a different provider.
+       For now, all schools use Paystack.
+       Future: look up school's configured provider here. */
+    var provider  = getProvider('paystack');
+    var countries = provider.getSupportedCountries();
+    return res.status(200).json({ success: true, countries });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   GET /api/institution/fee/payment-account/banks?country=NG
+   Returns bank list for a specific country.
+   country: ISO country code (NG, GH, ZA, KE)
+   Provider secret key used server-side only.
+============================================ */
+router.get('/payment-account/banks', staffGuard, async (req, res) => {
+  try {
+    var countryIso = (req.query.country || 'NG').toUpperCase();
+
+    /* ✅ INTERNATIONAL ARCHITECTURE:
+       Country → Provider capability → Institution list.
+       Only show banks the provider actually supports. */
+    var provider = getProvider('paystack');
+    var banks    = await provider.listBanks(countryIso);
+
+    return res.status(200).json({
+      success: true,
+      country: countryIso,
+      count:   banks.length,
+      banks
+    });
+  } catch (err) {
+    console.error('[PaymentAccount/banks] error:', err.message);
+    /* Return structured error so frontend can display properly */
+    return res.status(422).json({
+      success: false,
+      message: err.message || 'Unable to load bank list from payment provider.'
+    });
   }
 });
 

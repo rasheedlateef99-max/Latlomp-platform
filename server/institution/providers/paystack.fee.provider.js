@@ -283,4 +283,169 @@ PaystackFeeProvider.prototype.getSupportedCurrencies = async function() {
   ];
 };
 
+/* ============================================
+   INTERNATIONAL PAYMENT ACCOUNT CAPABILITIES
+   
+   Paystack-specific implementation.
+   All methods use server-side API calls only.
+   PAYSTACK_SECRET_KEY never exposed to browser.
+
+   Architecture: Country → Currency → Provider →
+   Provider capabilities → Institutions → Verification
+============================================ */
+
+/* Paystack country registry
+   Source of truth: Paystack settlement subaccount API.
+   Only countries where Paystack supports settlement
+   subaccounts are listed. Do NOT add GBP, USD etc.
+   — these are not supported by Paystack for settlement. */
+var PAYSTACK_COUNTRY_REGISTRY = [
+  {
+    isoCode:    'NG',
+    name:       'Nigeria',
+    paystackId: 'nigeria',
+    currency:   'NGN',
+    currencyName:'Nigerian Naira',
+    flag:       '🇳🇬'
+  },
+  {
+    isoCode:    'GH',
+    name:       'Ghana',
+    paystackId: 'ghana',
+    currency:   'GHS',
+    currencyName:'Ghanaian Cedi',
+    flag:       '🇬🇭'
+  },
+  {
+    isoCode:    'ZA',
+    name:       'South Africa',
+    paystackId: 'south africa',
+    currency:   'ZAR',
+    currencyName:'South African Rand',
+    flag:       '🇿🇦'
+  },
+  {
+    isoCode:    'KE',
+    name:       'Kenya',
+    paystackId: 'kenya',
+    currency:   'KES',
+    currencyName:'Kenyan Shilling',
+    flag:       '🇰🇪'
+  }
+];
+
+/* ============================================
+   getSupportedCountries()
+   Returns what Paystack actually supports.
+   Called by the frontend country selector.
+============================================ */
+PaystackFeeProvider.prototype.getSupportedCountries = function() {
+  /* Synchronous — no API call needed */
+  return PAYSTACK_COUNTRY_REGISTRY.map(function(c) {
+    return {
+      isoCode:      c.isoCode,
+      name:         c.name,
+      currency:     c.currency,
+      currencyName: c.currencyName,
+      flag:         c.flag,
+      capabilities: {
+        bankList:           true,
+        accountVerification:true,
+        settlementSubaccount:true
+      }
+    };
+  });
+};
+
+/* ============================================
+   listBanks(countryIso)
+   Calls Paystack GET /bank with correct country.
+   countryIso: 'NG' | 'GH' | 'ZA' | 'KE'
+   Returns: [{ name, code, country, currency }]
+
+   Paginated: Paystack returns up to perPage per page.
+   Nigeria has 100+ banks; we fetch up to 200 per page
+   which covers all in one call.
+============================================ */
+PaystackFeeProvider.prototype.listBanks = async function(countryIso) {
+  var axios     = require('axios');
+  var secretKey = process.env.PAYSTACK_SECRET_KEY || '';
+
+  if (!secretKey) {
+    throw new Error('PAYSTACK_SECRET_KEY environment variable is not configured.');
+  }
+
+  /* Resolve country registry entry */
+  var countryEntry = PAYSTACK_COUNTRY_REGISTRY.find(function(c) {
+    return c.isoCode === (countryIso || 'NG').toUpperCase();
+  });
+
+  if (!countryEntry) {
+    throw new Error(
+      'Country "' + countryIso + '" is not supported by the payment provider. ' +
+      'Supported countries: ' +
+      PAYSTACK_COUNTRY_REGISTRY.map(function(c) { return c.isoCode; }).join(', ')
+    );
+  }
+
+  try {
+    var response = await axios.get('https://api.paystack.co/bank', {
+      headers: { Authorization: 'Bearer ' + secretKey },
+      params:  {
+        country:    countryEntry.paystackId,
+        use_cursor: false,
+        perPage:    200   /* single call covers all banks */
+      },
+      timeout: 20000
+    });
+
+    if (!response.data || !response.data.status) {
+      throw new Error(
+        (response.data && response.data.message)
+          ? response.data.message
+          : 'Payment provider returned an unexpected response.'
+      );
+    }
+
+    var banks = (response.data.data || []).map(function(b) {
+      return {
+        name:     b.name,
+        code:     b.code,
+        country:  countryEntry.isoCode,
+        currency: countryEntry.currency,
+        type:     b.type    || 'nuban',
+        longcode: b.longcode || ''
+      };
+    });
+
+    /* Sort alphabetically for usability */
+    banks.sort(function(a, b) { return a.name.localeCompare(b.name); });
+
+    return banks;
+
+  } catch (err) {
+    /* Distinguish Paystack API errors from network errors */
+    var msg = err.response && err.response.data && err.response.data.message
+      ? err.response.data.message
+      : err.message;
+    throw new Error('Failed to retrieve bank list from payment provider: ' + msg);
+  }
+};
+
+/* ============================================
+   getSupportedCurrencies()
+   Derived from country registry.
+   Called by currency selector fallback.
+============================================ */
+PaystackFeeProvider.prototype.getSupportedCurrencies = function() {
+  return PAYSTACK_COUNTRY_REGISTRY.map(function(c) {
+    return {
+      code:    c.currency,
+      name:    c.currencyName,
+      country: c.isoCode,
+      flag:    c.flag
+    };
+  });
+};
+
 module.exports = PaystackFeeProvider;
