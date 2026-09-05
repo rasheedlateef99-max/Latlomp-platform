@@ -1,0 +1,1500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Website Builder — LatLomp Schools</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary:#6c63ff; --pd:#574fd6;
+      --green:#43e97b; --red:#ff6584;
+      --orange:#ffa500; --yellow:#ffd600;
+      --dark:#0f0f1a; --dark-2:#1a1a2e;
+      --border:rgba(255,255,255,0.08);
+      --text:#fff; --muted:#6b6b8a; --secondary:#a0a0c0;
+    }
+    html, body { background:var(--dark); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+    @keyframes spin   { to { transform:rotate(360deg); } }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);} }
+
+    /* ---- LAYOUT ---- */
+    .layout  { display:flex; min-height:100vh; }
+    .sidebar { width:220px; flex-shrink:0; background:var(--dark-2); border-right:1px solid var(--border); padding:0; position:sticky; top:0; height:100vh; overflow-y:auto; display:flex; flex-direction:column; }
+    .main    { flex:1; overflow-x:hidden; display:flex; flex-direction:column; }
+    @media(max-width:900px){ .sidebar{ display:none; } }
+
+    /* ---- TOPBAR ---- */
+    .topbar { display:flex; align-items:center; justify-content:space-between; padding:0 24px; height:60px; background:var(--dark-2); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100; gap:16px; flex-shrink:0; }
+    .brand  { font-size:15px; font-weight:800; }
+    .brand span { color:var(--primary); }
+
+    /* ---- SIDEBAR ---- */
+    .sb-brand { padding:16px 20px; border-bottom:1px solid var(--border); font-size:14px; font-weight:800; flex-shrink:0; }
+    .sb-brand span { color:var(--primary); }
+    .sb-nav   { flex:1; padding:8px 10px; }
+    .nav-sec  { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; padding:14px 10px 4px; }
+    .nav-item { display:flex; align-items:center; gap:8px; padding:10px 12px; font-size:13px; font-weight:600; color:var(--secondary); cursor:pointer; border:none; background:none; font-family:'Inter',sans-serif; width:100%; text-align:left; border-radius:9px; margin-bottom:2px; transition:all 0.15s; text-decoration:none; }
+    .nav-item:hover  { color:#fff; background:rgba(255,255,255,0.05); }
+    .nav-item.active { color:#a78bfa; background:rgba(108,99,255,0.1); }
+    .sb-footer { padding:10px; border-top:1px solid var(--border); flex-shrink:0; }
+
+    /* ---- CONTENT ---- */
+    .content { padding:28px; max-width:880px; flex:1; }
+    @media(max-width:768px){ .content{ padding:16px; } }
+    .ws-section { display:none; }
+    .ws-section.active { display:block; animation:fadeUp 0.2s ease; }
+
+    /* ---- PANELS ---- */
+    .panel { background:var(--dark-2); border:1px solid var(--border); border-radius:14px; margin-bottom:20px; overflow:hidden; }
+    .panel-head { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:8px; }
+    .panel-head h3 { font-size:14px; font-weight:700; margin:0; }
+    .panel-body { padding:18px; }
+
+    /* ---- STATUS BANNER ---- */
+    .status-banner { border-radius:12px; padding:16px 20px; margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+    .status-banner.draft       { background:rgba(255,165,0,0.08);  border:1px solid rgba(255,165,0,0.25); }
+    .status-banner.published   { background:rgba(67,233,123,0.08); border:1px solid rgba(67,233,123,0.25); }
+    .status-banner.unpublished { background:rgba(255,101,132,0.08);border:1px solid rgba(255,101,132,0.25); }
+    .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+    .status-dot.draft       { background:var(--orange); }
+    .status-dot.published   { background:var(--green); }
+    .status-dot.unpublished { background:var(--red); }
+
+    /* ---- FORMS ---- */
+    .field { margin-bottom:16px; }
+    .field label { display:block; font-size:11px; font-weight:700; color:var(--secondary); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px; }
+    .field input, .field select, .field textarea {
+      background:rgba(255,255,255,0.04); border:1px solid var(--border);
+      border-radius:9px; padding:10px 13px; color:#fff; font-size:13px;
+      font-family:'Inter',sans-serif; outline:none; width:100%; transition:border-color 0.2s;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color:var(--primary); }
+    .field input::placeholder, .field textarea::placeholder { color:var(--muted); }
+    .field select option  { background:var(--dark-2); }
+    .field textarea       { resize:vertical; min-height:80px; }
+    .field-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    @media(max-width:600px){ .field-row{ grid-template-columns:1fr; } }
+    .field-hint { font-size:11px; color:var(--muted); margin-top:4px; line-height:1.5; }
+
+    /* ---- BUTTONS ---- */
+    .btn { display:inline-flex; align-items:center; gap:6px; padding:9px 18px; border-radius:9px; font-size:13px; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif; border:none; transition:all 0.2s; text-decoration:none; white-space:nowrap; }
+    .btn-primary  { background:linear-gradient(135deg,var(--primary),var(--pd)); color:#fff; }
+    .btn-green    { background:linear-gradient(135deg,var(--green),#38f9d7); color:#0f0f1a; }
+    .btn-danger   { background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); }
+    .btn-secondary{ background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--secondary); }
+    .btn-sm       { padding:5px 12px; font-size:12px; border-radius:7px; }
+    .btn:disabled { opacity:0.5; cursor:not-allowed; }
+    .btn-row      { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+
+    /* ---- THEME CARDS ---- */
+    .theme-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+    .theme-card { background:rgba(255,255,255,0.03); border:2px solid var(--border); border-radius:12px; padding:16px; cursor:pointer; text-align:center; transition:all 0.2s; }
+    .theme-card:hover    { border-color:rgba(108,99,255,0.4); }
+    .theme-card.selected { border-color:var(--primary); background:rgba(108,99,255,0.08); }
+    .theme-preview { height:48px; border-radius:6px; margin-bottom:8px; }
+    .theme-card-name { font-size:13px; font-weight:700; }
+
+    /* ---- COLOR ROW ---- */
+    .color-row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    .color-input-wrap { display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:9px; padding:6px 12px 6px 6px; }
+    .color-input-wrap input[type=color] { width:32px; height:32px; border:none; padding:0; background:none; cursor:pointer; border-radius:6px; }
+    .color-label { font-size:12px; color:var(--secondary); font-weight:600; }
+
+    /* ---- SECTION TOGGLES ---- */
+    .section-list { display:flex; flex-direction:column; gap:8px; }
+    .section-item { display:flex; align-items:center; gap:12px; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:10px; padding:12px 16px; }
+    .section-item-name { font-size:13px; font-weight:700; flex:1; }
+    .toggle-switch { position:relative; display:inline-block; width:40px; height:22px; cursor:pointer; flex-shrink:0; }
+    .toggle-switch input { opacity:0; width:0; height:0; }
+    .toggle-slider { position:absolute; inset:0; background:rgba(255,255,255,0.1); border-radius:22px; transition:0.2s; }
+    .toggle-switch input:checked + .toggle-slider { background:var(--green); }
+    .toggle-slider::before { content:''; position:absolute; width:16px; height:16px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:0.2s; }
+    .toggle-switch input:checked + .toggle-slider::before { transform:translateX(18px); }
+
+    /* ---- MODULE GRID ---- */
+    .module-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:10px; }
+    .module-card { display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:10px; padding:12px; }
+    .module-card-name { font-size:13px; font-weight:600; flex:1; }
+
+    /* ---- OVERVIEW QUICK-ACCESS CARDS ---- */
+    .quick-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:20px; }
+    .quick-card { background:var(--dark-2); border:1px solid var(--border); border-radius:12px; padding:18px; cursor:pointer; transition:all 0.15s; }
+    .quick-card:hover { border-color:rgba(108,99,255,0.4); background:rgba(108,99,255,0.06); }
+    .quick-card-icon  { font-size:24px; margin-bottom:8px; }
+    .quick-card-title { font-size:14px; font-weight:700; }
+    .quick-card-sub   { font-size:12px; color:var(--muted); margin-top:4px; }
+
+    /* ---- TABLE ---- */
+    .tbl-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; min-width:480px; font-size:13px; }
+    th { padding:9px 12px; text-align:left; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; color:var(--muted); border-bottom:1px solid var(--border); background:rgba(255,255,255,0.02); }
+    td { padding:11px 12px; color:var(--secondary); border-bottom:1px solid var(--border); vertical-align:middle; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:rgba(255,255,255,0.01); }
+
+    /* ---- BADGES ---- */
+    .badge { display:inline-block; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:700; }
+    .badge-green  { background:rgba(67,233,123,0.12); color:var(--green); }
+    .badge-orange { background:rgba(255,165,0,0.12);  color:var(--orange); }
+    .badge-muted  { background:rgba(255,255,255,0.06);color:var(--secondary); }
+    .badge-red    { background:rgba(255,101,132,0.12);color:var(--red); }
+
+    /* ---- MEDIA GRID ---- */
+    .media-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px; margin-top:16px; }
+    .media-thumb { position:relative; border-radius:10px; overflow:hidden; aspect-ratio:1; background:rgba(255,255,255,0.04); border:1px solid var(--border); cursor:pointer; transition:all 0.15s; }
+    .media-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+    .media-thumb:hover { border-color:var(--primary); }
+    .media-thumb-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; gap:6px; flex-direction:column; }
+    .media-thumb:hover .media-thumb-overlay { display:flex; }
+    .media-thumb-url { font-size:10px; color:#fff; padding:2px 6px; background:rgba(0,0,0,0.6); border-radius:4px; word-break:break-all; text-align:center; max-width:90%; }
+
+    /* ---- UPLOAD ZONE ---- */
+    .upload-zone { border:2px dashed var(--border); border-radius:12px; padding:32px; text-align:center; cursor:pointer; transition:all 0.2s; }
+    .upload-zone:hover, .upload-zone.dragover { border-color:var(--primary); background:rgba(108,99,255,0.06); }
+    .upload-zone-icon { font-size:36px; margin-bottom:10px; }
+    .upload-zone-text { font-size:14px; color:var(--secondary); }
+    .upload-zone-hint { font-size:11px; color:var(--muted); margin-top:6px; }
+
+    /* ---- SPINNER / TOAST ---- */
+    .spinner { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; }
+    #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--dark-2); border:1px solid var(--border); border-radius:10px; padding:12px 20px; font-size:13px; font-weight:600; z-index:9999; display:none; max-width:90%; white-space:nowrap; }
+
+    /* ---- URL BOX ---- */
+    .url-box { background:rgba(0,0,0,0.3); border:1px solid var(--border); border-radius:8px; padding:12px 14px; font-family:monospace; font-size:13px; color:#a78bfa; word-break:break-all; margin-bottom:12px; }
+  </style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ===== SIDEBAR ===== -->
+  <nav class="sidebar">
+    <div class="sb-brand">🌐 <span>Website</span> Builder</div>
+    <div class="sb-nav">
+      <div class="nav-sec">Setup</div>
+      <button class="nav-item active" data-sec="overview"    onclick="showSec('overview')">   📊 Overview</button>
+      <button class="nav-item"        data-sec="identity"    onclick="showSec('identity')">   🏫 Identity</button>
+      <button class="nav-item"        data-sec="design"      onclick="showSec('design')">     🎨 Design</button>
+      <div class="nav-sec">Content</div>
+      <button class="nav-item"        data-sec="homepage"    onclick="showSec('homepage')">   🏠 Homepage</button>
+      <button class="nav-item"        data-sec="pages"       onclick="showSec('pages')">      📄 Pages</button>
+      <button class="nav-item"        data-sec="news"        onclick="showSec('news')">       📰 News</button>
+      <button class="nav-item"        data-sec="events"      onclick="showSec('events')">     📅 Events</button>
+      <div class="nav-sec">Media &amp; SEO</div>
+      <button class="nav-item"        data-sec="media"       onclick="showSec('media')">      🖼️ Media</button>
+      <button class="nav-item"        data-sec="seo"         onclick="showSec('seo')">        🔍 SEO</button>
+      <button class="nav-item"        data-sec="navigation"  onclick="showSec('navigation')"> 🧭 Navigation</button>
+      <div class="nav-sec">Publish</div>
+      <button class="nav-item"        data-sec="publish"     onclick="showSec('publish')">    🚀 Publish</button>
+    </div>
+    <div class="sb-footer">
+      <a href="/institution/school/dashboard.html" class="nav-item">← School Dashboard</a>
+    </div>
+  </nav>
+
+  <!-- ===== MAIN ===== -->
+  <div class="main">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="brand">🌐 <span>School</span> Website Builder</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div id="topbarSchool" style="font-size:13px;color:var(--secondary);font-weight:600;"></div>
+        <a id="previewSiteBtn" href="#" target="_blank" class="btn btn-secondary btn-sm">👁 Preview</a>
+        <button class="btn btn-green btn-sm" onclick="publishWebsite()">🚀 Publish</button>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- ============================= OVERVIEW ============================= -->
+      <div class="ws-section active" id="sec-overview">
+
+        <div id="statusBanner" class="status-banner draft">
+          <div>
+            <span class="status-dot draft" id="statusDot"></span>
+            <strong id="statusLabel">Loading...</strong>
+            <div style="font-size:12px;color:var(--secondary);margin-top:4px;" id="statusSub"></div>
+          </div>
+          <div id="statusActions"></div>
+        </div>
+
+        <div class="quick-grid">
+          <div class="quick-card" onclick="showSec('identity')">
+            <div class="quick-card-icon">🏫</div>
+            <div class="quick-card-title">School Identity</div>
+            <div class="quick-card-sub">Tagline, about, contact info</div>
+          </div>
+          <div class="quick-card" onclick="showSec('design')">
+            <div class="quick-card-icon">🎨</div>
+            <div class="quick-card-title">Design &amp; Theme</div>
+            <div class="quick-card-sub">Colors, fonts, layout</div>
+          </div>
+          <div class="quick-card" onclick="showSec('homepage')">
+            <div class="quick-card-icon">🏠</div>
+            <div class="quick-card-title">Homepage Sections</div>
+            <div class="quick-card-sub">Arrange your homepage</div>
+          </div>
+          <div class="quick-card" onclick="showSec('news')">
+            <div class="quick-card-icon">📰</div>
+            <div class="quick-card-title">News &amp; Articles</div>
+            <div class="quick-card-sub" id="newsCountLabel">0 posts</div>
+          </div>
+          <div class="quick-card" onclick="showSec('media')">
+            <div class="quick-card-icon">🖼️</div>
+            <div class="quick-card-title">Media Library</div>
+            <div class="quick-card-sub" id="mediaCountLabel">0 files</div>
+          </div>
+          <div class="quick-card" onclick="showSec('publish')">
+            <div class="quick-card-icon">🚀</div>
+            <div class="quick-card-title">Publish Website</div>
+            <div class="quick-card-sub">Go live to the public</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>Public Website URL</h3></div>
+          <div class="panel-body">
+            <div class="url-box" id="overviewPublicUrl">Loading...</div>
+            <div class="btn-row" style="margin-top:0;">
+              <button class="btn btn-secondary btn-sm" onclick="copyPublicUrl()">📋 Copy URL</button>
+              <a id="visitSiteBtn" href="#" target="_blank" class="btn btn-secondary btn-sm">🔗 Open Website</a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ============================= IDENTITY ============================= -->
+      <div class="ws-section" id="sec-identity">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>🏫 School Identity</h3>
+            <button class="btn btn-primary btn-sm" onclick="saveIdentity()">Save</button>
+          </div>
+          <div class="panel-body">
+            <p style="font-size:13px;color:var(--secondary);margin-bottom:16px;line-height:1.6;">
+              These details supplement your school's existing profile and appear on your public website.
+              Plain text only — no HTML permitted.
+            </p>
+            <div class="field">
+              <label>Tagline</label>
+              <input type="text" id="idTagline" placeholder="e.g. Excellence in Education Since 1985" />
+              <div class="field-hint">A short sentence capturing your school's spirit.</div>
+            </div>
+            <div class="field">
+              <label>Short Description</label>
+              <textarea id="idDescription" rows="2" placeholder="Brief description of your school for visitors and search engines..."></textarea>
+            </div>
+            <div class="field">
+              <label>About Us</label>
+              <textarea id="idAbout" rows="4" placeholder="Introduce your school to visitors..."></textarea>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>History</label>
+                <textarea id="idHistory" rows="3" placeholder="School history..."></textarea>
+              </div>
+              <div class="field">
+                <label>Our Values</label>
+                <textarea id="idValues" rows="3" placeholder="School values..."></textarea>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Mission</label>
+                <textarea id="idMission" rows="2" placeholder="Our mission..."></textarea>
+              </div>
+              <div class="field">
+                <label>Vision</label>
+                <textarea id="idVision" rows="2" placeholder="Our vision..."></textarea>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Year Founded</label>
+                <input type="number" id="idFoundedYear" placeholder="e.g. 1985" min="1800" max="2030" />
+              </div>
+              <div class="field">
+                <label>Public Contact Email</label>
+                <input type="email" id="idEmail" placeholder="info@school.edu" />
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Public Phone Number</label>
+                <input type="tel" id="idPhone" placeholder="+234 800 000 0000" />
+              </div>
+              <div class="field">
+                <label>Google Maps Embed URL</label>
+                <input type="url" id="idMapUrl" placeholder="https://maps.google.com/..." />
+                <div class="field-hint">Google Maps → Share → Embed map → copy the src URL only.</div>
+              </div>
+            </div>
+
+            <!-- Principal message -->
+            <div style="padding-top:16px;border-top:1px solid var(--border);margin-top:8px;">
+              <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:14px;">Principal's Message</div>
+              <div class="field">
+                <label>Message Text</label>
+                <textarea id="idPrincipalMsg" rows="3" placeholder="A welcome message from the principal..."></textarea>
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label>Principal's Name</label>
+                  <input type="text" id="idPrincipalName" placeholder="e.g. Dr. Amaka Okafor" />
+                </div>
+                <div class="field">
+                  <label>Title</label>
+                  <input type="text" id="idPrincipalTitle" placeholder="e.g. School Principal" />
+                </div>
+              </div>
+              <div class="field">
+                <label>Principal's Photo URL</label>
+                <input type="url" id="idPrincipalPhoto" placeholder="https://..." />
+                <div class="field-hint">Upload photo to Media Library first, then paste the URL here.</div>
+              </div>
+            </div>
+
+            <!-- Social media -->
+            <div style="padding-top:16px;border-top:1px solid var(--border);margin-top:8px;">
+              <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:14px;">Social Media Links</div>
+              <div class="field-row">
+                <div class="field"><label>Facebook</label><input type="url" id="idFacebook" placeholder="https://facebook.com/..." /></div>
+                <div class="field"><label>Twitter / X</label><input type="url" id="idTwitter" placeholder="https://twitter.com/..." /></div>
+              </div>
+              <div class="field-row">
+                <div class="field"><label>Instagram</label><input type="url" id="idInstagram" placeholder="https://instagram.com/..." /></div>
+                <div class="field"><label>YouTube</label><input type="url" id="idYoutube" placeholder="https://youtube.com/..." /></div>
+              </div>
+              <div class="field">
+                <label>WhatsApp</label>
+                <input type="url" id="idWhatsapp" placeholder="https://wa.me/234..." />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================= DESIGN ============================= -->
+      <div class="ws-section" id="sec-design">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>🎨 Design &amp; Theme</h3>
+            <button class="btn btn-primary btn-sm" onclick="saveDesign()">Save</button>
+          </div>
+          <div class="panel-body">
+
+            <div class="field">
+              <label>Website Theme</label>
+              <div class="theme-grid">
+                <div class="theme-card selected" id="themeCard-modern" onclick="selectTheme('modern')">
+                  <div class="theme-preview" style="background:linear-gradient(135deg,#1a5276,#2e86c1);"></div>
+                  <div class="theme-card-name">Modern</div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:3px;">Clean &amp; professional</div>
+                </div>
+                <div class="theme-card" id="themeCard-classic" onclick="selectTheme('classic')">
+                  <div class="theme-preview" style="background:linear-gradient(135deg,#2c3e50,#8e44ad);"></div>
+                  <div class="theme-card-name">Classic</div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:3px;">Traditional &amp; elegant</div>
+                </div>
+                <div class="theme-card" id="themeCard-bold" onclick="selectTheme('bold')">
+                  <div class="theme-preview" style="background:linear-gradient(135deg,#e74c3c,#f39c12);"></div>
+                  <div class="theme-card-name">Bold</div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:3px;">Vibrant &amp; energetic</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Brand Colors</label>
+              <div class="color-row">
+                <div class="color-input-wrap">
+                  <input type="color" id="dPrimary"   value="#1a5276" />
+                  <span class="color-label">Primary</span>
+                </div>
+                <div class="color-input-wrap">
+                  <input type="color" id="dSecondary" value="#2e86c1" />
+                  <span class="color-label">Secondary</span>
+                </div>
+                <div class="color-input-wrap">
+                  <input type="color" id="dAccent"    value="#e67e22" />
+                  <span class="color-label">Accent / CTA</span>
+                </div>
+              </div>
+              <div class="field-hint">Primary: main brand color. Secondary: links, highlights. Accent: call-to-action buttons.</div>
+            </div>
+
+            <div class="field-row">
+              <div class="field">
+                <label>Typography</label>
+                <select id="dFontTheme">
+                  <option value="inter">Inter — Modern &amp; clean</option>
+                  <option value="poppins">Poppins — Friendly &amp; rounded</option>
+                  <option value="merriweather">Merriweather — Traditional &amp; readable</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Navigation Bar Style</label>
+                <select id="dNavStyle">
+                  <option value="dark">Dark navigation bar</option>
+                  <option value="light">Light navigation bar</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Footer Style</label>
+              <select id="dFooterStyle">
+                <option value="rich">Rich — Logo, contact and social links</option>
+                <option value="minimal">Minimal — Copyright line only</option>
+              </select>
+            </div>
+
+            <div style="padding-top:16px;border-top:1px solid var(--border);margin-top:8px;">
+              <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:14px;">Logo &amp; Favicon</div>
+              <div class="field">
+                <label>Logo URL</label>
+                <input type="url" id="dLogoUrl" placeholder="https://..." />
+                <div class="field-hint">Upload your logo to the Media Library first, then paste the URL here. PNG with transparent background recommended.</div>
+              </div>
+              <div class="field">
+                <label>Favicon URL</label>
+                <input type="url" id="dFaviconUrl" placeholder="https://..." />
+                <div class="field-hint">Small square icon shown in browser tabs. 32×32 or 64×64 px.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================= HOMEPAGE ============================= -->
+      <div class="ws-section" id="sec-homepage">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>🏠 Homepage Sections</h3>
+            <button class="btn btn-primary btn-sm" onclick="saveHomepage()">Save</button>
+          </div>
+          <div class="panel-body">
+            <p style="font-size:13px;color:var(--secondary);margin-bottom:16px;line-height:1.6;">
+              Enable or disable sections for your homepage. Changes take effect when you publish.
+            </p>
+            <div class="section-list" id="homepageSectionList">
+              <div style="padding:20px;text-align:center;color:var(--muted);">Loading sections...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hero section config -->
+        <div class="panel" id="heroConfigPanel" style="display:none;">
+          <div class="panel-head"><h3>🖼️ Hero Banner Settings</h3></div>
+          <div class="panel-body">
+            <div class="field"><label>Headline</label><input type="text" id="heroHeadline" placeholder="e.g. Excellence in Education" /></div>
+            <div class="field"><label>Subtext</label><textarea id="heroSubtext" rows="2" placeholder="A welcoming message for visitors..."></textarea></div>
+            <div class="field"><label>Background Image URL</label><input type="url" id="heroImageUrl" placeholder="Paste URL from Media Library..." /><div class="field-hint">Full-width background photo. Recommended 1920×1080px.</div></div>
+            <div class="field-row">
+              <div class="field"><label>Button Text</label><input type="text" id="heroBtnText" placeholder="e.g. Explore Our School" /></div>
+              <div class="field"><label>Button URL</label><input type="url" id="heroBtnUrl" placeholder="e.g. /school/your-slug/about" /></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================= PAGES ============================= -->
+      <div class="ws-section" id="sec-pages">
+        <div class="panel">
+          <div class="panel-head"><h3>📄 Website Pages</h3></div>
+          <div class="panel-body">
+            <p style="font-size:13px;color:var(--secondary);margin-bottom:16px;">
+              Select a page to edit its content. Each page has its own draft and publish state.
+            </p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
+              <button class="btn btn-secondary btn-sm" onclick="loadPageEditor('about')">About Us</button>
+              <button class="btn btn-secondary btn-sm" onclick="loadPageEditor('admissions')">Admissions</button>
+              <button class="btn btn-secondary btn-sm" onclick="loadPageEditor('contact')">Contact</button>
+            </div>
+            <div id="pageEditorWrap" style="display:none;">
+              <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:12px;" id="pageEditorHeading">Editing Page</div>
+              <div class="field">
+                <label>Page Content</label>
+                <textarea id="pageContent" rows="10" placeholder="Enter page content as plain text. Line breaks will be preserved. No HTML is allowed."></textarea>
+                <div class="field-hint">Plain text only. HTML will be removed for security.</div>
+              </div>
+              <div class="btn-row">
+                <button class="btn btn-secondary btn-sm" onclick="closePageEditor()">Cancel</button>
+                <button class="btn btn-secondary btn-sm" onclick="savePageDraft()">Save Draft</button>
+                <button class="btn btn-primary btn-sm" onclick="publishPage()">Publish Page</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================= NEWS ============================= -->
+      <div class="ws-section" id="sec-news">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>📰 News &amp; Articles</h3>
+            <button class="btn btn-primary btn-sm" onclick="toggleNewsForm()">+ New Post</button>
+          </div>
+
+          <!-- New post form -->
+          <div id="newsFormWrap" style="display:none;padding:18px;border-bottom:1px solid var(--border);">
+            <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:14px;">New Article</div>
+            <div class="field"><label>Title <span style="color:var(--red);">*</span></label><input type="text" id="nTitle" placeholder="Article title..." /></div>
+            <div class="field"><label>Excerpt (short summary)</label><textarea id="nExcerpt" rows="2" placeholder="Brief summary shown in listings..."></textarea></div>
+            <div class="field"><label>Content <span style="color:var(--red);">*</span></label><textarea id="nContent" rows="7" placeholder="Full article text. Plain text only."></textarea><div class="field-hint">No HTML permitted. Line breaks will be preserved.</div></div>
+            <div class="field-row">
+              <div class="field"><label>Category</label><input type="text" id="nCategory" placeholder="e.g. Academic, Sports, General" /></div>
+              <div class="field"><label>Author Display Name</label><input type="text" id="nAuthor" placeholder="e.g. School Admin" /></div>
+            </div>
+            <div class="field"><label>Featured Image URL</label><input type="url" id="nImageUrl" placeholder="Paste URL from Media Library..." /></div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:14px;">
+              <input type="checkbox" id="nPublishNow" style="width:15px;height:15px;accent-color:var(--primary);cursor:pointer;" />
+              <span>Publish immediately</span>
+            </label>
+            <div class="btn-row" style="margin-top:0;">
+              <button class="btn btn-secondary btn-sm" onclick="toggleNewsForm()">Cancel</button>
+              <button class="btn btn-primary btn-sm" id="savePostBtn" onclick="savePost()">Save Post</button>
+            </div>
+          </div>
+
+          <!-- Posts list -->
+          <div id="newsListWrap">
+            <div style="padding:28px;text-align:center;color:var(--muted);">Loading...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================= EVENTS ============================= -->
+      <div class="ws-section" id="sec-events">
+        <div class="panel">
+          <div class="panel-head"><h3>📅 Website Events</h3></div>
+          <div class="panel-body">
+            <div style="background:rgba(108,99,255,0.06);border:1px solid rgba(108,99,255,0.2);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#a78bfa;line-height:1.7;">
+              Events are created in the School Dashboard. Toggle which existing events appear on your public website below.
+            </div>
+            <div id="eventsListWrap">
+              <div style="padding:20px;text-align:center;color:var(--muted);">Loading events...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================= MEDIA ============================= -->
+      <div class="ws-section" id="sec-media">
+        <div class="panel">
+          <div class="panel-head"><h3>🖼️ Media Library</h3></div>
+          <div class="panel-body">
+            <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+              <div class="upload-zone-icon">📤</div>
+              <div class="upload-zone-text">Click to upload or drag and drop an image</div>
+              <div class="upload-zone-hint">JPEG, PNG, WebP or GIF · Maximum 5 MB per file</div>
+            </div>
+            <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none;" onchange="onFileSelected(this)" />
+            <div id="uploadProgress" style="display:none;margin:10px 0;padding:10px 14px;background:rgba(108,99,255,0.08);border-radius:8px;font-size:13px;color:var(--secondary);">
+              <span class="spinner"></span> Uploading...
+            </div>
+            <div id="mediaGrid" class="media-grid">
+              <div style="padding:20px;text-align:center;color:var(--muted);grid-column:1/-1;">Loading media library...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================= SEO ============================= -->
+      <div class="ws-section" id="sec-seo">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>🔍 SEO Settings</h3>
+            <button class="btn btn-primary btn-sm" onclick="saveSeo()">Save</button>
+          </div>
+          <div class="panel-body">
+            <div class="field">
+              <label>Page Title (Browser Tab &amp; Google)</label>
+              <input type="text" id="seoMetaTitle" placeholder="e.g. Bright Future Academy | Lagos" maxlength="70" />
+              <div class="field-hint">Recommended 50–60 characters. Appears in Google search results.</div>
+            </div>
+            <div class="field">
+              <label>Meta Description</label>
+              <textarea id="seoMetaDesc" rows="3" placeholder="A brief description of your school for Google..." maxlength="160"></textarea>
+              <div class="field-hint">Recommended 140–160 characters. Shown below your title in search results.</div>
+            </div>
+            <div class="field">
+              <label>Social Share Image URL</label>
+              <input type="url" id="seoOgImage" placeholder="https://..." />
+              <div class="field-hint">Image shown when your website is shared on WhatsApp, Facebook, Twitter etc. 1200×630 px recommended.</div>
+            </div>
+            <div class="field">
+              <label>Keywords (comma separated)</label>
+              <input type="text" id="seoKeywords" placeholder="e.g. secondary school Lagos, best school Nigeria" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================= NAVIGATION ============================= -->
+      <div class="ws-section" id="sec-navigation">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>🧭 Website Navigation</h3>
+            <button class="btn btn-primary btn-sm" onclick="saveNavigation()">Save</button>
+          </div>
+          <div class="panel-body">
+            <p style="font-size:13px;color:var(--secondary);margin-bottom:16px;">Select which pages appear in your school website's navigation menu.</p>
+            <div class="module-grid" id="moduleGrid">
+              <div style="padding:20px;text-align:center;color:var(--muted);grid-column:1/-1;">Loading...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================= PUBLISH ============================= -->
+      <div class="ws-section" id="sec-publish">
+        <div class="panel">
+          <div class="panel-head"><h3>🚀 Publish Website</h3></div>
+          <div class="panel-body">
+            <div id="publishCurrentStatus" style="margin-bottom:16px;font-size:13px;color:var(--secondary);"></div>
+
+            <div style="background:rgba(67,233,123,0.06);border:1px solid rgba(67,233,123,0.2);border-radius:10px;padding:16px;margin-bottom:16px;">
+              <div style="font-size:14px;font-weight:700;color:var(--green);margin-bottom:6px;">How Publishing Works</div>
+              <div style="font-size:13px;color:var(--secondary);line-height:1.7;">
+                Clicking <strong style="color:#fff;">Publish Website</strong> makes your current draft content live to the public.
+                Editing continues to update your draft — the live website is not affected until you publish again.
+                Only the school administrator can publish or take the website offline.
+              </div>
+            </div>
+
+            <div class="url-box" id="publishPublicUrl">Loading URL...</div>
+
+            <div class="btn-row">
+              <button class="btn btn-green"   id="publishBtn"   onclick="publishWebsite()">🚀 Publish Website</button>
+              <button class="btn btn-danger"   id="unpublishBtn" onclick="unpublishWebsite()" style="display:none;">⏸ Take Website Offline</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:rgba(255,214,0,0.06);border:1px solid rgba(255,214,0,0.15);border-radius:10px;padding:14px 16px;font-size:13px;color:var(--secondary);line-height:1.7;">
+          ⚠️ <strong style="color:#fff;">Prerequisite:</strong> Your school must have a slug (URL) configured in School Settings before the website can be published.
+          Go to <a href="/institution/school/dashboard.html" style="color:var(--primary);">School Dashboard → School Settings</a> to configure your slug.
+        </div>
+      </div>
+
+    </div><!-- end content -->
+  </div><!-- end main -->
+</div><!-- end layout -->
+
+<div id="toast"></div>
+
+<script src="/institution/js/inst.api.js"></script>
+<script>
+'use strict';
+/* ============================================
+   WEBSITE BUILDER SCRIPT (E8A)
+   
+   All API calls via instApi() from inst.api.js
+   (uses latlomp_inst_token from localStorage).
+   Token: never passed in request body.
+============================================ */
+
+var _websiteData   = null;
+var _school        = null;
+var _selectedTheme = 'modern';
+var _currentPageSlug = null;
+var _newFormVisible  = false;
+
+var ALL_MODULES = [
+  { key: 'home',           label: '🏠 Home'           },
+  { key: 'about',          label: '📖 About'          },
+  { key: 'news',           label: '📰 News'           },
+  { key: 'events',         label: '📅 Events'         },
+  { key: 'gallery',        label: '🖼️ Gallery'        },
+  { key: 'staff',          label: '👥 Staff'          },
+  { key: 'departments',    label: '🏢 Departments'    },
+  { key: 'programmes',     label: '📚 Programmes'     },
+  { key: 'facilities',     label: '🏋️ Facilities'     },
+  { key: 'admissions',     label: '📝 Admissions'     },
+  { key: 'contact',        label: '📞 Contact'        },
+  { key: 'alumni',         label: '🎓 Alumni'         },
+  { key: 'student_portal', label: '🧑‍🎓 Student Portal' },
+  { key: 'parent_portal',  label: '👨‍👩‍👧 Parent Portal'  }
+];
+
+var SECTION_LABELS = {
+  hero:              '🖼️ Hero Banner',
+  about:             '📖 About Section',
+  principal_message: '💬 Principal\'s Message',
+  stats:             '📊 Key Statistics',
+  news:              '📰 Latest News',
+  events:            '📅 Upcoming Events',
+  contact:           '📞 Contact',
+  cta:               '🚀 Call to Action',
+  programmes:        '📚 Programmes',
+  departments:       '🏢 Departments',
+  facilities:        '🏋️ Facilities',
+  admissions:        '📝 Admissions'
+};
+
+/* ============================================
+   INIT
+============================================ */
+document.addEventListener('DOMContentLoaded', async function() {
+  if (!instRequireAuth('school_admin')) return;
+  await loadWebsiteData();
+  setupUploadZone();
+});
+
+async function loadWebsiteData() {
+  var res = await instApi('/website/');
+  if (!res.ok) {
+    showToast('❌ Could not load website data. ' + ((res.data && res.data.message) || ''));
+    return;
+  }
+  _websiteData = res.data;
+  _school      = res.data.school || {};
+
+  /* Topbar school name */
+  var el = document.getElementById('topbarSchool');
+  if (el) el.textContent = _school.name || '';
+
+  /* Public URL */
+  var appUrl    = window.location.protocol + '//' + window.location.host;
+  var publicUrl = _school.slug
+    ? appUrl + '/school/' + _school.slug
+    : '(configure a school slug in School Settings to get your website URL)';
+
+  ['overviewPublicUrl','publishPublicUrl'].forEach(function(id) {
+    var urlEl = document.getElementById(id);
+    if (urlEl) urlEl.textContent = publicUrl;
+  });
+
+  var visitBtn   = document.getElementById('visitSiteBtn');
+  var previewBtn = document.getElementById('previewSiteBtn');
+  if (_school.slug) {
+    var liveUrl = appUrl + '/school/' + _school.slug;
+    if (visitBtn)   visitBtn.href   = liveUrl;
+    if (previewBtn) previewBtn.href = liveUrl;
+  }
+
+  updateStatusUI();
+  populateAllFields();
+  renderHomepageSections();
+  renderModuleGrid();
+}
+
+/* ============================================
+   STATUS UI
+============================================ */
+function updateStatusUI() {
+  if (!_websiteData) return;
+  var status    = _websiteData.status || 'draft';
+  var bannerEl  = document.getElementById('statusBanner');
+  var dotEl     = document.getElementById('statusDot');
+  var labelEl   = document.getElementById('statusLabel');
+  var subEl     = document.getElementById('statusSub');
+  var actionsEl = document.getElementById('statusActions');
+  var pubBtn    = document.getElementById('publishBtn');
+  var unpubBtn  = document.getElementById('unpublishBtn');
+  var pubStatus = document.getElementById('publishCurrentStatus');
+
+  if (bannerEl)   bannerEl.className   = 'status-banner ' + status;
+  if (dotEl)      dotEl.className      = 'status-dot '    + status;
+  if (labelEl)    labelEl.textContent  = status === 'published'   ? 'Website is Live'
+                                       : status === 'unpublished' ? 'Website is Offline'
+                                       : 'Draft — not yet published';
+
+  if (subEl) {
+    if (status === 'published' && _websiteData.publishedAt) {
+      subEl.textContent = 'Published ' +
+        new Date(_websiteData.publishedAt).toLocaleDateString('en-GB') +
+        (_websiteData.publishedByName ? ' by ' + _websiteData.publishedByName : '');
+    } else if (_websiteData.lastEditedAt) {
+      subEl.textContent = 'Last edited ' +
+        new Date(_websiteData.lastEditedAt).toLocaleDateString('en-GB');
+    } else {
+      subEl.textContent = '';
+    }
+  }
+
+  if (actionsEl) {
+    actionsEl.innerHTML = status === 'published'
+      ? '<button class="btn btn-secondary btn-sm" onclick="unpublishWebsite()">⏸ Take Offline</button>'
+      : '<button class="btn btn-green btn-sm" onclick="publishWebsite()">🚀 Publish Website</button>';
+  }
+
+  if (pubBtn)    pubBtn.style.display   = status === 'published' ? 'inline-flex' : 'inline-flex';
+  if (unpubBtn)  unpubBtn.style.display = status === 'published' ? 'inline-flex' : 'none';
+  if (pubStatus) {
+    pubStatus.textContent = 'Current status: ' + (
+      status === 'published'   ? '✅ Live to the public' :
+      status === 'unpublished' ? '⏸ Taken offline'      :
+      '📝 Draft — not yet published'
+    );
+  }
+}
+
+/* ============================================
+   SECTION NAVIGATION
+============================================ */
+function showSec(name) {
+  document.querySelectorAll('.ws-section').forEach(function(s) { s.classList.remove('active'); });
+  document.querySelectorAll('.nav-item[data-sec]').forEach(function(n) { n.classList.remove('active'); });
+
+  var sec = document.getElementById('sec-' + name);
+  var nav = document.querySelector('.nav-item[data-sec="' + name + '"]');
+  if (sec) sec.classList.add('active');
+  if (nav) nav.classList.add('active');
+
+  /* Lazy-load section data */
+  if (name === 'news')       loadNewsList();
+  if (name === 'events')     loadEventsList();
+  if (name === 'media')      loadMediaGrid();
+  if (name === 'navigation') renderModuleGrid();
+}
+
+/* ============================================
+   POPULATE ALL FORM FIELDS FROM draftConfig
+============================================ */
+function populateAllFields() {
+  if (!_websiteData) return;
+  var d      = _websiteData.draftConfig || {};
+  var school = _school || {};
+
+  /* Identity */
+  setField('idTagline',       d.tagline       || '');
+  setField('idDescription',   d.description   || '');
+  setField('idAbout',         d.about         || '');
+  setField('idHistory',       d.history       || '');
+  setField('idMission',       d.mission       || '');
+  setField('idVision',        d.vision        || '');
+  setField('idValues',        d.values        || '');
+  setField('idFoundedYear',   d.foundedYear   || '');
+  setField('idEmail',         d.publicEmail   || '');
+  setField('idPhone',         d.publicPhone   || '');
+  setField('idMapUrl',        d.mapEmbedUrl   || '');
+
+  var pm = d.principalMessage || {};
+  setField('idPrincipalMsg',   pm.text     || '');
+  setField('idPrincipalName',  pm.name     || school.principalName || '');
+  setField('idPrincipalTitle', pm.title    || 'Principal');
+  setField('idPrincipalPhoto', pm.photoUrl || '');
+
+  var sl = d.socialLinks || {};
+  setField('idFacebook',  sl.facebook  || '');
+  setField('idTwitter',   sl.twitter   || '');
+  setField('idInstagram', sl.instagram || '');
+  setField('idYoutube',   sl.youtube   || '');
+  setField('idWhatsapp',  sl.whatsapp  || '');
+
+  /* Design */
+  _selectedTheme = d.theme || 'modern';
+  ['modern','classic','bold'].forEach(function(t) {
+    var card = document.getElementById('themeCard-' + t);
+    if (card) card.classList.toggle('selected', t === _selectedTheme);
+  });
+  setField('dPrimary',    d.primaryColor   || school.primaryColor   || '#1a5276');
+  setField('dSecondary',  d.secondaryColor || school.secondaryColor || '#2e86c1');
+  setField('dAccent',     d.accentColor    || '#e67e22');
+  setField('dFontTheme',  d.fontTheme      || 'inter');
+  setField('dNavStyle',   d.navStyle       || 'dark');
+  setField('dFooterStyle',d.footerStyle    || 'rich');
+  setField('dLogoUrl',    d.logoUrl        || school.logo || '');
+  setField('dFaviconUrl', d.faviconUrl     || '');
+
+  /* SEO */
+  var seo = d.seo || {};
+  setField('seoMetaTitle',  seo.metaTitle       || '');
+  setField('seoMetaDesc',   seo.metaDescription || '');
+  setField('seoOgImage',    seo.ogImageUrl       || '');
+  setField('seoKeywords',   (seo.keywords || []).join(', '));
+}
+
+function setField(id, val) {
+  var el = document.getElementById(id);
+  if (el) el.value = val;
+}
+
+function getField(id) {
+  var el = document.getElementById(id);
+  return el ? el.value.trim() : '';
+}
+
+/* ============================================
+   THEME SELECTION
+============================================ */
+function selectTheme(theme) {
+  _selectedTheme = theme;
+  ['modern','classic','bold'].forEach(function(t) {
+    var card = document.getElementById('themeCard-' + t);
+    if (card) card.classList.toggle('selected', t === theme);
+  });
+}
+
+/* ============================================
+   HOMEPAGE SECTIONS
+============================================ */
+function renderHomepageSections() {
+  var listEl = document.getElementById('homepageSectionList');
+  if (!listEl) return;
+  var d        = (_websiteData && _websiteData.draftConfig) || {};
+  var sections = (d.homepageSections || []).sort(function(a, b) {
+    return (a.order || 0) - (b.order || 0);
+  });
+
+  if (!sections.length) {
+    listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">No sections yet. Save your first publish to initialise sections.</div>';
+    return;
+  }
+
+  listEl.innerHTML = sections.map(function(s) {
+    return '<div class="section-item" data-type="' + esc(s.type) + '">' +
+      '<span style="color:var(--muted);font-size:16px;cursor:grab;" title="Sections can be reordered in E8D">≡</span>' +
+      '<span class="section-item-name">' + esc(SECTION_LABELS[s.type] || s.type) + '</span>' +
+      '<label class="toggle-switch">' +
+        '<input type="checkbox" ' + (s.enabled ? 'checked' : '') +
+          ' onchange="toggleSection(\'' + esc(s.type) + '\', this.checked)" />' +
+        '<span class="toggle-slider"></span>' +
+      '</label>' +
+    '</div>';
+  }).join('');
+
+  /* Show/hide hero config panel */
+  var hero      = sections.find(function(s) { return s.type === 'hero'; });
+  var heroPanel = document.getElementById('heroConfigPanel');
+  if (heroPanel) heroPanel.style.display = (hero && hero.enabled) ? 'block' : 'none';
+  if (hero && hero.config) {
+    setField('heroHeadline',  hero.config.headline       || '');
+    setField('heroSubtext',   hero.config.subtext        || '');
+    setField('heroImageUrl',  hero.config.heroImageUrl   || '');
+    setField('heroBtnText',   hero.config.buttonText     || '');
+    setField('heroBtnUrl',    hero.config.buttonUrl      || '');
+  }
+}
+
+function toggleSection(type, enabled) {
+  if (!_websiteData || !_websiteData.draftConfig) return;
+  var sections = _websiteData.draftConfig.homepageSections || [];
+  var s = sections.find(function(x) { return x.type === type; });
+  if (s) {
+    s.enabled = enabled;
+    /* Show/hide hero panel when toggled */
+    if (type === 'hero') {
+      var heroPanel = document.getElementById('heroConfigPanel');
+      if (heroPanel) heroPanel.style.display = enabled ? 'block' : 'none';
+    }
+  }
+}
+
+/* ============================================
+   MODULE GRID (Navigation)
+============================================ */
+function renderModuleGrid() {
+  var gridEl = document.getElementById('moduleGrid');
+  if (!gridEl) return;
+  var d       = (_websiteData && _websiteData.draftConfig) || {};
+  var enabled = d.enabledModules || [];
+
+  gridEl.innerHTML = ALL_MODULES.map(function(m) {
+    var isOn = enabled.includes(m.key);
+    return '<div class="module-card">' +
+      '<span class="module-card-name">' + esc(m.label) + '</span>' +
+      '<label class="toggle-switch">' +
+        '<input type="checkbox" data-module="' + esc(m.key) + '" ' + (isOn ? 'checked' : '') + ' />' +
+        '<span class="toggle-slider"></span>' +
+      '</label>' +
+    '</div>';
+  }).join('');
+}
+
+/* ============================================
+   SAVE FUNCTIONS
+============================================ */
+async function saveIdentity() {
+  var payload = {
+    tagline:      getField('idTagline'),
+    description:  getField('idDescription'),
+    about:        getField('idAbout'),
+    history:      getField('idHistory'),
+    mission:      getField('idMission'),
+    vision:       getField('idVision'),
+    values:       getField('idValues'),
+    foundedYear:  parseInt(getField('idFoundedYear')) || null,
+    publicEmail:  getField('idEmail'),
+    publicPhone:  getField('idPhone'),
+    mapEmbedUrl:  getField('idMapUrl'),
+    principalMessage: {
+      text:     getField('idPrincipalMsg'),
+      name:     getField('idPrincipalName'),
+      title:    getField('idPrincipalTitle'),
+      photoUrl: getField('idPrincipalPhoto')
+    },
+    socialLinks: {
+      facebook:  getField('idFacebook'),
+      twitter:   getField('idTwitter'),
+      instagram: getField('idInstagram'),
+      youtube:   getField('idYoutube'),
+      whatsapp:  getField('idWhatsapp')
+    }
+  };
+  var res = await instApi('/website/settings', 'PUT', payload);
+  if (res.ok) {
+    showToast('✅ Identity saved!');
+    if (_websiteData && res.data && res.data.draftConfig) {
+      _websiteData.draftConfig = res.data.draftConfig;
+    }
+    await loadWebsiteData();
+  } else {
+    showToast('❌ ' + ((res.data && res.data.message) || 'Save failed.'));
+  }
+}
+
+async function saveDesign() {
+  var payload = {
+    theme:         _selectedTheme,
+    primaryColor:  getField('dPrimary'),
+    secondaryColor:getField('dSecondary'),
+    accentColor:   getField('dAccent'),
+    fontTheme:     getField('dFontTheme'),
+    navStyle:      getField('dNavStyle'),
+    footerStyle:   getField('dFooterStyle'),
+    logoUrl:       getField('dLogoUrl'),
+    faviconUrl:    getField('dFaviconUrl')
+  };
+  var res = await instApi('/website/design', 'PUT', payload);
+  if (res.ok) {
+    showToast('✅ Design saved!');
+    await loadWebsiteData();
+  } else {
+    showToast('❌ ' + ((res.data && res.data.message) || 'Save failed.'));
+  }
+}
+
+async function saveHomepage() {
+  if (!_websiteData || !_websiteData.draftConfig) return;
+
+  /* Merge hero config from form fields into sections array */
+  var sections = (_websiteData.draftConfig.homepageSections || []).map(function(s) {
+    if (s.type === 'hero') {
+      return Object.assign({}, s, {
+        config: {
+          headline:       getField('heroHeadline'),
+          subtext:        getField('heroSubtext'),
+          heroImageUrl:   getField('heroImageUrl'),
+          buttonText:     getField('heroBtnText'),
+          buttonUrl:      getField('heroBtnUrl'),
+          overlayOpacity: 0.5
+        }
+      });
+    }
+    return s;
+  });
+
+  var res = await instApi('/website/homepage', 'PUT', { sections: sections });
+  if (res.ok) {
+    showToast('✅ Homepage sections saved!');
+    await loadWebsiteData();
+  } else {
+    showToast('❌ ' + ((res.data && res.data.message) || 'Save failed.'));
+  }
+}
+
+async function saveSeo() {
+  var rawKeywords = getField('seoKeywords');
+  var keywords    = rawKeywords
+    ? rawKeywords.split(',').map(function(k) { return k.trim(); }).filter(Boolean)
+    : [];
+
+  var payload = {
+    metaTitle:       getField('seoMetaTitle'),
+    metaDescription: getField('seoMetaDesc'),
+    ogImageUrl:      getField('seoOgImage'),
+    keywords:        keywords
+  };
+  var res = await instApi('/website/seo', 'PUT', payload);
+  if (res.ok) { showToast('✅ SEO settings saved!'); }
+  else         { showToast('❌ ' + ((res.data && res.data.message) || 'Save failed.')); }
+}
+
+async function saveNavigation() {
+  var checked = [];
+  document.querySelectorAll('input[data-module]:checked').forEach(function(cb) {
+    checked.push(cb.dataset.module);
+  });
+  var res = await instApi('/website/navigation', 'PUT', { enabledModules: checked });
+  if (res.ok) {
+    showToast('✅ Navigation saved!');
+    await loadWebsiteData();
+  } else {
+    showToast('❌ ' + ((res.data && res.data.message) || 'Save failed.'));
+  }
+}
+
+/* ============================================
+   PAGES EDITOR
+============================================ */
+function loadPageEditor(slug) {
+  _currentPageSlug = slug;
+  var wrapEl    = document.getElementById('pageEditorWrap');
+  var headingEl = document.getElementById('pageEditorHeading');
+  if (!wrapEl) return;
+
+  var labels = { about: 'About Us', admissions: 'Admissions', contact: 'Contact' };
+  if (headingEl) headingEl.textContent = 'Editing: ' + (labels[slug] || slug);
+  wrapEl.style.display = 'block';
+  setField('pageContent', '');
+
+  instApi('/website/pages/' + slug).then(function(res) {
+    if (res.ok && res.data && res.data.page) {
+      setField('pageContent', res.data.page.draftContent || '');
+    }
+  });
+}
+
+function closePageEditor() {
+  _currentPageSlug = null;
+  var wrapEl = document.getElementById('pageEditorWrap');
+  if (wrapEl) wrapEl.style.display = 'none';
+  setField('pageContent', '');
+}
+
+async function savePageDraft() {
+  if (!_currentPageSlug) return;
+  var res = await instApi('/website/pages/' + _currentPageSlug, 'PUT', {
+    draftContent: getField('pageContent'),
+    title:        _currentPageSlug.charAt(0).toUpperCase() + _currentPageSlug.slice(1),
+    pageType:     'built_in'
+  });
+  if (res.ok) showToast('✅ Page draft saved!');
+  else        showToast('❌ ' + ((res.data && res.data.message) || 'Save failed.'));
+}
+
+async function publishPage() {
+  if (!_currentPageSlug) return;
+  var res = await instApi('/website/pages/' + _currentPageSlug + '/publish', 'POST', {});
+  if (res.ok) showToast('✅ Page published!');
+  else        showToast('❌ ' + ((res.data && res.data.message) || 'Publish failed.'));
+}
+
+/* ============================================
+   NEWS
+============================================ */
+async function loadNewsList() {
+  var listEl  = document.getElementById('newsListWrap');
+  var countEl = document.getElementById('newsCountLabel');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);"><span class="spinner"></span></div>';
+
+  var res = await instApi('/website/news');
+  if (!res.ok || !res.data.success) {
+    listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">Could not load posts.</div>';
+    return;
+  }
+
+  var posts = res.data.posts || [];
+  if (countEl) countEl.textContent = posts.length + ' post' + (posts.length !== 1 ? 's' : '');
+
+  if (!posts.length) {
+    listEl.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);">No posts yet. Click "+ New Post" to write your first article.</div>';
+    return;
+  }
+
+  listEl.innerHTML = '<div class="tbl-wrap"><table><thead><tr>' +
+    '<th>Title</th><th>Category</th><th>Status</th><th>Date</th><th>Actions</th>' +
+    '</tr></thead><tbody>' +
+    posts.map(function(p) {
+      var sc = p.status === 'published' ? 'badge-green' :
+               p.status === 'archived'  ? 'badge-red'   : 'badge-orange';
+      var dateStr = p.publishedAt
+        ? new Date(p.publishedAt).toLocaleDateString('en-GB')
+        : (p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-GB') : '—');
+      return '<tr>' +
+        '<td style="font-weight:700;color:#fff;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(p.title) + '</td>' +
+        '<td style="font-size:12px;">' + esc(p.category || 'general') + '</td>' +
+        '<td><span class="badge ' + sc + '">' + esc(p.status) + '</span></td>' +
+        '<td style="font-size:12px;">' + dateStr + '</td>' +
+        '<td><div style="display:flex;gap:5px;">' +
+          (p.status !== 'published' ? '<button class="btn btn-secondary btn-sm" onclick="publishPost(\'' + p._id + '\')">Publish</button>' : '') +
+          '<button class="btn btn-danger btn-sm" onclick="archivePost(\'' + p._id + '\')">Archive</button>' +
+        '</div></td>' +
+      '</tr>';
+    }).join('') + '</tbody></table></div>';
+}
+
+function toggleNewsForm() {
+  _newFormVisible = !_newFormVisible;
+  var formEl = document.getElementById('newsFormWrap');
+  if (formEl) formEl.style.display = _newFormVisible ? 'block' : 'none';
+  if (!_newFormVisible) {
+    ['nTitle','nExcerpt','nContent','nCategory','nAuthor','nImageUrl'].forEach(function(id) {
+      setField(id, '');
+    });
+    var cb = document.getElementById('nPublishNow');
+    if (cb) cb.checked = false;
+  }
+}
+
+async function savePost() {
+  var title   = getField('nTitle');
+  var content = getField('nContent');
+  if (!title) { showToast('❌ Title is required.'); return; }
+
+  var btn = document.getElementById('savePostBtn');
+  if (btn) { btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true; }
+
+  var publishNow = !!(document.getElementById('nPublishNow') &&
+                      document.getElementById('nPublishNow').checked);
+
+  var payload = {
+    title:             title,
+    excerpt:           getField('nExcerpt'),
+    content:           content,
+    category:          getField('nCategory') || 'general',
+    authorDisplayName: getField('nAuthor'),
+    featuredImageUrl:  getField('nImageUrl'),
+    publishNow:        publishNow
+  };
+
+  var res  = await instApi('/website/news', 'POST', payload);
+
+  if (btn) { btn.innerHTML = 'Save Post'; btn.disabled = false; }
+
+  if (res.ok && res.data.success) {
+    showToast('✅ Post ' + (publishNow ? 'published' : 'saved') + '!');
+    toggleNewsForm();
+    loadNewsList();
+  } else {
+    showToast('❌ ' + ((res.data && res.data.message) || 'Save failed.'));
+  }
+}
+
+async function publishPost(id) {
+  var res = await instApi('/website/news/' + id, 'PUT', { status: 'published' });
+  if (res.ok) { showToast('✅ Post published!'); loadNewsList(); }
+  else         showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+}
+
+async function archivePost(id) {
+  if (!confirm('Archive this post? It will no longer appear on your public website.')) return;
+  var res = await instApi('/website/news/' + id, 'DELETE', {});
+  if (res.ok) { showToast('Post archived.'); loadNewsList(); }
+  else         showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+}
+
+/* ============================================
+   EVENTS
+============================================ */
+async function loadEventsList() {
+  var listEl = document.getElementById('eventsListWrap');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);"><span class="spinner"></span></div>';
+
+  var res = await instApi('/website/events');
+  if (!res.ok || !res.data.success) {
+    listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">Could not load events.</div>';
+    return;
+  }
+  var events = res.data.events || [];
+
+  if (!events.length) {
+    listEl.innerHTML = '<div style="padding:28px;text-align:center;color:var(--muted);">No events found. Create events in the School Dashboard and enable them here.</div>';
+    return;
+  }
+
+  listEl.innerHTML = '<div class="tbl-wrap"><table><thead><tr>' +
+    '<th>Event</th><th>Date</th><th>Status</th><th>Show on Website</th>' +
+    '</tr></thead><tbody>' +
+    events.map(function(ev) {
+      var dateStr = ev.date ? new Date(ev.date).toLocaleDateString('en-GB') : '—';
+      var sc      = ev.status === 'published' ? 'badge-green' : 'badge-orange';
+      var checked = ev.showOnWebsite ? 'checked' : '';
+      return '<tr>' +
+        '<td style="font-weight:700;color:#fff;">' + esc(ev.title) + '</td>' +
+        '<td style="font-size:12px;">' + dateStr + '</td>' +
+        '<td><span class="badge ' + sc + '">' + esc(ev.status) + '</span></td>' +
+        '<td>' +
+          '<label class="toggle-switch">' +
+            '<input type="checkbox" ' + checked + ' onchange="toggleEventWebsite(\'' + ev._id + '\', this.checked)" />' +
+            '<span class="toggle-slider"></span>' +
+          '</label>' +
+        '</td>' +
+      '</tr>';
+    }).join('') + '</tbody></table></div>';
+}
+
+async function toggleEventWebsite(eventId, showOnWebsite) {
+  var res = await instApi('/website/events/' + eventId + '/website', 'PUT', { showOnWebsite: showOnWebsite });
+  if (res.ok) { showToast('✅ Event website visibility updated.'); }
+  else         showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+}
+
+/* ============================================
+   MEDIA
+============================================ */
+function setupUploadZone() {
+  var zone = document.getElementById('uploadZone');
+  if (!zone) return;
+  zone.addEventListener('dragover',  function(e) { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', function()  { zone.classList.remove('dragover'); });
+  zone.addEventListener('drop',      function(e) {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    var files = e.dataTransfer && e.dataTransfer.files;
+    if (files && files[0]) uploadFile(files[0]);
+  });
+}
+
+function onDragOver(e)  { e.preventDefault(); var z = document.getElementById('uploadZone'); if (z) z.classList.add('dragover'); }
+function onDragLeave()  { var z = document.getElementById('uploadZone'); if (z) z.classList.remove('dragover'); }
+function onDrop(e) {
+  e.preventDefault();
+  onDragLeave();
+  var files = e.dataTransfer && e.dataTransfer.files;
+  if (files && files[0]) uploadFile(files[0]);
+}
+
+function onFileSelected(input) {
+  if (input && input.files && input.files[0]) { uploadFile(input.files[0]); input.value = ''; }
+}
+
+async function uploadFile(file) {
+  var progress = document.getElementById('uploadProgress');
+  if (progress) progress.style.display = 'block';
+
+  var formData = new FormData();
+  formData.append('file', file);
+  formData.append('usageContext', 'general');
+
+  try {
+    var token = localStorage.getItem('latlomp_inst_token') ||
+                localStorage.getItem('latlomp_token') || '';
+    var res   = await fetch('/api/institution/website/media/upload', {
+      method:  'POST',
+      headers: { 'Authorization': 'Bearer ' + token },
+      body:    formData
+    });
+    var data = await res.json();
+    if (progress) progress.style.display = 'none';
+
+    if (data.success) {
+      showToast('✅ File uploaded!');
+      loadMediaGrid();
+    } else {
+      showToast('❌ ' + (data.message || 'Upload failed.'));
+    }
+  } catch(err) {
+    if (progress) progress.style.display = 'none';
+    showToast('❌ Network error during upload.');
+  }
+}
+
+async function loadMediaGrid() {
+  var gridEl  = document.getElementById('mediaGrid');
+  var countEl = document.getElementById('mediaCountLabel');
+  if (!gridEl) return;
+  gridEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);grid-column:1/-1;"><span class="spinner"></span></div>';
+
+  var res = await instApi('/website/media');
+  if (!res.ok || !res.data.success) {
+    gridEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);grid-column:1/-1;">Could not load media.</div>';
+    return;
+  }
+
+  var items = res.data.media || [];
+  if (countEl) countEl.textContent = items.length + ' file' + (items.length !== 1 ? 's' : '');
+
+  if (!items.length) {
+    gridEl.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);grid-column:1/-1;">No media uploaded yet. Drop an image above to get started.</div>';
+    return;
+  }
+
+  gridEl.innerHTML = items.map(function(m) {
+    var thumbUrl = m.thumbnailUrl || m.url || '';
+    var safeUrl  = m.url || '';
+    return '<div class="media-thumb" title="' + esc(m.originalName || '') + '">' +
+      '<img src="' + esc(thumbUrl) + '" alt="' + esc(m.altText || m.originalName || '') + '" loading="lazy" />' +
+      '<div class="media-thumb-overlay">' +
+        '<button class="btn btn-secondary btn-sm" style="font-size:10px;" onclick="copyMediaUrl(\'' + esc(safeUrl) + '\')">📋 Copy URL</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function copyMediaUrl(url) {
+  navigator.clipboard.writeText(url).then(function() {
+    showToast('📋 URL copied to clipboard!');
+  }).catch(function() {
+    showToast('URL: ' + url);
+  });
+}
+
+/* ============================================
+   PUBLISH / UNPUBLISH
+============================================ */
+async function publishWebsite() {
+  if (!confirm('Publish your website now? This will make your current draft content live to the public.')) return;
+
+  var btn = document.getElementById('publishBtn');
+  if (btn) { btn.innerHTML = '<span class="spinner"></span> Publishing...'; btn.disabled = true; }
+
+  var res = await instApi('/website/publish', 'POST', {});
+
+  if (btn) { btn.innerHTML = '🚀 Publish Website'; btn.disabled = false; }
+
+  if (res.ok && res.data.success) {
+    showToast('✅ Website published! ' + (res.data.publicUrl ? 'Live at: ' + res.data.publicUrl : ''));
+    await loadWebsiteData();
+  } else {
+    showToast('❌ ' + ((res.data && res.data.message) || 'Publish failed.'));
+  }
+}
+
+async function unpublishWebsite() {
+  if (!confirm('Take your website offline? It will no longer be visible to the public.')) return;
+
+  var res = await instApi('/website/unpublish', 'POST', {});
+  if (res.ok && res.data.success) {
+    showToast('Website taken offline. Your content is preserved.');
+    await loadWebsiteData();
+  } else {
+    showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+  }
+}
+
+/* ============================================
+   UTILITIES
+============================================ */
+function copyPublicUrl() {
+  var el = document.getElementById('overviewPublicUrl');
+  if (!el) return;
+  var url = el.textContent.trim();
+  if (!url || url.startsWith('(')) { showToast('No URL set yet.'); return; }
+  navigator.clipboard.writeText(url).then(function() {
+    showToast('📋 URL copied!');
+  }).catch(function() {
+    showToast('URL: ' + url);
+  });
+}
+
+function esc(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
+function showToast(msg) {
+  var el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = 'block';
+  clearTimeout(el._t);
+  el._t = setTimeout(function() { el.style.display = 'none'; }, 3500);
+}
+</script>
+</body>
+</html>

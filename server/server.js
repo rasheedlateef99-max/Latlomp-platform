@@ -44,7 +44,11 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 /* ============================================
    STATIC FILES
 ============================================ */
-app.use(express.static(path.join(__dirname, "../public")));
+/* ✅ E8A: Public school websites — registered BEFORE static middleware
+   so /school/:slug routes are handled by Express, not served as files */
+app.use("/school", require("./institution/routes/public.website.routes"));
+
+app.use(express.static(path.join(__dirname, '../public')));
 
 /* ============================================
    MAIN PLATFORM ROUTES
@@ -100,6 +104,8 @@ app.use("/api/institution/alumni", require("./institution/routes/inst.alumni.adm
 app.use("/api/institution/parent-comms", require("./institution/routes/inst.parent.comms.routes"));
 /* ✅ E7B: School Finance & Payment Management */
 app.use("/api/institution/finance", require("./institution/routes/inst.finance.routes"));
+/* ✅ E8A: Institution Website Management */
+app.use("/api/institution/website", require("./institution/routes/inst.website.routes"));
 /* ✅ E6: Alumni Network — self-service (alumni-authenticated) */
 app.use("/api/institution/alumni", require("./institution/routes/inst.alumni.routes"));
 /* ✅ E5: Public Transcript Verification */
