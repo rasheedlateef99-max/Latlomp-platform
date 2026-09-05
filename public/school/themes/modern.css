@@ -564,3 +564,231 @@ h1,h2,h3,h4 { line-height: 1.3; font-weight: 800; color: var(--ws-text); }
 }
 .ws-footer-credit a { color: rgba(255,255,255,0.5); }
 .ws-footer-credit a:hover { color: var(--ws-white); }
+
+/* ============================================
+   E8B: STAFF DIRECTORY
+============================================ */
+
+.ws-staff-group { margin-bottom: 56px; }
+.ws-staff-group-title {
+  font-size:      20px;
+  font-weight:    800;
+  color:          var(--ws-text);
+  border-bottom:  3px solid var(--ws-primary);
+  padding-bottom: 12px;
+  margin-bottom:  24px;
+  display:        inline-block;
+}
+.ws-staff-grid {
+  display:               grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap:                   24px;
+}
+.ws-staff-card {
+  background:    var(--ws-bg);
+  border:        1px solid var(--ws-border);
+  border-radius: var(--ws-radius-lg);
+  overflow:      hidden;
+  box-shadow:    var(--ws-shadow);
+  transition:    var(--ws-transition);
+  text-align:    center;
+}
+.ws-staff-card:hover { transform: translateY(-4px); box-shadow: var(--ws-shadow-lg); }
+.ws-staff-photo {
+  width:    100%;
+  height:   200px;
+  overflow: hidden;
+}
+.ws-staff-photo img {
+  width:           100%;
+  height:          100%;
+  object-fit:      cover;
+  object-position: top;
+}
+.ws-staff-initials {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  font-size:       3rem;
+  font-weight:     900;
+  color:           #fff;
+  background:      linear-gradient(135deg, var(--ws-primary), var(--ws-secondary));
+}
+.ws-staff-info     { padding: 18px 16px; }
+.ws-staff-name     { font-size: 17px; font-weight: 800; color: var(--ws-text); margin-bottom: 4px; }
+.ws-staff-title    { font-size: 13px; color: var(--ws-primary); font-weight: 600; margin-bottom: 10px; }
+.ws-staff-bio      { font-size: 13px; color: var(--ws-text-light); line-height: 1.6; margin-bottom: 12px; }
+.ws-staff-subjects {
+  display:         flex;
+  gap:             5px;
+  flex-wrap:       wrap;
+  justify-content: center;
+  padding:         0 8px 8px;
+}
+
+/* ============================================
+   E8B: DEPARTMENTS
+============================================ */
+
+.ws-dept-grid {
+  display:               grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap:                   24px;
+}
+.ws-dept-card {
+  background:    var(--ws-bg);
+  border:        1px solid var(--ws-border);
+  border-radius: var(--ws-radius-lg);
+  overflow:      hidden;
+  box-shadow:    var(--ws-shadow);
+  transition:    var(--ws-transition);
+}
+.ws-dept-card:hover { transform: translateY(-3px); box-shadow: var(--ws-shadow-lg); }
+.ws-dept-img        { height: 180px; overflow: hidden; }
+.ws-dept-img img    { width: 100%; height: 100%; object-fit: cover; }
+.ws-dept-body       { padding: 20px; }
+.ws-dept-code {
+  font-size:      11px;
+  font-weight:    800;
+  color:          var(--ws-primary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom:  6px;
+}
+.ws-dept-name    { font-size: 20px; font-weight: 800; color: var(--ws-text);       margin-bottom: 4px; }
+.ws-dept-faculty { font-size: 13px; color: var(--ws-text-light); font-style: italic; margin-bottom: 12px; }
+.ws-dept-desc    { font-size: 14px; color: var(--ws-text-light); line-height: 1.7;  margin-bottom: 12px; }
+.ws-dept-progs   { font-size: 13px; color: var(--ws-text-light); }
+.ws-dept-progs .ws-tag { margin: 2px; }
+
+/* ============================================
+   E8B: FACILITIES
+============================================ */
+
+.ws-facility-grid {
+  display:               grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap:                   20px;
+}
+.ws-facility-card {
+  background:    var(--ws-bg);
+  border:        1px solid var(--ws-border);
+  border-radius: var(--ws-radius-lg);
+  overflow:      hidden;
+  box-shadow:    var(--ws-shadow);
+  transition:    var(--ws-transition);
+}
+.ws-facility-card:hover { transform: translateY(-3px); box-shadow: var(--ws-shadow-lg); }
+.ws-facility-img        { height: 200px; overflow: hidden; }
+.ws-facility-img img    { width: 100%; height: 100%; object-fit: cover; }
+.ws-facility-icon {
+  height:          160px;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  font-size:       4rem;
+  background:      var(--ws-bg-alt);
+}
+.ws-facility-body { padding: 18px; }
+.ws-facility-name { font-size: 18px; font-weight: 800; color: var(--ws-text); margin-bottom: 8px; }
+.ws-facility-desc { font-size: 14px; color: var(--ws-text-light); line-height: 1.7; }
+
+/* ============================================
+   E8B: PROGRAMMES
+============================================ */
+
+.ws-programme-grid {
+  display:               grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap:                   24px;
+}
+.ws-programme-card {
+  background:    var(--ws-bg);
+  border:        1px solid var(--ws-border);
+  border-radius: var(--ws-radius-lg);
+  overflow:      hidden;
+  box-shadow:    var(--ws-shadow);
+  transition:    var(--ws-transition);
+}
+.ws-programme-card:hover     { transform: translateY(-3px); box-shadow: var(--ws-shadow-lg); }
+.ws-programme-featured       { border-color: var(--ws-primary); border-width: 2px; }
+.ws-programme-img            { height: 180px; overflow: hidden; }
+.ws-programme-img img        { width: 100%; height: 100%; object-fit: cover; }
+.ws-programme-body           { padding: 20px; }
+.ws-programme-meta           { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.ws-programme-duration       { font-size: 12px; color: var(--ws-text-light); }
+.ws-programme-name           { font-size: 18px; font-weight: 800; color: var(--ws-text); margin-bottom: 6px; }
+.ws-programme-dept           { font-size: 12px; color: var(--ws-primary); font-weight: 600; margin-bottom: 10px; }
+.ws-programme-desc           { font-size: 14px; color: var(--ws-text-light); line-height: 1.7; margin-bottom: 10px; }
+.ws-programme-req {
+  font-size:     13px;
+  color:         var(--ws-text-light);
+  background:    var(--ws-bg-alt);
+  border-radius: 8px;
+  padding:       10px;
+  margin-top:    10px;
+}
+
+/* ============================================
+   E8B: ADMISSIONS
+============================================ */
+
+.ws-admissions-status {
+  display:       inline-block;
+  padding:       12px 20px;
+  border-radius: var(--ws-radius);
+  font-size:     15px;
+  font-weight:   700;
+  margin-bottom: 24px;
+}
+.ws-admissions-open {
+  background: rgba(39, 174, 96, 0.12);
+  color:      #27ae60;
+  border:     1px solid rgba(39, 174, 96, 0.3);
+}
+.ws-admissions-closed {
+  background: rgba(231, 76, 60, 0.1);
+  color:      #e74c3c;
+  border:     1px solid rgba(231, 76, 60, 0.2);
+}
+.ws-admissions-contact          { margin-top: 24px; }
+.ws-admissions-contact h3       { font-size: 16px; font-weight: 800; margin-bottom: 12px; }
+.ws-admissions-contact div      { font-size: 14px; color: var(--ws-text-light); margin-bottom: 8px; line-height: 1.6; }
+.ws-admissions-contact a        { color: var(--ws-primary); }
+
+/* ============================================
+   E8B: ACADEMIC CALENDAR
+============================================ */
+
+.ws-calendar-wrap             { overflow-x: auto; margin-top: 24px; }
+.ws-calendar-table            { width: 100%; border-collapse: collapse; min-width: 480px; }
+.ws-calendar-table th {
+  padding:        12px 16px;
+  text-align:     left;
+  font-size:      11px;
+  font-weight:    800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color:          #fff;
+  background:     var(--ws-primary);
+}
+.ws-calendar-table th:first-child { border-radius: 0; }
+.ws-calendar-table td {
+  padding:       14px 16px;
+  border-bottom: 1px solid var(--ws-border);
+  color:         var(--ws-text-light);
+  vertical-align:middle;
+  font-size:     14px;
+}
+.ws-calendar-table tr:last-child td { border-bottom: none; }
+.ws-calendar-current td { background: rgba(26, 82, 118, 0.05); }
+.ws-calendar-current td:first-child { color: var(--ws-text); font-weight: 700; }
+.ws-tag-active {
+  display:       inline-block;
+  padding:       3px 10px;
+  border-radius: 20px;
+  font-size:     11px;
+  font-weight:   700;
+  background:    rgba(39, 174, 96, 0.15);
+  color:         #27ae60;
+}

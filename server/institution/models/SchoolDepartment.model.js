@@ -10,10 +10,12 @@
    Department model — established naming rule from
    Phase A architecture decisions.
 
-   FUTURE INTEGRATION:
-   - Structure routes: full CRUD
-   - Score Entry (Phase L): departmentId context
-   - Timetable (Phase N): department-level scheduling
+   ✅ E8B ADDITION:
+   websiteDescription, websiteImageUrl,
+   showOnWebsite, websiteDisplayOrder
+   are website-only presentation fields.
+   All existing academic/operational fields
+   and E7A functionality are completely unchanged.
 ============================================ */
 'use strict';
 
@@ -33,24 +35,21 @@ const schoolDepartmentSchema = new mongoose.Schema(
       type:     String,
       required: true,
       trim:     true
-      /* e.g. "Computer Science", "Electrical Engineering" */
     },
 
     code: {
       type:    String,
       default: '',
       trim:    true
-      /* e.g. "CSC", "EEE" */
     },
 
     /* ---- Faculty (for universities) ---- */
     faculty: {
       type:    String,
       default: ''
-      /* e.g. "Faculty of Engineering", "Science Faculty" */
     },
 
-    /* ---- Description ---- */
+    /* ---- Description (internal/academic) ---- */
     description: {
       type:    String,
       default: ''
@@ -67,16 +66,31 @@ const schoolDepartmentSchema = new mongoose.Schema(
     isActive: {
       type:    Boolean,
       default: true
-    }
+    },
+
+    /* ---- E8B: Website presentation fields ----
+       Orthogonal to academic/operational data.
+       showOnWebsite = explicit opt-in for public website.
+       websiteDescription = public-facing text (may differ
+       from internal description).
+       Do NOT modify academic fields here. */
+    websiteDescription:  { type: String,  default: '' },
+    websiteImageUrl:     { type: String,  default: '' },
+    showOnWebsite:       { type: Boolean, default: false },
+    websiteDisplayOrder: { type: Number,  default: 0 }
   },
   { timestamps: true }
 );
 
+/* ---- E7A indexes (unchanged) ---- */
 schoolDepartmentSchema.index({ schoolId: 1 });
 schoolDepartmentSchema.index({ schoolId: 1, name: 1 });
 schoolDepartmentSchema.index(
   { schoolId: 1, name: 1 },
   { unique: true }
 );
+
+/* ---- E8B index: public website queries ---- */
+schoolDepartmentSchema.index({ schoolId: 1, showOnWebsite: 1, websiteDisplayOrder: 1 });
 
 module.exports = mongoose.model('SchoolDepartment', schoolDepartmentSchema);

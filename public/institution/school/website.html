@@ -182,6 +182,12 @@
       <button class="nav-item"        data-sec="pages"       onclick="showSec('pages')">      📄 Pages</button>
       <button class="nav-item"        data-sec="news"        onclick="showSec('news')">       📰 News</button>
       <button class="nav-item"        data-sec="events"      onclick="showSec('events')">     📅 Events</button>
+      <button class="nav-item" data-sec="staff"             onclick="showSec('staff')">            👥 Staff</button>
+      <button class="nav-item" data-sec="departments"        onclick="showSec('departments')">      🏢 Departments</button>
+      <button class="nav-item" data-sec="facilities"         onclick="showSec('facilities')">       🏋️ Facilities</button>
+      <button class="nav-item" data-sec="programmes"         onclick="showSec('programmes')">       📚 Programmes</button>
+      <button class="nav-item" data-sec="admissions"         onclick="showSec('admissions')">       📝 Admissions</button>
+      <button class="nav-item" data-sec="academic-calendar"  onclick="showSec('academic-calendar')">📅 Academic Cal.</button>
       <div class="nav-sec">Media &amp; SEO</div>
       <button class="nav-item"        data-sec="media"       onclick="showSec('media')">      🖼️ Media</button>
       <button class="nav-item"        data-sec="seo"         onclick="showSec('seo')">        🔍 SEO</button>
@@ -681,7 +687,293 @@
           Go to <a href="/institution/school/dashboard.html" style="color:var(--primary);">School Dashboard → School Settings</a> to configure your slug.
         </div>
       </div>
+<!-- ============================= STAFF ============================= -->
+      <div class="ws-section" id="sec-staff">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>👥 Staff Profiles</h3>
+            <button class="btn btn-secondary btn-sm" onclick="loadStaffSection()">↺ Refresh</button>
+          </div>
+          <div class="panel-body">
+            <div style="background:rgba(108,99,255,0.06);border:1px solid rgba(108,99,255,0.2);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#a78bfa;line-height:1.7;">
+              Control which staff members appear on your public website.
+              Staff identity, login and permissions are managed in the School Dashboard — not here.
+              Click <strong>Edit Profile</strong> to set a public title, bio and photo for a staff member.
+            </div>
+            <div id="staffListWrap">
+              <div style="padding:20px;text-align:center;color:var(--muted);">Loading...</div>
+            </div>
+          </div>
+        </div>
+        <div id="staffEditPanel" class="panel" style="display:none;">
+          <div class="panel-head">
+            <h3 id="staffEditHeading">Edit Staff Profile</h3>
+            <button class="btn btn-secondary btn-sm" onclick="closeStaffEdit()">✕ Close</button>
+          </div>
+          <div class="panel-body">
+            <input type="hidden" id="editStaffUserId" />
+            <div class="field-row">
+              <div class="field">
+                <label>Public Title</label>
+                <input type="text" id="sPublicTitle" placeholder="e.g. Head of Mathematics, Bursar" />
+              </div>
+              <div class="field">
+                <label>Category</label>
+                <select id="sCategory">
+                  <option value="leadership">Leadership</option>
+                  <option value="teaching" selected>Teaching Staff</option>
+                  <option value="support">Support Staff</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label>Public Biography</label>
+              <textarea id="sPublicBio" rows="3" placeholder="A brief professional biography visible to the public..."></textarea>
+              <div class="field-hint">Plain text only. Keep it professional and concise.</div>
+            </div>
+            <div class="field">
+              <label>Photo URL</label>
+              <input type="url" id="sPhotoUrl" placeholder="Paste URL from Media Library..." />
+            </div>
+            <div class="field">
+              <label>Subjects Taught (comma separated)</label>
+              <input type="text" id="sSubjects" placeholder="e.g. Mathematics, Further Maths, Physics" />
+            </div>
+            <div class="field">
+              <label>Display Order</label>
+              <input type="number" id="sDisplayOrder" placeholder="0" min="0" />
+              <div class="field-hint">Lower numbers appear first.</div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-secondary btn-sm" onclick="closeStaffEdit()">Cancel</button>
+              <button class="btn btn-primary btn-sm"   onclick="saveStaffProfile()">Save Profile</button>
+            </div>
+          </div>
+        </div>
+      </div>
 
+      <!-- ============================= DEPARTMENTS ============================= -->
+      <div class="ws-section" id="sec-departments">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>🏢 Departments</h3>
+            <button class="btn btn-secondary btn-sm" onclick="loadDepartmentsSection()">↺ Refresh</button>
+          </div>
+          <div class="panel-body">
+            <div style="background:rgba(108,99,255,0.06);border:1px solid rgba(108,99,255,0.2);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#a78bfa;line-height:1.7;">
+              Departments are created and managed in <strong>School Dashboard → Structure → Departments</strong>.
+              Here you can toggle website visibility and add a public-facing description and image for each department.
+            </div>
+            <div id="deptsListWrap">
+              <div style="padding:20px;text-align:center;color:var(--muted);">Loading...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================= FACILITIES ============================= -->
+      <div class="ws-section" id="sec-facilities">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>🏋️ Facilities</h3>
+            <button class="btn btn-primary btn-sm" onclick="toggleFacilityForm()">+ Add Facility</button>
+          </div>
+          <div id="facilityFormWrap" style="display:none;padding:18px;border-bottom:1px solid var(--border);">
+            <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:14px;">Facility Details</div>
+            <input type="hidden" id="editFacilityId" />
+            <div class="field-row">
+              <div class="field">
+                <label>Facility Name <span style="color:var(--red);">*</span></label>
+                <input type="text" id="fName" placeholder="e.g. Science Laboratory, Sports Hall" />
+              </div>
+              <div class="field">
+                <label>Category</label>
+                <select id="fCategory">
+                  <option value="academic">Academic</option>
+                  <option value="sports">Sports</option>
+                  <option value="accommodation">Accommodation</option>
+                  <option value="dining">Dining / Cafeteria</option>
+                  <option value="recreation">Recreation</option>
+                  <option value="medical">Medical / Health</option>
+                  <option value="transport">Transport</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label>Description</label>
+              <textarea id="fDescription" rows="3" placeholder="Describe this facility for prospective students and parents..."></textarea>
+            </div>
+            <div class="field">
+              <label>Image URL</label>
+              <input type="url" id="fImageUrl" placeholder="Paste URL from Media Library..." />
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Display Order</label>
+                <input type="number" id="fDisplayOrder" placeholder="0" min="0" />
+              </div>
+              <div class="field" style="justify-content:flex-end;">
+                <label style="flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;cursor:pointer;">
+                  <input type="checkbox" id="fPublished" style="width:16px;height:16px;accent-color:var(--primary);" />
+                  Published on website
+                </label>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-secondary btn-sm" onclick="toggleFacilityForm()">Cancel</button>
+              <button class="btn btn-primary btn-sm"   onclick="saveFacility()">Save Facility</button>
+            </div>
+          </div>
+          <div id="facilitiesListWrap">
+            <div style="padding:20px;text-align:center;color:var(--muted);">Loading...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================= PROGRAMMES ============================= -->
+      <div class="ws-section" id="sec-programmes">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>📚 Programmes</h3>
+            <button class="btn btn-primary btn-sm" onclick="toggleProgrammeForm()">+ Add Programme</button>
+          </div>
+          <div id="programmeFormWrap" style="display:none;padding:18px;border-bottom:1px solid var(--border);">
+            <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:14px;">Programme Details</div>
+            <input type="hidden" id="editProgrammeId" />
+            <div class="field-row">
+              <div class="field">
+                <label>Programme Name <span style="color:var(--red);">*</span></label>
+                <input type="text" id="pName" placeholder="e.g. B.Sc Computer Science" />
+              </div>
+              <div class="field">
+                <label>Level</label>
+                <select id="pLevel">
+                  <option value="primary">Primary</option>
+                  <option value="jss">JSS</option>
+                  <option value="sss">SSS</option>
+                  <option value="nd">ND</option>
+                  <option value="hnd">HND</option>
+                  <option value="degree">Degree</option>
+                  <option value="masters">Master's</option>
+                  <option value="phd">PhD</option>
+                  <option value="certificate">Certificate</option>
+                  <option value="diploma">Diploma</option>
+                  <option value="other" selected>Other</option>
+                </select>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Duration</label>
+                <input type="text" id="pDuration" placeholder="e.g. 4 years, 2 semesters" />
+              </div>
+              <div class="field">
+                <label>Display Order</label>
+                <input type="number" id="pDisplayOrder" placeholder="0" min="0" />
+              </div>
+            </div>
+            <div class="field">
+              <label>Description</label>
+              <textarea id="pDescription" rows="3" placeholder="Programme overview for prospective students..."></textarea>
+            </div>
+            <div class="field">
+              <label>Entry Requirements</label>
+              <textarea id="pEntryReqs" rows="2" placeholder="Minimum qualifications, grades or subjects required..."></textarea>
+            </div>
+            <div class="field">
+              <label>Image URL</label>
+              <input type="url" id="pImageUrl" placeholder="Paste URL from Media Library..." />
+            </div>
+            <div style="display:flex;gap:24px;flex-wrap:wrap;">
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+                <input type="checkbox" id="pPublished" style="width:16px;height:16px;accent-color:var(--primary);" />
+                Published on website
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+                <input type="checkbox" id="pFeatured" style="width:16px;height:16px;accent-color:var(--primary);" />
+                Featured programme
+              </label>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-secondary btn-sm" onclick="toggleProgrammeForm()">Cancel</button>
+              <button class="btn btn-primary btn-sm"   onclick="saveProgramme()">Save Programme</button>
+            </div>
+          </div>
+          <div id="programmesListWrap">
+            <div style="padding:20px;text-align:center;color:var(--muted);">Loading...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================= ADMISSIONS ============================= -->
+      <div class="ws-section" id="sec-admissions">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>📝 Admissions</h3>
+            <button class="btn btn-primary btn-sm" onclick="saveAdmissions()">Save</button>
+          </div>
+          <div class="panel-body">
+            <div class="field" style="flex-direction:row;align-items:center;gap:12px;">
+              <label class="toggle-switch">
+                <input type="checkbox" id="admOpen" />
+                <span class="toggle-slider"></span>
+              </label>
+              <label for="admOpen" style="font-size:13px;font-weight:600;cursor:pointer;text-transform:none;letter-spacing:0;color:var(--text);">
+                Admissions are currently open
+              </label>
+            </div>
+            <div class="field">
+              <label>Application Deadline</label>
+              <input type="date" id="admDeadline" />
+              <div class="field-hint">Leave blank if there is no specific deadline.</div>
+            </div>
+            <div class="field">
+              <label>Entry Requirements</label>
+              <textarea id="admRequirements" rows="4" placeholder="List the qualifications and grades required to apply..."></textarea>
+            </div>
+            <div class="field">
+              <label>How to Apply</label>
+              <textarea id="admHowToApply" rows="3" placeholder="Step-by-step instructions for applying..."></textarea>
+            </div>
+            <div class="field">
+              <label>Application URL (optional)</label>
+              <input type="url" id="admApplicationUrl" placeholder="https://..." />
+              <div class="field-hint">Link to an external online application form or admissions portal.</div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Admissions Email</label>
+                <input type="email" id="admEmail" placeholder="admissions@school.edu" />
+              </div>
+              <div class="field">
+                <label>Admissions Phone</label>
+                <input type="tel" id="admPhone" placeholder="+234 800 000 0000" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================= ACADEMIC CALENDAR ============================= -->
+      <div class="ws-section" id="sec-academic-calendar">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>📅 Academic Calendar</h3>
+            <button class="btn btn-secondary btn-sm" onclick="loadAcademicCalendarSection()">↺ Refresh</button>
+          </div>
+          <div class="panel-body">
+            <div style="background:rgba(108,99,255,0.06);border:1px solid rgba(108,99,255,0.2);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#a78bfa;line-height:1.7;">
+              Academic terms are managed in <strong>School Dashboard → Structure → Terms</strong>.
+              Active terms are automatically displayed on your public website's academic calendar page —
+              no manual duplication needed.
+            </div>
+            <div id="academicCalendarWrap">
+              <div style="padding:20px;text-align:center;color:var(--muted);">Loading...</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div><!-- end content -->
   </div><!-- end main -->
 </div><!-- end layout -->
@@ -847,11 +1139,18 @@ function showSec(name) {
   if (sec) sec.classList.add('active');
   if (nav) nav.classList.add('active');
 
-  /* Lazy-load section data */
-  if (name === 'news')       loadNewsList();
-  if (name === 'events')     loadEventsList();
-  if (name === 'media')      loadMediaGrid();
-  if (name === 'navigation') renderModuleGrid();
+  /* E8A lazy-loads */
+  if (name === 'news')             loadNewsList();
+  if (name === 'events')           loadEventsList();
+  if (name === 'media')            loadMediaGrid();
+  if (name === 'navigation')       renderModuleGrid();
+  /* E8B lazy-loads */
+  if (name === 'staff')            loadStaffSection();
+  if (name === 'departments')      loadDepartmentsSection();
+  if (name === 'facilities')       loadFacilitiesSection();
+  if (name === 'programmes')       loadProgrammesSection();
+  if (name === 'admissions')       loadAdmissionsSection();
+  if (name === 'academic-calendar')loadAcademicCalendarSection();
 }
 
 /* ============================================
@@ -1485,6 +1784,467 @@ function esc(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#x27;');
+}
+
+/* ============================================
+   E8B: STAFF
+============================================ */
+async function loadStaffSection() {
+  var listEl = document.getElementById('staffListWrap');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);"><span class="spinner"></span></div>';
+
+  var [usersRes, profilesRes] = await Promise.all([
+    instApi('/website/staff/selectable-users'),
+    instApi('/website/staff')
+  ]);
+
+  if (!usersRes.ok) {
+    listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">Could not load staff list.</div>';
+    return;
+  }
+
+  var users    = (usersRes.data && usersRes.data.users)       || [];
+  var profiles = (profilesRes.ok && profilesRes.data && profilesRes.data.profiles) || [];
+
+  var profileMap = {};
+  profiles.forEach(function(p) {
+    var key = p.staffUserId ? (p.staffUserId._id || p.staffUserId).toString() : '';
+    if (key) profileMap[key] = p;
+  });
+
+  if (!users.length) {
+    listEl.innerHTML = '<div style="padding:28px;text-align:center;color:var(--muted);">No staff members found.</div>';
+    return;
+  }
+
+  listEl.innerHTML = '<div class="tbl-wrap"><table><thead><tr>' +
+    '<th>Name</th><th>Role</th><th>Public Title</th><th>Category</th><th>Show on Website</th><th>Action</th>' +
+    '</tr></thead><tbody>' +
+    users.map(function(u) {
+      var uid       = u._id.toString();
+      var profile   = profileMap[uid];
+      var isShown   = !!(profile && profile.showOnWebsite);
+      var pubTitle  = profile ? esc(profile.publicTitle || '—') : '—';
+      var category  = profile ? esc(profile.category    || '—') : '—';
+      var toggleDisabled = !profile ? 'disabled title="Create a profile first"' : '';
+      return '<tr>' +
+        '<td style="font-weight:700;color:#fff;">' + esc(u.name || '—') + '</td>' +
+        '<td style="font-size:12px;">' + esc(u.role || '—') + '</td>' +
+        '<td style="font-size:12px;">' + pubTitle + '</td>' +
+        '<td style="font-size:12px;text-transform:capitalize;">' + category + '</td>' +
+        '<td><label class="toggle-switch">' +
+          '<input type="checkbox" ' + (isShown ? 'checked' : '') + ' ' + toggleDisabled +
+          ' onchange="toggleStaffVisibility(\'' + uid + '\', this.checked)" />' +
+          '<span class="toggle-slider"></span></label></td>' +
+        '<td><button class="btn btn-secondary btn-sm" onclick="openStaffEdit(\'' + uid + '\', \'' + esc(u.name || '') + '\')">✏️ Edit Profile</button></td>' +
+      '</tr>';
+    }).join('') + '</tbody></table></div>';
+}
+
+function openStaffEdit(userId, name) {
+  var panel = document.getElementById('staffEditPanel');
+  if (!panel) return;
+  setField('editStaffUserId', userId);
+  var heading = document.getElementById('staffEditHeading');
+  if (heading) heading.textContent = 'Edit Profile — ' + name;
+  /* Clear fields */
+  ['sPublicTitle','sPublicBio','sPhotoUrl','sSubjects'].forEach(function(id){ setField(id,''); });
+  setField('sDisplayOrder', '0');
+  setField('sCategory', 'teaching');
+  /* Load existing profile */
+  instApi('/website/staff').then(function(res) {
+    if (!res.ok) return;
+    var profiles = (res.data && res.data.profiles) || [];
+    var profile  = profiles.find(function(p) {
+      return p.staffUserId &&
+        (p.staffUserId._id || p.staffUserId).toString() === userId.toString();
+    });
+    if (!profile) return;
+    setField('sPublicTitle', profile.publicTitle    || '');
+    setField('sPublicBio',   profile.publicBio      || '');
+    setField('sPhotoUrl',    profile.publicPhotoUrl || '');
+    setField('sSubjects',    (profile.publicSubjects || []).join(', '));
+    setField('sDisplayOrder',String(profile.displayOrder || 0));
+    setField('sCategory',    profile.category       || 'teaching');
+  });
+  panel.style.display = 'block';
+  panel.scrollIntoView({ behavior: 'smooth' });
+}
+
+function closeStaffEdit() {
+  var panel = document.getElementById('staffEditPanel');
+  if (panel) panel.style.display = 'none';
+}
+
+async function saveStaffProfile() {
+  var userId = getField('editStaffUserId');
+  if (!userId) return;
+  var payload = {
+    publicTitle:    getField('sPublicTitle'),
+    publicBio:      getField('sPublicBio'),
+    publicPhotoUrl: getField('sPhotoUrl'),
+    category:       getField('sCategory') || 'teaching',
+    displayOrder:   parseInt(getField('sDisplayOrder')) || 0,
+    publicSubjects: getField('sSubjects').split(',').map(function(s){ return s.trim(); }).filter(Boolean)
+  };
+  var res = await instApi('/website/staff/' + userId, 'PUT', payload);
+  if (res.ok) { showToast('✅ Staff profile saved!'); closeStaffEdit(); loadStaffSection(); }
+  else         showToast('❌ ' + ((res.data && res.data.message) || 'Save failed.'));
+}
+
+async function toggleStaffVisibility(userId, show) {
+  var res = await instApi('/website/staff/' + userId + '/toggle', 'PUT', {});
+  if (res.ok) { showToast('✅ Visibility updated.'); }
+  else { showToast('❌ ' + ((res.data && res.data.message) || 'Failed.')); loadStaffSection(); }
+}
+
+/* ============================================
+   E8B: DEPARTMENTS
+============================================ */
+async function loadDepartmentsSection() {
+  var listEl = document.getElementById('deptsListWrap');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);"><span class="spinner"></span></div>';
+
+  var res = await instApi('/website/departments');
+  if (!res.ok || !res.data.success) {
+    listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">Could not load departments.</div>';
+    return;
+  }
+  var depts = res.data.departments || [];
+  if (!depts.length) {
+    listEl.innerHTML = '<div style="padding:28px;text-align:center;color:var(--muted);">No departments found. Add departments in School Dashboard → Structure → Departments.</div>';
+    return;
+  }
+
+  listEl.innerHTML = '<div class="tbl-wrap"><table><thead><tr>' +
+    '<th>Department</th><th>Faculty</th><th>Show on Website</th><th>Actions</th>' +
+    '</tr></thead><tbody>' +
+    depts.map(function(d) {
+      return '<tr>' +
+        '<td style="font-weight:700;color:#fff;">' + esc(d.name) +
+          (d.code ? ' <span style="font-size:11px;color:var(--primary);">[' + esc(d.code) + ']</span>' : '') + '</td>' +
+        '<td style="font-size:12px;">' + esc(d.faculty || '—') + '</td>' +
+        '<td><label class="toggle-switch">' +
+          '<input type="checkbox" ' + (d.showOnWebsite ? 'checked' : '') +
+          ' onchange="toggleDeptWebsite(\'' + d._id + '\', this.checked)" />' +
+          '<span class="toggle-slider"></span></label></td>' +
+        '<td><button class="btn btn-secondary btn-sm" onclick="openDeptEdit(\'' + d._id + '\', \'' + esc(d.websiteDescription||'') + '\', \'' + esc(d.websiteImageUrl||'') + '\')">✏️ Edit</button></td>' +
+      '</tr>';
+    }).join('') + '</tbody></table></div>' +
+    '<div id="deptEditPanel" style="display:none;margin-top:16px;padding:16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;">' +
+      '<input type="hidden" id="editDeptId" />' +
+      '<div class="field"><label>Website Description</label>' +
+        '<textarea id="deptWebsiteDesc" rows="3" placeholder="Public-facing description of this department..."></textarea></div>' +
+      '<div class="field"><label>Website Image URL</label>' +
+        '<input type="url" id="deptWebsiteImg" placeholder="Paste URL from Media Library..." /></div>' +
+      '<div class="btn-row"><button class="btn btn-secondary btn-sm" onclick="closeDeptEdit()">Cancel</button>' +
+        '<button class="btn btn-primary btn-sm" onclick="saveDeptWebsite()">Save</button></div>' +
+    '</div>';
+}
+
+function openDeptEdit(deptId, desc, imgUrl) {
+  setField('editDeptId',      deptId);
+  setField('deptWebsiteDesc', desc   || '');
+  setField('deptWebsiteImg',  imgUrl || '');
+  var panel = document.getElementById('deptEditPanel');
+  if (panel) { panel.style.display = 'block'; panel.scrollIntoView({ behavior: 'smooth' }); }
+}
+
+function closeDeptEdit() {
+  var panel = document.getElementById('deptEditPanel');
+  if (panel) panel.style.display = 'none';
+}
+
+async function toggleDeptWebsite(deptId, show) {
+  var res = await instApi('/website/departments/' + deptId + '/website', 'PUT', { showOnWebsite: show });
+  if (res.ok) showToast('✅ Visibility updated.');
+  else { showToast('❌ ' + ((res.data && res.data.message) || 'Failed.')); loadDepartmentsSection(); }
+}
+
+async function saveDeptWebsite() {
+  var deptId = getField('editDeptId');
+  if (!deptId) return;
+  var res = await instApi('/website/departments/' + deptId + '/website', 'PUT', {
+    websiteDescription: getField('deptWebsiteDesc'),
+    websiteImageUrl:    getField('deptWebsiteImg')
+  });
+  if (res.ok) { showToast('✅ Saved!'); closeDeptEdit(); loadDepartmentsSection(); }
+  else showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+}
+
+/* ============================================
+   E8B: FACILITIES
+============================================ */
+var _facilityFormVisible = false;
+
+async function loadFacilitiesSection() {
+  var listEl = document.getElementById('facilitiesListWrap');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);"><span class="spinner"></span></div>';
+  var res = await instApi('/website/facilities');
+  if (!res.ok || !res.data.success) {
+    listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">Could not load facilities.</div>';
+    return;
+  }
+  var facilities = res.data.facilities || [];
+  if (!facilities.length) {
+    listEl.innerHTML = '<div style="padding:28px;text-align:center;color:var(--muted);">No facilities yet. Click "+ Add Facility" to get started.</div>';
+    return;
+  }
+  listEl.innerHTML = '<div class="tbl-wrap"><table><thead><tr>' +
+    '<th>Facility</th><th>Category</th><th>Order</th><th>Status</th><th>Actions</th>' +
+    '</tr></thead><tbody>' +
+    facilities.map(function(f) {
+      var badge = f.isPublished ? '<span class="badge badge-green">Published</span>' : '<span class="badge badge-muted">Draft</span>';
+      return '<tr>' +
+        '<td style="font-weight:700;color:#fff;">' + esc(f.name) + '</td>' +
+        '<td style="font-size:12px;text-transform:capitalize;">' + esc(f.category || '—') + '</td>' +
+        '<td style="font-size:12px;">' + (f.displayOrder || 0) + '</td>' +
+        '<td>' + badge + '</td>' +
+        '<td><div style="display:flex;gap:5px;">' +
+          '<button class="btn btn-secondary btn-sm" onclick="editFacility(\'' + f._id + '\')">✏️ Edit</button>' +
+          '<button class="btn btn-danger btn-sm"    onclick="deleteFacility(\'' + f._id + '\')">🗑</button>' +
+        '</div></td></tr>';
+    }).join('') + '</tbody></table></div>';
+}
+
+function toggleFacilityForm() {
+  _facilityFormVisible = !_facilityFormVisible;
+  var fw = document.getElementById('facilityFormWrap');
+  if (fw) fw.style.display = _facilityFormVisible ? 'block' : 'none';
+  if (!_facilityFormVisible) {
+    setField('editFacilityId', '');
+    ['fName','fDescription','fImageUrl','fDisplayOrder'].forEach(function(id){ setField(id,''); });
+    var cb = document.getElementById('fPublished'); if (cb) cb.checked = false;
+    setField('fCategory', 'academic');
+  }
+}
+
+function editFacility(id) {
+  instApi('/website/facilities').then(function(res) {
+    if (!res.ok) return;
+    var f = (res.data.facilities || []).find(function(x){ return x._id === id; });
+    if (!f) return;
+    setField('editFacilityId', f._id);
+    setField('fName',          f.name         || '');
+    setField('fDescription',   f.description  || '');
+    setField('fCategory',      f.category     || 'academic');
+    setField('fImageUrl',      f.imageUrl     || '');
+    setField('fDisplayOrder',  String(f.displayOrder || 0));
+    var cb = document.getElementById('fPublished'); if (cb) cb.checked = !!f.isPublished;
+    if (!_facilityFormVisible) toggleFacilityForm();
+    var fw = document.getElementById('facilityFormWrap');
+    if (fw) fw.scrollIntoView({ behavior: 'smooth' });
+  });
+}
+
+async function saveFacility() {
+  var editId = getField('editFacilityId');
+  var name   = getField('fName');
+  if (!name) { showToast('❌ Facility name is required.'); return; }
+  var payload = {
+    name:         name,
+    description:  getField('fDescription'),
+    category:     getField('fCategory') || 'other',
+    imageUrl:     getField('fImageUrl'),
+    displayOrder: parseInt(getField('fDisplayOrder')) || 0,
+    isPublished:  !!(document.getElementById('fPublished') && document.getElementById('fPublished').checked)
+  };
+  var res = await instApi(editId ? '/website/facilities/' + editId : '/website/facilities',
+                          editId ? 'PUT' : 'POST', payload);
+  if (res.ok) { showToast('✅ Facility ' + (editId ? 'updated' : 'created') + '!'); toggleFacilityForm(); loadFacilitiesSection(); }
+  else         showToast('❌ ' + ((res.data && res.data.message) || 'Save failed.'));
+}
+
+async function deleteFacility(id) {
+  if (!confirm('Delete this facility? This cannot be undone.')) return;
+  var res = await instApi('/website/facilities/' + id, 'DELETE', {});
+  if (res.ok) { showToast('Facility deleted.'); loadFacilitiesSection(); }
+  else          showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+}
+
+/* ============================================
+   E8B: PROGRAMMES
+============================================ */
+var _programmeFormVisible = false;
+
+async function loadProgrammesSection() {
+  var listEl = document.getElementById('programmesListWrap');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);"><span class="spinner"></span></div>';
+  var res = await instApi('/website/programmes');
+  if (!res.ok || !res.data.success) {
+    listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">Could not load programmes.</div>';
+    return;
+  }
+  var programmes = res.data.programmes || [];
+  if (!programmes.length) {
+    listEl.innerHTML = '<div style="padding:28px;text-align:center;color:var(--muted);">No programmes yet. Click "+ Add Programme" to get started.</div>';
+    return;
+  }
+  var levelMap = { primary:'Primary',jss:'JSS',sss:'SSS',nd:'ND',hnd:'HND',degree:'Degree',
+                   masters:"Master's",phd:'PhD',certificate:'Certificate',diploma:'Diploma',other:'Other' };
+  listEl.innerHTML = '<div class="tbl-wrap"><table><thead><tr>' +
+    '<th>Programme</th><th>Level</th><th>Duration</th><th>Status</th><th>Actions</th>' +
+    '</tr></thead><tbody>' +
+    programmes.map(function(p) {
+      var badge  = p.isPublished ? '<span class="badge badge-green">Published</span>' : '<span class="badge badge-muted">Draft</span>';
+      var feat   = p.isFeatured  ? ' <span class="badge badge-purple">Featured</span>'  : '';
+      return '<tr>' +
+        '<td style="font-weight:700;color:#fff;">' + esc(p.name) + feat + '</td>' +
+        '<td style="font-size:12px;">' + esc(levelMap[p.level] || p.level || '—') + '</td>' +
+        '<td style="font-size:12px;">' + esc(p.duration || '—') + '</td>' +
+        '<td>' + badge + '</td>' +
+        '<td><div style="display:flex;gap:5px;">' +
+          '<button class="btn btn-secondary btn-sm" onclick="editProgramme(\'' + p._id + '\')">✏️ Edit</button>' +
+          '<button class="btn btn-danger btn-sm"    onclick="deleteProgramme(\'' + p._id + '\')">🗑</button>' +
+        '</div></td></tr>';
+    }).join('') + '</tbody></table></div>';
+}
+
+function toggleProgrammeForm() {
+  _programmeFormVisible = !_programmeFormVisible;
+  var fw = document.getElementById('programmeFormWrap');
+  if (fw) fw.style.display = _programmeFormVisible ? 'block' : 'none';
+  if (!_programmeFormVisible) {
+    setField('editProgrammeId', '');
+    ['pName','pDescription','pDuration','pEntryReqs','pImageUrl','pDisplayOrder'].forEach(function(id){ setField(id,''); });
+    var pubCb  = document.getElementById('pPublished'); if (pubCb)  pubCb.checked  = false;
+    var featCb = document.getElementById('pFeatured');  if (featCb) featCb.checked = false;
+    setField('pLevel', 'other');
+  }
+}
+
+function editProgramme(id) {
+  instApi('/website/programmes').then(function(res) {
+    if (!res.ok) return;
+    var p = (res.data.programmes || []).find(function(x){ return x._id === id; });
+    if (!p) return;
+    setField('editProgrammeId', p._id);
+    setField('pName',           p.name              || '');
+    setField('pDescription',    p.description       || '');
+    setField('pLevel',          p.level             || 'other');
+    setField('pDuration',       p.duration          || '');
+    setField('pEntryReqs',      p.entryRequirements || '');
+    setField('pImageUrl',       p.imageUrl          || '');
+    setField('pDisplayOrder',   String(p.displayOrder || 0));
+    var pubCb  = document.getElementById('pPublished'); if (pubCb)  pubCb.checked  = !!p.isPublished;
+    var featCb = document.getElementById('pFeatured');  if (featCb) featCb.checked = !!p.isFeatured;
+    if (!_programmeFormVisible) toggleProgrammeForm();
+    var fw = document.getElementById('programmeFormWrap');
+    if (fw) fw.scrollIntoView({ behavior: 'smooth' });
+  });
+}
+
+async function saveProgramme() {
+  var editId = getField('editProgrammeId');
+  var name   = getField('pName');
+  if (!name) { showToast('❌ Programme name is required.'); return; }
+  var payload = {
+    name:              name,
+    description:       getField('pDescription'),
+    level:             getField('pLevel')    || 'other',
+    duration:          getField('pDuration'),
+    entryRequirements: getField('pEntryReqs'),
+    imageUrl:          getField('pImageUrl'),
+    displayOrder:      parseInt(getField('pDisplayOrder')) || 0,
+    isPublished:       !!(document.getElementById('pPublished') && document.getElementById('pPublished').checked),
+    isFeatured:        !!(document.getElementById('pFeatured')  && document.getElementById('pFeatured').checked)
+  };
+  var res = await instApi(editId ? '/website/programmes/' + editId : '/website/programmes',
+                          editId ? 'PUT' : 'POST', payload);
+  if (res.ok) { showToast('✅ Programme ' + (editId ? 'updated' : 'created') + '!'); toggleProgrammeForm(); loadProgrammesSection(); }
+  else         showToast('❌ ' + ((res.data && res.data.message) || 'Save failed.'));
+}
+
+async function deleteProgramme(id) {
+  if (!confirm('Delete this programme? This cannot be undone.')) return;
+  var res = await instApi('/website/programmes/' + id, 'DELETE', {});
+  if (res.ok) { showToast('Programme deleted.'); loadProgrammesSection(); }
+  else          showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+}
+
+/* ============================================
+   E8B: ADMISSIONS
+   Data stored in draftConfig.admissions (E8A).
+   Saves via existing PUT /website/settings.
+============================================ */
+function loadAdmissionsSection() {
+  if (!_websiteData || !_websiteData.draftConfig) return;
+  var adm = _websiteData.draftConfig.admissions || {};
+  var openCb = document.getElementById('admOpen');
+  if (openCb) openCb.checked = !!adm.isOpen;
+  setField('admDeadline',       adm.deadline
+    ? new Date(adm.deadline).toISOString().split('T')[0] : '');
+  setField('admRequirements',   adm.requirements   || '');
+  setField('admHowToApply',     adm.howToApply     || '');
+  setField('admApplicationUrl', adm.applicationUrl || '');
+  setField('admEmail',          adm.contactEmail   || '');
+  setField('admPhone',          adm.contactPhone   || '');
+}
+
+async function saveAdmissions() {
+  var openCb = document.getElementById('admOpen');
+  var payload = {
+    admissions: {
+      isOpen:         openCb ? openCb.checked : false,
+      deadline:       getField('admDeadline') || null,
+      requirements:   getField('admRequirements'),
+      howToApply:     getField('admHowToApply'),
+      applicationUrl: getField('admApplicationUrl'),
+      contactEmail:   getField('admEmail'),
+      contactPhone:   getField('admPhone')
+    }
+  };
+  var res = await instApi('/website/settings', 'PUT', payload);
+  if (res.ok) {
+    showToast('✅ Admissions information saved!');
+    if (_websiteData && res.data && res.data.draftConfig) {
+      _websiteData.draftConfig = res.data.draftConfig;
+    }
+  } else {
+    showToast('❌ ' + ((res.data && res.data.message) || 'Save failed.'));
+  }
+}
+
+/* ============================================
+   E8B: ACADEMIC CALENDAR (read-only in builder)
+============================================ */
+async function loadAcademicCalendarSection() {
+  var wrapEl = document.getElementById('academicCalendarWrap');
+  if (!wrapEl) return;
+  wrapEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);"><span class="spinner"></span></div>';
+
+  var res = await instApi('/website/academic-calendar');
+  if (!res.ok || !res.data.success) {
+    wrapEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">Could not load academic calendar.</div>';
+    return;
+  }
+  var terms = res.data.terms || [];
+  if (!terms.length) {
+    wrapEl.innerHTML = '<div style="padding:28px;text-align:center;color:var(--muted);">No academic terms configured. Set up terms in School Dashboard → Structure → Terms.</div>';
+    return;
+  }
+
+  wrapEl.innerHTML = '<div class="tbl-wrap"><table><thead><tr>' +
+    '<th>Term</th><th>Session</th><th>Start Date</th><th>End Date</th><th>Status</th>' +
+    '</tr></thead><tbody>' +
+    terms.map(function(t) {
+      var start = t.startDate ? new Date(t.startDate).toLocaleDateString('en-GB') : '—';
+      var end   = t.endDate   ? new Date(t.endDate).toLocaleDateString('en-GB')   : '—';
+      return '<tr' + (t.isCurrent ? ' style="background:rgba(108,99,255,0.06);"' : '') + '>' +
+        '<td style="font-weight:700;color:#fff;">' + esc(t.name || '—') + '</td>' +
+        '<td>' + esc(t.session || '—') + '</td>' +
+        '<td style="font-size:12px;">' + start + '</td>' +
+        '<td style="font-size:12px;">' + end   + '</td>' +
+        '<td>' + (t.isCurrent
+          ? '<span class="badge badge-green">Current</span>'
+          : '<span class="badge badge-muted">—</span>') + '</td>' +
+      '</tr>';
+    }).join('') + '</tbody></table></div>' +
+    '<p style="font-size:12px;color:var(--muted);margin-top:12px;">Manage terms in School Dashboard → Structure → Terms. Active terms appear automatically.</p>';
 }
 
 function showToast(msg) {
