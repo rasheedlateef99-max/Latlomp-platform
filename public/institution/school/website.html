@@ -197,6 +197,7 @@
       <button class="nav-item"        data-sec="publish"     onclick="showSec('publish')">    🚀 Publish</button>
       <div class="nav-sec">Preview</div>
       <button class="nav-item" data-sec="preview" onclick="showSec('preview')">👁 Preview</button>
+      <button class="nav-item" data-sec="history" onclick="showSec('history')">📜 Version History</button>
     </div>
     <div class="sb-footer">
       <a href="/institution/school/dashboard.html" class="nav-item">← School Dashboard</a>
@@ -738,9 +739,12 @@
             </div>
           </div>
           <div class="panel-body" style="padding:0;">
-            <div style="background:rgba(255,214,0,0.06);border-bottom:1px solid rgba(255,214,0,0.2);padding:10px 16px;font-size:12px;color:var(--yellow);">
-              ⚠️ Preview shows your <strong>published</strong> website. Save and publish your draft first to see changes here.
-              For an authenticated draft preview, use the "Preview" button in the topbar.
+            <div style="background:rgba(255,255,255,0.03);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <div style="display:flex;gap:6px;">
+                <button class="btn btn-secondary btn-sm" id="previewTabPublished" onclick="switchPreviewTab('published')" style="opacity:1;">🌐 Published</button>
+                <button class="btn btn-secondary btn-sm" id="previewTabDraft"     onclick="switchPreviewTab('draft')"     style="opacity:0.5;">📝 Draft Preview</button>
+              </div>
+              <div style="font-size:12px;color:var(--muted);" id="previewTabNote">Showing published website.</div>
             </div>
             <div style="background:var(--dark);padding:12px;border-bottom:1px solid var(--border);">
               <div style="display:flex;align-items:center;gap:10px;">
@@ -763,34 +767,58 @@
         </div>
       </div>
 
-      <!-- ============================= PUBLISH ============================= -->
+      
+    <!-- ============================= PUBLISH ============================= -->
       <div class="ws-section" id="sec-publish">
-        <div class="panel">
-          <div class="panel-head"><h3>🚀 Publish Website</h3></div>
-          <div class="panel-body">
-            <div id="publishCurrentStatus" style="margin-bottom:16px;font-size:13px;color:var(--secondary);"></div>
 
-            <div style="background:rgba(67,233,123,0.06);border:1px solid rgba(67,233,123,0.2);border-radius:10px;padding:16px;margin-bottom:16px;">
-              <div style="font-size:14px;font-weight:700;color:var(--green);margin-bottom:6px;">How Publishing Works</div>
-              <div style="font-size:13px;color:var(--secondary);line-height:1.7;">
-                Clicking <strong style="color:#fff;">Publish Website</strong> makes your current draft content live to the public.
-                Editing continues to update your draft — the live website is not affected until you publish again.
-                Only the school administrator can publish or take the website offline.
-              </div>
+        <!-- Draft status banner -->
+        <div id="draftStatusBanner" style="display:none;border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:13px;font-weight:600;border:1px solid var(--border);"></div>
+
+        <!-- Pre-publish checklist -->
+        <div class="panel">
+          <div class="panel-head">
+            <h3>🚀 Publish Website</h3>
+            <button class="btn btn-secondary btn-sm" onclick="runPublishChecklist()">↺ Check</button>
+          </div>
+          <div class="panel-body">
+
+            <div id="publishChecklist" style="margin-bottom:20px;">
+              <div style="padding:12px;text-align:center;color:var(--muted);font-size:13px;">Click "Check" to validate your website before publishing.</div>
             </div>
 
             <div class="url-box" id="publishPublicUrl">Loading URL...</div>
 
             <div class="btn-row">
-              <button class="btn btn-green"   id="publishBtn"   onclick="publishWebsite()">🚀 Publish Website</button>
+              <button class="btn btn-green"   id="publishBtn"   onclick="publishWithValidation()">🚀 Publish Website</button>
               <button class="btn btn-danger"   id="unpublishBtn" onclick="unpublishWebsite()" style="display:none;">⏸ Take Website Offline</button>
+            </div>
+
+            <div style="margin-top:16px;background:rgba(255,214,0,0.06);border:1px solid rgba(255,214,0,0.15);border-radius:10px;padding:14px 16px;font-size:12px;color:var(--secondary);line-height:1.7;">
+              ⚠️ <strong style="color:#fff;">Prerequisite:</strong> Your school must have a slug configured in School Settings before the website can be published.
+              Only the school administrator can publish or take the website offline.
             </div>
           </div>
         </div>
 
-        <div style="background:rgba(255,214,0,0.06);border:1px solid rgba(255,214,0,0.15);border-radius:10px;padding:14px 16px;font-size:13px;color:var(--secondary);line-height:1.7;">
-          ⚠️ <strong style="color:#fff;">Prerequisite:</strong> Your school must have a slug (URL) configured in School Settings before the website can be published.
-          Go to <a href="/institution/school/dashboard.html" style="color:var(--primary);">School Dashboard → School Settings</a> to configure your slug.
+      </div>
+
+      <!-- ============================= VERSION HISTORY ============================= -->
+      <div class="ws-section" id="sec-history">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>📜 Version History</h3>
+            <button class="btn btn-secondary btn-sm" onclick="loadVersionHistory()">↺ Refresh</button>
+          </div>
+          <div class="panel-body">
+            <div style="background:rgba(108,99,255,0.06);border:1px solid rgba(108,99,255,0.2);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#a78bfa;line-height:1.7;">
+              Each publish event creates a version snapshot. You can roll back to any saved version.
+              Your current <strong>draft</strong> is never affected by rollback — only the live website changes.
+              Up to <strong>10 versions</strong> are stored per school.
+            </div>
+            <div id="versionHistoryWrap">
+              <div style="padding:20px;text-align:center;color:var(--muted);">Loading version history...</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1229,6 +1257,10 @@ document.addEventListener('DOMContentLoaded', async function() {
   if (!instRequireAuth('school_admin')) return;
   await loadWebsiteData();
   setupUploadZone();
+  loadNewsList();
+  loadEventsList();
+  loadMediaGrid();
+  loadDraftStatusIndicator();
 });
 
 async function loadWebsiteData() {
@@ -1345,7 +1377,9 @@ function showSec(name) {
   if (name === 'programmes')       loadProgrammesSection();
   if (name === 'admissions')       loadAdmissionsSection();
   if (name === 'academic-calendar')loadAcademicCalendarSection();
-  if (name === 'preview') { initPreviewPanel(); refreshPreviewFrame(); }
+  if (name === 'preview') { initPreviewPanel(); }
+  if (name === 'history') { loadVersionHistory(); }
+  if (name === 'publish') { loadPublishSection(); }
 }
 
 /* ============================================
@@ -2038,35 +2072,201 @@ function copyMediaUrl(url) {
 }
 
 /* ============================================
-   PUBLISH / UNPUBLISH
+   E8E: PUBLISH WITH VALIDATION
 ============================================ */
-async function publishWebsite() {
-  if (!confirm('Publish your website now? This will make your current draft content live to the public.')) return;
+async function runPublishChecklist() {
+  var checklistEl = document.getElementById('publishChecklist');
+  if (!checklistEl) return;
+  checklistEl.innerHTML = '<div style="padding:12px;text-align:center;color:var(--muted);"><span class="spinner"></span> Checking...</div>';
+
+  var res = await instApi('/website/publish/validate');
+  if (!res.ok) {
+    checklistEl.innerHTML = '<div style="padding:12px;color:var(--red);">Could not run validation.</div>';
+    return;
+  }
+
+  var errors   = res.data.errors   || [];
+  var warnings = res.data.warnings || [];
+  var canPublish = res.data.canPublish;
+
+  var html = '';
+
+  if (!errors.length && !warnings.length) {
+    html = '<div style="background:rgba(67,233,123,0.08);border:1px solid rgba(67,233,123,0.25);border-radius:10px;padding:14px;margin-bottom:12px;">' +
+           '<div style="font-size:14px;font-weight:700;color:var(--green);margin-bottom:4px;">✅ All checks passed</div>' +
+           '<div style="font-size:12px;color:var(--secondary);">Your website is ready to publish.</div></div>';
+  } else {
+    if (errors.length) {
+      html += '<div style="margin-bottom:12px;">' +
+        '<div style="font-size:12px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">❌ Errors — must fix before publishing</div>' +
+        errors.map(function(e) {
+          return '<div style="background:rgba(255,101,132,0.06);border:1px solid rgba(255,101,132,0.2);border-radius:8px;padding:10px 12px;margin-bottom:6px;font-size:13px;color:var(--secondary);">' +
+            '❌ ' + esc(e.message) + '</div>';
+        }).join('') + '</div>';
+    }
+    if (warnings.length) {
+      html += '<div style="margin-bottom:12px;">' +
+        '<div style="font-size:12px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">⚠️ Warnings — recommended improvements</div>' +
+        warnings.map(function(w) {
+          return '<div style="background:rgba(255,165,0,0.06);border:1px solid rgba(255,165,0,0.2);border-radius:8px;padding:10px 12px;margin-bottom:6px;font-size:13px;color:var(--secondary);">' +
+            '⚠️ ' + esc(w.message) + '</div>';
+        }).join('') + '</div>';
+    }
+  }
+
+  checklistEl.innerHTML = html;
+
+  var publishBtn = document.getElementById('publishBtn');
+  if (publishBtn) publishBtn.disabled = !canPublish;
+}
+
+async function publishWithValidation() {
+  /* Run checklist first to update UI */
+  await runPublishChecklist();
+  var res = await instApi('/website/publish/validate');
+  if (!res.ok || !res.data.canPublish) {
+    showToast('❌ Fix the errors shown in the checklist before publishing.');
+    return;
+  }
+
+  var warnings = res.data.warnings || [];
+  var confirmMsg = warnings.length
+    ? 'Publish website now?\n\n' + warnings.length + ' warning(s) found (see checklist).\nYou can publish with warnings — they are advisory only.\n\nClick OK to proceed.'
+    : 'Publish your website? This will make it live to the public.';
+  if (!confirm(confirmMsg)) return;
 
   var btn = document.getElementById('publishBtn');
   if (btn) { btn.innerHTML = '<span class="spinner"></span> Publishing...'; btn.disabled = true; }
 
-  var res = await instApi('/website/publish', 'POST', {});
+  var pubRes = await instApi('/website/publish', 'POST', {});
 
   if (btn) { btn.innerHTML = '🚀 Publish Website'; btn.disabled = false; }
 
-  if (res.ok && res.data.success) {
-    showToast('✅ Website published! ' + (res.data.publicUrl ? 'Live at: ' + res.data.publicUrl : ''));
+  if (pubRes.ok && pubRes.data.success) {
+    showToast('✅ Website published! Version ' + (pubRes.data.versionNumber || '') + '.');
+    if (pubRes.data.warnings && pubRes.data.warnings.length) {
+      showToast('⚠️ Published with ' + pubRes.data.warnings.length + ' warning(s). Check the checklist.');
+    }
     await loadWebsiteData();
+    loadVersionHistory();
   } else {
-    showToast('❌ ' + ((res.data && res.data.message) || 'Publish failed.'));
+    showToast('❌ ' + ((pubRes.data && pubRes.data.message) || 'Publish failed.'));
   }
 }
 
-async function unpublishWebsite() {
-  if (!confirm('Take your website offline? It will no longer be visible to the public.')) return;
+async function publishWebsite() {
+  /* Alias kept for topbar "Publish" button */
+  return publishWithValidation();
+}
 
-  var res = await instApi('/website/unpublish', 'POST', {});
+async function loadPublishSection() {
+  /* Load draft status + checklist state */
+  var res = await instApi('/website/draft-status');
+  if (!res.ok) return;
+
+  var bannerEl = document.getElementById('draftStatusBanner');
+  if (bannerEl) {
+    var status = res.data.status || 'draft';
+    var hasChanges = res.data.hasUnpublishedChanges;
+    var byLine = res.data.publishedAt
+      ? ' · Last published ' + new Date(res.data.publishedAt).toLocaleDateString('en-GB') +
+        (res.data.publishedByName ? ' by ' + res.data.publishedByName : '')
+      : '';
+
+    if (hasChanges) {
+      bannerEl.style.cssText = 'display:block;background:rgba(255,165,0,0.08);border:1px solid rgba(255,165,0,0.3);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:13px;font-weight:600;';
+      bannerEl.innerHTML = '<span style="color:var(--orange);">🟡 Unpublished changes in draft</span>' +
+        '<div style="font-size:12px;color:var(--secondary);margin-top:4px;font-weight:400;">' + esc(byLine) + ' · Publish to make changes live.</div>';
+    } else {
+      bannerEl.style.cssText = 'display:block;background:rgba(67,233,123,0.08);border:1px solid rgba(67,233,123,0.25);border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:13px;font-weight:600;';
+      bannerEl.innerHTML = '<span style="color:var(--green);">✅ Published — website is up to date</span>' +
+        '<div style="font-size:12px;color:var(--secondary);margin-top:4px;font-weight:400;">' + esc(byLine) + '</div>';
+    }
+  }
+
+  var pubBtn   = document.getElementById('publishBtn');
+  var unpubBtn = document.getElementById('unpublishBtn');
+  if (pubBtn)   pubBtn.style.display   = 'inline-flex';
+  if (unpubBtn) unpubBtn.style.display = res.data.status === 'published' ? 'inline-flex' : 'none';
+}
+
+/* ============================================
+   E8E: VERSION HISTORY
+============================================ */
+async function loadVersionHistory() {
+  var wrapEl = document.getElementById('versionHistoryWrap');
+  if (!wrapEl) return;
+  wrapEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);"><span class="spinner"></span></div>';
+
+  var res = await instApi('/website/versions');
+  if (!res.ok || !res.data.success) {
+    wrapEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">Could not load version history.</div>';
+    return;
+  }
+
+  var versions = res.data.versions || [];
+  if (!versions.length) {
+    wrapEl.innerHTML = '<div style="padding:28px;text-align:center;color:var(--muted);">No versions yet. Publish your website to create the first snapshot.</div>';
+    return;
+  }
+
+  wrapEl.innerHTML = '<div class="tbl-wrap"><table><thead><tr>' +
+    '<th>Version</th><th>Published</th><th>By</th><th>Type</th><th>Action</th>' +
+    '</tr></thead><tbody>' +
+    versions.map(function(v, i) {
+      var dateStr = v.publishedAt ? new Date(v.publishedAt).toLocaleString('en-GB', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+      var typeBadge = v.source === 'rollback'
+        ? '<span class="badge badge-orange">Rollback</span>'
+        : '<span class="badge badge-green">Publish</span>';
+      var rollbackInfo = v.rolledBackFromVersion
+        ? ' <span style="font-size:11px;color:var(--muted);">(from v' + v.rolledBackFromVersion + ')</span>'
+        : '';
+      var isLatest = i === 0;
+      return '<tr>' +
+        '<td style="font-weight:700;color:#fff;">v' + v.versionNumber +
+          (isLatest ? ' <span style="font-size:10px;background:rgba(108,99,255,0.2);color:#a78bfa;padding:2px 7px;border-radius:10px;font-weight:700;">CURRENT</span>' : '') +
+        '</td>' +
+        '<td style="font-size:12px;">' + esc(dateStr) + '</td>' +
+        '<td style="font-size:12px;">' + esc(v.publishedByName || '—') + '</td>' +
+        '<td>' + typeBadge + rollbackInfo + '</td>' +
+        '<td>' +
+          (!isLatest
+            ? '<button class="btn btn-secondary btn-sm" onclick="confirmRollback(\'' + v._id + '\', ' + v.versionNumber + ')">↩ Restore this version</button>'
+            : '<span style="font-size:12px;color:var(--muted);">Live</span>') +
+        '</td>' +
+      '</tr>';
+    }).join('') + '</tbody></table></div>' +
+    '<p style="font-size:12px;color:var(--muted);margin-top:12px;">Rollback restores the live website to a previous version. Your current draft is not affected.</p>';
+}
+
+async function confirmRollback(versionId, versionNumber) {
+  if (!confirm(
+    'Restore Version ' + versionNumber + '?\n\n' +
+    'This will immediately update your live public website to match this version.\n' +
+    'Your current draft will NOT be affected — you can continue editing it.\n\n' +
+    'Click OK to proceed with the restore.'
+  )) return;
+
+  var res = await instApi('/website/rollback/' + versionId, 'POST', {});
   if (res.ok && res.data.success) {
-    showToast('Website taken offline. Your content is preserved.');
+    showToast('✅ Website restored to version ' + versionNumber + '!');
     await loadWebsiteData();
+    loadVersionHistory();
   } else {
-    showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+    showToast('❌ ' + ((res.data && res.data.message) || 'Rollback failed.'));
+  }
+}
+
+/* ============================================
+   E8E: DRAFT STATUS INDICATOR — OVERVIEW
+============================================ */
+async function loadDraftStatusIndicator() {
+  var res = await instApi('/website/draft-status');
+  if (!res.ok) return;
+
+  var statusSub = document.getElementById('statusSub');
+  if (statusSub && res.data.hasUnpublishedChanges && res.data.status === 'published') {
+    statusSub.innerHTML += ' · <span style="color:var(--orange);font-weight:700;">⚡ Unpublished changes in draft</span>';
   }
 }
 
@@ -2788,23 +2988,42 @@ async function loadAcademicCalendarSection() {
 }
 
 /* ============================================
-   E8D: PREVIEW PANEL
+   E8D + E8E: PREVIEW PANEL
 ============================================ */
-var _previewViewport = 'desktop';
+var _previewMode     = 'published'; /* 'published' | 'draft' */
+var _prevBlobUrl     = null;
 
 function initPreviewPanel() {
   var appUrl    = window.location.protocol + '//' + window.location.host;
   var publicUrl = (_school && _school.slug) ? appUrl + '/school/' + _school.slug : null;
   var addrEl    = document.getElementById('previewAddressBar');
   var linkEl    = document.getElementById('previewOpenNewTab');
-  if (addrEl) addrEl.textContent = publicUrl || '(publish your website to preview)';
+  if (addrEl) addrEl.textContent = publicUrl || '(publish your website to enable preview)';
   if (linkEl && publicUrl) linkEl.href = publicUrl;
+  switchPreviewTab(_previewMode);
+}
+
+function switchPreviewTab(mode) {
+  _previewMode = mode;
+  var pubBtn  = document.getElementById('previewTabPublished');
+  var dftBtn  = document.getElementById('previewTabDraft');
+  var noteEl  = document.getElementById('previewTabNote');
+  if (pubBtn) pubBtn.style.opacity = mode === 'published' ? '1' : '0.5';
+  if (dftBtn) dftBtn.style.opacity = mode === 'draft'     ? '1' : '0.5';
+  if (mode === 'published') {
+    if (noteEl) noteEl.textContent = 'Showing published website.';
+    refreshPreviewFrame();
+  } else {
+    if (noteEl) noteEl.textContent = 'Showing draft preview — your unpublished changes.';
+    loadDraftPreview();
+  }
 }
 
 function refreshPreviewFrame() {
   var appUrl    = window.location.protocol + '//' + window.location.host;
   var publicUrl = (_school && _school.slug) ? appUrl + '/school/' + _school.slug : null;
   var frame     = document.getElementById('previewFrame');
+  var addrEl    = document.getElementById('previewAddressBar');
   if (!frame) return;
   if (!publicUrl) {
     frame.src = 'about:blank';
@@ -2812,15 +3031,47 @@ function refreshPreviewFrame() {
     return;
   }
   frame.src = publicUrl + '?_t=' + Date.now();
+  if (addrEl) addrEl.textContent = publicUrl;
+}
+
+async function loadDraftPreview() {
+  var frame   = document.getElementById('previewFrame');
+  var addrEl  = document.getElementById('previewAddressBar');
+  if (!frame) return;
+  if (addrEl) addrEl.textContent = 'Loading draft preview...';
+  frame.src = 'about:blank';
+
+  try {
+    var token = localStorage.getItem('latlomp_inst_token') ||
+                localStorage.getItem('latlomp_token') || '';
+    var res = await fetch('/api/institution/website/preview/render', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) {
+      showToast('❌ Draft preview failed. ' + res.status);
+      if (addrEl) addrEl.textContent = 'Preview unavailable.';
+      return;
+    }
+    var html    = await res.text();
+    var blob    = new Blob([html], { type: 'text/html' });
+    var blobUrl = URL.createObjectURL(blob);
+
+    if (_prevBlobUrl) { URL.revokeObjectURL(_prevBlobUrl); }
+    _prevBlobUrl = blobUrl;
+    frame.src = blobUrl;
+
+    if (addrEl) addrEl.textContent = 'Draft Preview (authenticated — not public)';
+  } catch(err) {
+    showToast('❌ Draft preview error: ' + err.message);
+  }
 }
 
 function setPreviewViewport(viewport) {
-  _previewViewport = viewport;
   var frame = document.getElementById('previewFrame');
   var wrap  = document.getElementById('previewViewportWrap');
   if (!frame || !wrap) return;
-  var widths = { desktop: '100%', tablet: '768px', mobile: '375px' };
-  var heights= { desktop: '600px', tablet: '800px', mobile: '700px' };
+  var widths  = { desktop:'100%', tablet:'768px', mobile:'375px' };
+  var heights = { desktop:'600px', tablet:'800px', mobile:'700px' };
   frame.style.maxWidth = widths[viewport]  || '100%';
   frame.style.height   = heights[viewport] || '600px';
 }

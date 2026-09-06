@@ -370,45 +370,72 @@ router.get('/preview', editGuard, async function(req, res) {
 
 /* ============================================
    POST /api/institution/website/publish
-   Atomically copies draftConfig → publishedConfig.
-   schoolAdminOnly — most privileged action.
+   E8E: Enhanced with validation + version snapshot.
+   publishGuard — schoolAdminOnly.
+   Validate → snapshot → atomic publish.
 ============================================ */
 router.post('/publish', publishGuard, async function(req, res) {
   try {
     var website = await ensureWebsite(req.schoolId);
+    var School  = require('../models/School.model');
+    var school  = await School.findById(req.schoolId)
+      .select('name slug logo phone address')
+      .lean();
 
-    /* Validate minimum required fields */
-    var School = require('../models/School.model');
-    var school = await School.findById(req.schoolId).select('name slug').lean();
+    /* 1. Validate */
+    var publishService = require('../services/website.publish.service');
+    var validation     = await publishService.validatePublish(school, website);
 
-    if (!school.slug) {
-      return res.status(400).json({
-        success: false,
-        message: 'Your school must have a slug/URL before publishing. Configure it in School Settings.'
+    /* Dry-run: validate only, do not publish */
+    if (req.body && req.body.dryRun) {
+      return res.json({
+        success:    true,
+        canPublish: validation.canPublish,
+        errors:     validation.errors,
+        warnings:   validation.warnings
       });
     }
 
-    /* Atomic publish: copy draft → published */
+    if (!validation.canPublish) {
+      return res.status(400).json({
+        success:    false,
+        message:    'Website cannot be published. Fix the errors below first.',
+        errors:     validation.errors,
+        warnings:   validation.warnings
+      });
+    }
+
+    /* 2. Save version snapshot of the draft that is going live */
+    var snapshot = await publishService.saveVersionSnapshot(
+      req.schoolId,
+      website.draftConfig,
+      req.schoolUser,
+      'publish'
+    );
+
+    /* 3. Atomic publish: draftConfig → publishedConfig */
     var now = new Date();
     await SchoolWebsite.findByIdAndUpdate(website._id, {
       $set: {
-        status:           'published',
-        publishedAt:      now,
-        publishedBy:      req.schoolUser._id,
-        publishedByName:  req.schoolUser.name || '',
-        lastEditedAt:     now,
-        publishedConfig:  website.draftConfig
+        status:          'published',
+        publishedAt:     now,
+        publishedBy:     req.schoolUser._id,
+        publishedByName: req.schoolUser.name || '',
+        lastEditedAt:    now,
+        publishedConfig: website.draftConfig
       }
     });
 
-    var publicUrl = (process.env.APP_URL || 'https://latlompsystem.up.railway.app') +
-                    '/school/' + school.slug;
+    var appUrl    = process.env.APP_URL || (req.protocol + '://' + req.get('host'));
+    var publicUrl = appUrl + '/school/' + school.slug;
 
     return res.json({
-      success:   true,
-      message:   'Website published successfully.',
+      success:       true,
+      message:       'Website published successfully.',
       publicUrl,
-      publishedAt: now
+      publishedAt:   now,
+      versionNumber: snapshot.versionNumber,
+      warnings:      validation.warnings
     });
   } catch(err) {
     console.error('[website] POST /publish:', err.message);
@@ -2023,6 +2050,465 @@ router.delete('/media/:id/permanent', editGuard, async function(req, res) {
     return res.json({ success: true, message: 'Media permanently deleted.' });
   } catch(err) {
     console.error('[website] DELETE /media/:id/permanent:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   E8E: PUBLISH VALIDATION (DRY-RUN)
+   GET /api/institution/website/publish/validate
+   Returns checklist without publishing.
+   Same validation as POST /publish dry-run.
+   Separate GET endpoint for builder checklist UI.
+============================================ */
+router.get('/publish/validate', editGuard, async function(req, res) {
+  try {
+    var website = await ensureWebsite(req.schoolId);
+    var School  = require('../models/School.model');
+    var school  = await School.findById(req.schoolId)
+      .select('name slug logo phone address')
+      .lean();
+
+    var publishService = require('../services/website.publish.service');
+    var validation     = await publishService.validatePublish(school, website);
+
+    return res.json({
+      success:    true,
+      canPublish: validation.canPublish,
+      errors:     validation.errors,
+      warnings:   validation.warnings
+    });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   E8E: DRAFT STATUS
+   GET /api/institution/website/draft-status
+   Returns whether draft differs from published.
+   Used by builder overview and publish section.
+============================================ */
+router.get('/draft-status', readGuard, async function(req, res) {
+  try {
+    var website = await ensureWebsite(req.schoolId);
+    var status  = website.status || 'draft';
+
+    var hasUnpublishedChanges;
+    if (status === 'draft' || status === 'unpublished') {
+      /* Never published, or taken offline — draft always differs */
+      hasUnpublishedChanges = true;
+    } else {
+      /* Published: compare stringified configs */
+      try {
+        var draftStr     = JSON.stringify(website.draftConfig     || {});
+        var publishedStr = JSON.stringify(website.publishedConfig || {});
+        hasUnpublishedChanges = draftStr !== publishedStr;
+      } catch(e) {
+        hasUnpublishedChanges = true; /* Safe default */
+      }
+    }
+
+    return res.json({
+      success:              true,
+      status,
+      hasUnpublishedChanges,
+      lastEditedAt:         website.lastEditedAt     || null,
+      lastEditedByName:     website.lastEditedByName || '',
+      publishedAt:          website.publishedAt      || null,
+      publishedByName:      website.publishedByName  || ''
+    });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   E8E: VERSION HISTORY
+   GET /api/institution/website/versions
+   Lists all saved publish snapshots for this school.
+   configSnapshot excluded from list — only available
+   when fetching a specific version for rollback.
+============================================ */
+router.get('/versions', readGuard, async function(req, res) {
+  try {
+    var SchoolWebsiteVersion = require('../models/SchoolWebsiteVersion.model');
+    var versions = await SchoolWebsiteVersion.find({ schoolId: req.schoolId })
+      .select('versionNumber publishedAt publishedByName source rolledBackFromVersion label')
+      .sort({ versionNumber: -1 })
+      .lean();
+
+    return res.json({ success: true, versions, count: versions.length });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   E8E: ROLLBACK
+   POST /api/institution/website/rollback/:versionId
+   Restores a prior publish snapshot as the live website.
+   publishGuard — schoolAdminOnly.
+   
+   Flow:
+   1. Fetch target version (TENANT SCOPE)
+   2. Save new version snapshot (source: rollback)
+   3. Set publishedConfig = snapshot, status = published
+   4. draftConfig is NOT touched — admin can continue editing
+============================================ */
+router.post('/rollback/:versionId', publishGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.versionId)) {
+      return res.status(400).json({ success: false, message: 'Invalid version ID.' });
+    }
+
+    var SchoolWebsiteVersion = require('../models/SchoolWebsiteVersion.model');
+    var targetVersion = await SchoolWebsiteVersion.findOne({
+      _id:      req.params.versionId,
+      schoolId: req.schoolId /* TENANT SCOPE */
+    }).lean();
+
+    if (!targetVersion) {
+      return res.status(404).json({ success: false, message: 'Version not found.' });
+    }
+    if (!targetVersion.configSnapshot || Object.keys(targetVersion.configSnapshot).length === 0) {
+      return res.status(400).json({ success: false, message: 'Version snapshot is empty and cannot be restored.' });
+    }
+
+    /* Save a new version snapshot recording the rollback event */
+    var publishService = require('../services/website.publish.service');
+    var newSnapshot    = await publishService.saveVersionSnapshot(
+      req.schoolId,
+      targetVersion.configSnapshot,
+      req.schoolUser,
+      'rollback',
+      targetVersion.versionNumber
+    );
+
+    /* Restore publishedConfig from snapshot — draftConfig untouched */
+    var now = new Date();
+    await SchoolWebsite.findOneAndUpdate(
+      { schoolId: req.schoolId },
+      {
+        $set: {
+          status:          'published',
+          publishedAt:     now,
+          publishedBy:     req.schoolUser._id,
+          publishedByName: req.schoolUser.name || '',
+          publishedConfig: targetVersion.configSnapshot
+        }
+      }
+    );
+
+    return res.json({
+      success:             true,
+      message:             'Website restored to version ' + targetVersion.versionNumber + '.',
+      restoredVersion:     targetVersion.versionNumber,
+      newVersionNumber:    newSnapshot.versionNumber,
+      publishedAt:         now
+    });
+  } catch(err) {
+    console.error('[website] POST /rollback:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   E8E: AUTHENTICATED DRAFT PREVIEW RENDERER
+   GET /api/institution/website/preview/render
+   Requires: instProtect JWT via Authorization header.
+   Returns: text/html of draft homepage (NEVER public).
+
+   The builder JS fetches this, creates a blob URL,
+   and points the preview iframe at the blob URL.
+   CSS loaded via absolute server URL so it resolves
+   correctly from blob URL context.
+
+   No school-authored JavaScript rendered.
+   All text escaped before HTML output.
+   Public /school/:slug route has zero awareness of this.
+============================================ */
+
+/* ---- Local helpers for preview renderer ---- */
+function prvEsc(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
+function prvEscUrl(url) {
+  if (!url) return '';
+  var clean = String(url).trim();
+  if (/^javascript:/i.test(clean) || /^data:/i.test(clean)) return '';
+  return prvEsc(clean);
+}
+
+function prvFmtDate(d) {
+  if (!d) return '';
+  return new Date(d).toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
+}
+
+function buildPreviewShell(req, school, config, body) {
+  var theme   = prvEsc(config.theme || 'modern');
+  var primary   = prvEsc(config.primaryColor   || school.primaryColor   || '#1a5276');
+  var secondary = prvEsc(config.secondaryColor || school.secondaryColor || '#2e86c1');
+  var accent    = prvEsc(config.accentColor    || '#e67e22');
+  var fontMap   = {
+    poppins:     "'Poppins',sans-serif",
+    merriweather:"'Merriweather',serif",
+    inter:       "'Inter',sans-serif"
+  };
+  var font      = fontMap[config.fontTheme] || fontMap.inter;
+  var cssVars   = '--ws-primary:' + primary + ';--ws-secondary:' + secondary +
+                  ';--ws-accent:' + accent + ';--ws-font:' + font + ';';
+  var baseUrl   = req.protocol + '://' + req.get('host');
+  var fontUrl   = config.fontTheme === 'poppins'
+    ? 'https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap'
+    : config.fontTheme === 'merriweather'
+    ? 'https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap'
+    : 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap';
+
+  var enabledModules = config.enabledModules || ['home','about','news','events','contact'];
+  var moduleLabels   = {
+    home:'Home', about:'About', news:'News', events:'Events', gallery:'Gallery',
+    staff:'Staff', departments:'Departments', programmes:'Programmes',
+    facilities:'Facilities', admissions:'Admissions', contact:'Contact',
+    alumni:'Alumni', student_portal:'Student Portal', parent_portal:'Parent Portal'
+  };
+  var customLabels = config.customNavLabels || {};
+  var navItems = enabledModules.map(function(m) {
+    var label = customLabels[m] || moduleLabels[m] || m;
+    return '<li><a href="#" onclick="return false;">' + prvEsc(label) + '</a></li>';
+  }).join('');
+
+  var logo  = prvEscUrl(config.logoUrl || school.logo || '');
+  var navBg = config.navStyle === 'light' ? 'ws-nav--light' : 'ws-nav--dark';
+
+  var nav = '<nav class="ws-nav ' + navBg + '">' +
+    '<div class="ws-container ws-nav-inner">' +
+      '<a href="#" onclick="return false;" class="ws-nav-brand">' +
+        (logo ? '<img src="' + logo + '" alt="' + prvEsc(school.name) + '" class="ws-nav-logo" />' : '') +
+        '<span class="ws-nav-name">' + prvEsc(school.name) + '</span>' +
+      '</a>' +
+      '<ul class="ws-nav-menu">' + navItems + '</ul>' +
+    '</div></nav>';
+
+  var sl = config.socialLinks || {};
+  var socialHtml = '';
+  var socialMap = {
+    facebook:{icon:'f'}, twitter:{icon:'𝕏'}, instagram:{icon:'◎'},
+    youtube:{icon:'▶'}, linkedin:{icon:'in'}
+  };
+  Object.keys(socialMap).forEach(function(k) {
+    if (sl[k]) socialHtml += '<a href="#" onclick="return false;" class="ws-social-link">' + prvEsc(socialMap[k].icon) + '</a>';
+  });
+
+  var footer = '<footer class="ws-footer">' +
+    '<div class="ws-container ws-footer-inner">' +
+      '<div class="ws-footer-brand">' +
+        '<div class="ws-footer-name">' + prvEsc(school.name) + '</div>' +
+        (config.description ? '<p class="ws-footer-desc">' + prvEsc(config.description.substring(0,200)) + '</p>' : '') +
+      '</div>' +
+      '<div class="ws-footer-contact">' +
+        (school.address ? '<div>📍 ' + prvEsc(school.address) + '</div>' : '') +
+        ((config.publicPhone || school.phone) ? '<div>📞 ' + prvEsc(config.publicPhone || school.phone) + '</div>' : '') +
+        (config.publicEmail ? '<div>✉️ ' + prvEsc(config.publicEmail) + '</div>' : '') +
+      '</div>' +
+      '<div class="ws-footer-social">' + socialHtml + '</div>' +
+    '</div>' +
+    '<div class="ws-footer-bottom"><div class="ws-container">' +
+      '<span>© ' + new Date().getFullYear() + ' ' + prvEsc(school.name) + '.</span>' +
+      '<span class="ws-footer-credit">Powered by LatLomp</span>' +
+    '</div></div></footer>';
+
+  return '<!DOCTYPE html>\n<html lang="en">\n<head>\n' +
+    '<meta charset="UTF-8" />\n' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0" />\n' +
+    '<title>DRAFT PREVIEW — ' + prvEsc(school.name) + '</title>\n' +
+    '<link rel="stylesheet" href="' + fontUrl + '" />\n' +
+    '<link rel="stylesheet" href="' + baseUrl + '/school/themes/' + theme + '.css" />\n' +
+    '<style>:root{' + cssVars + '}' +
+    '.prv-banner{position:sticky;top:0;z-index:9999;' +
+      'background:linear-gradient(90deg,#f57c00,#e53935);color:#fff;' +
+      'font-family:sans-serif;font-size:13px;font-weight:700;' +
+      'padding:10px 20px;display:flex;align-items:center;justify-content:space-between;' +
+      'gap:12px;flex-wrap:wrap;box-shadow:0 2px 12px rgba(0,0,0,0.3);}' +
+    '.prv-note{font-weight:400;font-size:12px;opacity:0.88;}' +
+    'a{pointer-events:none;}' +
+    '</style>\n' +
+    '</head>\n<body>\n' +
+    '<div class="prv-banner">⚠️ DRAFT PREVIEW — Not visible to the public' +
+      '<span class="prv-note">Publish to make these changes live</span>' +
+    '</div>\n' +
+    nav + '\n' +
+    '<main class="ws-main">' + body + '</main>\n' +
+    footer + '\n' +
+    '</body>\n</html>';
+}
+
+async function buildPreviewBody(sections, school, config, schoolId) {
+  var SchoolWebsitePost = require('../models/SchoolWebsitePost.model');
+  var SchoolEvent       = require('../models/SchoolEvent.model');
+
+  var needsNews   = sections.find(function(s){ return s.type === 'news'   && s.enabled; });
+  var needsEvents = sections.find(function(s){ return s.type === 'events' && s.enabled; });
+
+  var results = await Promise.all([
+    needsNews
+      ? SchoolWebsitePost.find({ schoolId: schoolId, status:'published' })
+          .sort({ publishedAt:-1 }).limit(3).lean()
+      : Promise.resolve([]),
+    needsEvents
+      ? SchoolEvent.find({ schoolId: schoolId, showOnWebsite:true, status:'published', date:{ $gte:new Date() } })
+          .sort({ date:1 }).limit(3).lean()
+      : Promise.resolve([])
+  ]);
+  var posts  = results[0];
+  var events = results[1];
+
+  var html    = '';
+  var sorted  = sections.filter(function(s){ return s.enabled; })
+                         .sort(function(a,b){ return (a.order||0)-(b.order||0); });
+
+  sorted.forEach(function(section) {
+    var cfg = section.config || {};
+    switch(section.type) {
+
+      case 'hero':
+        var heroImg  = prvEscUrl(cfg.heroImageUrl || config.logoUrl || '');
+        var opacity  = typeof cfg.overlayOpacity === 'number' ? cfg.overlayOpacity : 0.5;
+        html += '<section class="ws-hero" style="' +
+          (heroImg ? 'background-image:linear-gradient(rgba(0,0,0,' + opacity + '),rgba(0,0,0,' + opacity + ')),url(' + heroImg + ')' : '') + '">' +
+          '<div class="ws-container ws-hero-content">' +
+          '<h1 class="ws-hero-headline">' + prvEsc(cfg.headline || config.tagline || school.name) + '</h1>' +
+          (cfg.subtext || config.description || school.motto ? '<p class="ws-hero-sub">' + prvEsc(cfg.subtext || config.description || school.motto || '') + '</p>' : '') +
+          '<div class="ws-hero-actions">' +
+          (cfg.buttonText ? '<a href="#" class="ws-btn ws-btn-accent">' + prvEsc(cfg.buttonText) + '</a>' : '') +
+          '<a href="#" class="ws-btn ws-btn-outline">Apply Now</a>' +
+          '</div></div></section>';
+        break;
+
+      case 'about':
+        var aboutTxt = cfg.subtext || config.about || config.description || '';
+        if (!aboutTxt) break;
+        html += '<section class="ws-section ws-section-alt"><div class="ws-container ws-two-col">' +
+          '<div class="ws-col-text">' +
+          '<div class="ws-section-label">About Us</div>' +
+          '<h2 class="ws-section-title">' + prvEsc(cfg.headline || 'Welcome to ' + school.name) + '</h2>' +
+          '<p class="ws-section-body">' + prvEsc(aboutTxt) + '</p>' +
+          '<a href="#" class="ws-btn ws-btn-primary">Learn More</a>' +
+          '</div>' +
+          (config.logoUrl ? '<div class="ws-col-media"><img src="' + prvEscUrl(config.logoUrl) + '" alt="' + prvEsc(school.name) + '" class="ws-about-img" /></div>' : '') +
+          '</div></section>';
+        break;
+
+      case 'principal_message':
+        var pm = config.principalMessage || {};
+        if (!pm.text) break;
+        html += '<section class="ws-section ws-section-principal"><div class="ws-container ws-principal-wrap">' +
+          (pm.photoUrl ? '<div class="ws-principal-photo"><img src="' + prvEscUrl(pm.photoUrl) + '" alt="' + prvEsc(pm.name || 'Principal') + '" /></div>' : '') +
+          '<div class="ws-principal-text">' +
+          '<div class="ws-section-label">A Message from Our ' + prvEsc(cfg.headline || pm.title || 'Principal') + '</div>' +
+          '<blockquote class="ws-principal-quote">"' + prvEsc(cfg.subtext || pm.text) + '"</blockquote>' +
+          '<div class="ws-principal-sig">'   + prvEsc(pm.name  || school.principalName || '') + '</div>' +
+          '<div class="ws-principal-title">' + prvEsc(pm.title || 'Principal') + ', ' + prvEsc(school.name) + '</div>' +
+          '</div></div></section>';
+        break;
+
+      case 'stats':
+        var stats = Array.isArray(cfg.stats) && cfg.stats.length ? cfg.stats : [];
+        if (!stats.length) break;
+        html += '<section class="ws-section-stats"><div class="ws-container"><div class="ws-stats-grid">';
+        stats.slice(0,6).forEach(function(s) {
+          html += '<div class="ws-stat"><div class="ws-stat-value">' + prvEsc(s.value) + '</div>' +
+                  '<div class="ws-stat-label">' + prvEsc(s.label) + '</div></div>';
+        });
+        html += '</div></div></section>';
+        break;
+
+      case 'news':
+        if (!posts.length) break;
+        html += '<section class="ws-section"><div class="ws-container">' +
+          '<div class="ws-section-header"><div class="ws-section-label">Latest</div>' +
+          '<h2 class="ws-section-title">' + prvEsc(cfg.headline || 'School News') + '</h2></div>' +
+          '<div class="ws-card-grid">';
+        posts.forEach(function(p) {
+          html += '<div class="ws-card">' +
+            (p.featuredImageUrl ? '<div class="ws-card-img"><img src="' + prvEscUrl(p.featuredImageUrl) + '" alt="' + prvEsc(p.title) + '" /></div>' : '') +
+            '<div class="ws-card-body">' +
+            (p.category ? '<span class="ws-tag">' + prvEsc(p.category) + '</span>' : '') +
+            '<h3 class="ws-card-title">' + prvEsc(p.title) + '</h3>' +
+            (p.excerpt ? '<p class="ws-card-excerpt">' + prvEsc(p.excerpt.substring(0,120)) + '</p>' : '') +
+            '<div class="ws-card-date">' + prvFmtDate(p.publishedAt) + '</div>' +
+            '</div></div>';
+        });
+        html += '</div></div></section>';
+        break;
+
+      case 'events':
+        if (!events.length) break;
+        html += '<section class="ws-section ws-section-alt"><div class="ws-container">' +
+          '<div class="ws-section-header"><div class="ws-section-label">Upcoming</div>' +
+          '<h2 class="ws-section-title">' + prvEsc(cfg.headline || 'Events') + '</h2></div>' +
+          '<div class="ws-event-list">';
+        events.forEach(function(ev) {
+          var dt = ev.date ? new Date(ev.date) : null;
+          html += '<div class="ws-event-item">' +
+            (dt ? '<div class="ws-event-date"><span class="ws-event-day">' + dt.getDate() +
+              '</span><span class="ws-event-month">' + dt.toLocaleString('en',{month:'short'}) + '</span></div>' : '') +
+            '<div class="ws-event-info"><h3 class="ws-event-title">' + prvEsc(ev.title) + '</h3>' +
+            (ev.description ? '<p class="ws-event-desc">' + prvEsc(ev.description.substring(0,100)) + '</p>' : '') +
+            (ev.location && ev.location.address ? '<div class="ws-event-loc">📍 ' + prvEsc(ev.location.address) + '</div>' : '') +
+            '</div></div>';
+        });
+        html += '</div></div></section>';
+        break;
+
+      case 'contact':
+        html += '<section class="ws-section ws-section-contact"><div class="ws-container">' +
+          '<div class="ws-section-label">Get In Touch</div>' +
+          '<h2 class="ws-section-title">' + prvEsc(cfg.headline || 'Contact Us') + '</h2>' +
+          '<div class="ws-contact-grid"><div class="ws-contact-info">' +
+          (school.address ? '<div class="ws-contact-item">📍 <span>' + prvEsc(school.address) + '</span></div>' : '') +
+          ((config.publicPhone || school.phone) ? '<div class="ws-contact-item">📞 <span>' + prvEsc(config.publicPhone || school.phone) + '</span></div>' : '') +
+          (config.publicEmail ? '<div class="ws-contact-item">✉️ <span>' + prvEsc(config.publicEmail) + '</span></div>' : '') +
+          '</div></div></div></section>';
+        break;
+
+      case 'cta':
+        html += '<section class="ws-cta"><div class="ws-container">' +
+          '<h2 class="ws-cta-text">' + prvEsc(cfg.ctaText || 'Ready to join our school?') + '</h2>' +
+          '<a href="#" class="ws-btn ws-btn-accent">' + prvEsc(cfg.ctaButtonText || 'Apply Now') + '</a>' +
+          '</div></section>';
+        break;
+    }
+  });
+
+  return html;
+}
+
+router.get('/preview/render', editGuard, async function(req, res) {
+  try {
+    var website = await ensureWebsite(req.schoolId);
+    var School  = require('../models/School.model');
+    var school  = await School.findById(req.schoolId)
+      .select('name logo primaryColor secondaryColor address phone motto principalName slug')
+      .lean();
+
+    var config   = website.draftConfig  || {};
+    var sections = config.homepageSections || [];
+
+    var body = await buildPreviewBody(sections, school, config, req.schoolId);
+    var html = buildPreviewShell(req, school, config, body);
+
+    res.set('Content-Type', 'text/html; charset=utf-8');
+    res.set('X-Frame-Options', 'SAMEORIGIN');
+    res.set('Cache-Control', 'no-store, no-cache');
+    return res.send(html);
+  } catch(err) {
+    console.error('[website] GET /preview/render:', err.message);
     return res.status(500).json({ success: false, message: err.message });
   }
 });
