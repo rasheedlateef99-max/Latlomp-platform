@@ -1604,4 +1604,427 @@ router.get('/:slug/academic-calendar', async function(req, res) {
   }
 });
 
+/* ============================================
+   E8C: GALLERY ALBUMS
+   All queries TENANT SCOPED to req.schoolId.
+   Items embed denormalised URLs so public
+   renderer needs no secondary media lookup.
+   Max 100 items per album enforced below.
+============================================ */
+
+var GALLERY_MAX_ITEMS = 100;
+
+/* GET /api/institution/website/gallery
+   List all albums for this school (all statuses).
+*/
+router.get('/gallery', readGuard, async function(req, res) {
+  try {
+    var SchoolGalleryAlbum = require('../models/SchoolGalleryAlbum.model');
+    var filter = { schoolId: req.schoolId }; /* TENANT SCOPE */
+    if (req.query.status) filter.status = req.query.status;
+
+    var albums = await SchoolGalleryAlbum.find(filter)
+      .select('title description slug coverImageUrl status publishedAt displayOrder isFeatured items createdAt')
+      .sort({ displayOrder: 1, createdAt: -1 })
+      .lean();
+
+    /* Return item count rather than full items array in list view */
+    var listed = albums.map(function(a) {
+      return Object.assign({}, a, { itemCount: (a.items || []).length, items: undefined });
+    });
+
+    return res.json({ success: true, albums: listed, count: listed.length });
+  } catch(err) {
+    console.error('[website] GET /gallery:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* POST /api/institution/website/gallery/albums
+   Create a new album (empty, then add items separately).
+*/
+router.post('/gallery/albums', editGuard, async function(req, res) {
+  try {
+    var SchoolGalleryAlbum = require('../models/SchoolGalleryAlbum.model');
+    var { title, description, displayOrder, isFeatured } = req.body;
+    if (!title || !title.trim()) {
+      return res.status(400).json({ success: false, message: 'Album title is required.' });
+    }
+
+    /* Generate slug from title */
+    var baseSlug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    var existing = await SchoolGalleryAlbum.findOne({ schoolId: req.schoolId, slug: baseSlug }).lean();
+    var slug     = existing ? baseSlug + '-' + Date.now() : baseSlug;
+
+    var album = await SchoolGalleryAlbum.create({
+      schoolId:      req.schoolId,
+      title:         sanitizeText(title),
+      description:   sanitizeText(description || ''),
+      slug,
+      displayOrder:  typeof displayOrder === 'number' ? displayOrder : 0,
+      isFeatured:    !!isFeatured,
+      status:        'draft',
+      createdBy:     req.schoolUser._id,
+      createdByName: req.schoolUser.name || ''
+    });
+
+    return res.status(201).json({ success: true, message: 'Album created.', album });
+  } catch(err) {
+    console.error('[website] POST /gallery/albums:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* GET /api/institution/website/gallery/albums/:id
+   Full album with all items (management view).
+*/
+router.get('/gallery/albums/:id', readGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid album ID.' });
+    }
+    var SchoolGalleryAlbum = require('../models/SchoolGalleryAlbum.model');
+    var album = await SchoolGalleryAlbum.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId /* TENANT SCOPE */
+    }).lean();
+    if (!album) {
+      return res.status(404).json({ success: false, message: 'Album not found.' });
+    }
+    return res.json({ success: true, album });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* PUT /api/institution/website/gallery/albums/:id
+   Update album metadata (not items).
+*/
+router.put('/gallery/albums/:id', editGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid album ID.' });
+    }
+    var SchoolGalleryAlbum = require('../models/SchoolGalleryAlbum.model');
+    var album = await SchoolGalleryAlbum.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId /* TENANT SCOPE */
+    });
+    if (!album) {
+      return res.status(404).json({ success: false, message: 'Album not found.' });
+    }
+
+    if (req.body.title        !== undefined) album.title        = sanitizeText(req.body.title);
+    if (req.body.description  !== undefined) album.description  = sanitizeText(req.body.description);
+    if (req.body.displayOrder !== undefined) album.displayOrder = req.body.displayOrder;
+    if (req.body.isFeatured   !== undefined) album.isFeatured   = !!req.body.isFeatured;
+    if (req.body.coverImageUrl!== undefined) album.coverImageUrl= req.body.coverImageUrl;
+    if (req.body.coverMediaId !== undefined) album.coverMediaId = req.body.coverMediaId || null;
+
+    album.updatedBy     = req.schoolUser._id;
+    album.updatedByName = req.schoolUser.name || '';
+    await album.save();
+
+    return res.json({ success: true, message: 'Album updated.', album });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* POST /api/institution/website/gallery/albums/:id/publish */
+router.post('/gallery/albums/:id/publish', editGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid album ID.' });
+    }
+    var SchoolGalleryAlbum = require('../models/SchoolGalleryAlbum.model');
+    var album = await SchoolGalleryAlbum.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId /* TENANT SCOPE */
+    });
+    if (!album) {
+      return res.status(404).json({ success: false, message: 'Album not found.' });
+    }
+    if (!album.items || !album.items.length) {
+      return res.status(400).json({ success: false, message: 'Cannot publish an empty album. Add at least one photo first.' });
+    }
+    album.status          = 'published';
+    album.publishedAt     = new Date();
+    album.publishedBy     = req.schoolUser._id;
+    album.publishedByName = req.schoolUser.name || '';
+    album.updatedBy       = req.schoolUser._id;
+    await album.save();
+
+    return res.json({ success: true, message: 'Album published.', status: 'published' });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* POST /api/institution/website/gallery/albums/:id/unpublish */
+router.post('/gallery/albums/:id/unpublish', editGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid album ID.' });
+    }
+    var SchoolGalleryAlbum = require('../models/SchoolGalleryAlbum.model');
+    var album = await SchoolGalleryAlbum.findOneAndUpdate(
+      { _id: req.params.id, schoolId: req.schoolId }, /* TENANT SCOPE */
+      { $set: { status: 'draft', updatedBy: req.schoolUser._id } },
+      { new: true }
+    );
+    if (!album) {
+      return res.status(404).json({ success: false, message: 'Album not found.' });
+    }
+    return res.json({ success: true, message: 'Album taken offline.', status: 'draft' });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* DELETE /api/institution/website/gallery/albums/:id */
+router.delete('/gallery/albums/:id', editGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid album ID.' });
+    }
+    var SchoolGalleryAlbum = require('../models/SchoolGalleryAlbum.model');
+    var album = await SchoolGalleryAlbum.findOneAndDelete({
+      _id:      req.params.id,
+      schoolId: req.schoolId /* TENANT SCOPE */
+    });
+    if (!album) {
+      return res.status(404).json({ success: false, message: 'Album not found.' });
+    }
+    /* Media files themselves are NOT deleted — they remain in the Media Library */
+    return res.json({ success: true, message: 'Album deleted. Media files remain in your library.' });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* POST /api/institution/website/gallery/albums/:id/items
+   Add a media item to an album.
+   Body: { mediaId }
+   Fetches URL from SchoolWebsiteMedia — denormalises into album item.
+*/
+router.post('/gallery/albums/:id/items', editGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid album ID.' });
+    }
+    var { mediaId, caption, altText } = req.body;
+    if (!mediaId || !mongoose.isValidObjectId(mediaId)) {
+      return res.status(400).json({ success: false, message: 'Valid mediaId is required.' });
+    }
+
+    /* Verify media belongs to this school — TENANT SCOPE */
+    var SchoolWebsiteMedia = require('../models/SchoolWebsiteMedia.model');
+    var media = await SchoolWebsiteMedia.findOne({
+      _id:      mediaId,
+      schoolId: req.schoolId, /* TENANT SCOPE */
+      isActive: true
+    }).select('url thumbnailUrl altText').lean();
+
+    if (!media) {
+      return res.status(404).json({ success: false, message: 'Media not found in your library.' });
+    }
+
+    var SchoolGalleryAlbum = require('../models/SchoolGalleryAlbum.model');
+    var album = await SchoolGalleryAlbum.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId /* TENANT SCOPE */
+    });
+    if (!album) {
+      return res.status(404).json({ success: false, message: 'Album not found.' });
+    }
+    if (album.items.length >= GALLERY_MAX_ITEMS) {
+      return res.status(400).json({
+        success: false,
+        message: 'Album is full. Maximum ' + GALLERY_MAX_ITEMS + ' photos per album.'
+      });
+    }
+
+    /* Check not already in album */
+    var alreadyAdded = album.items.some(function(item) {
+      return item.mediaId && item.mediaId.toString() === mediaId.toString();
+    });
+    if (alreadyAdded) {
+      return res.status(400).json({ success: false, message: 'This photo is already in the album.' });
+    }
+
+    var nextOrder = album.items.length;
+    album.items.push({
+      mediaId:      media._id,
+      url:          media.url          || '',
+      thumbnailUrl: media.thumbnailUrl || media.url || '',
+      caption:      sanitizeText(caption  || ''),
+      altText:      sanitizeText(altText  || media.altText || ''),
+      displayOrder: nextOrder
+    });
+
+    /* Auto-set cover if album has no cover yet */
+    if (!album.coverImageUrl && media.thumbnailUrl) {
+      album.coverImageUrl = media.thumbnailUrl || media.url;
+      album.coverMediaId  = media._id;
+    }
+
+    album.updatedBy     = req.schoolUser._id;
+    album.updatedByName = req.schoolUser.name || '';
+    await album.save();
+
+    return res.json({
+      success:   true,
+      message:   'Photo added to album.',
+      itemCount: album.items.length,
+      item:      album.items[album.items.length - 1]
+    });
+  } catch(err) {
+    console.error('[website] POST /gallery/albums/:id/items:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* DELETE /api/institution/website/gallery/albums/:id/items/:itemId
+   Remove a single item from the album (not from media library).
+*/
+router.delete('/gallery/albums/:id/items/:itemId', editGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id) || !mongoose.isValidObjectId(req.params.itemId)) {
+      return res.status(400).json({ success: false, message: 'Invalid ID.' });
+    }
+    var SchoolGalleryAlbum = require('../models/SchoolGalleryAlbum.model');
+    var album = await SchoolGalleryAlbum.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId /* TENANT SCOPE */
+    });
+    if (!album) {
+      return res.status(404).json({ success: false, message: 'Album not found.' });
+    }
+
+    var beforeLen = album.items.length;
+    album.items = album.items.filter(function(item) {
+      return item._id.toString() !== req.params.itemId;
+    });
+    if (album.items.length === beforeLen) {
+      return res.status(404).json({ success: false, message: 'Item not found in album.' });
+    }
+
+    /* Re-number display orders */
+    album.items.forEach(function(item, i) { item.displayOrder = i; });
+
+    /* Clear cover if removed item was the cover */
+    var removedItemWasCover = !album.items.some(function(item) {
+      return album.coverImageUrl && item.url === album.coverImageUrl;
+    });
+    if (removedItemWasCover && album.items.length > 0) {
+      album.coverImageUrl = album.items[0].thumbnailUrl || album.items[0].url;
+      album.coverMediaId  = album.items[0].mediaId;
+    } else if (!album.items.length) {
+      album.coverImageUrl = '';
+      album.coverMediaId  = null;
+    }
+
+    album.updatedBy     = req.schoolUser._id;
+    album.updatedByName = req.schoolUser.name || '';
+    await album.save();
+
+    return res.json({ success: true, message: 'Photo removed from album.', itemCount: album.items.length });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* PUT /api/institution/website/gallery/albums/:id/items/reorder
+   Update display order for all items.
+   Body: { order: [{ itemId, displayOrder }] }
+*/
+router.put('/gallery/albums/:id/items/reorder', editGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid album ID.' });
+    }
+    var { order } = req.body;
+    if (!Array.isArray(order)) {
+      return res.status(400).json({ success: false, message: 'order must be an array.' });
+    }
+    var SchoolGalleryAlbum = require('../models/SchoolGalleryAlbum.model');
+    var album = await SchoolGalleryAlbum.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId /* TENANT SCOPE */
+    });
+    if (!album) {
+      return res.status(404).json({ success: false, message: 'Album not found.' });
+    }
+    order.forEach(function(entry) {
+      if (!entry.itemId) return;
+      var item = album.items.id(entry.itemId);
+      if (item) item.displayOrder = typeof entry.displayOrder === 'number' ? entry.displayOrder : 0;
+    });
+    album.items.sort(function(a, b) { return a.displayOrder - b.displayOrder; });
+    album.updatedBy = req.schoolUser._id;
+    await album.save();
+    return res.json({ success: true, message: 'Album order saved.' });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   E8C: ENHANCED MEDIA DELETION
+   Replaces the E8A soft-delete-only approach.
+   Soft-deletes the DB record AND removes from storage.
+   Media in active album use is protected.
+============================================ */
+/* Override the existing DELETE /media/:id route behaviour.
+   The route is already registered in E8A.
+   Instead, add a new dedicated hard-delete endpoint. */
+
+router.delete('/media/:id/permanent', editGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid media ID.' });
+    }
+    var SchoolWebsiteMedia = require('../models/SchoolWebsiteMedia.model');
+    var SchoolGalleryAlbum = require('../models/SchoolGalleryAlbum.model');
+
+    var media = await SchoolWebsiteMedia.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId /* TENANT SCOPE */
+    });
+    if (!media) {
+      return res.status(404).json({ success: false, message: 'Media not found.' });
+    }
+
+    /* Check not in active album */
+    var usedInAlbum = await SchoolGalleryAlbum.findOne({
+      schoolId:          req.schoolId,
+      'items.mediaId':   media._id,
+      status:            'published'
+    }).lean();
+    if (usedInAlbum) {
+      return res.status(400).json({
+        success: false,
+        message: 'This photo is used in a published album. Remove it from the album first.'
+      });
+    }
+
+    /* Delete from storage */
+    try {
+      var mediaService = require('../services/website.media.service');
+      await mediaService.deleteFromStorage(media.storageRef, media.storageProvider);
+    } catch(storageErr) {
+      console.warn('[website] Storage delete warning:', storageErr.message);
+      /* Non-fatal — proceed with DB deletion */
+    }
+
+    await SchoolWebsiteMedia.findByIdAndDelete(media._id);
+
+    return res.json({ success: true, message: 'Media permanently deleted.' });
+  } catch(err) {
+    console.error('[website] DELETE /media/:id/permanent:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

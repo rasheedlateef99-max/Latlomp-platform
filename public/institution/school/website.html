@@ -183,6 +183,7 @@
       <button class="nav-item"        data-sec="news"        onclick="showSec('news')">       📰 News</button>
       <button class="nav-item"        data-sec="events"      onclick="showSec('events')">     📅 Events</button>
       <button class="nav-item" data-sec="staff"             onclick="showSec('staff')">            👥 Staff</button>
+      <button class="nav-item" data-sec="gallery" onclick="showSec('gallery')">🖼️ Gallery</button>
       <button class="nav-item" data-sec="departments"        onclick="showSec('departments')">      🏢 Departments</button>
       <button class="nav-item" data-sec="facilities"         onclick="showSec('facilities')">       🏋️ Facilities</button>
       <button class="nav-item" data-sec="programmes"         onclick="showSec('programmes')">       📚 Programmes</button>
@@ -194,6 +195,8 @@
       <button class="nav-item"        data-sec="navigation"  onclick="showSec('navigation')"> 🧭 Navigation</button>
       <div class="nav-sec">Publish</div>
       <button class="nav-item"        data-sec="publish"     onclick="showSec('publish')">    🚀 Publish</button>
+      <div class="nav-sec">Preview</div>
+      <button class="nav-item" data-sec="preview" onclick="showSec('preview')">👁 Preview</button>
     </div>
     <div class="sb-footer">
       <a href="/institution/school/dashboard.html" class="nav-item">← School Dashboard</a>
@@ -493,20 +496,87 @@
           </div>
         </div>
 
-        <!-- Hero section config -->
+        <!-- ✅ E8D: HERO CONFIG -->
         <div class="panel" id="heroConfigPanel" style="display:none;">
-          <div class="panel-head"><h3>🖼️ Hero Banner Settings</h3></div>
+          <div class="panel-head"><h3>🖼️ Hero Banner — Settings</h3></div>
           <div class="panel-body">
             <div class="field"><label>Headline</label><input type="text" id="heroHeadline" placeholder="e.g. Excellence in Education" /></div>
             <div class="field"><label>Subtext</label><textarea id="heroSubtext" rows="2" placeholder="A welcoming message for visitors..."></textarea></div>
-            <div class="field"><label>Background Image URL</label><input type="url" id="heroImageUrl" placeholder="Paste URL from Media Library..." /><div class="field-hint">Full-width background photo. Recommended 1920×1080px.</div></div>
+            <div class="field"><label>Background Image URL</label><input type="url" id="heroImageUrl" placeholder="Paste URL from Media Library..." /><div class="field-hint">Full-width background. Upload to Media Library first. Recommended 1920×1080 px.</div></div>
             <div class="field-row">
               <div class="field"><label>Button Text</label><input type="text" id="heroBtnText" placeholder="e.g. Explore Our School" /></div>
               <div class="field"><label>Button URL</label><input type="url" id="heroBtnUrl" placeholder="e.g. /school/your-slug/about" /></div>
             </div>
           </div>
         </div>
-      </div>
+
+        <!-- ✅ E8D: ABOUT SECTION CONFIG -->
+        <div class="panel" id="aboutConfigPanel" style="display:none;">
+          <div class="panel-head"><h3>📖 About Section — Settings</h3></div>
+          <div class="panel-body">
+            <div class="field"><label>Section Headline</label><input type="text" id="aboutHeadline" placeholder="e.g. Welcome to Our School" /><div class="field-hint">Leave blank to use the default "Welcome to [School Name]".</div></div>
+            <div class="field"><label>Override Text</label><textarea id="aboutSubtext" rows="3" placeholder="Leave blank to use the About Us text from Identity settings..."></textarea><div class="field-hint">Overrides the About Us text from Identity for the homepage section only.</div></div>
+          </div>
+        </div>
+
+        <!-- ✅ E8D: PRINCIPAL MESSAGE CONFIG -->
+        <div class="panel" id="pmConfigPanel" style="display:none;">
+          <div class="panel-head"><h3>💬 Principal's Message — Settings</h3></div>
+          <div class="panel-body">
+            <div style="background:rgba(108,99,255,0.06);border:1px solid rgba(108,99,255,0.2);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:#a78bfa;">
+              The principal's name, title, photo and message are configured in
+              <strong>Identity → Principal's Message</strong>. The options below are section-level overrides.
+            </div>
+            <div class="field"><label>Section Heading Override</label><input type="text" id="pmOverrideTitle" placeholder="e.g. A Message from Our Director" /><div class="field-hint">Overrides "A Message from Our Principal" in this section's heading.</div></div>
+            <div class="field"><label>Introductory Text Override</label><textarea id="pmOverrideText" rows="2" placeholder="Leave blank to use the message from Identity settings..."></textarea></div>
+          </div>
+        </div>
+
+        <!-- ✅ E8D: STATS SECTION CONFIG -->
+        <div class="panel" id="statsConfigPanel" style="display:none;">
+          <div class="panel-head"><h3>📊 Key Statistics — Settings</h3></div>
+          <div class="panel-body">
+            <p style="font-size:12px;color:var(--muted);margin-bottom:16px;">Enter up to 6 statistics to display in this section (e.g. years established, total students, pass rate).</p>
+            <div id="statsFields">
+              <div class="field-row" style="margin-bottom:8px;">
+                <div class="field" style="margin-bottom:0;"><label>Value</label><input type="text" id="stat0Value" placeholder="e.g. 1985, 2500+, 98%" /></div>
+                <div class="field" style="margin-bottom:0;"><label>Label</label><input type="text" id="stat0Label" placeholder="e.g. Founded, Students, Pass Rate" /></div>
+              </div>
+              <div class="field-row" style="margin-bottom:8px;">
+                <div class="field" style="margin-bottom:0;"><input type="text" id="stat1Value" placeholder="Value" /></div>
+                <div class="field" style="margin-bottom:0;"><input type="text" id="stat1Label" placeholder="Label" /></div>
+              </div>
+              <div class="field-row" style="margin-bottom:8px;">
+                <div class="field" style="margin-bottom:0;"><input type="text" id="stat2Value" placeholder="Value" /></div>
+                <div class="field" style="margin-bottom:0;"><input type="text" id="stat2Label" placeholder="Label" /></div>
+              </div>
+              <div class="field-row" style="margin-bottom:8px;">
+                <div class="field" style="margin-bottom:0;"><input type="text" id="stat3Value" placeholder="Value" /></div>
+                <div class="field" style="margin-bottom:0;"><input type="text" id="stat3Label" placeholder="Label" /></div>
+              </div>
+              <div class="field-row" style="margin-bottom:8px;">
+                <div class="field" style="margin-bottom:0;"><input type="text" id="stat4Value" placeholder="Value" /></div>
+                <div class="field" style="margin-bottom:0;"><input type="text" id="stat4Label" placeholder="Label" /></div>
+              </div>
+              <div class="field-row">
+                <div class="field" style="margin-bottom:0;"><input type="text" id="stat5Value" placeholder="Value" /></div>
+                <div class="field" style="margin-bottom:0;"><input type="text" id="stat5Label" placeholder="Label" /></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ✅ E8D: CTA SECTION CONFIG -->
+        <div class="panel" id="ctaConfigPanel" style="display:none;">
+          <div class="panel-head"><h3>🚀 Call to Action — Settings</h3></div>
+          <div class="panel-body">
+            <div class="field"><label>CTA Text</label><input type="text" id="ctaText" placeholder="e.g. Ready to join our school?" /></div>
+            <div class="field-row">
+              <div class="field"><label>Button Text</label><input type="text" id="ctaBtnText" placeholder="e.g. Apply Now" /></div>
+              <div class="field"><label>Button URL</label><input type="url" id="ctaBtnUrl" placeholder="e.g. /school/your-slug/admissions" /></div>
+            </div>
+          </div>
+        </div>
 
       <!-- ============================= PAGES ============================= -->
       <div class="ws-section" id="sec-pages">
@@ -657,6 +727,42 @@
         </div>
       </div>
 
+<!-- ============================= PREVIEW ============================= -->
+      <div class="ws-section" id="sec-preview">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>👁 Live Preview</h3>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-secondary btn-sm" onclick="refreshPreviewFrame()">↺ Refresh</button>
+              <a id="previewOpenNewTab" href="#" target="_blank" class="btn btn-secondary btn-sm">🔗 Open in New Tab</a>
+            </div>
+          </div>
+          <div class="panel-body" style="padding:0;">
+            <div style="background:rgba(255,214,0,0.06);border-bottom:1px solid rgba(255,214,0,0.2);padding:10px 16px;font-size:12px;color:var(--yellow);">
+              ⚠️ Preview shows your <strong>published</strong> website. Save and publish your draft first to see changes here.
+              For an authenticated draft preview, use the "Preview" button in the topbar.
+            </div>
+            <div style="background:var(--dark);padding:12px;border-bottom:1px solid var(--border);">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="display:flex;gap:6px;"><div style="width:12px;height:12px;border-radius:50%;background:#ff5f57;"></div><div style="width:12px;height:12px;border-radius:50%;background:#ffbd2e;"></div><div style="width:12px;height:12px;border-radius:50%;background:#28ca41;"></div></div>
+                <div id="previewAddressBar" style="flex:1;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:6px;padding:5px 12px;font-size:12px;color:var(--muted);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Loading URL...</div>
+                <div style="display:flex;gap:6px;">
+                  <button class="btn btn-secondary btn-sm" onclick="setPreviewViewport('desktop')"  title="Desktop">🖥</button>
+                  <button class="btn btn-secondary btn-sm" onclick="setPreviewViewport('tablet')"   title="Tablet">📱</button>
+                  <button class="btn btn-secondary btn-sm" onclick="setPreviewViewport('mobile')"   title="Mobile">📲</button>
+                </div>
+              </div>
+            </div>
+            <div style="overflow:hidden;background:#e5e5e5;display:flex;justify-content:center;align-items:flex-start;min-height:600px;padding:20px;transition:all 0.3s;" id="previewViewportWrap">
+              <iframe id="previewFrame" src="about:blank"
+                style="background:#fff;border:none;border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,0.2);width:100%;max-width:1200px;height:600px;transition:all 0.3s;"
+                title="Website Preview">
+              </iframe>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- ============================= PUBLISH ============================= -->
       <div class="ws-section" id="sec-publish">
         <div class="panel">
@@ -687,6 +793,93 @@
           Go to <a href="/institution/school/dashboard.html" style="color:var(--primary);">School Dashboard → School Settings</a> to configure your slug.
         </div>
       </div>
+
+<!-- ============================= GALLERY ============================= -->
+      <div class="ws-section" id="sec-gallery">
+
+        <!-- Album list -->
+        <div class="panel">
+          <div class="panel-head">
+            <h3>🖼️ Photo Gallery</h3>
+            <button class="btn btn-primary btn-sm" onclick="showAlbumCreateForm()">+ New Album</button>
+          </div>
+
+          <!-- Create album form -->
+          <div id="albumCreateForm" style="display:none;padding:18px;border-bottom:1px solid var(--border);">
+            <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:14px;">New Album</div>
+            <div class="field-row">
+              <div class="field">
+                <label>Album Title <span style="color:var(--red);">*</span></label>
+                <input type="text" id="albumTitle" placeholder="e.g. Sports Day 2024, Science Fair" />
+              </div>
+              <div class="field">
+                <label>Display Order</label>
+                <input type="number" id="albumOrder" placeholder="0" min="0" />
+              </div>
+            </div>
+            <div class="field">
+              <label>Description</label>
+              <textarea id="albumDesc" rows="2" placeholder="Brief description of this album..."></textarea>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-secondary btn-sm" onclick="hideAlbumCreateForm()">Cancel</button>
+              <button class="btn btn-primary btn-sm"   onclick="createAlbum()">Create Album</button>
+            </div>
+          </div>
+
+          <!-- Albums list -->
+          <div id="albumsListWrap">
+            <div style="padding:28px;text-align:center;color:var(--muted);">Loading...</div>
+          </div>
+        </div>
+
+        <!-- Album editor (shown when an album is open) -->
+        <div id="albumEditorPanel" class="panel" style="display:none;">
+          <div class="panel-head">
+            <h3 id="albumEditorTitle">Album</h3>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-secondary btn-sm" onclick="closeAlbumEditor()">← Back to Albums</button>
+              <button class="btn btn-green btn-sm"     id="albumPublishBtn" onclick="publishAlbum()">Publish</button>
+            </div>
+          </div>
+          <div class="panel-body">
+            <input type="hidden" id="openAlbumId" />
+
+            <!-- Add photos from Media Library -->
+            <div style="margin-bottom:20px;">
+              <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:10px;">Add Photos from Media Library</div>
+              <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Upload photos in the Media Library section, then select them here to add to this album.</div>
+              <div id="mediaPickerGrid" class="media-grid" style="max-height:240px;overflow-y:auto;">
+                <div style="padding:16px;text-align:center;color:var(--muted);grid-column:1/-1;">Loading media library...</div>
+              </div>
+            </div>
+
+            <!-- Current album items -->
+            <div style="border-top:1px solid var(--border);padding-top:16px;">
+              <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:10px;" id="albumItemsHeading">Photos in Album (0)</div>
+              <div id="albumItemsGrid" class="media-grid">
+                <div style="padding:16px;text-align:center;color:var(--muted);grid-column:1/-1;">No photos yet. Add from the library above.</div>
+              </div>
+            </div>
+
+            <!-- Cover image -->
+            <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:16px;">
+              <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:10px;">Cover Image URL</div>
+              <div class="field-row">
+                <div class="field">
+                  <input type="url" id="albumCoverUrl" placeholder="Paste URL from Media Library..." />
+                  <div class="field-hint">The cover appears on the gallery index page. Auto-set from first photo added.</div>
+                </div>
+                <div>
+                  <button class="btn btn-secondary btn-sm" style="margin-top:4px;" onclick="saveAlbumCover()">Set Cover</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      
 <!-- ============================= STAFF ============================= -->
       <div class="ws-section" id="sec-staff">
         <div class="panel">
@@ -1146,11 +1339,13 @@ function showSec(name) {
   if (name === 'navigation')       renderModuleGrid();
   /* E8B lazy-loads */
   if (name === 'staff')            loadStaffSection();
+  if (name === 'gallery')          loadGallerySection();
   if (name === 'departments')      loadDepartmentsSection();
   if (name === 'facilities')       loadFacilitiesSection();
   if (name === 'programmes')       loadProgrammesSection();
   if (name === 'admissions')       loadAdmissionsSection();
   if (name === 'academic-calendar')loadAcademicCalendarSection();
+  if (name === 'preview') { initPreviewPanel(); refreshPreviewFrame(); }
 }
 
 /* ============================================
@@ -1243,14 +1438,23 @@ function renderHomepageSections() {
   });
 
   if (!sections.length) {
-    listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">No sections yet. Save your first publish to initialise sections.</div>';
+    listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">No sections configured.</div>';
     return;
   }
 
-  listEl.innerHTML = sections.map(function(s) {
-    return '<div class="section-item" data-type="' + esc(s.type) + '">' +
-      '<span style="color:var(--muted);font-size:16px;cursor:grab;" title="Sections can be reordered in E8D">≡</span>' +
+  /* ✅ E8D: Up/down reorder + per-section config button */
+  listEl.innerHTML = sections.map(function(s, i) {
+    var hasConfig = ['hero','about','principal_message','stats','cta'].includes(s.type);
+    return '<div class="section-item" data-type="' + esc(s.type) + '" data-order="' + i + '">' +
+      '<div style="display:flex;flex-direction:column;gap:2px;">' +
+        '<button class="btn btn-secondary btn-sm" style="padding:2px 6px;font-size:10px;line-height:1;" onclick="moveSectionUp(' + i + ')" ' + (i === 0 ? 'disabled' : '') + ' title="Move up">▲</button>' +
+        '<button class="btn btn-secondary btn-sm" style="padding:2px 6px;font-size:10px;line-height:1;" onclick="moveSectionDown(' + i + ')" ' + (i === sections.length - 1 ? 'disabled' : '') + ' title="Move down">▼</button>' +
+      '</div>' +
       '<span class="section-item-name">' + esc(SECTION_LABELS[s.type] || s.type) + '</span>' +
+      (hasConfig
+        ? '<button class="btn btn-secondary btn-sm" onclick="openSectionConfig(\'' + s.type + '\')" style="margin-right:6px;">⚙️ Config</button>'
+        : '<span style="width:76px;display:inline-block;"></span>'
+      ) +
       '<label class="toggle-switch">' +
         '<input type="checkbox" ' + (s.enabled ? 'checked' : '') +
           ' onchange="toggleSection(\'' + esc(s.type) + '\', this.checked)" />' +
@@ -1259,16 +1463,88 @@ function renderHomepageSections() {
     '</div>';
   }).join('');
 
-  /* Show/hide hero config panel */
-  var hero      = sections.find(function(s) { return s.type === 'hero'; });
-  var heroPanel = document.getElementById('heroConfigPanel');
-  if (heroPanel) heroPanel.style.display = (hero && hero.enabled) ? 'block' : 'none';
-  if (hero && hero.config) {
-    setField('heroHeadline',  hero.config.headline       || '');
-    setField('heroSubtext',   hero.config.subtext        || '');
-    setField('heroImageUrl',  hero.config.heroImageUrl   || '');
-    setField('heroBtnText',   hero.config.buttonText     || '');
-    setField('heroBtnUrl',    hero.config.buttonUrl      || '');
+  /* Pre-populate config panels from existing config */
+  populateSectionConfigs(sections);
+}
+
+/* ✅ E8D: Move section up in order */
+function moveSectionUp(index) {
+  var d = (_websiteData && _websiteData.draftConfig) || {};
+  var sections = (d.homepageSections || []).sort(function(a,b){ return (a.order||0)-(b.order||0); });
+  if (index <= 0 || index >= sections.length) return;
+  var temp = sections[index].order;
+  sections[index].order   = sections[index-1].order;
+  sections[index-1].order = temp;
+  renderHomepageSections();
+}
+
+/* ✅ E8D: Move section down in order */
+function moveSectionDown(index) {
+  var d = (_websiteData && _websiteData.draftConfig) || {};
+  var sections = (d.homepageSections || []).sort(function(a,b){ return (a.order||0)-(b.order||0); });
+  if (index < 0 || index >= sections.length - 1) return;
+  var temp = sections[index].order;
+  sections[index].order   = sections[index+1].order;
+  sections[index+1].order = temp;
+  renderHomepageSections();
+}
+
+/* ✅ E8D: Pre-populate all section config panels */
+function populateSectionConfigs(sections) {
+  sections.forEach(function(s) {
+    var cfg = s.config || {};
+    if (s.type === 'hero') {
+      setField('heroHeadline',  cfg.headline      || '');
+      setField('heroSubtext',   cfg.subtext       || '');
+      setField('heroImageUrl',  cfg.heroImageUrl  || '');
+      setField('heroBtnText',   cfg.buttonText    || '');
+      setField('heroBtnUrl',    cfg.buttonUrl     || '');
+      var heroPanel = document.getElementById('heroConfigPanel');
+      if (heroPanel) heroPanel.style.display = s.enabled ? 'block' : 'none';
+    }
+    if (s.type === 'about') {
+      setField('aboutHeadline', cfg.headline || '');
+      setField('aboutSubtext',  cfg.subtext  || '');
+    }
+    if (s.type === 'principal_message') {
+      setField('pmOverrideText',  cfg.subtext  || '');
+      setField('pmOverrideTitle', cfg.headline || '');
+    }
+    if (s.type === 'stats') {
+      var statsArr = Array.isArray(cfg.stats) ? cfg.stats : [];
+      for (var i = 0; i < 6; i++) {
+        setField('stat' + i + 'Label', statsArr[i] ? statsArr[i].label : '');
+        setField('stat' + i + 'Value', statsArr[i] ? statsArr[i].value : '');
+      }
+    }
+    if (s.type === 'cta') {
+      setField('ctaText',      cfg.ctaText       || '');
+      setField('ctaBtnText',   cfg.ctaButtonText || '');
+      setField('ctaBtnUrl',    cfg.ctaButtonUrl  || '');
+    }
+  });
+}
+
+/* ✅ E8D: Open a section's config panel */
+function openSectionConfig(type) {
+  var panelMap = {
+    hero:              'heroConfigPanel',
+    about:             'aboutConfigPanel',
+    principal_message: 'pmConfigPanel',
+    stats:             'statsConfigPanel',
+    cta:               'ctaConfigPanel'
+  };
+  /* Hide all config panels */
+  Object.values(panelMap).forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  /* Show target */
+  var targetId = panelMap[type];
+  var target   = targetId ? document.getElementById(targetId) : null;
+  if (target) {
+    target.style.display = 'block';
+    target.scrollIntoView({ behavior:'smooth', block:'center' });
   }
 }
 
@@ -1373,21 +1649,54 @@ async function saveDesign() {
 async function saveHomepage() {
   if (!_websiteData || !_websiteData.draftConfig) return;
 
-  /* Merge hero config from form fields into sections array */
+  /* ✅ E8D: Merge config for ALL configurable section types */
   var sections = (_websiteData.draftConfig.homepageSections || []).map(function(s) {
+    var merged = Object.assign({}, s);
+
     if (s.type === 'hero') {
-      return Object.assign({}, s, {
-        config: {
-          headline:       getField('heroHeadline'),
-          subtext:        getField('heroSubtext'),
-          heroImageUrl:   getField('heroImageUrl'),
-          buttonText:     getField('heroBtnText'),
-          buttonUrl:      getField('heroBtnUrl'),
-          overlayOpacity: 0.5
-        }
+      merged.config = {
+        headline:       getField('heroHeadline'),
+        subtext:        getField('heroSubtext'),
+        heroImageUrl:   getField('heroImageUrl'),
+        buttonText:     getField('heroBtnText'),
+        buttonUrl:      getField('heroBtnUrl'),
+        overlayOpacity: 0.5
+      };
+    }
+
+    if (s.type === 'about') {
+      merged.config = Object.assign({}, s.config || {}, {
+        headline: getField('aboutHeadline'),
+        subtext:  getField('aboutSubtext')
       });
     }
-    return s;
+
+    if (s.type === 'principal_message') {
+      merged.config = Object.assign({}, s.config || {}, {
+        headline: getField('pmOverrideTitle'),
+        subtext:  getField('pmOverrideText')
+      });
+    }
+
+    if (s.type === 'stats') {
+      var stats = [];
+      for (var i = 0; i < 6; i++) {
+        var val = getField('stat' + i + 'Value');
+        var lbl = getField('stat' + i + 'Label');
+        if (val || lbl) stats.push({ value: val, label: lbl });
+      }
+      merged.config = Object.assign({}, s.config || {}, { stats: stats });
+    }
+
+    if (s.type === 'cta') {
+      merged.config = Object.assign({}, s.config || {}, {
+        ctaText:       getField('ctaText'),
+        ctaButtonText: getField('ctaBtnText'),
+        ctaButtonUrl:  getField('ctaBtnUrl')
+      });
+    }
+
+    return merged;
   });
 
   var res = await instApi('/website/homepage', 'PUT', { sections: sections });
@@ -1784,6 +2093,237 @@ function esc(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#x27;');
+}
+
+/* ============================================
+   E8C: GALLERY
+============================================ */
+var _openAlbumId = null;
+
+async function loadGallerySection() {
+  var listEl = document.getElementById('albumsListWrap');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);"><span class="spinner"></span></div>';
+
+  var res = await instApi('/website/gallery');
+  if (!res.ok || !res.data.success) {
+    listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">Could not load gallery.</div>';
+    return;
+  }
+  var albums = res.data.albums || [];
+  if (!albums.length) {
+    listEl.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);">No albums yet. Click "+ New Album" to create your first gallery.</div>';
+    return;
+  }
+
+  listEl.innerHTML = '<div class="tbl-wrap"><table><thead><tr>' +
+    '<th>Album</th><th>Photos</th><th>Status</th><th>Actions</th>' +
+    '</tr></thead><tbody>' +
+    albums.map(function(a) {
+      var badge = a.status === 'published'
+        ? '<span class="badge badge-green">Published</span>'
+        : '<span class="badge badge-muted">Draft</span>';
+      var count = a.itemCount || 0;
+      return '<tr>' +
+        '<td style="font-weight:700;color:#fff;">' +
+          esc(a.title) +
+          (a.isFeatured ? ' <span class="badge badge-purple" style="margin-left:6px;">Featured</span>' : '') +
+        '</td>' +
+        '<td>' + count + ' photo' + (count !== 1 ? 's' : '') + '</td>' +
+        '<td>' + badge + '</td>' +
+        '<td><div style="display:flex;gap:5px;">' +
+          '<button class="btn btn-secondary btn-sm" onclick="openAlbumEditor(\'' + a._id + '\', \'' + esc(a.title) + '\', \'' + esc(a.status) + '\')">✏️ Edit</button>' +
+          (a.status === 'published'
+            ? '<button class="btn btn-secondary btn-sm" onclick="unpublishAlbum(\'' + a._id + '\')">⏸ Unpublish</button>'
+            : '') +
+          '<button class="btn btn-danger btn-sm" onclick="deleteAlbum(\'' + a._id + '\')">🗑</button>' +
+        '</div></td>' +
+      '</tr>';
+    }).join('') + '</tbody></table></div>';
+}
+
+function showAlbumCreateForm() {
+  var formEl = document.getElementById('albumCreateForm');
+  if (formEl) formEl.style.display = 'block';
+}
+
+function hideAlbumCreateForm() {
+  var formEl = document.getElementById('albumCreateForm');
+  if (formEl) { formEl.style.display = 'none'; setField('albumTitle',''); setField('albumDesc',''); setField('albumOrder',''); }
+}
+
+async function createAlbum() {
+  var title = getField('albumTitle');
+  if (!title) { showToast('❌ Album title is required.'); return; }
+  var payload = {
+    title:        title,
+    description:  getField('albumDesc'),
+    displayOrder: parseInt(getField('albumOrder')) || 0
+  };
+  var res = await instApi('/website/gallery/albums', 'POST', payload);
+  if (res.ok && res.data.success) {
+    showToast('✅ Album created!');
+    hideAlbumCreateForm();
+    loadGallerySection();
+  } else {
+    showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+  }
+}
+
+async function openAlbumEditor(albumId, title, status) {
+  _openAlbumId = albumId;
+  var editorPanel = document.getElementById('albumEditorPanel');
+  var titleEl     = document.getElementById('albumEditorTitle');
+  var pubBtn      = document.getElementById('albumPublishBtn');
+  var listPanel   = document.querySelectorAll('#sec-gallery .panel')[0];
+
+  if (titleEl)    titleEl.textContent  = title;
+  if (pubBtn)     pubBtn.textContent   = status === 'published' ? '⏸ Unpublish' : '🚀 Publish';
+  if (pubBtn)     pubBtn.onclick       = status === 'published' ? function(){ unpublishAlbum(albumId); } : publishAlbum;
+  if (editorPanel) editorPanel.style.display = 'block';
+  if (listPanel)   listPanel.style.display   = 'none';
+  document.getElementById('openAlbumId').value = albumId;
+
+  await Promise.all([loadAlbumItems(albumId), loadMediaPickerGrid()]);
+}
+
+function closeAlbumEditor() {
+  _openAlbumId = null;
+  var editorPanel = document.getElementById('albumEditorPanel');
+  var listPanel   = document.querySelectorAll('#sec-gallery .panel')[0];
+  if (editorPanel) editorPanel.style.display = 'none';
+  if (listPanel)   listPanel.style.display   = 'block';
+  loadGallerySection();
+}
+
+async function loadAlbumItems(albumId) {
+  var gridEl     = document.getElementById('albumItemsGrid');
+  var headingEl  = document.getElementById('albumItemsHeading');
+  var coverInput = document.getElementById('albumCoverUrl');
+  if (!gridEl) return;
+
+  var res = await instApi('/website/gallery/albums/' + albumId);
+  if (!res.ok || !res.data.success) {
+    gridEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);">Could not load album.</div>';
+    return;
+  }
+  var album = res.data.album;
+  var items = (album.items || []).sort(function(a, b) { return (a.displayOrder||0)-(b.displayOrder||0); });
+
+  if (headingEl) headingEl.textContent = 'Photos in Album (' + items.length + ')';
+  if (coverInput && album.coverImageUrl) coverInput.value = album.coverImageUrl;
+
+  if (!items.length) {
+    gridEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);grid-column:1/-1;">No photos yet. Click a photo above to add it.</div>';
+    return;
+  }
+
+  gridEl.innerHTML = items.map(function(item) {
+    var thumbUrl = escHtml(item.thumbnailUrl || item.url || '');
+    return '<div class="media-thumb" title="' + escHtml(item.caption || '') + '">' +
+      '<img src="' + thumbUrl + '" alt="' + escHtml(item.altText || '') + '" loading="lazy" />' +
+      '<div class="media-thumb-overlay">' +
+        '<button class="btn btn-danger btn-sm" style="font-size:10px;" onclick="removeAlbumItem(\'' + albumId + '\', \'' + item._id + '\')">Remove</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+async function loadMediaPickerGrid() {
+  var gridEl = document.getElementById('mediaPickerGrid');
+  if (!gridEl) return;
+  gridEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);grid-column:1/-1;"><span class="spinner"></span></div>';
+
+  var res = await instApi('/website/media');
+  if (!res.ok || !res.data.success) {
+    gridEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);grid-column:1/-1;">Could not load media library.</div>';
+    return;
+  }
+  var items = (res.data.media || []).filter(function(m) { return m.isActive !== false; });
+  if (!items.length) {
+    gridEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);grid-column:1/-1;">No media yet. Upload photos in the Media section first.</div>';
+    return;
+  }
+  gridEl.innerHTML = items.map(function(m) {
+    var thumbUrl = escHtml(m.thumbnailUrl || m.url || '');
+    return '<div class="media-thumb ws-picker-thumb" title="Click to add to album" onclick="addToAlbum(\'' + m._id + '\')">' +
+      '<img src="' + thumbUrl + '" alt="' + escHtml(m.altText || '') + '" loading="lazy" />' +
+      '<div class="media-thumb-overlay" style="display:flex;">' +
+        '<span style="font-size:10px;color:#fff;font-weight:700;">+ Add</span>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+async function addToAlbum(mediaId) {
+  var albumId = getField('openAlbumId');
+  if (!albumId) return;
+  var res = await instApi('/website/gallery/albums/' + albumId + '/items', 'POST', { mediaId: mediaId });
+  if (res.ok && res.data.success) {
+    showToast('✅ Photo added!');
+    loadAlbumItems(albumId);
+  } else {
+    showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+  }
+}
+
+async function removeAlbumItem(albumId, itemId) {
+  if (!confirm('Remove this photo from the album?')) return;
+  var res = await instApi('/website/gallery/albums/' + albumId + '/items/' + itemId, 'DELETE', {});
+  if (res.ok) { showToast('Photo removed.'); loadAlbumItems(albumId); }
+  else         showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+}
+
+async function saveAlbumCover() {
+  var albumId  = getField('openAlbumId');
+  var coverUrl = getField('albumCoverUrl');
+  if (!albumId) return;
+  var res = await instApi('/website/gallery/albums/' + albumId, 'PUT', { coverImageUrl: coverUrl });
+  if (res.ok) showToast('✅ Cover image saved!');
+  else         showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+}
+
+async function publishAlbum() {
+  var albumId = _openAlbumId || getField('openAlbumId');
+  if (!albumId) return;
+  var res = await instApi('/website/gallery/albums/' + albumId + '/publish', 'POST', {});
+  if (res.ok) {
+    showToast('✅ Album published!');
+    var pubBtn = document.getElementById('albumPublishBtn');
+    if (pubBtn) { pubBtn.textContent = '⏸ Unpublish'; pubBtn.onclick = function(){ unpublishAlbum(albumId); }; }
+  } else {
+    showToast('❌ ' + ((res.data && res.data.message) || 'Publish failed.'));
+  }
+}
+
+async function unpublishAlbum(albumId) {
+  if (!albumId) albumId = getField('openAlbumId');
+  if (!albumId) return;
+  if (!confirm('Take this album offline? It will no longer appear on your public website.')) return;
+  var res = await instApi('/website/gallery/albums/' + albumId + '/unpublish', 'POST', {});
+  if (res.ok) {
+    showToast('Album taken offline.');
+    var pubBtn = document.getElementById('albumPublishBtn');
+    if (pubBtn) { pubBtn.textContent = '🚀 Publish'; pubBtn.onclick = publishAlbum; }
+    loadGallerySection();
+  } else {
+    showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+  }
+}
+
+async function deleteAlbum(albumId) {
+  if (!confirm('Delete this album? Photos in your Media Library will not be affected.')) return;
+  var res = await instApi('/website/gallery/albums/' + albumId, 'DELETE', {});
+  if (res.ok) { showToast('Album deleted.'); loadGallerySection(); }
+  else         showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+}
+
+/* Helper — HTML escape for attribute context */
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 /* ============================================
@@ -2246,6 +2786,47 @@ async function loadAcademicCalendarSection() {
     }).join('') + '</tbody></table></div>' +
     '<p style="font-size:12px;color:var(--muted);margin-top:12px;">Manage terms in School Dashboard → Structure → Terms. Active terms appear automatically.</p>';
 }
+
+/* ============================================
+   E8D: PREVIEW PANEL
+============================================ */
+var _previewViewport = 'desktop';
+
+function initPreviewPanel() {
+  var appUrl    = window.location.protocol + '//' + window.location.host;
+  var publicUrl = (_school && _school.slug) ? appUrl + '/school/' + _school.slug : null;
+  var addrEl    = document.getElementById('previewAddressBar');
+  var linkEl    = document.getElementById('previewOpenNewTab');
+  if (addrEl) addrEl.textContent = publicUrl || '(publish your website to preview)';
+  if (linkEl && publicUrl) linkEl.href = publicUrl;
+}
+
+function refreshPreviewFrame() {
+  var appUrl    = window.location.protocol + '//' + window.location.host;
+  var publicUrl = (_school && _school.slug) ? appUrl + '/school/' + _school.slug : null;
+  var frame     = document.getElementById('previewFrame');
+  if (!frame) return;
+  if (!publicUrl) {
+    frame.src = 'about:blank';
+    showToast('⚠️ Publish your website first to enable preview.');
+    return;
+  }
+  frame.src = publicUrl + '?_t=' + Date.now();
+}
+
+function setPreviewViewport(viewport) {
+  _previewViewport = viewport;
+  var frame = document.getElementById('previewFrame');
+  var wrap  = document.getElementById('previewViewportWrap');
+  if (!frame || !wrap) return;
+  var widths = { desktop: '100%', tablet: '768px', mobile: '375px' };
+  var heights= { desktop: '600px', tablet: '800px', mobile: '700px' };
+  frame.style.maxWidth = widths[viewport]  || '100%';
+  frame.style.height   = heights[viewport] || '600px';
+}
+
+/* Add preview to showSec lazy-loads */
+var _origShowSec = window.showSec;
 
 function showToast(msg) {
   var el = document.getElementById('toast');

@@ -755,4 +755,212 @@ router.get('/:slug/events', async function(req, res) {
   }
 });
 
+/* ============================================
+   E8C: PUBLIC GALLERY INDEX
+   Shows all published albums for this school.
+   All queries TENANT SCOPED to school._id.
+============================================ */
+router.get('/:slug/gallery', async function(req, res) {
+  try {
+    var resolved = await resolvePublishedWebsite(req.params.slug);
+    if (!resolved || !resolved.website) return sendNotFound(res);
+    var { school, website } = resolved;
+    var config = website.publishedConfig || {};
+    var base   = '/school/' + esc(school.slug || '');
+
+    var SchoolGalleryAlbum = require('../models/SchoolGalleryAlbum.model');
+    var albums = await SchoolGalleryAlbum.find({
+      schoolId: school._id,  /* TENANT SCOPE */
+      status:   'published'
+    })
+    .select('title description slug coverImageUrl items displayOrder isFeatured publishedAt')
+    .sort({ displayOrder: 1, publishedAt: -1 })
+    .lean();
+
+    var albumsHtml = albums.length
+      ? '<div class="ws-gallery-grid">' +
+        albums.map(function(a) {
+          var count = (a.items || []).length;
+          var cover = escUrl(a.coverImageUrl || '');
+          return '<a href="' + base + '/gallery/' + esc(a._id.toString()) + '" class="ws-album-card">' +
+            '<div class="ws-album-cover">' +
+              (cover
+                ? '<img src="' + cover + '" alt="' + esc(a.title) + '" loading="lazy" />'
+                : '<div class="ws-album-cover-placeholder">🖼️</div>') +
+              '<div class="ws-album-count">' + count + ' photo' + (count !== 1 ? 's' : '') + '</div>' +
+            '</div>' +
+            '<div class="ws-album-meta">' +
+              '<h3 class="ws-album-title">' + esc(a.title) + '</h3>' +
+              (a.description ? '<p class="ws-album-desc">' + esc(a.description.substring(0, 100)) + '</p>' : '') +
+            '</div>' +
+          '</a>';
+        }).join('') +
+        '</div>'
+      : '<div class="ws-empty"><div class="ws-empty-icon">🖼️</div><p>Gallery coming soon.</p></div>';
+
+    return res.send(htmlShell({
+      school, config,
+      title:       esc('Gallery — ' + school.name),
+      currentPage: 'gallery',
+      body:
+        '<section class="ws-section"><div class="ws-container">' +
+        '<div class="ws-section-label">Photos</div>' +
+        '<h1 class="ws-page-title">Photo Gallery</h1>' +
+        albumsHtml +
+        '</div></section>'
+    }));
+  } catch(err) {
+    console.error('[public-website] GET /:slug/gallery:', err.message);
+    return res.status(500).send('<h1>An error occurred.</h1>');
+  }
+});
+
+/* ============================================
+   E8C: PUBLIC SINGLE ALBUM VIEW
+   Lightbox-style layout for a single album.
+   album._id used as identifier (not slug) for
+   stability — slug can change, _id cannot.
+============================================ */
+router.get('/:slug/gallery/:albumId', async function(req, res) {
+  try {
+    var resolved = await resolvePublishedWebsite(req.params.slug);
+    if (!resolved || !resolved.website) return sendNotFound(res);
+    var { school, website } = resolved;
+    var config = website.publishedConfig || {};
+    var base   = '/school/' + esc(school.slug || '');
+
+    if (!req.params.albumId || !req.params.albumId.match(/^[a-f\d]{24}$/i)) {
+      return sendNotFound(res);
+    }
+
+    var SchoolGalleryAlbum = require('../models/SchoolGalleryAlbum.model');
+    var album = await SchoolGalleryAlbum.findOne({
+      _id:      req.params.albumId,
+      schoolId: school._id, /* TENANT SCOPE */
+      status:   'published'
+    }).lean();
+
+    if (!album) return sendNotFound(res);
+
+    var items = (album.items || []).sort(function(a, b) {
+      return (a.displayOrder || 0) - (b.displayOrder || 0);
+    });
+
+    /* Build photo grid with lightbox trigger */
+    var photosHtml = items.length
+      ? '<div class="ws-photo-grid" id="photoGrid">' +
+        items.map(function(item, i) {
+          var thumbUrl = escUrl(item.thumbnailUrl || item.url || '');
+          var fullUrl  = escUrl(item.url || '');
+          var alt      = esc(item.altText || item.caption || album.title);
+          return '<div class="ws-photo-item" ' +
+            'onclick="openLightbox(' + i + ')" ' +
+            'data-full="' + fullUrl + '" ' +
+            'data-caption="' + esc(item.caption || '') + '">' +
+            '<img src="' + thumbUrl + '" alt="' + alt + '" loading="lazy" />' +
+            (item.caption ? '<div class="ws-photo-caption">' + esc(item.caption) + '</div>' : '') +
+          '</div>';
+        }).join('') +
+        '</div>'
+      : '<div class="ws-empty"><p>No photos in this album yet.</p></div>';
+
+    /* Lightbox data — all URLs and captions for JS */
+    var lightboxData = JSON.stringify(items.map(function(item) {
+      return { url: item.url || '', caption: item.caption || '' };
+    })).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+
+    var lightboxHtml =
+      '<div id="lightbox" class="ws-lightbox" style="display:none;" onclick="closeLightbox(event)">' +
+        '<button class="ws-lb-close" onclick="closeLightbox()" aria-label="Close">✕</button>' +
+        '<button class="ws-lb-prev"  onclick="lbPrev(event)"   aria-label="Previous">‹</button>' +
+        '<button class="ws-lb-next"  onclick="lbNext(event)"   aria-label="Next">›</button>' +
+        '<div class="ws-lb-content">' +
+          '<img id="lbImg" src="" alt="" />' +
+          '<div id="lbCaption" class="ws-lb-caption"></div>' +
+          '<div id="lbCounter" class="ws-lb-counter"></div>' +
+        '</div>' +
+      '</div>';
+
+    var body =
+      '<section class="ws-section"><div class="ws-container">' +
+        '<a href="' + base + '/gallery" class="ws-back-link" style="display:inline-block;margin-bottom:20px;">← All Albums</a>' +
+        '<div class="ws-section-label">Gallery</div>' +
+        '<h1 class="ws-page-title">' + esc(album.title) + '</h1>' +
+        (album.description ? '<p class="ws-album-full-desc">' + esc(album.description) + '</p>' : '') +
+        '<div class="ws-album-info" style="font-size:13px;color:var(--ws-text-light);margin-bottom:28px;">' +
+          items.length + ' photo' + (items.length !== 1 ? 's' : '') +
+          (album.publishedAt ? ' · ' + fmtDate(album.publishedAt) : '') +
+        '</div>' +
+        photosHtml +
+      '</div></section>' +
+      lightboxHtml;
+
+    /* Minimal inline JS for lightbox — no school-authored code, platform only */
+    var extraHead = '<style>' +
+      '.ws-lightbox{position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:9999;' +
+        'display:flex;align-items:center;justify-content:center;cursor:zoom-out;}' +
+      '.ws-lb-content{position:relative;max-width:90vw;max-height:90vh;text-align:center;}' +
+      '#lbImg{max-width:90vw;max-height:80vh;object-fit:contain;border-radius:4px;}' +
+      '.ws-lb-caption{color:rgba(255,255,255,0.8);font-size:14px;margin-top:12px;}' +
+      '.ws-lb-counter{color:rgba(255,255,255,0.5);font-size:12px;margin-top:6px;}' +
+      '.ws-lb-close,.ws-lb-prev,.ws-lb-next{position:fixed;background:rgba(255,255,255,0.15);' +
+        'border:none;color:#fff;font-size:24px;cursor:pointer;border-radius:50%;' +
+        'width:44px;height:44px;display:flex;align-items:center;justify-content:center;' +
+        'transition:background 0.2s;z-index:10000;}' +
+      '.ws-lb-close{top:20px;right:20px;font-size:18px;}' +
+      '.ws-lb-prev{left:20px;top:50%;transform:translateY(-50%);}' +
+      '.ws-lb-next{right:20px;top:50%;transform:translateY(-50%);}' +
+      '.ws-lb-close:hover,.ws-lb-prev:hover,.ws-lb-next:hover{background:rgba(255,255,255,0.3);}' +
+      '</style>';
+
+    var extraScript =
+      '<script>' +
+      '(function(){' +
+        'var _photos=' + lightboxData + ';' +
+        'var _idx=0;' +
+        'var _lb=document.getElementById("lightbox");' +
+        'var _img=document.getElementById("lbImg");' +
+        'var _cap=document.getElementById("lbCaption");' +
+        'var _ctr=document.getElementById("lbCounter");' +
+        'window.openLightbox=function(i){' +
+          '_idx=i;' +
+          'showPhoto();' +
+          '_lb.style.display="flex";' +
+          'document.body.style.overflow="hidden";' +
+        '};' +
+        'function showPhoto(){' +
+          'var p=_photos[_idx]||{};' +
+          '_img.src=p.url||"";' +
+          '_cap.textContent=p.caption||"";' +
+          '_ctr.textContent=(_idx+1)+" / "+_photos.length;' +
+        '}' +
+        'window.closeLightbox=function(e){' +
+          'if(e&&e.target!==_lb&&!e.target.classList.contains("ws-lb-close"))return;' +
+          '_lb.style.display="none";' +
+          'document.body.style.overflow="";' +
+        '};' +
+        'window.lbPrev=function(e){e&&e.stopPropagation();_idx=(_idx-1+_photos.length)%_photos.length;showPhoto();};' +
+        'window.lbNext=function(e){e&&e.stopPropagation();_idx=(_idx+1)%_photos.length;showPhoto();};' +
+        'document.addEventListener("keydown",function(e){' +
+          'if(_lb.style.display!=="flex")return;' +
+          'if(e.key==="Escape")closeLightbox({target:_lb});' +
+          'if(e.key==="ArrowLeft")lbPrev();' +
+          'if(e.key==="ArrowRight")lbNext();' +
+        '});' +
+      '})();' +
+      '<\/script>';
+
+    return res.send(htmlShell({
+      school, config,
+      title:       esc(album.title + ' — Gallery — ' + school.name),
+      currentPage: 'gallery',
+      body:        body + extraScript,
+      extraHead
+    }));
+  } catch(err) {
+    console.error('[public-website] GET /:slug/gallery/:albumId:', err.message);
+    return res.status(500).send('<h1>An error occurred.</h1>');
+  }
+});
+
 module.exports = router;
