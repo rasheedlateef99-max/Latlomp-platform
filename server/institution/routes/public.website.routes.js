@@ -117,9 +117,10 @@ function renderNav(school, config, currentPage) {
     parent_portal: 'Parent Portal'
   };
 
-  var portalUrls = {
+ var portalUrls = {
     student_portal: '/institution/student/portal.html',
-    parent_portal:  '/institution/parent/dashboard.html'
+    parent_portal:  '/institution/parent/dashboard.html',
+    school_portal:  '/institution/school/dashboard.html'
   };
 
   var navItems = order.filter(function(m) { return modules.includes(m); }).map(function(m) {
@@ -190,7 +191,8 @@ function renderFooter(school, config) {
 }
 
 /* ---- HTML page shell ---- */
-function htmlShell({ school, config, title, description, currentPage, body, extraHead }) {
+/* ✅ E8G: Extended htmlShell with JSON-LD, meta robots, sitemap link, og:type */
+function htmlShell({ school, config, title, description, currentPage, body, extraHead, ogType, isPublished }) {
   var theme    = esc(config.theme || 'modern');
   var seo      = config.seo || {};
   var pageTitle= title || esc(seo.metaTitle || school.name);
@@ -198,53 +200,102 @@ function htmlShell({ school, config, title, description, currentPage, body, extr
   var ogImage  = escUrl(seo.ogImageUrl || config.logoUrl || '');
   var favicon  = escUrl(config.faviconUrl || '');
   var cssVars  = buildCSSVars(config, school);
-  var canonical= (process.env.APP_URL || '') + '/school/' + esc(school.slug || '');
+  var appUrl   = process.env.APP_URL || '';
+  var baseUrl  = appUrl + '/school/' + esc(school.slug || '');
+  var canonical = baseUrl + (currentPage && currentPage !== 'home' ? '/' + currentPage : '');
 
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>${esc(pageTitle)}</title>
-<meta name="description" content="${esc(pageDesc)}" />
-${seo.keywords && seo.keywords.length
-  ? '<meta name="keywords" content="' + esc(seo.keywords.join(', ')) + '" />'
-  : ''}
-<link rel="canonical" href="${canonical}" />
-<meta property="og:type"        content="website" />
-<meta property="og:title"       content="${esc(pageTitle)}" />
-<meta property="og:description" content="${esc(pageDesc)}" />
-${ogImage ? '<meta property="og:image" content="' + ogImage + '" />' : ''}
-<meta name="twitter:card"        content="summary_large_image" />
-<meta name="twitter:title"       content="${esc(pageTitle)}" />
-<meta name="twitter:description" content="${esc(pageDesc)}" />
-${favicon ? '<link rel="icon" href="' + favicon + '" />' : ''}
-<link rel="stylesheet" href="${googleFontsUrl(config.fontTheme)}" />
-<link rel="stylesheet" href="/school/themes/${theme}.css" />
-<style>:root { ${cssVars} }</style>
-${extraHead || ''}
-</head>
-<body>
-${renderNav(school, config, currentPage)}
-<main class="ws-main">
-${body}
-</main>
-${renderFooter(school, config)}
-<script>
-/* Minimal JS — mobile nav only. No school-authored code. */
-(function() {
-  var toggle = document.querySelector('.ws-nav-toggle');
-  var menu   = document.querySelector('.ws-nav-menu');
-  if (toggle && menu) {
-    toggle.addEventListener('click', function() {
-      menu.classList.toggle('open');
-      toggle.classList.toggle('open');
-    });
-  }
-})();
-</script>
-</body>
-</html>`;
+  /* ✅ E8G: Meta robots — only published, active websites get indexed */
+  var metaRobots = (isPublished === false)
+    ? '<meta name="robots" content="noindex, nofollow" />'
+    : '<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />';
+
+  /* ✅ E8G: og:type — article for news pages, website for all others */
+  var resolvedOgType = ogType || 'website';
+
+  /* ✅ E8G: Sitemap link */
+  var sitemapLink = school.slug
+    ? '<link rel="sitemap" type="application/xml" title="Sitemap" href="' + esc(baseUrl) + '/sitemap.xml" />'
+    : '';
+
+  /* ✅ E8G: JSON-LD structured data — EducationalOrganization */
+  var jsonLdObj = {
+    '@context': 'https://schema.org',
+    '@type':    'EducationalOrganization',
+    'name':     school.name || '',
+    'url':      baseUrl,
+    'logo':     config.logoUrl || school.logo || '',
+    'description': config.description || config.tagline || '',
+    'address': school.address ? {
+      '@type':           'PostalAddress',
+      'streetAddress':   school.address,
+      'addressLocality': ''
+    } : undefined,
+    'telephone': config.publicPhone || school.phone || undefined,
+    'email':     config.publicEmail || undefined,
+    'foundingDate': config.foundedYear ? String(config.foundedYear) : undefined
+  };
+  /* Strip undefined keys */
+  Object.keys(jsonLdObj).forEach(function(k) {
+    if (jsonLdObj[k] === undefined || jsonLdObj[k] === '') delete jsonLdObj[k];
+  });
+  var jsonLdScript = '<script type="application/ld+json">' +
+    JSON.stringify(jsonLdObj).replace(/</g, '\\u003c').replace(/>/g, '\\u003e') +
+    '<\/script>';
+
+  /* ✅ E8G: Keywords meta tag */
+  var keywordsMeta = (seo.keywords && seo.keywords.length)
+    ? '<meta name="keywords" content="' + esc(seo.keywords.join(', ')) + '" />'
+    : '';
+
+  var fontUrl = googleFontsUrl(config.fontTheme);
+
+  return '<!DOCTYPE html>\n<html lang="en">\n<head>\n' +
+    '<meta charset="UTF-8" />\n' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0" />\n' +
+    '<title>' + esc(pageTitle) + '</title>\n' +
+    '<meta name="description" content="' + esc(pageDesc) + '" />\n' +
+    keywordsMeta + '\n' +
+    metaRobots + '\n' +
+    '<link rel="canonical" href="' + esc(canonical) + '" />\n' +
+    sitemapLink + '\n' +
+    '<meta property="og:type"        content="' + esc(resolvedOgType) + '" />\n' +
+    '<meta property="og:title"       content="' + esc(pageTitle) + '" />\n' +
+    '<meta property="og:description" content="' + esc(pageDesc) + '" />\n' +
+    '<meta property="og:url"         content="' + esc(canonical) + '" />\n' +
+    '<meta property="og:site_name"   content="' + esc(school.name) + '" />\n' +
+    (ogImage ? '<meta property="og:image" content="' + ogImage + '" />\n' +
+               '<meta property="og:image:width"  content="1200" />\n' +
+               '<meta property="og:image:height" content="630" />\n' : '') +
+    '<meta name="twitter:card"        content="summary_large_image" />\n' +
+    '<meta name="twitter:title"       content="' + esc(pageTitle) + '" />\n' +
+    '<meta name="twitter:description" content="' + esc(pageDesc) + '" />\n' +
+    (ogImage ? '<meta name="twitter:image" content="' + ogImage + '" />\n' : '') +
+    (favicon ? '<link rel="icon" href="' + escUrl(favicon) + '" />\n' : '') +
+    '<link rel="stylesheet" href="' + esc(fontUrl) + '" />\n' +
+    '<link rel="stylesheet" href="/school/themes/' + theme + '.css" />\n' +
+    '<style>:root { ' + cssVars + ' }</style>\n' +
+    jsonLdScript + '\n' +
+    (extraHead || '') + '\n' +
+    '</head>\n<body>\n' +
+    renderNav(school, config, currentPage) + '\n' +
+    '<main class="ws-main">\n' +
+    body + '\n' +
+    '</main>\n' +
+    renderFooter(school, config) + '\n' +
+    '<script>\n' +
+    '/* Minimal platform JS — mobile nav only. No school-authored code. */\n' +
+    '(function() {\n' +
+    '  var toggle = document.querySelector(\'.ws-nav-toggle\');\n' +
+    '  var menu   = document.querySelector(\'.ws-nav-menu\');\n' +
+    '  if (toggle && menu) {\n' +
+    '    toggle.addEventListener(\'click\', function() {\n' +
+    '      menu.classList.toggle(\'open\');\n' +
+    '      toggle.classList.toggle(\'open\');\n' +
+    '    });\n' +
+    '  }\n' +
+    '})();\n' +
+    '<\/script>\n' +
+    '</body>\n</html>';
 }
 
 /* ---- "Coming Soon" page ---- */
@@ -520,6 +571,7 @@ router.get('/:slug', async function(req, res) {
       description: config.seo && config.seo.metaDescription ? esc(config.seo.metaDescription) : esc(config.description || ''),
       currentPage: 'home',
       body:        bodyHtml
+      isPublished: true
     }));
   } catch(err) {
     console.error('[public-website] GET /:slug:', err.message);
@@ -563,6 +615,7 @@ router.get('/:slug/about', async function(req, res) {
       title:       esc('About — ' + school.name),
       currentPage: 'about',
       body
+      isPublished: true
     }));
   } catch(err) {
     console.error('[public-website] GET /:slug/about:', err.message);
@@ -612,6 +665,7 @@ router.get('/:slug/news', async function(req, res) {
       title:       esc('News — ' + school.name),
       currentPage: 'news',
       body
+      isPublished: true
     }));
   } catch(err) {
     console.error('[public-website] GET /:slug/news:', err.message);
@@ -657,10 +711,18 @@ router.get('/:slug/news/:postSlug', async function(req, res) {
       title:       esc((post.metaTitle || post.title) + ' — ' + school.name),
       description: esc(post.metaDesc || post.excerpt || ''),
       currentPage: 'news',
+      ogType:      'article',
+      isPublished: true,
       body,
-      extraHead: post.featuredImageUrl
-        ? '<meta property="og:image" content="' + escUrl(post.featuredImageUrl) + '" />'
-        : ''
+      extraHead: [
+        post.featuredImageUrl
+          ? '<meta property="og:image"            content="' + escUrl(post.featuredImageUrl) + '" />'
+          : '',
+        post.publishedAt
+          ? '<meta property="article:published_time" content="' + new Date(post.publishedAt).toISOString() + '" />'
+          : '',
+        '<meta property="article:section" content="' + esc(post.category || 'News') + '" />'
+      ].filter(Boolean).join('\n')
     }));
   } catch(err) {
     console.error('[public-website] GET /:slug/news/:postSlug:', err.message);
@@ -697,6 +759,7 @@ router.get('/:slug/contact', async function(req, res) {
       title:       esc('Contact — ' + school.name),
       currentPage: 'contact',
       body
+      isPublished: true
     }));
   } catch(err) {
     return res.status(500).send('<h1>An error occurred.</h1>');
@@ -748,6 +811,7 @@ router.get('/:slug/events', async function(req, res) {
       title:       esc('Events — ' + school.name),
       currentPage: 'events',
       body
+      isPublished: true
     }));
   } catch(err) {
     console.error('[public-website] GET /:slug/events:', err.message);
@@ -808,6 +872,7 @@ router.get('/:slug/gallery', async function(req, res) {
         '<h1 class="ws-page-title">Photo Gallery</h1>' +
         albumsHtml +
         '</div></section>'
+        isPublished: true
     }));
   } catch(err) {
     console.error('[public-website] GET /:slug/gallery:', err.message);
@@ -956,10 +1021,359 @@ router.get('/:slug/gallery/:albumId', async function(req, res) {
       currentPage: 'gallery',
       body:        body + extraScript,
       extraHead
+      isPublished: true
     }));
   } catch(err) {
     console.error('[public-website] GET /:slug/gallery/:albumId:', err.message);
     return res.status(500).send('<h1>An error occurred.</h1>');
+  }
+});
+
+/* ============================================
+   E8F: PUBLIC ALUMNI DIRECTORY PAGE
+   
+   DUAL CONSENT REQUIRED for public display:
+   1. alumni.directoryVisibility === 'public'
+      (alumni chose to be publicly visible — E6)
+   2. alumni.showOnWebsite === true
+      (school chose to feature them — E8F)
+   
+   NEVER exposed:
+   - studentId (private identity)
+   - portfolioId (private academic records)
+   - contactPreferences email/phone values
+   - exam results, finance data, private bio
+   - status details beyond active
+   - Any field not in the explicit select below
+   
+   All queries: TENANT SCOPED to school._id from slug.
+============================================ */
+router.get('/:slug/alumni', async function(req, res) {
+  try {
+    var resolved = await resolvePublishedWebsite(req.params.slug);
+    if (!resolved || !resolved.website) return sendNotFound(res);
+
+    var { school, website } = resolved;
+    var config = website.publishedConfig || {};
+
+    var AlumniProfile = require('../models/AlumniProfile.model');
+
+    /* Dual-consent query — both conditions required */
+    var alumni = await AlumniProfile.find({
+      schoolId:            school._id,      /* TENANT SCOPE */
+      directoryVisibility: 'public',        /* alumni consent */
+      showOnWebsite:       true,            /* school featured */
+      status:              'active'
+    })
+    .populate('studentId', 'name')          /* name only — nothing else */
+    .select([
+      'displayName', 'bio', 'profession', 'industry',
+      'organisation', 'graduationSession', 'lastClassName',
+      'alumniSince', 'location', 'mentorshipAvailable',
+      'studentId'
+    ].join(' '))
+    .sort({ alumniSince: -1 })
+    .limit(100)
+    .lean();
+
+    /* Build safe display list — no private fields */
+    var safeList = alumni.map(function(a) {
+      var gradYear = a.alumniSince
+        ? new Date(a.alumniSince).getFullYear()
+        : (a.graduationSession || '');
+      return {
+        displayName:       a.displayName || (a.studentId && a.studentId.name) || 'Alumnus',
+        bio:               (a.bio || '').substring(0, 300),
+        profession:        a.profession   || '',
+        industry:          a.industry     || '',
+        organisation:      a.organisation || '',
+        graduationYear:    gradYear,
+        lastClassName:     a.lastClassName || '',
+        city:              (a.location && a.location.city)    || '',
+        country:           (a.location && a.location.country) || '',
+        mentorshipAvailable: !!a.mentorshipAvailable
+      };
+    });
+
+    /* Group by graduation year for display */
+    var byYear = {};
+    safeList.forEach(function(a) {
+      var yr = a.graduationYear ? String(a.graduationYear) : 'Unknown Year';
+      if (!byYear[yr]) byYear[yr] = [];
+      byYear[yr].push(a);
+    });
+
+    var sortedYears = Object.keys(byYear).sort(function(a, b) {
+      var numA = parseInt(a) || 0;
+      var numB = parseInt(b) || 0;
+      return numB - numA; /* Most recent first */
+    });
+
+    function renderAlumniCard(a) {
+      var initials = a.displayName.split(' ').slice(0, 2)
+        .map(function(w) { return w.charAt(0).toUpperCase(); }).join('');
+      var location = [a.city, a.country].filter(Boolean).join(', ');
+      return '<div class="ws-alumni-card">' +
+        '<div class="ws-alumni-avatar">' + esc(initials || '?') + '</div>' +
+        '<div class="ws-alumni-info">' +
+          '<h3 class="ws-alumni-name">' + esc(a.displayName) + '</h3>' +
+          (a.profession ? '<div class="ws-alumni-role">' + esc(a.profession) +
+            (a.organisation ? ' · ' + esc(a.organisation) : '') + '</div>' : '') +
+          (a.industry  ? '<div class="ws-alumni-industry">' + esc(a.industry)  + '</div>' : '') +
+          (location    ? '<div class="ws-alumni-location">📍 ' + esc(location) + '</div>' : '') +
+          (a.lastClassName ? '<div class="ws-alumni-class">Class: ' + esc(a.lastClassName) + '</div>' : '') +
+          (a.bio       ? '<p class="ws-alumni-bio">' + esc(a.bio) + '</p>' : '') +
+          (a.mentorshipAvailable ? '<div class="ws-alumni-mentor">🤝 Open to mentorship</div>' : '') +
+        '</div>' +
+      '</div>';
+    }
+
+    var alumniHtml;
+    if (!safeList.length) {
+      alumniHtml = '<div class="ws-empty"><div class="ws-empty-icon">🎓</div><p>Alumni profiles coming soon.</p></div>';
+    } else {
+      alumniHtml = sortedYears.map(function(yr) {
+        return '<div class="ws-alumni-year-group">' +
+          '<h2 class="ws-alumni-year-heading">Class of ' + esc(yr) + '</h2>' +
+          '<div class="ws-alumni-grid">' +
+          byYear[yr].map(renderAlumniCard).join('') +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    return res.send(htmlShell({
+      school, config,
+      title:       esc('Alumni — ' + school.name),
+      currentPage: 'alumni',
+      body:
+        '<section class="ws-section"><div class="ws-container">' +
+          '<div class="ws-section-label">Our Graduates</div>' +
+          '<h1 class="ws-page-title">Alumni Directory</h1>' +
+          '<p class="ws-section-body" style="margin-bottom:32px;">' +
+            'Celebrating the achievements of our graduates. ' +
+            'Alumni appearing here have chosen to make their profile public.' +
+          '</p>' +
+          alumniHtml +
+        '</div></section>'
+        isPublished: true
+    }));
+  } catch(err) {
+    console.error('[public-website] GET /:slug/alumni:', err.message);
+    return res.status(500).send('<h1>An error occurred.</h1>');
+  }
+});
+
+/* ============================================
+   E8G: SITEMAP XML
+   GET /school/:slug/sitemap.xml
+   
+   Dynamic sitemap for this school's public website.
+   Only published websites get a sitemap.
+   Only enabled modules included.
+   Individual news posts and gallery albums included.
+   Portal links (student/parent) excluded — they
+   are authenticated, not crawlable public pages.
+   
+   All URLs scoped to school._id from slug.
+   No private data. No draft content.
+============================================ */
+router.get('/:slug/sitemap.xml', async function(req, res) {
+  try {
+    var resolved = await resolvePublishedWebsite(req.params.slug);
+    if (!resolved || !resolved.website) {
+      res.status(404).set('Content-Type', 'text/plain').send('Not found.');
+      return;
+    }
+
+    var { school, website } = resolved;
+    var config  = website.publishedConfig || {};
+    var appUrl  = process.env.APP_URL || (req.protocol + '://' + req.get('host'));
+    var base    = appUrl + '/school/' + (school.slug || '');
+    var now     = new Date().toISOString().split('T')[0];
+    var lastPub = website.publishedAt
+      ? new Date(website.publishedAt).toISOString().split('T')[0]
+      : now;
+
+    var enabledModules = config.enabledModules || ['home', 'about', 'news', 'events', 'contact'];
+
+    /* Skip portal links and modules that are authenticated external links */
+    var SKIP_MODULES = new Set(['student_portal', 'parent_portal', 'school_portal']);
+
+    /* Module → URL path mapping */
+    var MODULE_PATHS = {
+      home:              '',
+      about:             '/about',
+      news:              '/news',
+      events:            '/events',
+      gallery:           '/gallery',
+      staff:             '/staff',
+      departments:       '/departments',
+      programmes:        '/programmes',
+      facilities:        '/facilities',
+      admissions:        '/admissions',
+      contact:           '/contact',
+      alumni:            '/alumni',
+      academic_calendar: '/academic-calendar'
+    };
+
+    var urls = [];
+
+    /* Static module pages */
+    enabledModules.forEach(function(mod) {
+      if (SKIP_MODULES.has(mod)) return;
+      if (!MODULE_PATHS.hasOwnProperty(mod)) return;
+      var path     = MODULE_PATHS[mod];
+      var priority = (mod === 'home') ? '1.0' :
+                     (['about','admissions','staff','departments'].includes(mod)) ? '0.8' : '0.7';
+      var freq     = (mod === 'news') ? 'daily' :
+                     (mod === 'events') ? 'weekly' : 'monthly';
+      urls.push({
+        loc:        base + path,
+        lastmod:    lastPub,
+        changefreq: freq,
+        priority:   priority
+      });
+    });
+
+    /* Dynamic: published news posts */
+    if (enabledModules.includes('news')) {
+      var SchoolWebsitePost = require('../models/SchoolWebsitePost.model');
+      var posts = await SchoolWebsitePost.find({
+        schoolId: school._id, /* TENANT SCOPE */
+        status:   'published'
+      }).select('slug publishedAt updatedAt').sort({ publishedAt: -1 }).limit(200).lean();
+
+      posts.forEach(function(p) {
+        var postDate = (p.updatedAt || p.publishedAt)
+          ? new Date(p.updatedAt || p.publishedAt).toISOString().split('T')[0]
+          : now;
+        urls.push({
+          loc:        base + '/news/' + (p.slug || ''),
+          lastmod:    postDate,
+          changefreq: 'monthly',
+          priority:   '0.6'
+        });
+      });
+    }
+
+    /* Dynamic: published gallery albums */
+    if (enabledModules.includes('gallery')) {
+      var SchoolGalleryAlbum = require('../models/SchoolGalleryAlbum.model');
+      var albums = await SchoolGalleryAlbum.find({
+        schoolId: school._id, /* TENANT SCOPE */
+        status:   'published'
+      }).select('_id publishedAt updatedAt').sort({ publishedAt: -1 }).limit(100).lean();
+
+      albums.forEach(function(a) {
+        var albumDate = (a.updatedAt || a.publishedAt)
+          ? new Date(a.updatedAt || a.publishedAt).toISOString().split('T')[0]
+          : now;
+        urls.push({
+          loc:        base + '/gallery/' + a._id.toString(),
+          lastmod:    albumDate,
+          changefreq: 'monthly',
+          priority:   '0.5'
+        });
+      });
+    }
+
+    /* Build XML */
+    var urlElements = urls.map(function(u) {
+      return '  <url>\n' +
+        '    <loc>' + esc(u.loc) + '</loc>\n' +
+        '    <lastmod>' + esc(u.lastmod) + '</lastmod>\n' +
+        '    <changefreq>' + esc(u.changefreq) + '</changefreq>\n' +
+        '    <priority>' + esc(u.priority) + '</priority>\n' +
+        '  </url>';
+    }).join('\n');
+
+    var xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n' +
+      '        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\n' +
+      '        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9\n' +
+      '          http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">\n' +
+      urlElements + '\n' +
+      '</urlset>';
+
+    res.set('Content-Type', 'application/xml; charset=utf-8');
+    res.set('Cache-Control', 'public, max-age=3600'); /* 1 hour cache */
+    return res.send(xml);
+
+  } catch(err) {
+    console.error('[public-website] GET /:slug/sitemap.xml:', err.message);
+    res.status(500).set('Content-Type', 'text/plain').send('Sitemap generation error.');
+  }
+});
+
+/* ============================================
+   E8G: ROBOTS.TXT
+   GET /school/:slug/robots.txt
+   
+   Published websites: allow all crawlers.
+   Unpublished/draft/not-found: disallow all.
+   Points crawlers to this school's sitemap.
+   
+   Note: When custom domains are added (future),
+   robots.txt will be served at the domain root.
+   For now slug-based routing handles it.
+============================================ */
+router.get('/:slug/robots.txt', async function(req, res) {
+  try {
+    var School        = require('../models/School.model');
+    var SchoolWebsite = require('../models/SchoolWebsite.model');
+
+    var slug = (req.params.slug || '').toLowerCase();
+    if (!slug || !/^[a-z0-9-]+$/i.test(slug)) {
+      res.set('Content-Type', 'text/plain').send('User-agent: *\nDisallow: /\n');
+      return;
+    }
+
+    var school = await School.findOne({ slug }).select('_id slug').lean();
+    if (!school) {
+      res.set('Content-Type', 'text/plain').send('User-agent: *\nDisallow: /\n');
+      return;
+    }
+
+    var website = await SchoolWebsite.findOne({
+      schoolId: school._id, /* TENANT SCOPE */
+      status:   'published'
+    }).select('status').lean();
+
+    var appUrl  = process.env.APP_URL || (req.protocol + '://' + req.get('host'));
+    var base    = appUrl + '/school/' + esc(slug);
+    var content;
+
+    if (website) {
+      /* Published — allow all, reference sitemap */
+      content = [
+        'User-agent: *',
+        'Allow: /',
+        '',
+        '# Disallow private/authenticated paths',
+        'Disallow: /api/',
+        'Disallow: /institution/',
+        '',
+        '# Sitemap',
+        'Sitemap: ' + base + '/sitemap.xml',
+        ''
+      ].join('\n');
+    } else {
+      /* Not published — block all crawlers */
+      content = [
+        'User-agent: *',
+        'Disallow: /',
+        ''
+      ].join('\n');
+    }
+
+    res.set('Content-Type', 'text/plain; charset=utf-8');
+    res.set('Cache-Control', 'public, max-age=86400'); /* 24 hour cache */
+    return res.send(content);
+
+  } catch(err) {
+    console.error('[public-website] GET /:slug/robots.txt:', err.message);
+    res.set('Content-Type', 'text/plain').send('User-agent: *\nDisallow: /\n');
   }
 });
 

@@ -547,3 +547,55 @@ h1,h2,h3,h4 {
 .ws-photo-item:hover { box-shadow:var(--ws-shadow-lg); transform:scale(1.015); }
 .ws-photo-item img { width:100%; height:100%; object-fit:cover; display:block; }
 .ws-photo-caption { position:absolute; bottom:0; left:0; right:0; padding:8px 10px; background:linear-gradient(transparent,rgba(0,0,0,0.7)); color:rgba(255,255,255,0.9); font-size:12px; line-height:1.4; }
+
+/* ============================================
+   E8F: ALUMNI DIRECTORY (classic.css / bold.css)
+   Same component classes — theme variables handle
+   the visual difference automatically.
+============================================ */
+
+.ws-alumni-year-group   { margin-bottom: 56px; }
+.ws-alumni-year-heading {
+  font-size:     22px;
+  font-weight:   700;
+  color:         var(--ws-text);
+  border-bottom: 3px solid var(--ws-gold, var(--ws-primary));
+  padding-bottom:12px;
+  margin-bottom: 24px;
+  display:       inline-block;
+}
+.ws-alumni-grid {
+  display:               grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap:                   20px;
+}
+.ws-alumni-card {
+  display:       flex;
+  gap:           16px;
+  align-items:   flex-start;
+  background:    var(--ws-bg);
+  border:        1px solid var(--ws-border);
+  border-radius: var(--ws-radius-lg);
+  padding:       20px;
+  box-shadow:    var(--ws-shadow);
+  transition:    var(--ws-transition);
+}
+.ws-alumni-card:hover { box-shadow:var(--ws-shadow-lg); transform:translateY(-2px); }
+.ws-alumni-avatar {
+  width:56px; height:56px; border-radius:50%;
+  background:linear-gradient(135deg,var(--ws-primary),var(--ws-secondary));
+  color:#fff; font-size:20px; font-weight:900;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.ws-alumni-info     { flex:1; min-width:0; }
+.ws-alumni-name     { font-size:16px; font-weight:700; color:var(--ws-text);      margin-bottom:4px; }
+.ws-alumni-role     { font-size:13px; color:var(--ws-primary); font-weight:600;   margin-bottom:3px; }
+.ws-alumni-industry { font-size:12px; color:var(--ws-text-light);                 margin-bottom:3px; }
+.ws-alumni-location { font-size:12px; color:var(--ws-text-light);                 margin-bottom:3px; }
+.ws-alumni-class    { font-size:12px; color:var(--ws-text-light);                 margin-bottom:6px; }
+.ws-alumni-bio      { font-size:13px; color:var(--ws-text-light); line-height:1.6; margin-top:8px; }
+.ws-alumni-mentor   {
+  display:inline-block; margin-top:8px; font-size:11px; font-weight:700;
+  color:var(--ws-primary); background:rgba(26,82,118,0.08);
+  padding:3px 10px; border-radius:20px;
+}

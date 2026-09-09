@@ -188,6 +188,7 @@
       <button class="nav-item" data-sec="facilities"         onclick="showSec('facilities')">       🏋️ Facilities</button>
       <button class="nav-item" data-sec="programmes"         onclick="showSec('programmes')">       📚 Programmes</button>
       <button class="nav-item" data-sec="admissions"         onclick="showSec('admissions')">       📝 Admissions</button>
+      <button class="nav-item" data-sec="alumni-mgmt" onclick="showSec('alumni-mgmt')">🎓 Alumni</button>
       <button class="nav-item" data-sec="academic-calendar"  onclick="showSec('academic-calendar')">📅 Academic Cal.</button>
       <div class="nav-sec">Media &amp; SEO</div>
       <button class="nav-item"        data-sec="media"       onclick="showSec('media')">      🖼️ Media</button>
@@ -197,6 +198,7 @@
       <button class="nav-item"        data-sec="publish"     onclick="showSec('publish')">    🚀 Publish</button>
       <div class="nav-sec">Preview</div>
       <button class="nav-item" data-sec="preview" onclick="showSec('preview')">👁 Preview</button>
+      <button class="nav-item" data-sec="domain" onclick="showSec('domain')">🌐 Domain</button>
       <button class="nav-item" data-sec="history" onclick="showSec('history')">📜 Version History</button>
     </div>
     <div class="sb-footer">
@@ -721,11 +723,109 @@
           </div>
           <div class="panel-body">
             <p style="font-size:13px;color:var(--secondary);margin-bottom:16px;">Select which pages appear in your school website's navigation menu.</p>
+            <div id="portalLinksInfo" style="margin-bottom:16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+              <div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:var(--secondary);text-transform:uppercase;letter-spacing:0.5px;">Portal Links (Platform-defined URLs)</div>
+              <div id="portalLinksBody" style="padding:14px;">
+                <div style="font-size:12px;color:var(--muted);">Loading portal links...</div>
+              </div>
+            </div>
             <div class="module-grid" id="moduleGrid">
               <div style="padding:20px;text-align:center;color:var(--muted);grid-column:1/-1;">Loading...</div>
             </div>
           </div>
         </div>
+      </div>
+
+<!-- ============================= DOMAIN ============================= -->
+      <div class="ws-section" id="sec-domain">
+
+        <!-- Platform URL -->
+        <div class="panel">
+          <div class="panel-head"><h3>🌐 Website Domain</h3>
+            <button class="btn btn-secondary btn-sm" onclick="loadDomainSection()">↺ Refresh</button>
+          </div>
+          <div class="panel-body">
+
+            <div style="margin-bottom:20px;">
+              <div style="font-size:12px;font-weight:700;color:var(--secondary);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">Platform URL (Active)</div>
+              <div class="url-box" id="domainPlatformUrl">Loading...</div>
+              <div class="btn-row" style="margin-top:8px;">
+                <button class="btn btn-secondary btn-sm" onclick="copyDomainUrl()">📋 Copy URL</button>
+                <a id="domainVisitBtn" href="#" target="_blank" class="btn btn-secondary btn-sm">🔗 Visit Website</a>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+              <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;padding:14px;">
+                <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Sitemap</div>
+                <div class="url-box" id="domainSitemapUrl" style="font-size:11px;margin-bottom:8px;padding:8px 10px;">Loading...</div>
+                <a id="domainSitemapLink" href="#" target="_blank" class="btn btn-secondary btn-sm" style="font-size:11px;">View Sitemap</a>
+              </div>
+              <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;padding:14px;">
+                <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Robots.txt</div>
+                <div class="url-box" id="domainRobotsUrl" style="font-size:11px;margin-bottom:8px;padding:8px 10px;">Loading...</div>
+                <a id="domainRobotsLink" href="#" target="_blank" class="btn btn-secondary btn-sm" style="font-size:11px;">View Robots</a>
+              </div>
+            </div>
+
+            <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:20px;">
+              <div style="font-size:12px;font-weight:700;color:var(--secondary);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">Website Status</div>
+              <div id="domainWebsiteStatus" style="font-size:13px;color:var(--secondary);">Loading...</div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Custom domain (future) -->
+        <div class="panel">
+          <div class="panel-head">
+            <h3>🔗 Custom Domain</h3>
+            <span class="badge badge-orange" style="font-size:11px;">Coming Soon</span>
+          </div>
+          <div class="panel-body">
+            <div style="background:rgba(255,165,0,0.06);border:1px solid rgba(255,165,0,0.2);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--orange);line-height:1.7;">
+              Custom domains (e.g. <strong>www.myschool.edu</strong>) are in development.
+              You can save your intended domain below — DNS configuration and SSL setup
+              will be activated when this feature launches.
+            </div>
+            <div class="field">
+              <label>Intended Custom Domain</label>
+              <input type="text" id="customDomainInput"
+                placeholder="e.g. www.myschool.edu or myschool.edu"
+                style="font-family:monospace;" />
+              <div class="field-hint">
+                Enter your domain without http:// or https://.
+                You will need to configure DNS records when custom domains launch.
+              </div>
+            </div>
+            <div id="customDomainStatus" style="margin-bottom:12px;font-size:12px;color:var(--muted);"></div>
+            <button class="btn btn-secondary btn-sm" onclick="saveCustomDomain()">Save Domain</button>
+          </div>
+        </div>
+
+        <!-- SEO quick links -->
+        <div class="panel">
+          <div class="panel-head"><h3>🔍 SEO Quick Access</h3></div>
+          <div class="panel-body">
+            <p style="font-size:13px;color:var(--secondary);margin-bottom:14px;line-height:1.6;">
+              Your SEO settings (page title, meta description, Open Graph image, keywords)
+              are configured in the <strong>SEO section</strong>.
+            </p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button class="btn btn-secondary btn-sm" onclick="showSec('seo')">→ Open SEO Settings</button>
+              <a id="googleSearchLink" href="#" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">🔎 Preview in Google</a>
+            </div>
+            <div style="margin-top:16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+              <div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:var(--secondary);text-transform:uppercase;letter-spacing:0.5px;">Search Result Preview</div>
+              <div style="padding:16px;" id="seoPreviewBox">
+                <div id="seoPreviewTitle" style="font-size:18px;color:#1a0dab;font-family:Arial,sans-serif;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Loading...</div>
+                <div id="seoPreviewUrl"   style="font-size:14px;color:#006621;font-family:Arial,sans-serif;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Loading...</div>
+                <div id="seoPreviewDesc"  style="font-size:14px;color:#545454;font-family:Arial,sans-serif;line-height:1.5;">Loading...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
 
 <!-- ============================= PREVIEW ============================= -->
@@ -1176,6 +1276,31 @@
         </div>
       </div>
 
+<!-- ============================= ALUMNI ============================= -->
+      <div class="ws-section" id="sec-alumni-mgmt">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>🎓 Alumni Directory</h3>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-secondary btn-sm" id="alumniFilterBtn" onclick="toggleAlumniFilter()">Show All</button>
+              <button class="btn btn-secondary btn-sm" onclick="loadAlumniSection()">↺ Refresh</button>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div style="background:rgba(108,99,255,0.06);border:1px solid rgba(108,99,255,0.2);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#a78bfa;line-height:1.7;">
+              Alumni profiles are managed by alumni themselves through the Alumni Portal (E6).
+              Here you can choose which alumni to feature on your public school website.<br/><br/>
+              <strong>Two conditions must both be true</strong> for an alumnus to appear publicly:<br/>
+              1. The alumnus has set their visibility to <strong>Public</strong> (their choice, not yours).<br/>
+              2. You have enabled <strong>Show on Website</strong> below (your choice).
+            </div>
+            <div id="alumniListWrap">
+              <div style="padding:20px;text-align:center;color:var(--muted);">Loading...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- ============================= ACADEMIC CALENDAR ============================= -->
       <div class="ws-section" id="sec-academic-calendar">
         <div class="panel">
@@ -1377,6 +1502,9 @@ function showSec(name) {
   if (name === 'programmes')       loadProgrammesSection();
   if (name === 'admissions')       loadAdmissionsSection();
   if (name === 'academic-calendar')loadAcademicCalendarSection();
+  if (name === 'alumni-mgmt')      loadAlumniSection();
+  if (name === 'domain')           loadDomainSection();
+  if (name === 'navigation')       loadPortalLinksInfo();
   if (name === 'preview') { initPreviewPanel(); }
   if (name === 'history') { loadVersionHistory(); }
   if (name === 'publish') { loadPublishSection(); }
@@ -1437,6 +1565,9 @@ function populateAllFields() {
   setField('seoMetaDesc',   seo.metaDescription || '');
   setField('seoOgImage',    seo.ogImageUrl       || '');
   setField('seoKeywords',   (seo.keywords || []).join(', '));
+
+  /* ✅ E8G: Update SEO preview box if domain section was already loaded */
+  updateSeoPreview();
 }
 
 function setField(id, val) {
@@ -2947,6 +3078,221 @@ async function saveAdmissions() {
   } else {
     showToast('❌ ' + ((res.data && res.data.message) || 'Save failed.'));
   }
+}
+
+/* ============================================
+   E8G: DOMAIN SECTION
+============================================ */
+async function loadDomainSection() {
+  var res = await instApi('/website/domain');
+  if (!res.ok || !res.data.success) return;
+
+  var d = res.data;
+
+  /* Platform URL display */
+  var platformEl = document.getElementById('domainPlatformUrl');
+  if (platformEl) platformEl.textContent = d.platformUrl || '(configure a school slug first)';
+
+  var visitBtn = document.getElementById('domainVisitBtn');
+  if (visitBtn) visitBtn.href = d.platformUrl || '#';
+
+  /* Sitemap */
+  var sitemapEl   = document.getElementById('domainSitemapUrl');
+  var sitemapLink = document.getElementById('domainSitemapLink');
+  if (sitemapEl)   sitemapEl.textContent = d.sitemapUrl || '(not yet available)';
+  if (sitemapLink) sitemapLink.href       = d.sitemapUrl || '#';
+
+  /* Robots */
+  var robotsEl   = document.getElementById('domainRobotsUrl');
+  var robotsLink = document.getElementById('domainRobotsLink');
+  if (robotsEl)   robotsEl.textContent = d.robotsUrl || '(not yet available)';
+  if (robotsLink) robotsLink.href       = d.robotsUrl || '#';
+
+  /* Website status */
+  var statusEl = document.getElementById('domainWebsiteStatus');
+  if (statusEl) {
+    var statusMap = {
+      published:   '<span style="color:var(--green);font-weight:700;">✅ Published</span> — website is live and indexed by search engines.',
+      unpublished: '<span style="color:var(--red);font-weight:700;">⏸ Offline</span> — website is unpublished. Robots.txt blocks all crawlers.',
+      draft:       '<span style="color:var(--orange);font-weight:700;">📝 Draft</span> — website has never been published. Robots.txt blocks all crawlers.'
+    };
+    statusEl.innerHTML = statusMap[d.websiteStatus] || esc(d.websiteStatus);
+  }
+
+  /* Custom domain */
+  var customInput = document.getElementById('customDomainInput');
+  if (customInput && d.customDomain) customInput.value = d.customDomain;
+
+  var customStatusEl = document.getElementById('customDomainStatus');
+  if (customStatusEl && d.customDomain) {
+    customStatusEl.textContent = 'Saved domain: ' + d.customDomain + ' (pending DNS configuration)';
+  }
+
+  /* Google search preview */
+  var googleLink = document.getElementById('googleSearchLink');
+  if (googleLink && d.platformUrl) {
+    googleLink.href = 'https://www.google.com/search?q=site:' + encodeURIComponent(d.platformUrl);
+  }
+
+  /* SEO preview box */
+  updateSeoPreview();
+}
+
+function updateSeoPreview() {
+  if (!_websiteData || !_websiteData.draftConfig) return;
+  var d         = _websiteData.draftConfig;
+  var seo       = d.seo || {};
+  var appUrl    = window.location.protocol + '//' + window.location.host;
+  var publicUrl = (_school && _school.slug) ? appUrl + '/school/' + _school.slug : appUrl;
+
+  var titleEl = document.getElementById('seoPreviewTitle');
+  var urlEl   = document.getElementById('seoPreviewUrl');
+  var descEl  = document.getElementById('seoPreviewDesc');
+
+  if (titleEl) titleEl.textContent = seo.metaTitle || (_school && _school.name) || 'Your School Name';
+  if (urlEl)   urlEl.textContent   = publicUrl;
+  if (descEl)  descEl.textContent  = seo.metaDescription || d.description || 'Add a meta description in SEO settings to appear here.';
+}
+
+async function saveCustomDomain() {
+  var domain = getField('customDomainInput');
+  var res    = await instApi('/website/domain', 'PUT', { customDomain: domain });
+  if (res.ok && res.data.success) {
+    showToast('✅ ' + res.data.message);
+    var statusEl = document.getElementById('customDomainStatus');
+    if (statusEl) statusEl.textContent = res.data.customDomain
+      ? 'Saved: ' + res.data.customDomain + ' (pending DNS configuration)'
+      : 'Custom domain cleared.';
+  } else {
+    showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+  }
+}
+
+function copyDomainUrl() {
+  var el = document.getElementById('domainPlatformUrl');
+  if (!el) return;
+  var url = el.textContent.trim();
+  if (!url || url.startsWith('(')) { showToast('No URL set yet.'); return; }
+  navigator.clipboard.writeText(url).then(function() {
+    showToast('📋 URL copied!');
+  }).catch(function() {
+    showToast('URL: ' + url);
+  });
+}
+
+/* ============================================
+   E8F: ALUMNI MANAGEMENT
+============================================ */
+var _alumniFilterEligible = false;
+
+async function loadAlumniSection() {
+  var listEl = document.getElementById('alumniListWrap');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);"><span class="spinner"></span></div>';
+
+  var url = '/website/alumni' + (_alumniFilterEligible ? '?eligible=true' : '');
+  var res = await instApi(url);
+  if (!res.ok || !res.data.success) {
+    listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);">Could not load alumni records.</div>';
+    return;
+  }
+
+  var alumni = res.data.alumni || [];
+  if (!alumni.length) {
+    listEl.innerHTML = '<div style="padding:28px;text-align:center;color:var(--muted);">' +
+      (_alumniFilterEligible
+        ? 'No alumni have set their visibility to Public yet. Alumni must update their privacy settings in the alumni portal first.'
+        : 'No alumni records found for this school.') +
+      '</div>';
+    return;
+  }
+
+  listEl.innerHTML = '<div class="tbl-wrap"><table><thead><tr>' +
+    '<th>Name</th><th>Graduation</th><th>Class</th><th>Profession</th>' +
+    '<th>Public Visibility</th><th>Show on Website</th>' +
+    '</tr></thead><tbody>' +
+    alumni.map(function(a) {
+      var visColor   = a.directoryVisibility === 'public' ? 'badge-green' : 'badge-muted';
+      var visLabel   = a.directoryVisibility === 'public'   ? '🌐 Public'
+                     : a.directoryVisibility === 'alumni_only' ? '🔒 Alumni Only'
+                     : '🔒 Private';
+      var canToggle  = a.eligibleForWebsite;
+      var toggleTip  = canToggle ? '' : 'title="Alumni must set visibility to Public first"';
+      var gradYear   = a.alumniSince
+        ? new Date(a.alumniSince).getFullYear()
+        : (a.graduationSession || '—');
+
+      return '<tr style="' + (!a.eligibleForWebsite && a.showOnWebsite ? 'opacity:0.6;' : '') + '">' +
+        '<td style="font-weight:700;color:#fff;">' + esc(a.displayName) + '</td>' +
+        '<td style="font-size:12px;">' + esc(String(gradYear)) + '</td>' +
+        '<td style="font-size:12px;">' + esc(a.lastClassName || '—') + '</td>' +
+        '<td style="font-size:12px;">' +
+          esc(a.profession || '—') +
+          (a.organisation ? '<div style="font-size:11px;color:var(--muted);">' + esc(a.organisation) + '</div>' : '') +
+        '</td>' +
+        '<td><span class="badge ' + visColor + '">' + visLabel + '</span></td>' +
+        '<td>' +
+          '<label class="toggle-switch" ' + toggleTip + '>' +
+            '<input type="checkbox" ' + (a.showOnWebsite ? 'checked' : '') +
+              (canToggle ? '' : ' disabled') +
+              ' onchange="toggleAlumniWebsite(\'' + a._id + '\', this.checked)" />' +
+            '<span class="toggle-slider"></span>' +
+          '</label>' +
+        '</td>' +
+      '</tr>';
+    }).join('') + '</tbody></table></div>' +
+    '<p style="font-size:12px;color:var(--muted);margin-top:12px;">' +
+      alumni.length + ' record(s) · ' +
+      alumni.filter(function(a){ return a.showOnWebsite; }).length + ' featured on website · ' +
+      alumni.filter(function(a){ return a.eligibleForWebsite; }).length + ' eligible (set to Public by alumni).' +
+    '</p>';
+}
+
+function toggleAlumniFilter() {
+  _alumniFilterEligible = !_alumniFilterEligible;
+  var btn = document.getElementById('alumniFilterBtn');
+  if (btn) btn.textContent = _alumniFilterEligible ? 'Show All' : 'Show Eligible Only';
+  loadAlumniSection();
+}
+
+async function toggleAlumniWebsite(alumniId, show) {
+  var res = await instApi('/website/alumni/' + alumniId + '/website', 'PUT', { showOnWebsite: show });
+  if (res.ok && res.data.success) {
+    showToast('✅ Alumni website visibility updated.');
+  } else {
+    showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+    /* Revert toggle state by reloading */
+    loadAlumniSection();
+  }
+}
+
+/* ============================================
+   E8F: PORTAL LINKS INFO (Navigation section)
+============================================ */
+async function loadPortalLinksInfo() {
+  var bodyEl = document.getElementById('portalLinksBody');
+  if (!bodyEl) return;
+
+  var res = await instApi('/website/portal-links');
+  if (!res.ok || !res.data.success) {
+    bodyEl.innerHTML = '<div style="font-size:12px;color:var(--muted);">Could not load portal info.</div>';
+    return;
+  }
+
+  var portals = res.data.portals || [];
+  bodyEl.innerHTML = portals.map(function(p) {
+    return '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);">' +
+      '<div style="flex:1;">' +
+        '<div style="font-size:13px;font-weight:700;color:#fff;">' + esc(p.label) + '</div>' +
+        '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' + esc(p.description) + '</div>' +
+      '</div>' +
+      '<code style="font-size:11px;color:#a78bfa;background:rgba(108,99,255,0.1);padding:3px 8px;border-radius:5px;white-space:nowrap;">' + esc(p.url) + '</code>' +
+    '</div>';
+  }).join('') +
+  '<div style="font-size:11px;color:var(--muted);line-height:1.6;">' +
+    'Portal links are platform-defined and point to existing authenticated portals. ' +
+    'They cannot be changed here — enable them in the module toggles above to add them to your navigation.' +
+  '</div>';
 }
 
 /* ============================================

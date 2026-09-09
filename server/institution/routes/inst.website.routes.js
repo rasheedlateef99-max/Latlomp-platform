@@ -855,21 +855,91 @@ router.delete('/media/:id', editGuard, async function(req, res) {
   }
 });
 
+
 /* ============================================
-   DOMAIN (skeleton in E8A)
+   E8G: DOMAIN CONFIGURATION
+   GET /api/institution/website/domain
+   Returns slug-based URL + custom domain placeholder.
 ============================================ */
 router.get('/domain', readGuard, async function(req, res) {
   try {
-    var School = require('../models/School.model');
-    var school = await School.findById(req.schoolId).select('slug').lean();
-    var appUrl = process.env.APP_URL || 'https://latlompsystem.up.railway.app';
+    var School  = require('../models/School.model');
+    var school  = await School.findById(req.schoolId).select('slug name').lean();
+    var appUrl  = process.env.APP_URL || (req.protocol + '://' + req.get('host'));
+    var website = await ensureWebsite(req.schoolId);
+
+    var SchoolWebsiteDomain = require('../models/SchoolWebsiteDomain.model');
+    var domainConfig = await SchoolWebsiteDomain.findOne({ schoolId: req.schoolId }).lean();
+
+    var publicUrl = school.slug ? appUrl + '/school/' + school.slug : null;
 
     return res.json({
-      success:      true,
-      slug:         school.slug || '',
-      platformUrl:  school.slug ? appUrl + '/school/' + school.slug : null,
-      customDomain: null,   /* E8G */
-      status:       'slug_only'
+      success:          true,
+      slug:             school.slug || '',
+      platformUrl:      publicUrl,
+      sitemapUrl:       publicUrl ? publicUrl + '/sitemap.xml' : null,
+      robotsUrl:        publicUrl ? publicUrl + '/robots.txt'  : null,
+      websiteStatus:    website.status || 'draft',
+      customDomain:     (domainConfig && domainConfig.customDomain) || '',
+      domainStatus:     'slug_only', /* E8G: slug only — custom domain = future */
+      customDomainNote: 'Custom domain support is coming soon. Your website is currently accessible via the platform URL above.'
+    });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   E8G: DOMAIN CONFIGURATION UPDATE
+   PUT /api/institution/website/domain
+   Stores custom domain for future use.
+   Does NOT activate DNS or SSL in E8G.
+   publishGuard — admin only, as domain changes
+   affect the entire public presence.
+============================================ */
+router.put('/domain', publishGuard, async function(req, res) {
+  try {
+    var { customDomain } = req.body;
+
+    /* Basic domain format validation */
+    var cleanDomain = '';
+    if (customDomain && customDomain.trim()) {
+      cleanDomain = customDomain.trim().toLowerCase()
+        .replace(/^https?:\/\//i, '')  /* strip protocol */
+        .replace(/\/.*$/, '')           /* strip path */
+        .trim();
+
+      /* Rough domain format check */
+      if (!/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/i.test(cleanDomain)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid domain format. Enter a domain like: www.myschool.edu or myschool.edu'
+        });
+      }
+    }
+
+    var SchoolWebsiteDomain = require('../models/SchoolWebsiteDomain.model');
+    var domainConfig = await SchoolWebsiteDomain.findOneAndUpdate(
+      { schoolId: req.schoolId },
+      {
+        $set: {
+          schoolId:           req.schoolId,
+          customDomain:       cleanDomain,
+          domainType:         cleanDomain ? 'custom' : 'slug',
+          verificationStatus: cleanDomain ? 'pending' : 'not_started',
+          updatedBy:          req.schoolUser._id
+        }
+      },
+      { upsert: true, new: true }
+    );
+
+    return res.json({
+      success:     true,
+      message:     cleanDomain
+        ? 'Custom domain saved. DNS configuration and verification will be available in a future update.'
+        : 'Custom domain cleared.',
+      customDomain: domainConfig.customDomain,
+      status:       domainConfig.verificationStatus
     });
   } catch(err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -2509,6 +2579,178 @@ router.get('/preview/render', editGuard, async function(req, res) {
     return res.send(html);
   } catch(err) {
     console.error('[website] GET /preview/render:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   E8F: ALUMNI
+   School staff control showOnWebsite only.
+   directoryVisibility is NEVER touched here —
+   it belongs exclusively to alumni (E6).
+   
+   Safe fields returned to builder:
+   displayName, bio, profession, industry,
+   organisation, graduationSession, lastClassName,
+   alumniSince, location, directoryVisibility
+   (read-only display), showOnWebsite, status.
+   
+   Private fields NEVER returned:
+   studentId contact details, portfolioId,
+   exam results, contactPreferences email/phone values.
+============================================ */
+
+/* GET /api/institution/website/alumni
+   Lists alumni for website management.
+   All visibility states shown to staff so they
+   can see which alumni are eligible for website
+   display (directoryVisibility === 'public').
+*/
+router.get('/alumni', readGuard, async function(req, res) {
+  try {
+    var AlumniProfile = require('../models/AlumniProfile.model');
+    var filter = {
+      schoolId: req.schoolId, /* TENANT SCOPE */
+      status:   { $in: ['active', 'inactive'] }
+    };
+
+    /* Optional filter by website-eligible only */
+    if (req.query.eligible === 'true') {
+      filter.directoryVisibility = 'public';
+    }
+
+    var alumni = await AlumniProfile.find(filter)
+      .populate('studentId', 'name') /* name only — no other student fields */
+      .select([
+        'displayName', 'bio', 'profession', 'industry',
+        'organisation', 'graduationSession', 'lastClassName',
+        'alumniSince', 'location', 'directoryVisibility',
+        'showOnWebsite', 'status', 'mentorshipAvailable',
+        'studentId' /* populated to name only */
+      ].join(' '))
+      .sort({ alumniSince: -1 })
+      .limit(200)
+      .lean();
+
+    /* Map to safe builder payload — never expose private fields */
+    var safeAlumni = alumni.map(function(a) {
+      return {
+        _id:                 a._id,
+        displayName:         a.displayName || (a.studentId && a.studentId.name) || 'Alumni',
+        bio:                 a.bio          || '',
+        profession:          a.profession   || '',
+        industry:            a.industry     || '',
+        organisation:        a.organisation || '',
+        graduationSession:   a.graduationSession || '',
+        lastClassName:       a.lastClassName     || '',
+        alumniSince:         a.alumniSince       || null,
+        location:            a.location          || { city: '', country: '' },
+        directoryVisibility: a.directoryVisibility,
+        showOnWebsite:       !!a.showOnWebsite,
+        status:              a.status,
+        mentorshipAvailable: !!a.mentorshipAvailable,
+        /* Eligibility helper for builder UI */
+        eligibleForWebsite:  a.directoryVisibility === 'public' && a.status === 'active'
+      };
+    });
+
+    return res.json({ success: true, alumni: safeAlumni, count: safeAlumni.length });
+  } catch(err) {
+    console.error('[website] GET /alumni:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* PUT /api/institution/website/alumni/:alumniId/website
+   Toggle showOnWebsite for one alumni record.
+   NEVER modifies directoryVisibility.
+   Validates alumni belongs to this school — TENANT SCOPE.
+   Validates alumni has directoryVisibility === 'public'
+   before allowing showOnWebsite to be set true —
+   showing a non-public alumni would expose them without
+   their consent.
+*/
+router.put('/alumni/:alumniId/website', editGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.alumniId)) {
+      return res.status(400).json({ success: false, message: 'Invalid alumni ID.' });
+    }
+
+    var AlumniProfile = require('../models/AlumniProfile.model');
+    var alumni = await AlumniProfile.findOne({
+      _id:      req.params.alumniId,
+      schoolId: req.schoolId /* TENANT SCOPE */
+    }).select('directoryVisibility showOnWebsite status');
+
+    if (!alumni) {
+      return res.status(404).json({ success: false, message: 'Alumni record not found.' });
+    }
+
+    var showOnWebsite = req.body.showOnWebsite !== undefined
+      ? !!req.body.showOnWebsite
+      : !alumni.showOnWebsite;
+
+    /* Safety check: cannot feature an alumni who has not made
+       themselves public. Consent must come from alumni first. */
+    if (showOnWebsite && alumni.directoryVisibility !== 'public') {
+      return res.status(400).json({
+        success: false,
+        message: 'This alumni has not made their profile public. They must set their visibility to "Public" in the alumni portal before they can be featured on the school website.'
+      });
+    }
+
+    alumni.showOnWebsite = showOnWebsite;
+    await alumni.save();
+
+    return res.json({
+      success:       true,
+      showOnWebsite: alumni.showOnWebsite,
+      message:       'Alumni website visibility updated.'
+    });
+  } catch(err) {
+    console.error('[website] PUT /alumni/:id/website:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   E8F: PORTAL LINKS INFO
+   GET /api/institution/website/portal-links
+   Returns the configured portal URLs for the
+   builder's Navigation section info panel.
+   These are platform-defined — not school-editable.
+============================================ */
+router.get('/portal-links', readGuard, async function(req, res) {
+  try {
+    var School = require('../models/School.model');
+    var school = await School.findById(req.schoolId).select('slug').lean();
+    var appUrl = process.env.APP_URL || (req.protocol + '://' + req.get('host'));
+
+    return res.json({
+      success: true,
+      portals: [
+        {
+          key:         'student_portal',
+          label:       'Student Portal',
+          url:         '/institution/student/portal.html',
+          description: 'Redirects to the authenticated student portal login.'
+        },
+        {
+          key:         'parent_portal',
+          label:       'Parent Portal',
+          url:         '/institution/parent/dashboard.html',
+          description: 'Redirects to the authenticated parent dashboard login.'
+        },
+        {
+          key:         'school_portal',
+          label:       'School Admin Portal',
+          url:         '/institution/school/dashboard.html',
+          description: 'Redirects to the authenticated school admin dashboard.'
+        }
+      ],
+      publicWebsiteUrl: school.slug ? appUrl + '/school/' + school.slug : null
+    });
+  } catch(err) {
     return res.status(500).json({ success: false, message: err.message });
   }
 });
