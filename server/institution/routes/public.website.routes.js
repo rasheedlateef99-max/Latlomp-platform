@@ -561,7 +561,6 @@ router.get('/:slug', async function(req, res) {
     var config   = website.publishedConfig || {};
     var sections = config.homepageSections || [];
 
-    /* All section DB queries inside — schoolId scoped to school._id */
     var bodyHtml = await renderHomepageSections(sections, school, config, school._id);
 
     return res.send(htmlShell({
@@ -570,7 +569,7 @@ router.get('/:slug', async function(req, res) {
       title:       config.seo && config.seo.metaTitle ? esc(config.seo.metaTitle) : esc(school.name),
       description: config.seo && config.seo.metaDescription ? esc(config.seo.metaDescription) : esc(config.description || ''),
       currentPage: 'home',
-      body:        bodyHtml
+      body:        bodyHtml,
       isPublished: true
     }));
   } catch(err) {
@@ -590,7 +589,7 @@ router.get('/:slug/about', async function(req, res) {
 
     var SchoolWebsitePage = require('../models/SchoolWebsitePage.model');
     var page = await SchoolWebsitePage.findOne({
-      schoolId: school._id,  /* TENANT SCOPE */
+      schoolId: school._id,
       slug:     'about',
       status:   'published'
     }).lean();
@@ -614,7 +613,7 @@ router.get('/:slug/about', async function(req, res) {
       school, config,
       title:       esc('About — ' + school.name),
       currentPage: 'about',
-      body
+      body,
       isPublished: true
     }));
   } catch(err) {
@@ -634,7 +633,7 @@ router.get('/:slug/news', async function(req, res) {
 
     var SchoolWebsitePost = require('../models/SchoolWebsitePost.model');
     var posts = await SchoolWebsitePost.find({
-      schoolId: school._id, /* TENANT SCOPE */
+      schoolId: school._id,
       status:   'published'
     }).sort({ publishedAt: -1 }).limit(20).lean();
 
@@ -664,7 +663,7 @@ router.get('/:slug/news', async function(req, res) {
       school, config,
       title:       esc('News — ' + school.name),
       currentPage: 'news',
-      body
+      body,
       isPublished: true
     }));
   } catch(err) {
@@ -684,7 +683,7 @@ router.get('/:slug/news/:postSlug', async function(req, res) {
 
     var SchoolWebsitePost = require('../models/SchoolWebsitePost.model');
     var post = await SchoolWebsitePost.findOne({
-      schoolId: school._id,             /* TENANT SCOPE */
+      schoolId: school._id,
       slug:     req.params.postSlug,
       status:   'published'
     }).lean();
@@ -758,7 +757,7 @@ router.get('/:slug/contact', async function(req, res) {
       school, config,
       title:       esc('Contact — ' + school.name),
       currentPage: 'contact',
-      body
+      body,
       isPublished: true
     }));
   } catch(err) {
@@ -777,7 +776,7 @@ router.get('/:slug/events', async function(req, res) {
 
     var SchoolEvent = require('../models/SchoolEvent.model');
     var events = await SchoolEvent.find({
-      schoolId:      school._id, /* TENANT SCOPE */
+      schoolId:      school._id,
       showOnWebsite: true,
       status:        'published',
       date:          { $gte: new Date() }
@@ -810,7 +809,7 @@ router.get('/:slug/events', async function(req, res) {
       school, config,
       title:       esc('Events — ' + school.name),
       currentPage: 'events',
-      body
+      body,
       isPublished: true
     }));
   } catch(err) {
@@ -821,8 +820,6 @@ router.get('/:slug/events', async function(req, res) {
 
 /* ============================================
    E8C: PUBLIC GALLERY INDEX
-   Shows all published albums for this school.
-   All queries TENANT SCOPED to school._id.
 ============================================ */
 router.get('/:slug/gallery', async function(req, res) {
   try {
@@ -834,7 +831,7 @@ router.get('/:slug/gallery', async function(req, res) {
 
     var SchoolGalleryAlbum = require('../models/SchoolGalleryAlbum.model');
     var albums = await SchoolGalleryAlbum.find({
-      schoolId: school._id,  /* TENANT SCOPE */
+      schoolId: school._id,
       status:   'published'
     })
     .select('title description slug coverImageUrl items displayOrder isFeatured publishedAt')
@@ -871,8 +868,8 @@ router.get('/:slug/gallery', async function(req, res) {
         '<div class="ws-section-label">Photos</div>' +
         '<h1 class="ws-page-title">Photo Gallery</h1>' +
         albumsHtml +
-        '</div></section>'
-        isPublished: true
+        '</div></section>',
+      isPublished: true
     }));
   } catch(err) {
     console.error('[public-website] GET /:slug/gallery:', err.message);
@@ -882,9 +879,6 @@ router.get('/:slug/gallery', async function(req, res) {
 
 /* ============================================
    E8C: PUBLIC SINGLE ALBUM VIEW
-   Lightbox-style layout for a single album.
-   album._id used as identifier (not slug) for
-   stability — slug can change, _id cannot.
 ============================================ */
 router.get('/:slug/gallery/:albumId', async function(req, res) {
   try {
@@ -901,7 +895,7 @@ router.get('/:slug/gallery/:albumId', async function(req, res) {
     var SchoolGalleryAlbum = require('../models/SchoolGalleryAlbum.model');
     var album = await SchoolGalleryAlbum.findOne({
       _id:      req.params.albumId,
-      schoolId: school._id, /* TENANT SCOPE */
+      schoolId: school._id,
       status:   'published'
     }).lean();
 
@@ -911,7 +905,6 @@ router.get('/:slug/gallery/:albumId', async function(req, res) {
       return (a.displayOrder || 0) - (b.displayOrder || 0);
     });
 
-    /* Build photo grid with lightbox trigger */
     var photosHtml = items.length
       ? '<div class="ws-photo-grid" id="photoGrid">' +
         items.map(function(item, i) {
@@ -929,7 +922,6 @@ router.get('/:slug/gallery/:albumId', async function(req, res) {
         '</div>'
       : '<div class="ws-empty"><p>No photos in this album yet.</p></div>';
 
-    /* Lightbox data — all URLs and captions for JS */
     var lightboxData = JSON.stringify(items.map(function(item) {
       return { url: item.url || '', caption: item.caption || '' };
     })).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
@@ -960,7 +952,6 @@ router.get('/:slug/gallery/:albumId', async function(req, res) {
       '</div></section>' +
       lightboxHtml;
 
-    /* Minimal inline JS for lightbox — no school-authored code, platform only */
     var extraHead = '<style>' +
       '.ws-lightbox{position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:9999;' +
         'display:flex;align-items:center;justify-content:center;cursor:zoom-out;}' +
@@ -1020,7 +1011,7 @@ router.get('/:slug/gallery/:albumId', async function(req, res) {
       title:       esc(album.title + ' — Gallery — ' + school.name),
       currentPage: 'gallery',
       body:        body + extraScript,
-      extraHead
+      extraHead,
       isPublished: true
     }));
   } catch(err) {
@@ -1031,22 +1022,6 @@ router.get('/:slug/gallery/:albumId', async function(req, res) {
 
 /* ============================================
    E8F: PUBLIC ALUMNI DIRECTORY PAGE
-   
-   DUAL CONSENT REQUIRED for public display:
-   1. alumni.directoryVisibility === 'public'
-      (alumni chose to be publicly visible — E6)
-   2. alumni.showOnWebsite === true
-      (school chose to feature them — E8F)
-   
-   NEVER exposed:
-   - studentId (private identity)
-   - portfolioId (private academic records)
-   - contactPreferences email/phone values
-   - exam results, finance data, private bio
-   - status details beyond active
-   - Any field not in the explicit select below
-   
-   All queries: TENANT SCOPED to school._id from slug.
 ============================================ */
 router.get('/:slug/alumni', async function(req, res) {
   try {
@@ -1058,14 +1033,13 @@ router.get('/:slug/alumni', async function(req, res) {
 
     var AlumniProfile = require('../models/AlumniProfile.model');
 
-    /* Dual-consent query — both conditions required */
     var alumni = await AlumniProfile.find({
-      schoolId:            school._id,      /* TENANT SCOPE */
-      directoryVisibility: 'public',        /* alumni consent */
-      showOnWebsite:       true,            /* school featured */
+      schoolId:            school._id,
+      directoryVisibility: 'public',
+      showOnWebsite:       true,
       status:              'active'
     })
-    .populate('studentId', 'name')          /* name only — nothing else */
+    .populate('studentId', 'name')
     .select([
       'displayName', 'bio', 'profession', 'industry',
       'organisation', 'graduationSession', 'lastClassName',
@@ -1076,26 +1050,24 @@ router.get('/:slug/alumni', async function(req, res) {
     .limit(100)
     .lean();
 
-    /* Build safe display list — no private fields */
     var safeList = alumni.map(function(a) {
       var gradYear = a.alumniSince
         ? new Date(a.alumniSince).getFullYear()
         : (a.graduationSession || '');
       return {
-        displayName:       a.displayName || (a.studentId && a.studentId.name) || 'Alumnus',
-        bio:               (a.bio || '').substring(0, 300),
-        profession:        a.profession   || '',
-        industry:          a.industry     || '',
-        organisation:      a.organisation || '',
-        graduationYear:    gradYear,
-        lastClassName:     a.lastClassName || '',
-        city:              (a.location && a.location.city)    || '',
-        country:           (a.location && a.location.country) || '',
+        displayName:         a.displayName || (a.studentId && a.studentId.name) || 'Alumnus',
+        bio:                 (a.bio || '').substring(0, 300),
+        profession:          a.profession   || '',
+        industry:            a.industry     || '',
+        organisation:        a.organisation || '',
+        graduationYear:      gradYear,
+        lastClassName:       a.lastClassName || '',
+        city:                (a.location && a.location.city)    || '',
+        country:             (a.location && a.location.country) || '',
         mentorshipAvailable: !!a.mentorshipAvailable
       };
     });
 
-    /* Group by graduation year for display */
     var byYear = {};
     safeList.forEach(function(a) {
       var yr = a.graduationYear ? String(a.graduationYear) : 'Unknown Year';
@@ -1106,7 +1078,7 @@ router.get('/:slug/alumni', async function(req, res) {
     var sortedYears = Object.keys(byYear).sort(function(a, b) {
       var numA = parseInt(a) || 0;
       var numB = parseInt(b) || 0;
-      return numB - numA; /* Most recent first */
+      return numB - numA;
     });
 
     function renderAlumniCard(a) {
@@ -1155,8 +1127,8 @@ router.get('/:slug/alumni', async function(req, res) {
             'Alumni appearing here have chosen to make their profile public.' +
           '</p>' +
           alumniHtml +
-        '</div></section>'
-        isPublished: true
+        '</div></section>',
+      isPublished: true
     }));
   } catch(err) {
     console.error('[public-website] GET /:slug/alumni:', err.message);
