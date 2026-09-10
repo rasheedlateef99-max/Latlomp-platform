@@ -55,9 +55,10 @@ function sanitizeText(str) {
 
 /* ---- Helper: ensure website doc exists for school ---- */
 async function ensureWebsite(schoolId) {
-  var website = await SchoolWebsite.findOne({ schoolId });
-  if (!website) {
-    website = new SchoolWebsite({
+  /* ✅ E8H: lean() check first — only hydrate full doc if exists */
+  var exists = await SchoolWebsite.findOne({ schoolId }).select('_id').lean();
+  if (!exists) {
+    var website = new SchoolWebsite({
       schoolId,
       draftConfig: {
         homepageSections: [
@@ -72,10 +73,82 @@ async function ensureWebsite(schoolId) {
       }
     });
     await website.save();
-  }
-  return website;
+      return website;
+    }
+  return SchoolWebsite.findOne({ schoolId: schoolId });
 }
 
+/* ---- E8H: Safe URL validation helpers ---- */
+
+/* Validates a URL is safe for storage (not javascript: or data:) */
+function isSafeUrl(url) {
+  if (!url || typeof url !== 'string') return true; /* empty is fine */
+  var clean = url.trim().toLowerCase();
+  return !(/^javascript:/i.test(clean) || /^data:/i.test(clean));
+}
+
+/* Validates a URL is a relative path or starts with http(s) */
+function isSafeExternalUrl(url) {
+  if (!url || typeof url !== 'string') return true;
+  var clean = url.trim();
+  if (clean === '') return true;
+  /* Allow relative paths */
+  if (clean.startsWith('/')) return true;
+  /* Allow https and http only */
+  return /^https?:\/\//i.test(clean);
+}
+
+/* Validates a Google Maps embed URL */
+function isSafeMapUrl(url) {
+  if (!url || url.trim() === '') return true;
+  var clean = url.trim().toLowerCase();
+  return clean.startsWith('https://www.google.com/maps/') ||
+         clean.startsWith('https://maps.google.com/')     ||
+         clean.startsWith('https://www.google.com/maps/embed');
+}
+
+/* Validates a social media link URL */
+var ALLOWED_SOCIAL_DOMAINS = [
+  'facebook.com', 'www.facebook.com',
+  'twitter.com',  'www.twitter.com', 'x.com', 'www.x.com',
+  'instagram.com','www.instagram.com',
+  'youtube.com',  'www.youtube.com',
+  'linkedin.com', 'www.linkedin.com',
+  'wa.me',        'api.whatsapp.com', 'web.whatsapp.com'
+];
+
+function isSafeSocialUrl(url) {
+  if (!url || url.trim() === '') return true;
+  if (!isSafeExternalUrl(url)) return false;
+  try {
+    var parsed = new URL(url.trim());
+    var hostname = parsed.hostname.toLowerCase();
+    return ALLOWED_SOCIAL_DOMAINS.some(function(d) {
+      return hostname === d || hostname.endsWith('.' + d);
+    });
+  } catch(e) {
+    return false;
+  }
+}
+/* ---- E8H: Safe error message — prevents Mongoose schema leakage ---- */
+function safeErrorMsg(err) {
+  /* Mongoose validation errors expose field names and constraints.
+     Log the full error server-side; return safe generic message to client. */
+  if (err && err.name === 'ValidationError') {
+    var fields = Object.keys(err.errors || {});
+    if (fields.length) {
+      return 'Validation failed: ' + fields.map(function(f) {
+        return f + ' is invalid';
+      }).join(', ') + '.';
+    }
+    return 'Validation failed. Check your input and try again.';
+  }
+  if (err && err.code === 11000) {
+    return 'A record with this value already exists.';
+  }
+  /* For other errors return the message — already safe for our own errors */
+  return (err && err.message) || 'An unexpected error occurred.';
+}
 /* ============================================
    GET /api/institution/website/
    Get website status + draft config for builder.
@@ -102,7 +175,7 @@ router.get('/', readGuard, async function(req, res) {
     });
   } catch(err) {
     console.error('[website] GET /:', err.message);
-    return res.status(500).json({ success: false, message: err.message });
+    return res.status(500).json({ success: false, message: safeErrorMsg(err) });
   }
 });
 
@@ -121,22 +194,55 @@ router.put('/settings', editGuard, async function(req, res) {
       'principalMessage', 'admissions'
     ];
 
+    /* ✅ E8H: Validate URLs before storing */
+    var validationErrors = [];
+
+    if (req.body.mapEmbedUrl && !isSafeMapUrl(req.body.mapEmbedUrl)) {
+      validationErrors.push('Map URL must be a Google Maps embed URL (https://www.google.com/maps/...).');
+    }
+
+    if (req.body.socialLinks) {
+      var sl = req.body.socialLinks;
+      var socialFields = ['facebook','twitter','instagram','youtube','linkedin','whatsapp'];
+      socialFields.forEach(function(f) {
+        if (sl[f] && !isSafeSocialUrl(sl[f])) {
+          validationErrors.push('Invalid URL for social link: ' + f + '. Must be a valid link to that platform.');
+        }
+      });
+    }
+
+    if (req.body.admissions && req.body.admissions.applicationUrl) {
+      if (!isSafeExternalUrl(req.body.admissions.applicationUrl)) {
+        validationErrors.push('Admissions application URL must start with https:// or http://');
+      }
+    }
+
+    if (req.body.principalMessage && req.body.principalMessage.photoUrl) {
+      if (!isSafeExternalUrl(req.body.principalMessage.photoUrl)) {
+        validationErrors.push('Principal photo URL must start with https:// or http://');
+      }
+    }
+
+    if (validationErrors.length) {
+      return res.status(400).json({ success: false, message: validationErrors.join(' ') });
+    }
+
     allowed.forEach(function(field) {
       if (req.body[field] !== undefined) {
         if (typeof req.body[field] === 'string') {
           website.draftConfig[field] = sanitizeText(req.body[field]);
         } else {
-          /* Nested objects (socialLinks, admissions, principalMessage) */
           website.draftConfig[field] = req.body[field];
-          /* Sanitize nested text fields */
           if (field === 'principalMessage' && req.body[field]) {
-            website.draftConfig[field].text  = sanitizeText(req.body[field].text  || '');
-            website.draftConfig[field].name  = sanitizeText(req.body[field].name  || '');
-            website.draftConfig[field].title = sanitizeText(req.body[field].title || '');
+            website.draftConfig[field].text     = sanitizeText(req.body[field].text     || '');
+            website.draftConfig[field].name     = sanitizeText(req.body[field].name     || '');
+            website.draftConfig[field].title    = sanitizeText(req.body[field].title    || '');
+            /* photoUrl already validated above — store as-is */
           }
           if (field === 'admissions' && req.body[field]) {
             website.draftConfig[field].requirements = sanitizeText(req.body[field].requirements || '');
             website.draftConfig[field].howToApply   = sanitizeText(req.body[field].howToApply   || '');
+            /* applicationUrl already validated above */
           }
         }
       }
@@ -224,10 +330,12 @@ router.put('/homepage', editGuard, async function(req, res) {
           overlayOpacity: s.config && typeof s.config.overlayOpacity === 'number'
             ? Math.min(1, Math.max(0, s.config.overlayOpacity)) : 0.5,
           buttonText:     sanitizeText(s.config && s.config.buttonText),
-          buttonUrl:      s.config && s.config.buttonUrl ? s.config.buttonUrl : '',
+          buttonUrl:      (s.config && s.config.buttonUrl && isSafeExternalUrl(s.config.buttonUrl))
+            ? s.config.buttonUrl : '',
           ctaText:        sanitizeText(s.config && s.config.ctaText),
           ctaButtonText:  sanitizeText(s.config && s.config.ctaButtonText),
-          ctaButtonUrl:   s.config && s.config.ctaButtonUrl ? s.config.ctaButtonUrl : '',
+          ctaButtonUrl:   (s.config && s.config.ctaButtonUrl && isSafeExternalUrl(s.config.ctaButtonUrl))
+            ? s.config.ctaButtonUrl : '',
           stats:          Array.isArray(s.config && s.config.stats)
             ? s.config.stats.slice(0, 8).map(function(st) {
                 return { label: sanitizeText(st.label), value: sanitizeText(st.value) };
