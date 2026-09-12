@@ -106,6 +106,8 @@ app.use("/api/institution/parent-comms", require("./institution/routes/inst.pare
 app.use("/api/institution/finance", require("./institution/routes/inst.finance.routes"));
 /* ✅ E8A: Institution Website Management */
 app.use("/api/institution/website", require("./institution/routes/inst.website.routes"));
+/* ✅ E9A: LatLomp Community Network */
+app.use("/api/community", require("./community/routes/community.routes"));
 /* ✅ E6: Alumni Network — self-service (alumni-authenticated) */
 app.use("/api/institution/alumni", require("./institution/routes/inst.alumni.routes"));
 /* ✅ E5: Public Transcript Verification */

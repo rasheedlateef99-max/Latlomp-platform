@@ -1,0 +1,1533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>LatLomp Community</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/community/community.css" />
+</head>
+<body>
+
+  <!-- ===== NOT AUTHENTICATED ===== -->
+  <div id="notAuthScreen" style="display:none;">
+    <div class="auth-screen">
+      <div class="auth-box">
+        <div class="auth-icon">🏫</div>
+        <h1 class="auth-title">LatLomp Community</h1>
+        <p class="auth-subtitle">A private community for your institution's members.</p>
+        <div class="auth-links">
+          <a href="/institution/school/dashboard.html" class="btn btn-primary">School Admin Portal</a>
+          <a href="/institution/student/portal.html"   class="btn btn-secondary">Student Portal</a>
+          <a href="/institution/parent/dashboard.html" class="btn btn-secondary">Parent Portal</a>
+        </div>
+        <p class="auth-hint">Log in to your portal first, then return here to access Community.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== COMMUNITY DISABLED ===== -->
+  <div id="communityDisabledScreen" style="display:none;">
+    <div class="auth-screen">
+      <div class="auth-box">
+        <div class="auth-icon">🔒</div>
+        <h1 class="auth-title">Community Not Active</h1>
+        <p class="auth-subtitle">Your school's community has not been enabled yet.</p>
+        <p class="auth-hint" id="disabledHint"></p>
+        <a href="#" onclick="goBackToPortal()" class="btn btn-secondary" style="margin-top:16px;">← Back to Dashboard</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== LOADING ===== -->
+  <div id="loadingScreen">
+    <div class="loading-screen">
+      <div class="loading-logo">🏫</div>
+      <div class="loading-text">Loading Community...</div>
+      <div class="loading-spinner"></div>
+    </div>
+  </div>
+
+  <!-- ===== MAIN COMMUNITY APP ===== -->
+  <div id="communityApp" style="display:none;">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">☰</button>
+        <div class="community-brand">
+          <span class="community-icon">🏫</span>
+          <div>
+            <div class="community-name" id="communityName">Community</div>
+            <div class="community-school" id="communitySchoolName"></div>
+          </div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="member-chip">
+          <div class="member-chip-avatar" id="memberChipAvatar">?</div>
+          <div class="member-chip-info">
+            <div class="member-chip-name" id="memberChipName">Loading...</div>
+            <div class="member-chip-role" id="memberChipRole"></div>
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="goBackToPortal()">← Dashboard</button>
+      </div>
+    </header>
+
+    <div class="app-body">
+
+      <!-- SIDEBAR -->
+      <nav class="sidebar" id="sidebar">
+        <div class="nav-section">Main</div>
+        <button class="nav-item active"  data-tab="overview" onclick="showTab('overview')">🏠 <span>Overview</span></button>
+        <button class="nav-item"         data-tab="feed"     onclick="showTab('feed')">📰 <span>Community Feed</span></button>
+        <button class="nav-item"         data-tab="members"  onclick="showTab('members')">👥 <span>Members</span></button>
+
+        <div class="nav-section mod-only" id="modNavSection"  style="display:none;">Moderation</div>
+        <button class="nav-item mod-only" id="approvalNavBtn" data-tab="approval" onclick="showTab('approval')" style="display:none;">
+          ⏳ <span>Approval Queue</span>
+          <span class="pending-badge" id="pendingBadge" style="display:none;">0</span>
+        </button>
+        <button class="nav-item mod-only" id="settingsNavBtn" data-tab="settings" onclick="showTab('settings')" style="display:none;">
+          ⚙️ <span>Settings</span>
+        </button>
+        <button class="nav-item mod-only" id="memberMgmtNavBtn" data-tab="memberManagement" onclick="showTab('memberManagement')" style="display:none;">
+          🛡️ <span>Manage Members</span>
+        </button>
+
+        <div class="sidebar-footer">
+          <div class="sidebar-footer-text">LatLomp Community</div>
+          <div class="sidebar-footer-sub">E9B — Posts & Feed</div>
+        </div>
+      </nav>
+
+      <!-- MAIN CONTENT -->
+      <main class="main-content" id="mainContent">
+
+        <!-- ============================= OVERVIEW ============================= -->
+        <div class="tab-panel active" id="tab-overview">
+          <div class="welcome-banner" id="welcomeBanner">
+            <div class="welcome-banner-icon">👋</div>
+            <div class="welcome-banner-text">
+              <h2 id="welcomeTitle">Welcome to Community</h2>
+              <p id="welcomeMessage"></p>
+            </div>
+          </div>
+
+          <div class="overview-grid">
+            <div class="card" onclick="showTab('feed')" style="cursor:pointer;">
+              <div class="card-head">Community Feed</div>
+              <div class="card-body">
+                <p style="font-size:13px;color:var(--secondary);margin-bottom:12px;">Share posts, announcements and activities with your school community.</p>
+                <button class="btn btn-primary btn-sm">Open Feed →</button>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head">Your Community Profile</div>
+              <div class="card-body">
+                <div class="profile-card">
+                  <div class="profile-avatar large" id="profileAvatarLarge">?</div>
+                  <div class="profile-info">
+                    <div class="profile-name"   id="profileName">Loading...</div>
+                    <div class="profile-meta">
+                      <span class="badge"       id="profileMemberType"></span>
+                      <span class="badge badge-role" id="profileRole"></span>
+                    </div>
+                    <div class="profile-joined" id="profileJoined"></div>
+                  </div>
+                </div>
+                <div id="suspensionWarning" style="display:none;" class="suspension-warning">
+                  ⚠️ Your community write access is currently suspended.
+                  <span id="suspensionUntil"></span>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head">Community Rules</div>
+              <div class="card-body">
+                <div class="rules-text" id="communityRules">
+                  <div style="color:var(--muted);font-size:13px;">No specific rules have been posted yet.</div>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head">Community Stats</div>
+              <div class="card-body">
+                <div class="stats-mini" id="communityStats">
+                  <div style="color:var(--muted);font-size:13px;">Loading...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================= FEED ============================= -->
+        <div class="tab-panel" id="tab-feed">
+
+          <!-- Post Composer -->
+          <div class="post-composer" id="postComposer">
+            <div class="composer-header">
+              <div class="composer-avatar" id="composerAvatar">?</div>
+              <div class="composer-label">Share something with the community...</div>
+            </div>
+            <div class="composer-body" id="composerBody" style="display:none;">
+              <textarea
+                id="postContent"
+                class="composer-textarea"
+                placeholder="What would you like to share?"
+                oninput="onComposerInput()"
+                maxlength="5000"
+              ></textarea>
+              <div class="composer-char-count"><span id="charCount">0</span> / <span id="charMax">2000</span></div>
+
+              <div class="composer-options">
+                <div class="composer-option-group">
+                  <label class="composer-option-label">Post Type</label>
+                  <select id="postTypeSelect" onchange="onPostTypeChange()" class="composer-select">
+                    <option value="post">💬 General Post</option>
+                    <option value="achievement">🏆 Achievement</option>
+                    <option value="competition">🏅 Competition</option>
+                    <option value="award">🎖️ Award</option>
+                    <option value="reunion">🎓 Reunion</option>
+                    <option value="event_ref">📅 Reference an Event</option>
+                    <!-- announcement: added dynamically for staff/admin -->
+                  </select>
+                </div>
+                <div class="composer-option-group">
+                  <label class="composer-option-label">Who can see this?</label>
+                  <select id="postVisibilitySelect" class="composer-select">
+                    <option value="all">🌐 Everyone</option>
+                    <!-- Additional options added dynamically based on role -->
+                  </select>
+                </div>
+              </div>
+
+              <!-- Event reference picker (shown only for event_ref) -->
+              <div id="eventRefPicker" style="display:none;" class="event-ref-picker">
+                <label class="composer-option-label">Select Event to Reference</label>
+                <select id="eventRefSelect" class="composer-select">
+                  <option value="">-- Loading events --</option>
+                </select>
+                <div style="font-size:12px;color:var(--muted);margin-top:4px;">
+                  Only published school events are shown.
+                </div>
+              </div>
+
+              <div class="composer-actions">
+                <button class="btn btn-secondary btn-sm" onclick="closeComposer()">Cancel</button>
+                <button class="btn btn-primary" id="submitPostBtn" onclick="createPost()">
+                  Post to Community
+                </button>
+              </div>
+            </div>
+            <div id="suspendedComposerMsg" style="display:none;" class="suspended-composer-msg">
+              ⚠️ Your posting privileges are currently suspended.
+            </div>
+          </div>
+
+          <!-- Pending own posts notice -->
+          <div id="myPendingNotice" style="display:none;" class="pending-notice">
+            <div class="pending-notice-icon">⏳</div>
+            <div>
+              <strong>You have <span id="myPendingCount">0</span> post(s) awaiting approval.</strong>
+              <div style="font-size:12px;color:var(--muted);margin-top:3px;">Posts are reviewed by a moderator before appearing in the feed.</div>
+            </div>
+          </div>
+
+          <!-- Pinned posts -->
+          <div id="pinnedSection" style="display:none;">
+            <div class="section-heading pinned-heading">
+              📌 Pinned
+              <button class="toggle-pinned-btn" onclick="togglePinnedSection()">Hide</button>
+            </div>
+            <div id="pinnedPosts"></div>
+          </div>
+
+          <!-- Feed -->
+          <div id="feedSection">
+            <div class="section-heading">Latest</div>
+            <div id="feedPosts">
+              <div class="feed-loading"><span class="spinner"></span> Loading feed...</div>
+            </div>
+            <div id="loadMoreSection" style="display:none;text-align:center;padding:16px 0;">
+              <button class="btn btn-secondary" id="loadMoreBtn" onclick="loadMoreFeed()">
+                Load More Posts
+              </button>
+            </div>
+            <div id="feedEmpty" style="display:none;">
+              <div class="empty-feed">
+                <div class="empty-feed-icon">📰</div>
+                <h3>No posts yet</h3>
+                <p>Be the first to share something with the community!</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================= MEMBERS ============================= -->
+        <div class="tab-panel" id="tab-members">
+          <div class="tab-header">
+            <h2 class="tab-title">Members</h2>
+            <select id="memberTypeFilter" class="filter-select" onchange="loadMembers()">
+              <option value="">All Types</option>
+              <option value="admin">Admins</option>
+              <option value="staff">Staff</option>
+              <option value="student">Students</option>
+              <option value="parent">Parents</option>
+              <option value="alumni">Alumni</option>
+            </select>
+          </div>
+          <div id="membersListWrap">
+            <div class="loading-row"><span class="spinner"></span> Loading members...</div>
+          </div>
+          <div id="membersPagination" class="pagination-wrap" style="display:none;"></div>
+        </div>
+
+        <!-- ============================= APPROVAL QUEUE ============================= -->
+        <div class="tab-panel" id="tab-approval">
+          <div class="tab-header">
+            <h2 class="tab-title">Approval Queue <span class="pending-badge-lg" id="pendingCountBig"></span></h2>
+            <button class="btn btn-secondary btn-sm" onclick="loadApprovalQueue()">↺ Refresh</button>
+          </div>
+          <div style="background:rgba(255,165,0,0.06);border:1px solid rgba(255,165,0,0.2);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--orange);line-height:1.7;">
+            Posts awaiting approval before appearing in the community feed. Review and approve or reject each one.
+          </div>
+          <div id="approvalQueueWrap">
+            <div class="loading-row"><span class="spinner"></span> Loading...</div>
+          </div>
+        </div>
+
+        <!-- ============================= SETTINGS (Admin) ============================= -->
+        <div class="tab-panel" id="tab-settings">
+          <div class="tab-header">
+            <h2 class="tab-title">Community Settings</h2>
+            <button class="btn btn-primary btn-sm" onclick="saveSettings()">Save Settings</button>
+          </div>
+          <div class="settings-grid">
+            <div class="card">
+              <div class="card-head">Community Status</div>
+              <div class="card-body">
+                <div class="setting-row">
+                  <div class="setting-info">
+                    <div class="setting-label">Enable Community</div>
+                    <div class="setting-desc">When disabled, no member can access the community.</div>
+                  </div>
+                  <label class="toggle-switch"><input type="checkbox" id="settingIsEnabled" /><span class="toggle-slider"></span></label>
+                </div>
+                <div class="field">
+                  <label>Community Name</label>
+                  <input type="text" id="settingCommunityName" placeholder="e.g. School Community" maxlength="60" />
+                </div>
+                <div class="field">
+                  <label>Welcome Message</label>
+                  <textarea id="settingWelcomeMessage" rows="3" placeholder="A welcome message for new members..."></textarea>
+                </div>
+                <div class="field">
+                  <label>Community Rules</label>
+                  <textarea id="settingRules" rows="5" placeholder="List the community rules and guidelines..."></textarea>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head">Post Controls</div>
+              <div class="card-body">
+                <div class="setting-row">
+                  <div class="setting-info">
+                    <div class="setting-label">Require Post Approval</div>
+                    <div class="setting-desc">Member posts must be approved by a moderator before appearing.</div>
+                  </div>
+                  <label class="toggle-switch"><input type="checkbox" id="settingRequireApproval" /><span class="toggle-slider"></span></label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-info"><div class="setting-label">Allow Student Posts</div></div>
+                  <label class="toggle-switch"><input type="checkbox" id="settingStudentPosts" /><span class="toggle-slider"></span></label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-info"><div class="setting-label">Allow Parent Posts</div></div>
+                  <label class="toggle-switch"><input type="checkbox" id="settingParentPosts" /><span class="toggle-slider"></span></label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-info"><div class="setting-label">Allow Alumni Posts</div></div>
+                  <label class="toggle-switch"><input type="checkbox" id="settingAlumniPosts" /><span class="toggle-slider"></span></label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-info"><div class="setting-label">Allow Media Uploads</div></div>
+                  <label class="toggle-switch"><input type="checkbox" id="settingMediaUploads" /><span class="toggle-slider"></span></label>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head">Content Limits</div>
+              <div class="card-body">
+                <div class="field">
+                  <label>Max Post Length (characters)</label>
+                  <input type="number" id="settingMaxPostLength" min="50" max="5000" />
+                </div>
+                <div class="field">
+                  <label>Max Comment Length (characters)</label>
+                  <input type="number" id="settingMaxCommentLength" min="10" max="2000" />
+                </div>
+                <div class="field">
+                  <label>Max Media Per Post</label>
+                  <input type="number" id="settingMaxMedia" min="1" max="10" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================= MEMBER MANAGEMENT ============================= -->
+        <div class="tab-panel" id="tab-memberManagement">
+          <div class="tab-header">
+            <h2 class="tab-title">Manage Members</h2>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <select id="mgmtStatusFilter" class="filter-select" onchange="loadManagedMembers()">
+                <option value="">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="suspended">Suspended</option>
+                <option value="banned">Banned</option>
+              </select>
+              <select id="mgmtTypeFilter" class="filter-select" onchange="loadManagedMembers()">
+                <option value="">All Types</option>
+                <option value="admin">Admin</option>
+                <option value="staff">Staff</option>
+                <option value="student">Student</option>
+                <option value="parent">Parent</option>
+                <option value="alumni">Alumni</option>
+              </select>
+            </div>
+          </div>
+          <div id="managedMembersWrap">
+            <div class="loading-row"><span class="spinner"></span> Loading...</div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast"></div>
+
+  <!-- POST ACTIONS MENU -->
+  <div id="postActionsMenu" class="post-actions-dropdown" style="display:none;">
+    <div id="postActionsContent"></div>
+  </div>
+
+  <script>
+  'use strict';
+  /* ============================================
+     LATLOMP COMMUNITY — FRONTEND (E9A + E9B)
+  ============================================ */
+
+  var _communityToken  = null;
+  var _member          = null;
+  var _settings        = null;
+  var _membersPage     = 1;
+  var _feedCursor      = null;
+  var _feedHasMore     = false;
+  var _feedLoading     = false;
+  var _pinnedVisible   = true;
+  var _composerOpen    = false;
+  var _availableEvents = [];
+  var _activePostMenu  = null;
+
+  var TOKEN_KEY = 'latlomp_community_token';
+
+  /* ============================================
+     INIT
+  ============================================ */
+  document.addEventListener('DOMContentLoaded', function() {
+    initCommunity();
+    /* Close action menus on outside click */
+    document.addEventListener('click', function(e) {
+      if (_activePostMenu && !e.target.closest('.post-actions-btn') && !e.target.closest('.post-actions-dropdown')) {
+        closePostMenu();
+      }
+    });
+  });
+
+  async function initCommunity() {
+    showScreen('loading');
+
+    _communityToken = localStorage.getItem(TOKEN_KEY);
+
+    if (!_communityToken) {
+      _communityToken = await tryAutoJoin();
+    }
+
+    if (!_communityToken) { showScreen('notAuth'); return; }
+
+    /* Check token expiry */
+    try {
+      var payload   = decodeJwt(_communityToken);
+      var expiresIn = (payload.exp * 1000) - Date.now();
+      if (expiresIn < 0) {
+        localStorage.removeItem(TOKEN_KEY);
+        _communityToken = await tryAutoJoin();
+        if (!_communityToken) { showScreen('notAuth'); return; }
+      } else if (expiresIn < 24 * 60 * 60 * 1000) {
+        refreshToken();
+      }
+    } catch(e) {
+      localStorage.removeItem(TOKEN_KEY);
+      showScreen('notAuth');
+      return;
+    }
+
+    var [meRes, settingsRes] = await Promise.all([
+      communityApi('/me'),
+      communityApi('/settings')
+    ]);
+
+    if (!meRes.ok) { localStorage.removeItem(TOKEN_KEY); showScreen('notAuth'); return; }
+
+    _member   = meRes.data.member;
+    _settings = settingsRes.ok ? settingsRes.data.settings : {};
+
+    if (!_settings.isEnabled) {
+      if (_member.role === 'admin') {
+        initUI();
+        showScreen('app');
+        showToast('⚠️ Community is currently disabled. Enable it in Settings.');
+      } else {
+        document.getElementById('disabledHint').textContent = 'Ask your school administrator to enable the community.';
+        showScreen('communityDisabled');
+        return;
+      }
+    } else {
+      initUI();
+      showScreen('app');
+    }
+  }
+
+  async function tryAutoJoin() {
+    var instToken = localStorage.getItem('latlomp_inst_token') ||
+                    localStorage.getItem('latlomp_token');
+    if (instToken) {
+      try {
+        var res = await fetch('/api/community/auth/join/staff', {
+          method: 'POST', headers: { 'Authorization': 'Bearer ' + instToken }
+        });
+        if (res.ok) {
+          var data = await res.json();
+          if (data.success && data.communityToken) {
+            localStorage.setItem(TOKEN_KEY, data.communityToken);
+            return data.communityToken;
+          }
+        }
+      } catch(e) {}
+    }
+    return null;
+  }
+
+  async function refreshToken() {
+    var res = await communityApi('/auth/refresh', 'POST', {});
+    if (res.ok && res.data.communityToken) {
+      localStorage.setItem(TOKEN_KEY, res.data.communityToken);
+      _communityToken = res.data.communityToken;
+    }
+  }
+
+  /* ============================================
+     INIT UI
+  ============================================ */
+  function initUI() {
+    if (!_member || !_settings) return;
+
+    setEl('communityName', _settings.communityName || 'Community');
+
+    var initials = getInitials(_member.memberName);
+    setEl('memberChipAvatar', initials);
+    setEl('memberChipName',   _member.memberName || 'Member');
+    setEl('memberChipRole',   formatRole(_member.role));
+    setEl('composerAvatar',   initials);
+
+    setEl('profileAvatarLarge', initials);
+    setEl('profileName',        _member.memberName || 'Member');
+    setEl('profileMemberType',  formatMemberType(_member.memberType));
+    setEl('profileRole',        formatRole(_member.role));
+    setEl('profileJoined',      'Joined ' + fmtDate(_member.joinedAt));
+
+    if (_member.status === 'suspended') {
+      var sw = document.getElementById('suspensionWarning');
+      if (sw) sw.style.display = 'block';
+      if (_member.suspendedUntil) {
+        setEl('suspensionUntil', 'Until ' + fmtDate(_member.suspendedUntil) + '.');
+      }
+    }
+
+    setEl('welcomeTitle',   'Welcome to ' + (_settings.communityName || 'Community'));
+    setEl('welcomeMessage', _settings.welcomeMessage || 'Connect with your school community.');
+
+    if (_settings.rules) {
+      var rulesEl = document.getElementById('communityRules');
+      if (rulesEl) rulesEl.textContent = _settings.rules;
+    }
+
+    /* Show mod/admin nav */
+    var isMod = _member.role === 'moderator' || _member.role === 'admin';
+    if (isMod) {
+      ['modNavSection','approvalNavBtn','settingsNavBtn','memberMgmtNavBtn'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = id === 'modNavSection' ? 'block' : 'flex';
+      });
+      loadPendingCount();
+    }
+
+    /* Populate composer options */
+    initComposerOptions();
+
+    /* Suspend composer if member is suspended */
+    if (_member.status === 'suspended') {
+      var composerHeader = document.querySelector('.composer-header');
+      var suspMsg        = document.getElementById('suspendedComposerMsg');
+      if (composerHeader) composerHeader.style.display = 'none';
+      if (suspMsg)         suspMsg.style.display        = 'block';
+    }
+
+    loadStats();
+    if (_member.role === 'admin') populateSettings();
+  }
+
+  /* ============================================
+     TAB NAVIGATION
+  ============================================ */
+  function showTab(name) {
+    document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+    document.querySelectorAll('.nav-item[data-tab]').forEach(function(n) { n.classList.remove('active'); });
+
+    var panel   = document.getElementById('tab-' + name);
+    var navItem = document.querySelector('.nav-item[data-tab="' + name + '"]');
+    if (panel)   panel.classList.add('active');
+    if (navItem) navItem.classList.add('active');
+
+    if (name === 'feed')             { if (!_feedCursor && !_feedLoading) loadFeed(true); }
+    if (name === 'members')          loadMembers();
+    if (name === 'approval')         loadApprovalQueue();
+    if (name === 'memberManagement') loadManagedMembers();
+    if (name === 'settings')         populateSettings();
+
+    if (window.innerWidth < 768) {
+      var sb = document.getElementById('sidebar');
+      if (sb) sb.classList.remove('open');
+    }
+  }
+
+  function toggleSidebar() {
+    var sb = document.getElementById('sidebar');
+    if (sb) sb.classList.toggle('open');
+  }
+
+  /* ============================================
+     STATS
+  ============================================ */
+  async function loadStats() {
+    var statsEl = document.getElementById('communityStats');
+    if (!statsEl) return;
+    var res = await communityApi('/members?limit=1');
+    if (res.ok && res.data.pagination) {
+      var total = res.data.pagination.total || 0;
+      statsEl.innerHTML =
+        '<div class="stat-row">' +
+          '<span class="stat-label">Total Members</span>' +
+          '<span class="stat-value">' + total + '</span>' +
+        '</div>';
+    }
+  }
+
+  async function loadPendingCount() {
+    var res = await communityApi('/admin/posts/pending?limit=1');
+    if (!res.ok) return;
+    var count = res.data.totalPending || 0;
+    var badge = document.getElementById('pendingBadge');
+    var bigBadge = document.getElementById('pendingCountBig');
+    if (badge) {
+      badge.textContent = count;
+      badge.style.display = count > 0 ? 'inline-block' : 'none';
+    }
+    if (bigBadge) bigBadge.textContent = count > 0 ? count + ' pending' : '';
+  }
+
+  /* ============================================
+     POST COMPOSER
+  ============================================ */
+  function initComposerOptions() {
+    var typeSelect = document.getElementById('postTypeSelect');
+    var visSelect  = document.getElementById('postVisibilitySelect');
+    if (!typeSelect || !visSelect) return;
+
+    var isStaff = (_member.memberType === 'staff' || _member.memberType === 'admin');
+
+    /* Add announcement option for staff/admin */
+    if (isStaff) {
+      var opt = document.createElement('option');
+      opt.value = 'announcement';
+      opt.textContent = '📢 Announcement';
+      typeSelect.insertBefore(opt, typeSelect.options[0]);
+    }
+
+    /* Visibility options based on role */
+    var isMod = _member.role === 'moderator' || _member.role === 'admin' || isStaff;
+    visSelect.innerHTML = '<option value="all">🌐 Everyone</option>';
+    if (isMod) {
+      visSelect.innerHTML +=
+        '<option value="students">🧑‍🎓 Students only</option>' +
+        '<option value="parents">👨‍👩‍👧 Parents only</option>' +
+        '<option value="staff">👔 Staff only</option>' +
+        '<option value="alumni">🎓 Alumni only</option>';
+    } else {
+      var typeToVis = { student: 'students', parent: 'parents', alumni: 'alumni' };
+      var own = typeToVis[_member.memberType];
+      if (own) {
+        var lbl = own.charAt(0).toUpperCase() + own.slice(1);
+        visSelect.innerHTML += '<option value="' + own + '">' + lbl + ' only</option>';
+      }
+    }
+
+    /* Update char counter */
+    var maxEl = document.getElementById('charMax');
+    if (maxEl) maxEl.textContent = (_settings && _settings.maxPostLength) || 2000;
+  }
+
+  /* Open composer on textarea click */
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('.composer-header') && !_composerOpen) {
+      openComposer();
+    }
+  });
+
+  function openComposer() {
+    _composerOpen = true;
+    var header = document.querySelector('.composer-header');
+    var body   = document.getElementById('composerBody');
+    if (header) header.style.display = 'none';
+    if (body)   body.style.display   = 'block';
+    var ta = document.getElementById('postContent');
+    if (ta) ta.focus();
+  }
+
+  function closeComposer() {
+    _composerOpen = false;
+    var header = document.querySelector('.composer-header');
+    var body   = document.getElementById('composerBody');
+    if (header) header.style.display = 'flex';
+    if (body)   body.style.display   = 'none';
+    var ta = document.getElementById('postContent');
+    if (ta) ta.value = '';
+    setEl('charCount', '0');
+    var typeSelect = document.getElementById('postTypeSelect');
+    if (typeSelect) typeSelect.value = 'post';
+    onPostTypeChange();
+  }
+
+  function onComposerInput() {
+    var ta  = document.getElementById('postContent');
+    var cnt = document.getElementById('charCount');
+    var max = parseInt((document.getElementById('charMax') || {}).textContent) || 2000;
+    if (ta && cnt) {
+      var len = ta.value.length;
+      cnt.textContent = len;
+      cnt.style.color = len > max * 0.9 ? 'var(--red)' : '';
+    }
+  }
+
+  function onPostTypeChange() {
+    var typeSelect    = document.getElementById('postTypeSelect');
+    var eventPicker   = document.getElementById('eventRefPicker');
+    var eventSelect   = document.getElementById('eventRefSelect');
+    if (!typeSelect || !eventPicker) return;
+
+    var isEventRef = typeSelect.value === 'event_ref';
+    eventPicker.style.display = isEventRef ? 'block' : 'none';
+
+    if (isEventRef && eventSelect && eventSelect.options.length <= 1) {
+      loadEventPicker();
+    }
+  }
+
+  async function loadEventPicker() {
+    var eventSelect = document.getElementById('eventRefSelect');
+    if (!eventSelect) return;
+    eventSelect.innerHTML = '<option value="">Loading events...</option>';
+
+    var res = await communityApi('/events');
+    if (!res.ok || !res.data.events) {
+      eventSelect.innerHTML = '<option value="">No events available</option>';
+      return;
+    }
+
+    var events = res.data.events || [];
+    _availableEvents = events;
+
+    if (!events.length) {
+      eventSelect.innerHTML = '<option value="">No upcoming published events</option>';
+      return;
+    }
+
+    eventSelect.innerHTML = '<option value="">-- Select an event --</option>' +
+      events.map(function(ev) {
+        var dateStr = ev.date ? ' (' + new Date(ev.date).toLocaleDateString('en-GB') + ')' : '';
+        return '<option value="' + esc(ev._id) + '">' + esc(ev.title) + dateStr + '</option>';
+      }).join('');
+  }
+
+  async function createPost() {
+    var content     = (document.getElementById('postContent') || {}).value || '';
+    var postType    = (document.getElementById('postTypeSelect') || {}).value || 'post';
+    var visibility  = (document.getElementById('postVisibilitySelect') || {}).value || 'all';
+    var refId       = postType === 'event_ref'
+      ? ((document.getElementById('eventRefSelect') || {}).value || '')
+      : '';
+
+    if (!content.trim()) { showToast('❌ Please write something before posting.'); return; }
+    if (postType === 'event_ref' && !refId) {
+      showToast('❌ Please select an event to reference.');
+      return;
+    }
+
+    var maxLen = (_settings && _settings.maxPostLength) || 2000;
+    if (content.trim().length > maxLen) {
+      showToast('❌ Post is too long. Maximum ' + maxLen + ' characters.');
+      return;
+    }
+
+    var btn = document.getElementById('submitPostBtn');
+    if (btn) { btn.innerHTML = '<span class="spinner"></span> Posting...'; btn.disabled = true; }
+
+    var payload = { content: content.trim(), postType, visibility };
+    if (refId) payload.refId = refId;
+
+    var res = await communityApi('/posts', 'POST', payload);
+
+    if (btn) { btn.innerHTML = 'Post to Community'; btn.disabled = false; }
+
+    if (res.ok && res.data.success) {
+      showToast('✅ ' + (res.data.message || 'Posted!'));
+      closeComposer();
+      if (res.data.post && res.data.post.status === 'published') {
+        /* Prepend to feed */
+        prependPostToFeed(res.data.post);
+      } else {
+        /* Show pending notice */
+        loadMyPendingNotice();
+      }
+    } else {
+      showToast('❌ ' + ((res.data && res.data.message) || 'Post failed.'));
+    }
+  }
+
+  async function loadMyPendingNotice() {
+    /* Check if member has pending posts */
+    var notice   = document.getElementById('myPendingNotice');
+    var countEl  = document.getElementById('myPendingCount');
+    if (!notice) return;
+
+    /* We use the feed endpoint with no cursor — pending posts from this author
+       are included in their own view. Here we just show the notice. */
+    notice.style.display = 'flex';
+    if (countEl) countEl.textContent = '1+';
+  }
+
+  /* ============================================
+     FEED
+  ============================================ */
+  async function loadFeed(refresh) {
+    if (_feedLoading) return;
+    _feedLoading = true;
+
+    if (refresh) {
+      _feedCursor  = null;
+      _feedHasMore = false;
+      var feedEl = document.getElementById('feedPosts');
+      if (feedEl) feedEl.innerHTML = '<div class="feed-loading"><span class="spinner"></span> Loading feed...</div>';
+      document.getElementById('loadMoreSection').style.display = 'none';
+      document.getElementById('feedEmpty').style.display = 'none';
+    }
+
+    var url = '/feed' + (_feedCursor ? '?cursor=' + encodeURIComponent(_feedCursor) : '');
+    var res = await communityApi(url);
+    _feedLoading = false;
+
+    if (!res.ok || !res.data.success) {
+      var feedEl2 = document.getElementById('feedPosts');
+      if (feedEl2) feedEl2.innerHTML = '<div class="empty-state">Could not load feed.</div>';
+      return;
+    }
+
+    var posts   = res.data.posts   || [];
+    var hasMore = res.data.hasMore || false;
+
+    _feedHasMore = hasMore;
+    _feedCursor  = res.data.nextCursor || null;
+
+    if (refresh) {
+      renderFeedPosts(posts, false);
+      /* Load pinned posts */
+      loadPinnedPosts();
+    } else {
+      renderFeedPosts(posts, true); /* append */
+    }
+
+    document.getElementById('loadMoreSection').style.display = hasMore ? 'block' : 'none';
+
+    if (refresh && !posts.length) {
+      document.getElementById('feedPosts').innerHTML = '';
+      document.getElementById('feedEmpty').style.display = 'block';
+    }
+  }
+
+  function loadMoreFeed() {
+    if (_feedHasMore && !_feedLoading) loadFeed(false);
+  }
+
+  async function loadPinnedPosts() {
+    var pinnedEl  = document.getElementById('pinnedPosts');
+    var pinnedSec = document.getElementById('pinnedSection');
+    if (!pinnedEl) return;
+
+    var res = await communityApi('/feed/pinned');
+    if (!res.ok || !res.data.posts || !res.data.posts.length) {
+      if (pinnedSec) pinnedSec.style.display = 'none';
+      return;
+    }
+
+    pinnedEl.innerHTML = res.data.posts.map(function(p) {
+      return renderPost(p, true);
+    }).join('');
+    if (pinnedSec) pinnedSec.style.display = 'block';
+  }
+
+  function togglePinnedSection() {
+    _pinnedVisible = !_pinnedVisible;
+    var pinnedEl = document.getElementById('pinnedPosts');
+    var btn      = document.querySelector('.toggle-pinned-btn');
+    if (pinnedEl) pinnedEl.style.display = _pinnedVisible ? 'block' : 'none';
+    if (btn)      btn.textContent         = _pinnedVisible ? 'Hide' : 'Show';
+  }
+
+  function renderFeedPosts(posts, append) {
+    var feedEl = document.getElementById('feedPosts');
+    if (!feedEl) return;
+
+    if (!append) feedEl.innerHTML = '';
+
+    if (!posts.length && !append) {
+      document.getElementById('feedEmpty').style.display = 'block';
+      return;
+    }
+
+    var html = posts.map(function(p) { return renderPost(p, false); }).join('');
+
+    if (append) {
+      feedEl.insertAdjacentHTML('beforeend', html);
+    } else {
+      feedEl.innerHTML = html;
+    }
+  }
+
+  function prependPostToFeed(post) {
+    var feedEl = document.getElementById('feedPosts');
+    if (!feedEl) return;
+    var emptyEl = document.getElementById('feedEmpty');
+    if (emptyEl) emptyEl.style.display = 'none';
+    feedEl.insertAdjacentHTML('afterbegin', renderPost(post, false));
+  }
+
+  /* ============================================
+     POST RENDERING
+     All user content: esc() applied — no HTML injection.
+============================================ */
+  function renderPost(post, isPinned) {
+    var isOwnPost  = _member && post.authorId && post.authorId.toString() === _member._id.toString();
+    var isModAdmin = _member && (_member.role === 'moderator' || _member.role === 'admin');
+    var typeMeta   = getPostTypeMeta(post.postType);
+    var initials   = getInitials(post.authorName);
+
+    return '<div class="post-card' + (isPinned ? ' post-card-pinned' : '') + '" data-post-id="' + esc(post._id) + '">' +
+      '<div class="post-header">' +
+        '<div class="post-avatar">' + esc(initials) + '</div>' +
+        '<div class="post-author-info">' +
+          '<div class="post-author-name">' + esc(post.authorName || 'Member') + '</div>' +
+          '<div class="post-meta">' +
+            '<span class="badge">' + esc(formatMemberType(post.authorType)) + '</span>' +
+            ' · <span class="post-time">' + formatTimeAgo(post.createdAt) + '</span>' +
+            (post.visibility !== 'all' ? ' · <span class="post-visibility">👁 ' + esc(post.visibility) + '</span>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="post-header-right">' +
+          (isPinned ? '<span class="pin-badge">📌 Pinned</span>' : '') +
+          (post.isLocked ? '<span class="lock-badge">🔒 Locked</span>' : '') +
+          (post.status === 'pending' ? '<span class="pending-badge-sm">⏳ Pending</span>' : '') +
+          '<button class="post-actions-btn" onclick="openPostMenu(event, \'' + esc(post._id) + '\', ' + isOwnPost + ', ' + isModAdmin + ', ' + isPinned + ', ' + post.isLocked + ')">⋯</button>' +
+        '</div>' +
+      '</div>' +
+
+      /* Post type badge */
+      (post.postType !== 'post' ?
+        '<div class="post-type-row">' +
+          '<span class="post-type-badge post-type-' + esc(post.postType) + '">' + typeMeta.icon + ' ' + typeMeta.label + '</span>' +
+        '</div>' : '') +
+
+      /* Content — escaped plain text, newlines → br */
+      '<div class="post-content">' + nl2br(esc(post.content)) + '</div>' +
+
+      /* Event reference card */
+      (post.postType === 'event_ref' && post.refData ? renderEventRefCard(post.refData) : '') +
+
+      /* Footer: counters */
+      '<div class="post-footer">' +
+        '<div class="post-stats">' +
+          '<span class="post-stat" title="Comments">💬 ' + (post.commentCount || 0) + '</span>' +
+          '<span class="post-stat" title="Reactions">❤️ ' + (post.reactionCount || 0) + '</span>' +
+        '</div>' +
+        '<div class="post-footer-right">' +
+          (post.isLocked ? '<span class="post-locked-note">Discussion closed</span>' : '') +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function renderEventRefCard(refData) {
+    if (!refData) return '';
+    var dateStr = refData.date ? new Date(refData.date).toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'long' }) : '';
+    var address = (refData.location && refData.location.address) ? refData.location.address : '';
+    return '<div class="event-ref-card">' +
+      '<div class="event-ref-icon">📅</div>' +
+      '<div class="event-ref-info">' +
+        '<div class="event-ref-title">' + esc(refData.title || 'School Event') + '</div>' +
+        (dateStr  ? '<div class="event-ref-date">' + esc(dateStr) + '</div>' : '') +
+        (address  ? '<div class="event-ref-loc">📍 ' + esc(address) + '</div>' : '') +
+      '</div>' +
+    '</div>';
+  }
+
+  /* ============================================
+     POST ACTIONS MENU
+  ============================================ */
+  function openPostMenu(e, postId, isOwn, isModAdmin, isPinned, isLocked) {
+    e.stopPropagation();
+    _activePostMenu = postId;
+
+    var menu    = document.getElementById('postActionsMenu');
+    var content = document.getElementById('postActionsContent');
+    if (!menu || !content) return;
+
+    var items = [];
+    if (isOwn) {
+      items.push('<button class="post-menu-item" onclick="startEditPost(\'' + esc(postId) + '\')">✏️ Edit</button>');
+      items.push('<button class="post-menu-item post-menu-danger" onclick="deleteOwnPost(\'' + esc(postId) + '\')">🗑️ Delete</button>');
+    }
+    if (isModAdmin) {
+      items.push('<hr class="post-menu-divider" />');
+      items.push('<button class="post-menu-item" onclick="adminTogglePin(\'' + esc(postId) + '\', ' + isPinned + ')">' + (isPinned ? '📌 Unpin' : '📌 Pin') + '</button>');
+      items.push('<button class="post-menu-item" onclick="adminToggleLock(\'' + esc(postId) + '\', ' + isLocked + ')">' + (isLocked ? '🔓 Unlock' : '🔒 Lock') + '</button>');
+      if (!isOwn) {
+        items.push('<button class="post-menu-item post-menu-danger" onclick="adminRemovePost(\'' + esc(postId) + '\')">🚫 Remove Post</button>');
+      }
+    }
+    if (!items.length) {
+      items.push('<div class="post-menu-empty">No actions available</div>');
+    }
+
+    content.innerHTML = items.join('');
+
+    /* Position near button */
+    var rect = e.target.getBoundingClientRect();
+    menu.style.top     = (rect.bottom + window.scrollY + 4) + 'px';
+    menu.style.left    = Math.min(rect.left, window.innerWidth - 200) + 'px';
+    menu.style.display = 'block';
+  }
+
+  function closePostMenu() {
+    var menu = document.getElementById('postActionsMenu');
+    if (menu) menu.style.display = 'none';
+    _activePostMenu = null;
+  }
+
+  /* ---- Edit Post ---- */
+  function startEditPost(postId) {
+    closePostMenu();
+    var postEl = document.querySelector('.post-card[data-post-id="' + postId + '"]');
+    if (!postEl) return;
+
+    var contentEl = postEl.querySelector('.post-content');
+    if (!contentEl) return;
+    var current = contentEl.textContent || '';
+
+    /* Replace content with inline editor */
+    contentEl.innerHTML =
+      '<textarea class="inline-edit-textarea" id="editTextarea-' + esc(postId) + '" maxlength="5000">' + esc(current) + '</textarea>' +
+      '<div class="inline-edit-actions">' +
+        '<button class="btn btn-secondary btn-sm" onclick="cancelEditPost(\'' + esc(postId) + '\', ' + JSON.stringify(esc(current)) + ')">Cancel</button>' +
+        '<button class="btn btn-primary btn-sm" onclick="saveEditPost(\'' + esc(postId) + '\')">Save</button>' +
+      '</div>';
+    var ta = document.getElementById('editTextarea-' + postId);
+    if (ta) ta.focus();
+  }
+
+  function cancelEditPost(postId, original) {
+    var postEl = document.querySelector('.post-card[data-post-id="' + postId + '"]');
+    if (!postEl) return;
+    var contentEl = postEl.querySelector('.post-content');
+    if (contentEl) contentEl.innerHTML = nl2br(esc(original));
+  }
+
+  async function saveEditPost(postId) {
+    var ta = document.getElementById('editTextarea-' + postId);
+    if (!ta) return;
+    var newContent = ta.value.trim();
+    if (!newContent) { showToast('❌ Content cannot be empty.'); return; }
+
+    var res = await communityApi('/posts/' + postId, 'PUT', { content: newContent });
+    if (res.ok && res.data.success) {
+      showToast('✅ Post updated.');
+      var postEl    = document.querySelector('.post-card[data-post-id="' + postId + '"]');
+      var contentEl = postEl && postEl.querySelector('.post-content');
+      if (contentEl) contentEl.innerHTML = nl2br(esc(res.data.content || newContent));
+    } else {
+      showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+    }
+  }
+
+  /* ---- Delete Own Post ---- */
+  async function deleteOwnPost(postId) {
+    closePostMenu();
+    if (!confirm('Delete this post? This cannot be undone.')) return;
+    var res = await communityApi('/posts/' + postId, 'DELETE', {});
+    if (res.ok && res.data.success) {
+      showToast('Post deleted.');
+      var postEl = document.querySelector('.post-card[data-post-id="' + postId + '"]');
+      if (postEl) postEl.remove();
+    } else {
+      showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+    }
+  }
+
+  /* ---- Admin Pin/Unpin ---- */
+  async function adminTogglePin(postId, isPinned) {
+    closePostMenu();
+    var endpoint = isPinned ? '/admin/posts/' + postId + '/unpin' : '/admin/posts/' + postId + '/pin';
+    var res      = await communityApi(endpoint, 'POST', {});
+    if (res.ok && res.data.success) {
+      showToast(isPinned ? 'Post unpinned.' : '📌 Post pinned.');
+      loadFeed(true);
+    } else {
+      showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+    }
+  }
+
+  /* ---- Admin Lock/Unlock ---- */
+  async function adminToggleLock(postId, isLocked) {
+    closePostMenu();
+    var endpoint = isLocked ? '/admin/posts/' + postId + '/unlock' : '/admin/posts/' + postId + '/lock';
+    var res      = await communityApi(endpoint, 'POST', {});
+    if (res.ok && res.data.success) {
+      showToast(isLocked ? '🔓 Discussion unlocked.' : '🔒 Discussion locked.');
+      loadFeed(true);
+    } else {
+      showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+    }
+  }
+
+  /* ---- Admin Remove Post ---- */
+  async function adminRemovePost(postId) {
+    closePostMenu();
+    var reason = prompt('Reason for removing this post (shown in moderation log):');
+    if (reason === null) return;
+    var res = await communityApi('/admin/posts/' + postId, 'DELETE', { reason: reason || 'Removed by moderator' });
+    if (res.ok && res.data.success) {
+      showToast('Post removed.');
+      var postEl = document.querySelector('.post-card[data-post-id="' + postId + '"]');
+      if (postEl) postEl.remove();
+    } else {
+      showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+    }
+  }
+
+  /* ============================================
+     APPROVAL QUEUE
+  ============================================ */
+  async function loadApprovalQueue() {
+    var wrapEl = document.getElementById('approvalQueueWrap');
+    if (!wrapEl) return;
+    wrapEl.innerHTML = '<div class="loading-row"><span class="spinner"></span> Loading...</div>';
+
+    var res = await communityApi('/admin/posts/pending');
+    if (!res.ok || !res.data.success) {
+      wrapEl.innerHTML = '<div class="empty-state">Could not load approval queue.</div>';
+      return;
+    }
+
+    loadPendingCount();
+
+    var posts = res.data.posts || [];
+    if (!posts.length) {
+      wrapEl.innerHTML = '<div class="empty-state">✅ No posts awaiting approval.</div>';
+      return;
+    }
+
+    wrapEl.innerHTML = posts.map(function(p) {
+      var typeMeta = getPostTypeMeta(p.postType);
+      var initials = getInitials(p.authorName);
+      return '<div class="approval-card" data-post-id="' + esc(p._id) + '">' +
+        '<div class="approval-card-header">' +
+          '<div class="post-avatar sm">' + esc(initials) + '</div>' +
+          '<div>' +
+            '<div class="post-author-name">' + esc(p.authorName || 'Member') + '</div>' +
+            '<div class="post-meta">' +
+              '<span class="badge">' + esc(formatMemberType(p.authorType)) + '</span>' +
+              ' · ' + formatTimeAgo(p.createdAt) +
+              (p.postType !== 'post' ? ' · <span class="post-type-badge post-type-' + esc(p.postType) + '">' + typeMeta.icon + ' ' + typeMeta.label + '</span>' : '') +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="approval-content">' + nl2br(esc(p.content)) + '</div>' +
+        '<div class="approval-actions">' +
+          '<button class="btn btn-secondary btn-sm" onclick="rejectPost(\'' + esc(p._id) + '\')">✕ Reject</button>' +
+          '<button class="btn btn-green btn-sm" onclick="approvePost(\'' + esc(p._id) + '\')">✓ Approve & Publish</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  async function approvePost(postId) {
+    var res = await communityApi('/admin/posts/' + postId + '/approve', 'POST', {});
+    if (res.ok && res.data.success) {
+      showToast('✅ Post approved and published.');
+      var card = document.querySelector('.approval-card[data-post-id="' + postId + '"]');
+      if (card) card.remove();
+      loadPendingCount();
+      /* Check if queue is now empty */
+      var remaining = document.querySelectorAll('.approval-card').length;
+      if (!remaining) {
+        var wrapEl = document.getElementById('approvalQueueWrap');
+        if (wrapEl) wrapEl.innerHTML = '<div class="empty-state">✅ No posts awaiting approval.</div>';
+      }
+    } else {
+      showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+    }
+  }
+
+  async function rejectPost(postId) {
+    var reason = prompt('Reason for rejecting this post (optional):') || '';
+    if (reason === null) return;
+    var res = await communityApi('/admin/posts/' + postId + '/reject', 'POST', { reason });
+    if (res.ok && res.data.success) {
+      showToast('Post rejected.');
+      var card = document.querySelector('.approval-card[data-post-id="' + postId + '"]');
+      if (card) card.remove();
+      loadPendingCount();
+    } else {
+      showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+    }
+  }
+
+  /* ============================================
+     MEMBERS LIST (from E9A — unchanged)
+  ============================================ */
+  async function loadMembers() {
+    var listEl = document.getElementById('membersListWrap');
+    if (!listEl) return;
+    listEl.innerHTML = '<div class="loading-row"><span class="spinner"></span> Loading...</div>';
+
+    var typeFilter = (document.getElementById('memberTypeFilter') || {}).value || '';
+    var url = '/members?page=' + _membersPage + '&limit=20' + (typeFilter ? '&memberType=' + encodeURIComponent(typeFilter) : '');
+
+    var res = await communityApi(url);
+    if (!res.ok || !res.data.members) {
+      listEl.innerHTML = '<div class="empty-state">Could not load members.</div>';
+      return;
+    }
+
+    var members    = res.data.members    || [];
+    var pagination = res.data.pagination || {};
+
+    if (!members.length) { listEl.innerHTML = '<div class="empty-state">No members found.</div>'; return; }
+
+    listEl.innerHTML = '<div class="members-grid">' +
+      members.map(function(m) {
+        var initials = getInitials(m.memberName);
+        return '<div class="member-card">' +
+          '<div class="member-card-avatar">' + esc(initials) + '</div>' +
+          '<div class="member-card-info">' +
+            '<div class="member-card-name">' + esc(m.memberName || 'Member') + '</div>' +
+            '<div class="member-card-meta">' +
+              '<span class="badge">' + esc(formatMemberType(m.memberType)) + '</span>' +
+              (m.role !== 'member' ? '<span class="badge badge-role">' + esc(formatRole(m.role)) + '</span>' : '') +
+            '</div>' +
+            '<div class="member-card-joined">Joined ' + fmtDate(m.joinedAt) + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('') + '</div>';
+
+    var pagEl = document.getElementById('membersPagination');
+    if (pagEl && pagination.pages > 1) {
+      pagEl.style.display = 'flex';
+      pagEl.innerHTML =
+        (pagination.page > 1 ? '<button class="btn btn-secondary btn-sm" onclick="_membersPage--;loadMembers()">← Prev</button>' : '') +
+        '<span style="font-size:13px;color:var(--muted);">Page ' + pagination.page + ' of ' + pagination.pages + '</span>' +
+        (pagination.hasMore ? '<button class="btn btn-secondary btn-sm" onclick="_membersPage++;loadMembers()">Next →</button>' : '');
+    }
+  }
+
+  /* ============================================
+     MEMBER MANAGEMENT (from E9A — unchanged)
+  ============================================ */
+  async function loadManagedMembers() {
+    var wrapEl = document.getElementById('managedMembersWrap');
+    if (!wrapEl) return;
+    wrapEl.innerHTML = '<div class="loading-row"><span class="spinner"></span> Loading...</div>';
+
+    var status = (document.getElementById('mgmtStatusFilter') || {}).value || '';
+    var type   = (document.getElementById('mgmtTypeFilter')   || {}).value || '';
+    var url    = '/admin/members?limit=30' +
+      (status ? '&status=' + encodeURIComponent(status) : '') +
+      (type   ? '&memberType=' + encodeURIComponent(type) : '');
+
+    var res = await communityApi(url);
+    if (!res.ok || !res.data.members) {
+      wrapEl.innerHTML = '<div class="empty-state">Could not load members.</div>';
+      return;
+    }
+
+    var members  = res.data.members || [];
+    var isAdmin  = _member && _member.role === 'admin';
+
+    if (!members.length) { wrapEl.innerHTML = '<div class="empty-state">No members found.</div>'; return; }
+
+    wrapEl.innerHTML = '<div class="tbl-wrap"><table><thead><tr>' +
+      '<th>Member</th><th>Type</th><th>Role</th><th>Status</th><th>Last Active</th><th>Actions</th>' +
+      '</tr></thead><tbody>' +
+      members.map(function(m) {
+        var statusBadge = m.status === 'active'    ? '<span class="badge badge-green">Active</span>'    :
+                          m.status === 'suspended' ? '<span class="badge badge-orange">Suspended</span>':
+                          m.status === 'banned'    ? '<span class="badge badge-red">Banned</span>'      :
+                                                     '<span class="badge">' + esc(m.status) + '</span>';
+        var isSelf = _member && m._id === _member._id.toString();
+        return '<tr>' +
+          '<td style="font-weight:700;color:#fff;">' + esc(m.memberName || 'Member') + '</td>' +
+          '<td><span class="badge">' + esc(formatMemberType(m.memberType)) + '</span></td>' +
+          '<td><span class="badge badge-role">' + esc(formatRole(m.role)) + '</span></td>' +
+          '<td>' + statusBadge + (m.suspendedUntil ? '<div style="font-size:11px;color:var(--muted);">until ' + fmtDate(m.suspendedUntil) + '</div>' : '') + '</td>' +
+          '<td style="font-size:12px;">' + (m.lastActiveAt ? fmtDate(m.lastActiveAt) : '—') + '</td>' +
+          '<td><div style="display:flex;gap:5px;flex-wrap:wrap;">' +
+            (!isSelf && m.status === 'active' ? '<button class="btn btn-secondary btn-sm" onclick="promptSuspend(\'' + m._id + '\',\'' + esc(m.memberName) + '\')">Suspend</button>' : '') +
+            (!isSelf && m.status === 'suspended' ? '<button class="btn btn-secondary btn-sm" onclick="unsuspendMember(\'' + m._id + '\')">Unsuspend</button>' : '') +
+            (isAdmin && !isSelf && m.role !== 'admin' ? '<button class="btn btn-secondary btn-sm" onclick="promoteRole(\'' + m._id + '\',\'' + m.role + '\')">Role</button>' : '') +
+            (isAdmin && !isSelf && m.status !== 'banned' ? '<button class="btn btn-danger btn-sm" onclick="banMember(\'' + m._id + '\',\'' + esc(m.memberName) + '\')">Ban</button>' : '') +
+          '</div></td>' +
+        '</tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+
+  async function promptSuspend(memberId, memberName) {
+    var days   = prompt('Suspend "' + memberName + '" for how many days? (Leave blank = indefinite)');
+    if (days === null) return;
+    var reason = prompt('Reason (optional):') || '';
+    var payload = { reason };
+    if (days && parseInt(days) > 0) payload.days = parseInt(days);
+    var res = await communityApi('/admin/members/' + memberId + '/suspend', 'PUT', payload);
+    if (res.ok) { showToast('✅ Member suspended.'); loadManagedMembers(); }
+    else          showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+  }
+
+  async function unsuspendMember(memberId) {
+    if (!confirm('Lift suspension for this member?')) return;
+    var res = await communityApi('/admin/members/' + memberId + '/unsuspend', 'PUT', {});
+    if (res.ok) { showToast('✅ Suspension lifted.'); loadManagedMembers(); }
+    else          showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+  }
+
+  async function promoteRole(memberId, currentRole) {
+    var newRole = prompt('Set role:\nmember\nmoderator\nadmin\n\nCurrent: ' + currentRole);
+    if (!newRole || !['member','moderator','admin'].includes(newRole.trim().toLowerCase())) return;
+    var res = await communityApi('/admin/members/' + memberId + '/role', 'PUT', { role: newRole.trim().toLowerCase() });
+    if (res.ok) { showToast('✅ Role updated.'); loadManagedMembers(); }
+    else          showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+  }
+
+  async function banMember(memberId, memberName) {
+    var reason = prompt('Permanently ban "' + memberName + '"?\nEnter reason or Cancel:');
+    if (reason === null) return;
+    var res = await communityApi('/admin/members/' + memberId, 'DELETE', { reason });
+    if (res.ok) { showToast('Member banned.'); loadManagedMembers(); }
+    else          showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+  }
+
+  /* ============================================
+     SETTINGS (Admin — from E9A unchanged)
+  ============================================ */
+  function populateSettings() {
+    if (!_settings || !_member || _member.role !== 'admin') return;
+    var setChk = function(id, val) { var el = document.getElementById(id); if (el) el.checked = !!val; };
+    var setVal = function(id, val) { var el = document.getElementById(id); if (el) el.value = val !== undefined ? val : ''; };
+    setChk('settingIsEnabled',        _settings.isEnabled);
+    setChk('settingRequireApproval',  _settings.requirePostApproval);
+    setChk('settingStudentPosts',     _settings.allowStudentPosts);
+    setChk('settingParentPosts',      _settings.allowParentPosts);
+    setChk('settingAlumniPosts',      _settings.allowAlumniPosts);
+    setChk('settingMediaUploads',     _settings.allowMediaUploads);
+    setVal('settingCommunityName',    _settings.communityName    || '');
+    setVal('settingWelcomeMessage',   _settings.welcomeMessage   || '');
+    setVal('settingRules',            _settings.rules            || '');
+    setVal('settingMaxPostLength',    _settings.maxPostLength    || 2000);
+    setVal('settingMaxCommentLength', _settings.maxCommentLength || 500);
+    setVal('settingMaxMedia',         _settings.maxMediaPerPost  || 4);
+  }
+
+  async function saveSettings() {
+    var getChk = function(id) { var el = document.getElementById(id); return el ? el.checked : false; };
+    var getVal = function(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; };
+    var payload = {
+      isEnabled:           getChk('settingIsEnabled'),
+      communityName:       getVal('settingCommunityName') || 'School Community',
+      welcomeMessage:      getVal('settingWelcomeMessage'),
+      rules:               getVal('settingRules'),
+      requirePostApproval: getChk('settingRequireApproval'),
+      allowStudentPosts:   getChk('settingStudentPosts'),
+      allowParentPosts:    getChk('settingParentPosts'),
+      allowAlumniPosts:    getChk('settingAlumniPosts'),
+      allowMediaUploads:   getChk('settingMediaUploads'),
+      maxPostLength:       parseInt(getVal('settingMaxPostLength'))    || 2000,
+      maxCommentLength:    parseInt(getVal('settingMaxCommentLength')) || 500,
+      maxMediaPerPost:     parseInt(getVal('settingMaxMedia'))        || 4
+    };
+    var res = await communityApi('/admin/settings', 'PUT', payload);
+    if (res.ok && res.data.success) {
+      showToast('✅ Community settings saved!');
+      _settings = Object.assign(_settings || {}, payload);
+      setEl('communityName', payload.communityName);
+      var maxEl = document.getElementById('charMax');
+      if (maxEl) maxEl.textContent = payload.maxPostLength;
+    } else {
+      showToast('❌ ' + ((res.data && res.data.message) || 'Save failed.'));
+    }
+  }
+
+  /* ============================================
+     UTILITIES
+  ============================================ */
+  function showScreen(name) {
+    var map = {
+      loading:           'loadingScreen',
+      notAuth:           'notAuthScreen',
+      communityDisabled: 'communityDisabledScreen',
+      app:               'communityApp'
+    };
+    Object.keys(map).forEach(function(s) {
+      var el = document.getElementById(map[s]);
+      if (el) el.style.display = (s === name) ? (s === 'app' ? 'flex' : 'block') : 'none';
+    });
+    if (name === 'loading') {
+      var ls = document.getElementById('loadingScreen');
+      if (ls) ls.style.display = 'flex';
+    }
+  }
+
+  function goBackToPortal() {
+    var instToken = localStorage.getItem('latlomp_inst_token') ||
+                    localStorage.getItem('latlomp_token');
+    if (instToken) { window.location.href = '/institution/school/dashboard.html'; return; }
+    window.location.href = '/';
+  }
+
+  async function communityApi(path, method, body) {
+    var token = localStorage.getItem(TOKEN_KEY) || _communityToken || '';
+    var opts  = {
+      method:  method || 'GET',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }
+    };
+    if (body && method !== 'GET') opts.body = JSON.stringify(body);
+    try {
+      var res  = await fetch('/api/community' + path, opts);
+      var data = await res.json();
+      return { ok: res.ok, status: res.status, data };
+    } catch(err) {
+      return { ok: false, status: 0, data: { message: err.message } };
+    }
+  }
+
+  function decodeJwt(token) {
+    var parts = (token || '').split('.');
+    if (parts.length !== 3) throw new Error('Invalid JWT');
+    return JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+  }
+
+  function setEl(id, text) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = text || '';
+  }
+
+  function esc(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');
+  }
+
+  /* nl2br — ONLY call AFTER esc() has been applied */
+  function nl2br(escapedStr) {
+    return escapedStr.replace(/\n/g, '<br/>');
+  }
+
+  function getInitials(name) {
+    return (name || '?').split(' ').slice(0,2)
+      .map(function(w){ return w.charAt(0).toUpperCase(); }).join('') || '?';
+  }
+
+  function fmtDate(d) {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+  }
+
+  function formatTimeAgo(dateStr) {
+    if (!dateStr) return '—';
+    var diff  = Date.now() - new Date(dateStr).getTime();
+    var mins  = Math.floor(diff / 60000);
+    if (mins  < 1)  return 'just now';
+    if (mins  < 60) return mins + 'm ago';
+    var hours = Math.floor(mins / 60);
+    if (hours < 24) return hours + 'h ago';
+    var days  = Math.floor(hours / 24);
+    if (days  < 7)  return days + 'd ago';
+    return fmtDate(dateStr);
+  }
+
+  function formatRole(role) {
+    return role === 'admin' ? 'Admin' : role === 'moderator' ? 'Moderator' : 'Member';
+  }
+
+  function formatMemberType(type) {
+    return type === 'admin'   ? 'Admin'         :
+           type === 'staff'   ? 'Staff'          :
+           type === 'student' ? 'Student'        :
+           type === 'parent'  ? 'Parent'         :
+           type === 'alumni'  ? 'Alumni'         : (type || 'Member');
+  }
+
+  function getPostTypeMeta(type) {
+    var map = {
+      post:         { icon: '💬', label: 'Post' },
+      announcement: { icon: '📢', label: 'Announcement' },
+      event_ref:    { icon: '📅', label: 'Event' },
+      achievement:  { icon: '🏆', label: 'Achievement' },
+      competition:  { icon: '🏅', label: 'Competition' },
+      award:        { icon: '🎖️', label: 'Award' },
+      reunion:      { icon: '🎓', label: 'Reunion' }
+    };
+    return map[type] || { icon: '💬', label: type || 'Post' };
+  }
+
+  function showToast(msg, duration) {
+    var el = document.getElementById('toast');
+    if (!el) return;
+    el.textContent = msg;
+    el.style.display = 'block';
+    clearTimeout(el._t);
+    el._t = setTimeout(function() { el.style.display = 'none'; }, duration || 3500);
+  }
+  </script>
+</body>
+</html>
