@@ -821,5 +821,598 @@ router.delete('/admin/posts/:id', communityProtect, communityModGuard, async fun
     return res.status(500).json({ success: false, message: err.message });
   }
 });
+/* ============================================
+   E9C: COMMENT AND REACTION ROUTES
+   All queries: TENANT SCOPED to req.schoolId.
+   authorId: ALWAYS from req.communityMember.
+   Locked posts: server rejects new comments.
+   Suspended members: communityWriteGuard blocks writes.
+============================================ */
 
+var CommunityComment = require('../models/CommunityComment.model');
+var CommunityReaction= require('../models/CommunityReaction.model');
+var commentService   = require('../services/community.comment.service');
+
+var VALID_REACTIONS = ['like', 'love', 'celebrate', 'support', 'insightful'];
+
+/* ============================================
+   GET /api/community/posts/:id/comments
+   Paginated comment thread with nested replies.
+   cursor = _id of last top-level comment seen.
+============================================ */
+router.get('/posts/:id/comments', communityProtect, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid post ID.' });
+    }
+
+    /* Verify post exists and is visible — TENANT SCOPE */
+    var post = await CommunityPost.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId,
+      status:   'published'
+    }).select('_id isLocked commentCount').lean();
+
+    if (!post) {
+      return res.status(404).json({ success: false, message: 'Post not found.' });
+    }
+
+    var cursor = req.query.cursor || null;
+    var limit  = parseInt(req.query.limit) || commentService.COMMENT_PAGE;
+
+    var result = await commentService.getCommentThread(
+      req.schoolId,
+      post._id,
+      cursor,
+      limit
+    );
+
+    return res.json({
+      success:      true,
+      comments:     result.comments,
+      nextCursor:   result.nextCursor,
+      hasMore:      result.hasMore,
+      totalComments:post.commentCount || 0,
+      isLocked:     post.isLocked
+    });
+  } catch(err) {
+    console.error('[community] GET /posts/:id/comments:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   POST /api/community/posts/:id/comments
+   Create a top-level comment on a post.
+   Rejects if: post locked, post not published,
+   post not in same school, member suspended.
+============================================ */
+router.post('/posts/:id/comments', communityProtect, communityWriteGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid post ID.' });
+    }
+
+    var member   = req.communityMember;
+    var settings = await ensureSettings(req.schoolId);
+
+    /* Verify post — TENANT SCOPE */
+    var post = await CommunityPost.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId,
+      status:   'published'
+    }).select('_id isLocked visibility').lean();
+
+    if (!post) {
+      return res.status(404).json({ success: false, message: 'Post not found.' });
+    }
+
+    /* ✅ Locked discussion: server enforces this — not just frontend */
+    if (post.isLocked) {
+      return res.status(403).json({
+        success: false,
+        message: 'This discussion is locked. No new comments are being accepted.',
+        isLocked: true
+      });
+    }
+
+    /* Validate content */
+    var content = sanitizeText(req.body.content || '');
+    if (!content) {
+      return res.status(400).json({ success: false, message: 'Comment cannot be empty.' });
+    }
+    var maxLen = settings.maxCommentLength || 500;
+    if (content.length > maxLen) {
+      return res.status(400).json({
+        success: false,
+        message: 'Comment exceeds maximum length of ' + maxLen + ' characters.'
+      });
+    }
+
+    var comment = await CommunityComment.create({
+      schoolId:     req.schoolId,
+      postId:       post._id,
+      parentId:     null,
+      authorId:     member._id,
+      authorType:   member.memberType,
+      authorRef:    member.memberRef,
+      authorName:   member.memberName   || 'Member',
+      authorAvatar: member.memberAvatar || '',
+      content,
+      status: 'published'
+    });
+
+    /* Atomic counter increment — non-blocking */
+    commentService.incrementPostCommentCount(post._id, req.schoolId, 1)
+      .catch(function(e) { console.warn('[community] commentCount inc failed:', e.message); });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Comment added.',
+      comment: {
+        _id:          comment._id,
+        postId:       comment.postId,
+        parentId:     null,
+        authorName:   comment.authorName,
+        authorType:   comment.authorType,
+        authorAvatar: comment.authorAvatar,
+        content:      comment.content,
+        status:       comment.status,
+        reactionCount:0,
+        replyCount:   0,
+        replies:      [],
+        createdAt:    comment.createdAt
+      }
+    });
+  } catch(err) {
+    console.error('[community] POST /posts/:id/comments:', err.message);
+    return res.status(500).json({ success: false, message: membershipService.safeErrorMsg(err) });
+  }
+});
+
+/* ============================================
+   POST /api/community/posts/:postId/comments/:commentId/replies
+   Create a reply to a top-level comment.
+   Replies to replies are NOT supported (depth = 1 max).
+   If someone replies to a reply, it is flattened
+   to the same parent comment thread.
+============================================ */
+router.post(
+  '/posts/:postId/comments/:commentId/replies',
+  communityProtect,
+  communityWriteGuard,
+  async function(req, res) {
+    try {
+      if (!mongoose.isValidObjectId(req.params.postId) ||
+          !mongoose.isValidObjectId(req.params.commentId)) {
+        return res.status(400).json({ success: false, message: 'Invalid ID.' });
+      }
+
+      var member   = req.communityMember;
+      var settings = await ensureSettings(req.schoolId);
+
+      /* Verify post is published and not locked — TENANT SCOPE */
+      var post = await CommunityPost.findOne({
+        _id:      req.params.postId,
+        schoolId: req.schoolId,
+        status:   'published'
+      }).select('_id isLocked').lean();
+      if (!post) {
+        return res.status(404).json({ success: false, message: 'Post not found.' });
+      }
+      if (post.isLocked) {
+        return res.status(403).json({
+          success:  false,
+          message:  'This discussion is locked.',
+          isLocked: true
+        });
+      }
+
+      /* Verify parent comment exists in same school/post — TENANT SCOPE */
+      var parentComment = await CommunityComment.findOne({
+        _id:      req.params.commentId,
+        schoolId: req.schoolId,
+        postId:   post._id,
+        status:   'published'
+      }).select('_id parentId').lean();
+      if (!parentComment) {
+        return res.status(404).json({ success: false, message: 'Comment not found.' });
+      }
+
+      /* Flatten depth: if parent is itself a reply, use its parent instead */
+      var effectiveParentId = parentComment.parentId
+        ? parentComment.parentId
+        : parentComment._id;
+
+      /* Validate content */
+      var content = sanitizeText(req.body.content || '');
+      if (!content) {
+        return res.status(400).json({ success: false, message: 'Reply cannot be empty.' });
+      }
+      var maxLen = settings.maxCommentLength || 500;
+      if (content.length > maxLen) {
+        return res.status(400).json({
+          success: false,
+          message: 'Reply exceeds maximum length of ' + maxLen + ' characters.'
+        });
+      }
+
+      var reply = await CommunityComment.create({
+        schoolId:     req.schoolId,
+        postId:       post._id,
+        parentId:     effectiveParentId,
+        authorId:     member._id,
+        authorType:   member.memberType,
+        authorRef:    member.memberRef,
+        authorName:   member.memberName   || 'Member',
+        authorAvatar: member.memberAvatar || '',
+        content,
+        status: 'published'
+      });
+
+      /* Increment post comment count and parent reply count atomically */
+      Promise.all([
+        commentService.incrementPostCommentCount(post._id, req.schoolId, 1),
+        commentService.incrementCommentReplyCount(effectiveParentId, req.schoolId, 1)
+      ]).catch(function(e) { console.warn('[community] reply counter inc failed:', e.message); });
+
+      return res.status(201).json({
+        success:  true,
+        message:  'Reply added.',
+        comment: {
+          _id:          reply._id,
+          postId:       reply.postId,
+          parentId:     reply.parentId,
+          authorName:   reply.authorName,
+          authorType:   reply.authorType,
+          authorAvatar: reply.authorAvatar,
+          content:      reply.content,
+          status:       reply.status,
+          reactionCount:0,
+          createdAt:    reply.createdAt
+        }
+      });
+    } catch(err) {
+      console.error('[community] POST /comments/:id/replies:', err.message);
+      return res.status(500).json({ success: false, message: membershipService.safeErrorMsg(err) });
+    }
+  }
+);
+
+/* ============================================
+   PUT /api/community/comments/:id
+   Edit own comment content.
+   Mod/admin can also edit any comment.
+============================================ */
+router.put('/comments/:id', communityProtect, communityWriteGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid comment ID.' });
+    }
+
+    var member     = req.communityMember;
+    var isModAdmin = member.role === 'moderator' || member.role === 'admin';
+
+    var comment = await CommunityComment.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId  /* TENANT SCOPE */
+    });
+    if (!comment) {
+      return res.status(404).json({ success: false, message: 'Comment not found.' });
+    }
+
+    var isAuthor = comment.authorId.toString() === member._id.toString();
+    if (!isAuthor && !isModAdmin) {
+      return res.status(403).json({ success: false, message: 'You can only edit your own comments.' });
+    }
+    if (comment.status === 'removed' || comment.status === 'archived') {
+      return res.status(400).json({ success: false, message: 'This comment cannot be edited.' });
+    }
+
+    var settings = await ensureSettings(req.schoolId);
+    var content  = sanitizeText(req.body.content || '');
+    if (!content) {
+      return res.status(400).json({ success: false, message: 'Comment cannot be empty.' });
+    }
+    if (content.length > (settings.maxCommentLength || 500)) {
+      return res.status(400).json({ success: false, message: 'Comment too long.' });
+    }
+
+    comment.content = content;
+    await comment.save();
+
+    return res.json({ success: true, message: 'Comment updated.', content: comment.content });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   DELETE /api/community/comments/:id
+   Soft-delete own comment (status → 'archived').
+   Adjusts post commentCount and parent replyCount.
+============================================ */
+router.delete('/comments/:id', communityProtect, communityWriteGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid comment ID.' });
+    }
+
+    var member  = req.communityMember;
+    var comment = await CommunityComment.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId  /* TENANT SCOPE */
+    });
+    if (!comment) {
+      return res.status(404).json({ success: false, message: 'Comment not found.' });
+    }
+    if (comment.authorId.toString() !== member._id.toString()) {
+      return res.status(403).json({ success: false, message: 'You can only delete your own comments.' });
+    }
+    if (comment.status === 'removed' || comment.status === 'archived') {
+      return res.status(400).json({ success: false, message: 'Comment is already deleted.' });
+    }
+
+    comment.status        = 'archived';
+    comment.deletedAt     = new Date();
+    comment.deletedBy     = member._id;
+    comment.deletedReason = sanitizeText(req.body.reason || 'Deleted by author');
+    await comment.save();
+
+    /* Decrement counters atomically */
+    var decrements = [
+      commentService.incrementPostCommentCount(comment.postId, req.schoolId, -1)
+    ];
+    if (comment.parentId) {
+      decrements.push(commentService.incrementCommentReplyCount(comment.parentId, req.schoolId, -1));
+    }
+    Promise.all(decrements).catch(function(e) {
+      console.warn('[community] comment delete counter dec failed:', e.message);
+    });
+
+    return res.json({ success: true, message: 'Comment deleted.' });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   ADMIN COMMENT MODERATION ROUTES
+============================================ */
+
+/* DELETE /api/community/admin/comments/:id (moderator removal) */
+router.delete('/admin/comments/:id', communityProtect, communityModGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid comment ID.' });
+    }
+
+    var reason  = sanitizeText(req.body.reason || 'Removed by moderator');
+    var comment = await CommunityComment.findOneAndUpdate(
+      { _id: req.params.id, schoolId: req.schoolId, status: { $ne: 'removed' } }, /* TENANT SCOPE */
+      { $set: {
+          status:         'removed',
+          moderationNote: reason,
+          deletedAt:      new Date(),
+          deletedBy:      req.communityMember._id,
+          deletedReason:  reason
+        }},
+      { new: true }
+    );
+    if (!comment) {
+      return res.status(404).json({ success: false, message: 'Comment not found or already removed.' });
+    }
+
+    /* Decrement counters */
+    var decrements = [
+      commentService.incrementPostCommentCount(comment.postId, req.schoolId, -1)
+    ];
+    if (comment.parentId) {
+      decrements.push(commentService.incrementCommentReplyCount(comment.parentId, req.schoolId, -1));
+    }
+    Promise.all(decrements).catch(function(e) {
+      console.warn('[community] mod comment removal counter failed:', e.message);
+    });
+
+    return res.json({ success: true, message: 'Comment removed.' });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   REACTIONS
+   POST   /api/community/posts/:id/react
+   POST   /api/community/comments/:id/react
+   DELETE /api/community/posts/:id/react
+   DELETE /api/community/comments/:id/react
+   GET    /api/community/posts/:id/reactions
+   GET    /api/community/comments/:id/reactions
+============================================ */
+
+/* ---- Internal: toggle reaction helper ---- */
+async function handleReaction(req, res, targetType, targetId) {
+  var member   = req.communityMember;
+  var reaction = req.body.reaction || 'like';
+
+  if (!VALID_REACTIONS.includes(reaction)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid reaction. Must be one of: ' + VALID_REACTIONS.join(', ')
+    });
+  }
+
+  /* Verify target belongs to this school — TENANT SCOPE */
+  var target;
+  if (targetType === 'post') {
+    target = await CommunityPost.findOne({
+      _id:      targetId,
+      schoolId: req.schoolId,
+      status:   'published'
+    }).select('_id').lean();
+  } else {
+    target = await CommunityComment.findOne({
+      _id:      targetId,
+      schoolId: req.schoolId,
+      status:   'published'
+    }).select('_id').lean();
+  }
+  if (!target) {
+    return res.status(404).json({ success: false, message: (targetType === 'post' ? 'Post' : 'Comment') + ' not found.' });
+  }
+
+  /* Check for existing reaction by this member on this target */
+  var existing = await CommunityReaction.findOne({
+    schoolId:   req.schoolId,
+    targetType: targetType,
+    targetId:   targetId,
+    authorId:   member._id
+  }).lean();
+
+  if (existing) {
+    if (existing.reaction === reaction) {
+      /* Same reaction again — remove it (toggle off) */
+      await CommunityReaction.deleteOne({ _id: existing._id });
+
+      /* Decrement counter */
+      if (targetType === 'post') {
+        CommunityPost.findOneAndUpdate(
+          { _id: targetId, schoolId: req.schoolId },
+          { $inc: { reactionCount: -1 } }
+        ).catch(function() {});
+      } else {
+        CommunityComment.findOneAndUpdate(
+          { _id: targetId, schoolId: req.schoolId },
+          { $inc: { reactionCount: -1 } }
+        ).catch(function() {});
+      }
+
+      return res.json({ success: true, action: 'removed', reaction: null, targetId });
+    } else {
+      /* Different reaction — update (no counter change, just reaction type) */
+      await CommunityReaction.findByIdAndUpdate(existing._id, { $set: { reaction } });
+      return res.json({ success: true, action: 'updated', reaction, targetId });
+    }
+  }
+
+  /* New reaction — upsert safety: unique index prevents true duplicates */
+  try {
+    await CommunityReaction.create({
+      schoolId:   req.schoolId,
+      targetType: targetType,
+      targetId:   targetId,
+      authorId:   member._id,
+      authorType: member.memberType,
+      authorName: member.memberName || '',
+      reaction
+    });
+  } catch(dupErr) {
+    if (dupErr.code === 11000) {
+      /* Duplicate key — race condition handled gracefully */
+      return res.json({ success: true, action: 'exists', reaction, targetId });
+    }
+    throw dupErr;
+  }
+
+  /* Increment counter */
+  if (targetType === 'post') {
+    CommunityPost.findOneAndUpdate(
+      { _id: targetId, schoolId: req.schoolId },
+      { $inc: { reactionCount: 1 } }
+    ).catch(function() {});
+  } else {
+    CommunityComment.findOneAndUpdate(
+      { _id: targetId, schoolId: req.schoolId },
+      { $inc: { reactionCount: 1 } }
+    ).catch(function() {});
+  }
+
+  return res.status(201).json({ success: true, action: 'added', reaction, targetId });
+}
+
+/* ---- Internal: get reaction summary helper ---- */
+async function getReactionSummary(req, res, targetType, targetId) {
+  if (!mongoose.isValidObjectId(targetId)) {
+    return res.status(400).json({ success: false, message: 'Invalid ID.' });
+  }
+
+  var reactions = await CommunityReaction.find({
+    schoolId:   req.schoolId,  /* TENANT SCOPE */
+    targetType: targetType,
+    targetId:   targetId
+  }).select('reaction authorName authorType').lean();
+
+  /* Group by reaction type */
+  var summary = {};
+  VALID_REACTIONS.forEach(function(r) { summary[r] = 0; });
+  reactions.forEach(function(r) {
+    if (summary[r.reaction] !== undefined) summary[r.reaction]++;
+  });
+
+  /* Find own reaction */
+  var myReaction = reactions.find(function(r) {
+    return req.communityMember &&
+           r.authorId && /* not on CommunityReaction but we can check the query */
+           reactions.some(function(rx) { return rx.authorName === req.communityMember.memberName; });
+  });
+
+  /* More reliable own-reaction lookup */
+  var ownReaction = await CommunityReaction.findOne({
+    schoolId:   req.schoolId,
+    targetType: targetType,
+    targetId:   targetId,
+    authorId:   req.communityMember._id
+  }).select('reaction').lean();
+
+  return res.json({
+    success:    true,
+    total:      reactions.length,
+    summary,
+    myReaction: ownReaction ? ownReaction.reaction : null
+  });
+}
+
+/* POST /api/community/posts/:id/react */
+router.post('/posts/:id/react', communityProtect, communityWriteGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid post ID.' });
+    }
+    return await handleReaction(req, res, 'post', req.params.id);
+  } catch(err) {
+    console.error('[community] POST /posts/:id/react:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* POST /api/community/comments/:id/react */
+router.post('/comments/:id/react', communityProtect, communityWriteGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid comment ID.' });
+    }
+    return await handleReaction(req, res, 'comment', req.params.id);
+  } catch(err) {
+    console.error('[community] POST /comments/:id/react:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* GET /api/community/posts/:id/reactions */
+router.get('/posts/:id/reactions', communityProtect, async function(req, res) {
+  try {
+    return await getReactionSummary(req, res, 'post', req.params.id);
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* GET /api/community/comments/:id/reactions */
+router.get('/comments/:id/reactions', communityProtect, async function(req, res) {
+  try {
+    return await getReactionSummary(req, res, 'comment', req.params.id);
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
 module.exports = router;

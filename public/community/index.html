@@ -410,6 +410,37 @@
   <!-- TOAST -->
   <div id="toast"></div>
 
+<!-- COMMENT PANEL (slides in below a post) -->
+  <div id="commentPanel" class="comment-panel" style="display:none;">
+    <div class="comment-panel-header">
+      <h3 class="comment-panel-title">Comments</h3>
+      <button class="comment-panel-close" onclick="closeCommentPanel()">✕</button>
+    </div>
+    <div id="commentPanelLocked" style="display:none;" class="comment-locked-banner">
+      🔒 This discussion is locked. No new comments are being accepted.
+    </div>
+    <div id="commentPanelList">
+      <div class="loading-row"><span class="spinner"></span> Loading comments...</div>
+    </div>
+    <div id="commentPanelMore" style="display:none;text-align:center;padding:10px 0;">
+      <button class="btn btn-secondary btn-sm" id="loadMoreCommentsBtn" onclick="loadMoreComments()">Load more comments</button>
+    </div>
+    <div id="commentComposer" class="comment-composer">
+      <div class="comment-composer-avatar" id="commentComposerAvatar">?</div>
+      <div class="comment-composer-input-wrap">
+        <textarea
+          id="commentInput"
+          class="comment-input"
+          placeholder="Write a comment..."
+          rows="1"
+          oninput="autoResizeTextarea(this)"
+          onkeydown="onCommentKeydown(event)"
+        ></textarea>
+        <button class="comment-submit-btn" onclick="submitComment()" title="Post comment">↑</button>
+      </div>
+    </div>
+  </div>
+
   <!-- POST ACTIONS MENU -->
   <div id="postActionsMenu" class="post-actions-dropdown" style="display:none;">
     <div id="postActionsContent"></div>
@@ -976,15 +1007,15 @@
       /* Event reference card */
       (post.postType === 'event_ref' && post.refData ? renderEventRefCard(post.refData) : '') +
 
-      /* Footer: counters */
+      /* Footer: reaction bar + comment button */
       '<div class="post-footer">' +
-        '<div class="post-stats">' +
-          '<span class="post-stat" title="Comments">💬 ' + (post.commentCount || 0) + '</span>' +
-          '<span class="post-stat" title="Reactions">❤️ ' + (post.reactionCount || 0) + '</span>' +
+        '<div class="post-reaction-bar" id="reactionBar-' + esc(post._id) + '">' +
+          renderReactionBar(post._id, 'post', post.reactionCount || 0, null) +
         '</div>' +
-        '<div class="post-footer-right">' +
-          (post.isLocked ? '<span class="post-locked-note">Discussion closed</span>' : '') +
-        '</div>' +
+        '<button class="post-comment-btn" onclick="openCommentPanel(\'' + esc(post._id) + '\', ' + !!post.isLocked + ')">' +
+          '💬 ' + (post.commentCount || 0) + ' Comment' + ((post.commentCount || 0) !== 1 ? 's' : '') +
+          (post.isLocked ? ' 🔒' : '') +
+        '</button>' +
       '</div>' +
     '</div>';
   }
@@ -1403,6 +1434,364 @@
       if (maxEl) maxEl.textContent = payload.maxPostLength;
     } else {
       showToast('❌ ' + ((res.data && res.data.message) || 'Save failed.'));
+    }
+  }
+
+  /* ============================================
+     E9C: REACTIONS
+  ============================================ */
+  var REACTION_EMOJIS = {
+    like:       { emoji: '👍', label: 'Like' },
+    love:       { emoji: '❤️', label: 'Love' },
+    celebrate:  { emoji: '🎉', label: 'Celebrate' },
+    support:    { emoji: '🤝', label: 'Support' },
+    insightful: { emoji: '💡', label: 'Insightful' }
+  };
+
+  function renderReactionBar(targetId, targetType, total, myReaction) {
+    var reactionBtns = Object.keys(REACTION_EMOJIS).map(function(r) {
+      var meta = REACTION_EMOJIS[r];
+      var isActive = myReaction === r;
+      return '<button class="reaction-btn' + (isActive ? ' reaction-btn-active' : '') + '" ' +
+        'title="' + esc(meta.label) + '" ' +
+        'onclick="toggleReaction(\'' + esc(targetId) + '\',\'' + esc(targetType) + '\',\'' + r + '\')">' +
+        meta.emoji +
+        '</button>';
+    }).join('');
+
+    return '<div class="reaction-bar">' +
+      reactionBtns +
+      '<span class="reaction-total" id="reactionTotal-' + esc(targetId) + '">' +
+        (total > 0 ? total + ' reaction' + (total !== 1 ? 's' : '') : '') +
+      '</span>' +
+    '</div>';
+  }
+
+  async function toggleReaction(targetId, targetType, reaction) {
+    var url = targetType === 'post'
+      ? '/posts/' + targetId + '/react'
+      : '/comments/' + targetId + '/react';
+
+    var res = await communityApi(url, 'POST', { reaction });
+    if (!res.ok) {
+      showToast('❌ ' + ((res.data && res.data.message) || 'Reaction failed.'));
+      return;
+    }
+
+    var action     = res.data.action;
+    var barEl      = document.getElementById('reactionBar-' + targetId);
+    var totalEl    = document.getElementById('reactionTotal-' + targetId);
+
+    /* Update active state on buttons */
+    if (barEl) {
+      barEl.querySelectorAll('.reaction-btn').forEach(function(btn) {
+        btn.classList.remove('reaction-btn-active');
+      });
+      if (action === 'added' || action === 'updated') {
+        var activeBtn = barEl.querySelector('.reaction-btn[title="' + (REACTION_EMOJIS[reaction] && REACTION_EMOJIS[reaction].label) + '"]');
+        if (activeBtn) activeBtn.classList.add('reaction-btn-active');
+      }
+    }
+
+    /* Update total — re-fetch for accuracy */
+    if (totalEl) {
+      var summaryUrl = targetType === 'post'
+        ? '/posts/' + targetId + '/reactions'
+        : '/comments/' + targetId + '/reactions';
+      communityApi(summaryUrl).then(function(r) {
+        if (r.ok) {
+          var total = r.data.total || 0;
+          totalEl.textContent = total > 0 ? total + ' reaction' + (total !== 1 ? 's' : '') : '';
+        }
+      });
+    }
+  }
+
+  /* ============================================
+     E9C: COMMENT PANEL
+  ============================================ */
+  var _commentPostId   = null;
+  var _commentCursor   = null;
+  var _commentHasMore  = false;
+  var _commentLocked   = false;
+  var _replyingToId    = null;
+
+  function openCommentPanel(postId, isLocked) {
+    _commentPostId  = postId;
+    _commentCursor  = null;
+    _commentHasMore = false;
+    _commentLocked  = isLocked;
+    _replyingToId   = null;
+
+    var panel = document.getElementById('commentPanel');
+    if (panel) panel.style.display = 'flex';
+
+    /* Show/hide locked banner and composer */
+    var lockedBanner = document.getElementById('commentPanelLocked');
+    var composer     = document.getElementById('commentComposer');
+    if (lockedBanner) lockedBanner.style.display = isLocked ? 'flex' : 'none';
+    if (composer)     composer.style.display      = isLocked ? 'none' : 'flex';
+
+    /* Set composer avatar */
+    var avatar = document.getElementById('commentComposerAvatar');
+    if (avatar && _member) avatar.textContent = getInitials(_member.memberName);
+
+    loadComments(true);
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeCommentPanel() {
+    var panel = document.getElementById('commentPanel');
+    if (panel) panel.style.display = 'none';
+    _commentPostId = null;
+    document.body.style.overflow = '';
+  }
+
+  async function loadComments(refresh) {
+    if (!_commentPostId) return;
+
+    var listEl = document.getElementById('commentPanelList');
+    if (!listEl) return;
+
+    if (refresh) {
+      _commentCursor  = null;
+      listEl.innerHTML = '<div class="loading-row"><span class="spinner"></span> Loading comments...</div>';
+      document.getElementById('commentPanelMore').style.display = 'none';
+    }
+
+    var url = '/posts/' + _commentPostId + '/comments' +
+      (_commentCursor ? '?cursor=' + encodeURIComponent(_commentCursor) : '');
+
+    var res = await communityApi(url);
+    if (!res.ok || !res.data.success) {
+      listEl.innerHTML = '<div class="empty-state">Could not load comments.</div>';
+      return;
+    }
+
+    var comments = res.data.comments || [];
+    _commentHasMore = res.data.hasMore || false;
+    _commentCursor  = res.data.nextCursor || null;
+
+    if (refresh) {
+      if (!comments.length) {
+        listEl.innerHTML = '<div class="empty-state" style="padding:24px;text-align:center;color:var(--muted);">No comments yet. Be the first to comment!</div>';
+      } else {
+        listEl.innerHTML = comments.map(function(c) { return renderComment(c); }).join('');
+      }
+    } else {
+      comments.forEach(function(c) {
+        listEl.insertAdjacentHTML('beforeend', renderComment(c));
+      });
+    }
+
+    var moreBtn = document.getElementById('commentPanelMore');
+    if (moreBtn) moreBtn.style.display = _commentHasMore ? 'block' : 'none';
+  }
+
+  function loadMoreComments() {
+    if (_commentHasMore) loadComments(false);
+  }
+
+  function renderComment(comment) {
+    var initials = getInitials(comment.authorName);
+    var replies  = (comment.replies || []);
+
+    return '<div class="comment-item" id="comment-' + esc(comment._id) + '">' +
+      '<div class="comment-avatar">' + esc(initials) + '</div>' +
+      '<div class="comment-body">' +
+        '<div class="comment-author">' + esc(comment.authorName || 'Member') +
+          ' <span class="badge" style="font-size:10px;">' + esc(formatMemberType(comment.authorType)) + '</span>' +
+        '</div>' +
+        '<div class="comment-content" id="commentContent-' + esc(comment._id) + '">' + nl2br(esc(comment.content)) + '</div>' +
+        '<div class="comment-actions">' +
+          '<span class="comment-time">' + formatTimeAgo(comment.createdAt) + '</span>' +
+          '<div class="comment-reaction-bar" id="reactionBar-' + esc(comment._id) + '">' +
+            renderReactionBar(comment._id, 'comment', comment.reactionCount || 0, null) +
+          '</div>' +
+          (!_commentLocked ?
+            '<button class="comment-action-link" onclick="openReplyComposer(\'' + esc(comment._id) + '\')">Reply</button>' : '') +
+          ((_member && comment.authorId && comment.authorId === _member._id.toString()) ?
+            '<button class="comment-action-link" onclick="deleteComment(\'' + esc(comment._id) + '\')">Delete</button>' : '') +
+          ((_member && (_member.role === 'moderator' || _member.role === 'admin')) ?
+            '<button class="comment-action-link comment-action-mod" onclick="modRemoveComment(\'' + esc(comment._id) + '\')">Remove</button>' : '') +
+        '</div>' +
+
+        /* Replies */
+        (replies.length ?
+          '<div class="replies-wrap">' +
+          replies.map(function(r) { return renderReply(r, comment._id); }).join('') +
+          '</div>' : '') +
+
+        /* Reply composer placeholder (shown dynamically) */
+        '<div id="replyComposer-' + esc(comment._id) + '" class="reply-composer" style="display:none;">' +
+          '<div class="reply-composer-avatar">' + esc(getInitials(_member ? _member.memberName : '?')) + '</div>' +
+          '<div class="comment-composer-input-wrap">' +
+            '<textarea class="comment-input reply-input" placeholder="Write a reply..." rows="1" ' +
+              'oninput="autoResizeTextarea(this)" ' +
+              'id="replyInput-' + esc(comment._id) + '"></textarea>' +
+            '<button class="comment-submit-btn" onclick="submitReply(\'' + esc(comment._id) + '\')">↑</button>' +
+          '</div>' +
+        '</div>' +
+
+      '</div>' +
+    '</div>';
+  }
+
+  function renderReply(reply, parentId) {
+    var initials = getInitials(reply.authorName);
+    return '<div class="comment-item reply-item" id="comment-' + esc(reply._id) + '">' +
+      '<div class="comment-avatar sm">' + esc(initials) + '</div>' +
+      '<div class="comment-body">' +
+        '<div class="comment-author">' + esc(reply.authorName || 'Member') +
+          ' <span class="badge" style="font-size:10px;">' + esc(formatMemberType(reply.authorType)) + '</span>' +
+        '</div>' +
+        '<div class="comment-content">' + nl2br(esc(reply.content)) + '</div>' +
+        '<div class="comment-actions">' +
+          '<span class="comment-time">' + formatTimeAgo(reply.createdAt) + '</span>' +
+          '<div class="comment-reaction-bar" id="reactionBar-' + esc(reply._id) + '">' +
+            renderReactionBar(reply._id, 'comment', reply.reactionCount || 0, null) +
+          '</div>' +
+          ((_member && reply.authorId && reply.authorId === _member._id.toString()) ?
+            '<button class="comment-action-link" onclick="deleteComment(\'' + esc(reply._id) + '\')">Delete</button>' : '') +
+          ((_member && (_member.role === 'moderator' || _member.role === 'admin')) ?
+            '<button class="comment-action-link comment-action-mod" onclick="modRemoveComment(\'' + esc(reply._id) + '\')">Remove</button>' : '') +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  /* ---- Submit comment ---- */
+  async function submitComment() {
+    if (!_commentPostId) return;
+    var input   = document.getElementById('commentInput');
+    var content = input ? input.value.trim() : '';
+    if (!content) return;
+
+    var submitBtn = document.querySelector('.comment-submit-btn');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px;"></span>'; }
+
+    var res = await communityApi('/posts/' + _commentPostId + '/comments', 'POST', { content });
+
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '↑'; }
+
+    if (res.ok && res.data.success) {
+      if (input) { input.value = ''; input.style.height = 'auto'; }
+      /* Append to list */
+      var listEl = document.getElementById('commentPanelList');
+      var emptyEl = listEl && listEl.querySelector('.empty-state');
+      if (emptyEl) emptyEl.remove();
+      if (listEl) listEl.insertAdjacentHTML('beforeend', renderComment(Object.assign(res.data.comment, { replies: [] })));
+      /* Update post comment count in feed */
+      updatePostCommentCounter(_commentPostId, 1);
+    } else {
+      showToast('❌ ' + ((res.data && res.data.message) || 'Comment failed.'));
+    }
+  }
+
+  /* ---- Submit reply ---- */
+  function openReplyComposer(commentId) {
+    /* Close any other open reply composers */
+    document.querySelectorAll('.reply-composer').forEach(function(el) { el.style.display = 'none'; });
+    var composer = document.getElementById('replyComposer-' + commentId);
+    if (composer) {
+      composer.style.display = 'flex';
+      var input = document.getElementById('replyInput-' + commentId);
+      if (input) input.focus();
+    }
+  }
+
+  async function submitReply(commentId) {
+    if (!_commentPostId) return;
+    var input   = document.getElementById('replyInput-' + commentId);
+    var content = input ? input.value.trim() : '';
+    if (!content) return;
+
+    var res = await communityApi(
+      '/posts/' + _commentPostId + '/comments/' + commentId + '/replies',
+      'POST',
+      { content }
+    );
+
+    if (res.ok && res.data.success) {
+      if (input) { input.value = ''; input.style.height = 'auto'; }
+      var composer = document.getElementById('replyComposer-' + commentId);
+      if (composer) composer.style.display = 'none';
+
+      /* Append reply to parent comment's replies wrap */
+      var commentEl = document.getElementById('comment-' + commentId);
+      if (commentEl) {
+        var repliesWrap = commentEl.querySelector('.replies-wrap');
+        if (!repliesWrap) {
+          var bodyEl = commentEl.querySelector('.comment-body');
+          if (bodyEl) {
+            var newWrap = document.createElement('div');
+            newWrap.className = 'replies-wrap';
+            bodyEl.querySelector('#replyComposer-' + commentId).insertAdjacentElement('beforebegin', newWrap);
+            repliesWrap = newWrap;
+          }
+        }
+        if (repliesWrap) {
+          repliesWrap.insertAdjacentHTML('beforeend', renderReply(res.data.comment, commentId));
+        }
+      }
+      updatePostCommentCounter(_commentPostId, 1);
+    } else {
+      showToast('❌ ' + ((res.data && res.data.message) || 'Reply failed.'));
+    }
+  }
+
+  /* ---- Delete own comment ---- */
+  async function deleteComment(commentId) {
+    if (!confirm('Delete this comment?')) return;
+    var res = await communityApi('/comments/' + commentId, 'DELETE', {});
+    if (res.ok && res.data.success) {
+      showToast('Comment deleted.');
+      var el = document.getElementById('comment-' + commentId);
+      if (el) el.remove();
+      updatePostCommentCounter(_commentPostId, -1);
+    } else {
+      showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+    }
+  }
+
+  /* ---- Moderator remove comment ---- */
+  async function modRemoveComment(commentId) {
+    var reason = prompt('Reason for removing this comment (optional):') || 'Removed by moderator';
+    var res = await communityApi('/admin/comments/' + commentId, 'DELETE', { reason });
+    if (res.ok && res.data.success) {
+      showToast('Comment removed.');
+      var el = document.getElementById('comment-' + commentId);
+      if (el) el.remove();
+      updatePostCommentCounter(_commentPostId, -1);
+    } else {
+      showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+    }
+  }
+
+  /* ---- Update comment counter on post card in feed ---- */
+  function updatePostCommentCounter(postId, delta) {
+    var postEl = document.querySelector('.post-card[data-post-id="' + postId + '"]');
+    if (!postEl) return;
+    var btn = postEl.querySelector('.post-comment-btn');
+    if (!btn) return;
+    var match = btn.textContent.match(/\d+/);
+    var current = match ? parseInt(match[0]) : 0;
+    var newCount = Math.max(0, current + delta);
+    btn.textContent = '💬 ' + newCount + ' Comment' + (newCount !== 1 ? 's' : '') +
+                      (_commentLocked ? ' 🔒' : '');
+  }
+
+  /* ---- Textarea auto-resize ---- */
+  function autoResizeTextarea(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  }
+
+  /* ---- Submit comment on Enter (not Shift+Enter) ---- */
+  function onCommentKeydown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      submitComment();
     }
   }
 
