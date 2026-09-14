@@ -12,6 +12,8 @@ var mongoose   = require('mongoose');
 
 var CommunityMembership = require('../models/CommunityMembership.model');
 var CommunityMembershipLog = require('../models/CommunityMembershipLog.model');
+var CommunityReport        = require('../models/CommunityReport.model');
+var CommunityModerationLog = require('../models/CommunityModerationLog.model');
 
 /* ============================================
    E9F: Membership event logger
@@ -33,6 +35,28 @@ function logMembershipEvent(data) {
     performedByType: data.performedByType || ''
   }).catch(function(e) {
     console.warn('[membership-log] write failed:', e.message);
+  });
+}
+/* ============================================
+   E9G: Content moderation event logger
+   Fire-and-forget — never blocks user-facing responses.
+============================================ */
+function logModerationEvent(data) {
+  CommunityModerationLog.create({
+    schoolId:         data.schoolId,
+    action:           data.action,
+    targetType:       data.targetType,
+    targetId:         data.targetId,
+    targetAuthorId:   data.targetAuthorId   || null,
+    targetAuthorName: data.targetAuthorName || '',
+    contentPreview:   (data.contentPreview  || '').substring(0, 120),
+    reason:           data.reason           || '',
+    performedById:    data.performedById,
+    performedByName:  data.performedByName  || '',
+    performedByType:  data.performedByType  || '',
+    relatedReportId:  data.relatedReportId  || null
+  }).catch(function(e) {
+    console.warn('[moderation-log] write failed:', e.message);
   });
 }
 var CommunitySettings   = require('../models/CommunitySettings.model');
@@ -335,7 +359,8 @@ router.put('/admin/settings', communityProtect, communityAdminGuard, async funct
       'isEnabled','communityName','welcomeMessage','rules',
       'requirePostApproval','allowStudentPosts','allowParentPosts',
       'allowAlumniPosts','allowStaffPosts','allowMediaUploads',
-      'allowVideoUploads','maxMediaPerPost','maxPostLength','maxCommentLength'
+      'allowVideoUploads','maxMediaPerPost','maxPostLength','maxCommentLength',
+      'autoLockThreshold'
     ];
     var update = {};
     allowed.forEach(function(field) {
@@ -930,6 +955,20 @@ router.post('/admin/posts/:id/approve', communityProtect, communityModGuard, asy
       { new: true }
     );
     if (!post) return res.status(404).json({ success: false, message: 'Pending post not found.' });
+
+    logModerationEvent({
+      schoolId:         req.schoolId,
+      action:           'post_approved',
+      targetType:       'post',
+      targetId:         post._id,
+      targetAuthorId:   post.authorId,
+      targetAuthorName: post.authorName,
+      contentPreview:   post.content,
+      performedById:    req.communityMember._id,
+      performedByName:  req.communityMember.memberName,
+      performedByType:  req.communityMember.memberType
+    });
+
     return res.json({ success: true, message: 'Post approved and published.' });
   } catch(err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -947,6 +986,21 @@ router.post('/admin/posts/:id/reject', communityProtect, communityModGuard, asyn
       { new: true }
     );
     if (!post) return res.status(404).json({ success: false, message: 'Pending post not found.' });
+
+    logModerationEvent({
+      schoolId:         req.schoolId,
+      action:           'post_rejected',
+      targetType:       'post',
+      targetId:         post._id,
+      targetAuthorId:   post.authorId,
+      targetAuthorName: post.authorName,
+      contentPreview:   post.content,
+      reason:           post.moderationNote,
+      performedById:    req.communityMember._id,
+      performedByName:  req.communityMember.memberName,
+      performedByType:  req.communityMember.memberType
+    });
+
     return res.json({ success: true, message: 'Post rejected.' });
   } catch(err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -967,6 +1021,20 @@ router.post('/admin/posts/:id/pin', communityProtect, communityModGuard, async f
       { new: true }
     );
     if (!post) return res.status(404).json({ success: false, message: 'Published post not found.' });
+
+    logModerationEvent({
+      schoolId:         req.schoolId,
+      action:           'post_pinned',
+      targetType:       'post',
+      targetId:         post._id,
+      targetAuthorId:   post.authorId,
+      targetAuthorName: post.authorName,
+      contentPreview:   post.content,
+      performedById:    req.communityMember._id,
+      performedByName:  req.communityMember.memberName,
+      performedByType:  req.communityMember.memberType
+    });
+
     return res.json({ success: true, message: 'Post pinned.' });
   } catch(err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -983,6 +1051,20 @@ router.post('/admin/posts/:id/unpin', communityProtect, communityModGuard, async
       { new: true }
     );
     if (!post) return res.status(404).json({ success: false, message: 'Pinned post not found.' });
+
+    logModerationEvent({
+      schoolId:         req.schoolId,
+      action:           'post_unpinned',
+      targetType:       'post',
+      targetId:         post._id,
+      targetAuthorId:   post.authorId,
+      targetAuthorName: post.authorName,
+      contentPreview:   post.content,
+      performedById:    req.communityMember._id,
+      performedByName:  req.communityMember.memberName,
+      performedByType:  req.communityMember.memberType
+    });
+
     return res.json({ success: true, message: 'Post unpinned.' });
   } catch(err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -999,7 +1081,21 @@ router.post('/admin/posts/:id/lock', communityProtect, communityModGuard, async 
       { new: true }
     );
     if (!post) return res.status(404).json({ success: false, message: 'Post not found.' });
-    return res.json({ success: true, message: 'Discussion locked.' });
+
+    logModerationEvent({
+      schoolId:         req.schoolId,
+      action:           'post_locked',
+      targetType:       'post',
+      targetId:         post._id,
+      targetAuthorId:   post.authorId,
+      targetAuthorName: post.authorName,
+      contentPreview:   post.content,
+      performedById:    req.communityMember._id,
+      performedByName:  req.communityMember.memberName,
+      performedByType:  req.communityMember.memberType
+    });
+
+    return res.json({ success: true, message: 'Discussion locked. No new comments will be accepted.' });
   } catch(err) {
     return res.status(500).json({ success: false, message: err.message });
   }
@@ -1015,6 +1111,20 @@ router.post('/admin/posts/:id/unlock', communityProtect, communityModGuard, asyn
       { new: true }
     );
     if (!post) return res.status(404).json({ success: false, message: 'Locked post not found.' });
+
+    logModerationEvent({
+      schoolId:         req.schoolId,
+      action:           'post_unlocked',
+      targetType:       'post',
+      targetId:         post._id,
+      targetAuthorId:   post.authorId,
+      targetAuthorName: post.authorName,
+      contentPreview:   post.content,
+      performedById:    req.communityMember._id,
+      performedByName:  req.communityMember.memberName,
+      performedByType:  req.communityMember.memberType
+    });
+
     return res.json({ success: true, message: 'Discussion unlocked.' });
   } catch(err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -1032,6 +1142,21 @@ router.delete('/admin/posts/:id', communityProtect, communityModGuard, async fun
       { new: true }
     );
     if (!post) return res.status(404).json({ success: false, message: 'Post not found or already removed.' });
+
+    logModerationEvent({
+      schoolId:         req.schoolId,
+      action:           'post_removed',
+      targetType:       'post',
+      targetId:         post._id,
+      targetAuthorId:   post.authorId,
+      targetAuthorName: post.authorName,
+      contentPreview:   post.content,
+      reason:           reason,
+      performedById:    req.communityMember._id,
+      performedByName:  req.communityMember.memberName,
+      performedByType:  req.communityMember.memberType
+    });
+
     return res.json({ success: true, message: 'Post removed.' });
   } catch(err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -1428,6 +1553,20 @@ router.delete('/admin/comments/:id', communityProtect, communityModGuard, async 
     }
     Promise.all(decrements).catch(function(e) {
       console.warn('[community] mod comment removal counter failed:', e.message);
+    });
+
+    logModerationEvent({
+      schoolId:         req.schoolId,
+      action:           'comment_removed',
+      targetType:       'comment',
+      targetId:         comment._id,
+      targetAuthorId:   comment.authorId,
+      targetAuthorName: comment.authorName,
+      contentPreview:   comment.content,
+      reason:           reason,
+      performedById:    req.communityMember._id,
+      performedByName:  req.communityMember.memberName,
+      performedByType:  req.communityMember.memberType
     });
 
     return res.json({ success: true, message: 'Comment removed.' });
@@ -2016,6 +2155,499 @@ router.get('/admin/log', communityProtect, communityModGuard, async function(req
       success: true,
       events,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) }
+    });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   E9G: REPORT ROUTES
+   Members report posts/comments for mod review.
+   schoolId: ALWAYS from JWT — never from body.
+   reportedById: ALWAYS from communityProtect.
+   Target verified same school before creating report.
+   Unique index prevents duplicate reports.
+============================================ */
+
+/* ---- Internal: create a report on a target ---- */
+async function handleReport(req, res, targetType) {
+  try {
+    var member = req.communityMember;
+    var targetId = req.params.id;
+
+    if (!mongoose.isValidObjectId(targetId)) {
+      return res.status(400).json({ success: false, message: 'Invalid ID.' });
+    }
+
+    var reason  = req.body.reason || 'other';
+    var details = sanitizeText(req.body.details || '').substring(0, 300);
+
+    var validReasons = ['spam', 'inappropriate', 'harassment', 'misinformation', 'violence', 'other'];
+    if (!validReasons.includes(reason)) {
+      return res.status(400).json({ success: false, message: 'Invalid report reason.' });
+    }
+
+    /* Verify target exists in this school — TENANT SCOPE + IDOR */
+    var contentPreview = '';
+    if (targetType === 'post') {
+      var post = await CommunityPost.findOne({
+        _id:      targetId,
+        schoolId: req.schoolId,
+        status:   { $in: ['published', 'pending'] }
+      }).select('_id content authorId').lean();
+
+      if (!post) {
+        return res.status(404).json({ success: false, message: 'Post not found.' });
+      }
+      /* Members cannot report their own content */
+      if (post.authorId && post.authorId.toString() === member._id.toString()) {
+        return res.status(400).json({ success: false, message: 'You cannot report your own content.' });
+      }
+      contentPreview = (post.content || '').substring(0, 120);
+    } else {
+      var comment = await CommunityComment.findOne({
+        _id:      targetId,
+        schoolId: req.schoolId,
+        status:   'published'
+      }).select('_id content authorId postId').lean();
+
+      if (!comment) {
+        return res.status(404).json({ success: false, message: 'Comment not found.' });
+      }
+      if (comment.authorId && comment.authorId.toString() === member._id.toString()) {
+        return res.status(400).json({ success: false, message: 'You cannot report your own content.' });
+      }
+      contentPreview = (comment.content || '').substring(0, 120);
+    }
+
+    /* Create report — unique index prevents duplicates */
+    try {
+      await CommunityReport.create({
+        schoolId:       req.schoolId,
+        targetType:     targetType,
+        targetId:       targetId,
+        reportedById:   member._id,
+        reportedByName: member.memberName || '',
+        reportedByType: member.memberType || '',
+        reason,
+        details,
+        contentPreview,
+        status: 'pending'
+      });
+    } catch(dupErr) {
+      if (dupErr.code === 11000) {
+        return res.status(400).json({
+          success: false,
+          message: 'You have already reported this content. Our moderators will review it.'
+        });
+      }
+      throw dupErr;
+    }
+
+    /* E9G: Auto-lock check — only for posts */
+    if (targetType === 'post') {
+      var settings = await ensureSettings(req.schoolId);
+      var threshold = settings.autoLockThreshold || 0;
+      if (threshold > 0) {
+        var reportCount = await CommunityReport.countDocuments({
+          schoolId:   req.schoolId,
+          targetType: 'post',
+          targetId:   targetId,
+          status:     'pending'
+        });
+        if (reportCount >= threshold) {
+          /* Auto-lock the post pending review */
+          await CommunityPost.findOneAndUpdate(
+            { _id: targetId, schoolId: req.schoolId, isLocked: false },
+            { $set: { isLocked: true, lockedAt: new Date(), lockedBy: member._id } }
+          );
+          logModerationEvent({
+            schoolId:        req.schoolId,
+            action:          'post_locked',
+            targetType:      'post',
+            targetId:        targetId,
+            contentPreview:  contentPreview,
+            reason:          'Auto-locked: reached report threshold of ' + threshold,
+            performedById:   member._id,
+            performedByName: 'System (auto-lock)',
+            performedByType: 'system'
+          });
+        }
+      }
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: 'Report submitted. Our moderators will review it shortly.'
+    });
+  } catch(err) {
+    console.error('[community] POST /report:', err.message);
+    return res.status(500).json({ success: false, message: membershipService.safeErrorMsg(err) });
+  }
+}
+
+/* POST /api/community/posts/:id/report */
+router.post('/posts/:id/report', communityProtect, communityWriteGuard, async function(req, res) {
+  return handleReport(req, res, 'post');
+});
+
+/* POST /api/community/comments/:id/report */
+router.post('/comments/:id/report', communityProtect, communityWriteGuard, async function(req, res) {
+  return handleReport(req, res, 'comment');
+});
+
+/* ============================================
+   GET /api/community/admin/reports
+   Paginated list of reports for mod/admin.
+   Default: pending first, then recent.
+============================================ */
+router.get('/admin/reports', communityProtect, communityModGuard, async function(req, res) {
+  try {
+    var page   = Math.max(1, parseInt(req.query.page)   || 1);
+    var limit  = Math.min(30, parseInt(req.query.limit) || 20);
+    var skip   = (page - 1) * limit;
+    var status = req.query.status || 'pending';
+
+    var filter = {
+      schoolId: req.schoolId,   /* TENANT SCOPE */
+      status:   status
+    };
+    if (req.query.reason) filter.reason = req.query.reason;
+
+    var [reports, total] = await Promise.all([
+      CommunityReport.find(filter)
+        .select('targetType targetId reason details contentPreview reportedByName reportedByType status createdAt')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      CommunityReport.countDocuments(filter)
+    ]);
+
+    /* Count of pending reports — for badge */
+    var totalPending = status === 'pending'
+      ? total
+      : await CommunityReport.countDocuments({ schoolId: req.schoolId, status: 'pending' });
+
+    return res.json({
+      success: true,
+      reports,
+      totalPending,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit), hasMore: skip + reports.length < total }
+    });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   POST /api/community/admin/reports/:id/dismiss
+   Close the report without taking action on content.
+============================================ */
+router.post('/admin/reports/:id/dismiss', communityProtect, communityModGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid report ID.' });
+    }
+
+    var note   = sanitizeText(req.body.note || '').substring(0, 200);
+    var report = await CommunityReport.findOneAndUpdate(
+      { _id: req.params.id, schoolId: req.schoolId, status: 'pending' }, /* TENANT SCOPE */
+      { $set: {
+          status:         'dismissed',
+          reviewedById:   req.communityMember._id,
+          reviewedByName: req.communityMember.memberName,
+          reviewedAt:     new Date(),
+          reviewNote:     note || 'No action required'
+        }},
+      { new: true }
+    );
+    if (!report) {
+      return res.status(404).json({ success: false, message: 'Pending report not found.' });
+    }
+
+    logModerationEvent({
+      schoolId:        req.schoolId,
+      action:          'report_dismissed',
+      targetType:      report.targetType,
+      targetId:        report.targetId,
+      contentPreview:  report.contentPreview,
+      reason:          note || 'Dismissed without action',
+      performedById:   req.communityMember._id,
+      performedByName: req.communityMember.memberName,
+      performedByType: req.communityMember.memberType,
+      relatedReportId: report._id
+    });
+
+    return res.json({ success: true, message: 'Report dismissed.' });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   POST /api/community/admin/reports/:id/action
+   Remove the reported content AND close the report.
+   Works for both post and comment reports.
+============================================ */
+router.post('/admin/reports/:id/action', communityProtect, communityModGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid report ID.' });
+    }
+
+    var reason = sanitizeText(req.body.reason || 'Removed following community report');
+    var report = await CommunityReport.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId,   /* TENANT SCOPE */
+      status:   'pending'
+    });
+    if (!report) {
+      return res.status(404).json({ success: false, message: 'Pending report not found.' });
+    }
+
+    /* Remove the reported content */
+    if (report.targetType === 'post') {
+      var post = await CommunityPost.findOneAndUpdate(
+        { _id: report.targetId, schoolId: req.schoolId, status: { $ne: 'removed' } },
+        { $set: {
+            status:         'removed',
+            moderationNote: reason,
+            deletedAt:      new Date(),
+            deletedBy:      req.communityMember._id,
+            deletedReason:  reason
+          }},
+        { new: true }
+      );
+      if (post) {
+        logModerationEvent({
+          schoolId:        req.schoolId,
+          action:          'post_removed',
+          targetType:      'post',
+          targetId:        post._id,
+          targetAuthorId:  post.authorId,
+          targetAuthorName:post.authorName,
+          contentPreview:  report.contentPreview,
+          reason:          reason,
+          performedById:   req.communityMember._id,
+          performedByName: req.communityMember.memberName,
+          performedByType: req.communityMember.memberType,
+          relatedReportId: report._id
+        });
+      }
+    } else {
+      var comment = await CommunityComment.findOneAndUpdate(
+        { _id: report.targetId, schoolId: req.schoolId, status: { $ne: 'removed' } },
+        { $set: {
+            status:         'removed',
+            moderationNote: reason,
+            deletedAt:      new Date(),
+            deletedBy:      req.communityMember._id,
+            deletedReason:  reason
+          }},
+        { new: true }
+      );
+      if (comment) {
+        /* Decrement counters */
+        var decrements = [
+          commentService.incrementPostCommentCount(comment.postId, req.schoolId, -1)
+        ];
+        if (comment.parentId) {
+          decrements.push(commentService.incrementCommentReplyCount(comment.parentId, req.schoolId, -1));
+        }
+        Promise.all(decrements).catch(function() {});
+
+        logModerationEvent({
+          schoolId:        req.schoolId,
+          action:          'comment_removed',
+          targetType:      'comment',
+          targetId:        comment._id,
+          targetAuthorId:  comment.authorId,
+          targetAuthorName:comment.authorName,
+          contentPreview:  report.contentPreview,
+          reason:          reason,
+          performedById:   req.communityMember._id,
+          performedByName: req.communityMember.memberName,
+          performedByType: req.communityMember.memberType,
+          relatedReportId: report._id
+        });
+      }
+    }
+
+    /* Close the report */
+    await CommunityReport.findByIdAndUpdate(report._id, {
+      $set: {
+        status:         'actioned',
+        reviewedById:   req.communityMember._id,
+        reviewedByName: req.communityMember.memberName,
+        reviewedAt:     new Date(),
+        reviewNote:     reason
+      }
+    });
+
+    /* Also dismiss any other pending reports on this same content */
+    await CommunityReport.updateMany(
+      { schoolId: req.schoolId, targetId: report.targetId, targetType: report.targetType, status: 'pending' },
+      { $set: {
+          status:         'actioned',
+          reviewedById:   req.communityMember._id,
+          reviewedByName: req.communityMember.memberName,
+          reviewedAt:     new Date(),
+          reviewNote:     'Content removed — report resolved'
+        }}
+    );
+
+    logModerationEvent({
+      schoolId:        req.schoolId,
+      action:          'report_actioned',
+      targetType:      report.targetType,
+      targetId:        report.targetId,
+      contentPreview:  report.contentPreview,
+      reason:          reason,
+      performedById:   req.communityMember._id,
+      performedByName: req.communityMember.memberName,
+      performedByType: req.communityMember.memberType,
+      relatedReportId: report._id
+    });
+
+    return res.json({ success: true, message: 'Content removed and report resolved.' });
+  } catch(err) {
+    console.error('[community] POST /admin/reports/:id/action:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   POST /api/community/admin/posts/:id/restore
+   Restore a removed post back to published.
+   Clears moderation state. Logs restoration.
+============================================ */
+router.post('/admin/posts/:id/restore', communityProtect, communityModGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid post ID.' });
+    }
+    var note = sanitizeText(req.body.note || '').substring(0, 200);
+    var post = await CommunityPost.findOneAndUpdate(
+      { _id: req.params.id, schoolId: req.schoolId, status: 'removed' }, /* TENANT SCOPE */
+      { $set: {
+          status:         'published',
+          moderationNote: '',
+          deletedAt:      null,
+          deletedBy:      null,
+          deletedReason:  ''
+        }},
+      { new: true }
+    );
+    if (!post) {
+      return res.status(404).json({ success: false, message: 'Removed post not found.' });
+    }
+
+    logModerationEvent({
+      schoolId:         req.schoolId,
+      action:           'post_restored',
+      targetType:       'post',
+      targetId:         post._id,
+      targetAuthorId:   post.authorId,
+      targetAuthorName: post.authorName,
+      contentPreview:   post.content,
+      reason:           note || 'Restored by moderator',
+      performedById:    req.communityMember._id,
+      performedByName:  req.communityMember.memberName,
+      performedByType:  req.communityMember.memberType
+    });
+
+    return res.json({ success: true, message: 'Post restored and published.' });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   POST /api/community/admin/comments/:id/restore
+   Restore a removed comment back to published.
+============================================ */
+router.post('/admin/comments/:id/restore', communityProtect, communityModGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid comment ID.' });
+    }
+    var note    = sanitizeText(req.body.note || '').substring(0, 200);
+    var comment = await CommunityComment.findOneAndUpdate(
+      { _id: req.params.id, schoolId: req.schoolId, status: 'removed' }, /* TENANT SCOPE */
+      { $set: {
+          status:         'published',
+          moderationNote: '',
+          deletedAt:      null,
+          deletedBy:      null,
+          deletedReason:  ''
+        }},
+      { new: true }
+    );
+    if (!comment) {
+      return res.status(404).json({ success: false, message: 'Removed comment not found.' });
+    }
+
+    /* Restore counters */
+    var restores = [commentService.incrementPostCommentCount(comment.postId, req.schoolId, 1)];
+    if (comment.parentId) {
+      restores.push(commentService.incrementCommentReplyCount(comment.parentId, req.schoolId, 1));
+    }
+    Promise.all(restores).catch(function() {});
+
+    logModerationEvent({
+      schoolId:         req.schoolId,
+      action:           'comment_restored',
+      targetType:       'comment',
+      targetId:         comment._id,
+      targetAuthorId:   comment.authorId,
+      targetAuthorName: comment.authorName,
+      contentPreview:   comment.content,
+      reason:           note || 'Restored by moderator',
+      performedById:    req.communityMember._id,
+      performedByName:  req.communityMember.memberName,
+      performedByType:  req.communityMember.memberType
+    });
+
+    return res.json({ success: true, message: 'Comment restored.' });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   GET /api/community/admin/moderation/log
+   Paginated content moderation log. Mod/admin only.
+   All queries TENANT SCOPED.
+============================================ */
+router.get('/admin/moderation/log', communityProtect, communityModGuard, async function(req, res) {
+  try {
+    var page   = Math.max(1, parseInt(req.query.page)   || 1);
+    var limit  = Math.min(50, parseInt(req.query.limit) || 30);
+    var skip   = (page - 1) * limit;
+    var filter = { schoolId: req.schoolId };  /* TENANT SCOPE */
+
+    if (req.query.action)     filter.action     = req.query.action;
+    if (req.query.targetType) filter.targetType = req.query.targetType;
+    if (req.query.performedById && mongoose.isValidObjectId(req.query.performedById)) {
+      filter.performedById = req.query.performedById;
+    }
+
+    var [events, total] = await Promise.all([
+      CommunityModerationLog.find(filter)
+        .select('action targetType targetId contentPreview reason performedByName performedByType relatedReportId createdAt')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      CommunityModerationLog.countDocuments(filter)
+    ]);
+
+    return res.json({
+      success: true,
+      events,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit), hasMore: skip + events.length < total }
     });
   } catch(err) {
     return res.status(500).json({ success: false, message: err.message });

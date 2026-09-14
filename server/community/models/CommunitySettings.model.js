@@ -38,8 +38,10 @@ const communitySettingsSchema = new mongoose.Schema({
   maxMediaPerPost:     { type: Number,  default: 4     },
 
   /* ---- Content limits ---- */
-  maxPostLength:    { type: Number, default: 2000  },
-  maxCommentLength: { type: Number, default: 500   },
+maxPostLength:       { type: Number, default: 2000  },
+  maxCommentLength:    { type: Number, default: 500   },
+  /* E9G: auto-lock posts when they receive this many reports. 0 = disabled */
+  autoLockThreshold:   { type: Number, default: 0     },
 
   /* ---- Designated moderators (SchoolUser refs) ---- */
   moderators: [{

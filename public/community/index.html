@@ -92,6 +92,13 @@
         <button class="nav-item mod-only" id="settingsNavBtn" data-tab="settings" onclick="showTab('settings')" style="display:none;">
           ⚙️ <span>Settings</span>
         </button>
+        <button class="nav-item mod-only" id="reportsNavBtn" data-tab="reports" onclick="showTab('reports')" style="display:none;">
+          🚩 <span>Reports Queue</span>
+          <span class="pending-badge" id="reportsBadge" style="display:none;">0</span>
+        </button>
+        <button class="nav-item mod-only" id="modLogNavBtn" data-tab="modLog" onclick="showTab('modLog')" style="display:none;">
+          📋 <span>Moderation Log</span>
+        </button>
         <button class="nav-item mod-only" id="memberMgmtNavBtn" data-tab="memberManagement" onclick="showTab('memberManagement')" style="display:none;">
           🛡️ <span>Manage Members</span>
         </button>
@@ -347,6 +354,66 @@
           </div>
         </div>
 
+<!-- ============================= REPORTS QUEUE ============================= -->
+        <div class="tab-panel" id="tab-reports">
+          <div class="tab-header">
+            <h2 class="tab-title">Reports Queue</h2>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <select id="reportsStatusFilter" class="filter-select" onchange="loadReportsQueue()">
+                <option value="pending">Pending</option>
+                <option value="dismissed">Dismissed</option>
+                <option value="actioned">Actioned</option>
+              </select>
+              <select id="reportsReasonFilter" class="filter-select" onchange="loadReportsQueue()">
+                <option value="">All Reasons</option>
+                <option value="spam">Spam</option>
+                <option value="inappropriate">Inappropriate</option>
+                <option value="harassment">Harassment</option>
+                <option value="misinformation">Misinformation</option>
+                <option value="violence">Violence</option>
+                <option value="other">Other</option>
+              </select>
+              <button class="btn btn-secondary btn-sm" onclick="loadReportsQueue()">↺ Refresh</button>
+            </div>
+          </div>
+          <div style="background:rgba(255,101,132,0.04);border:1px solid rgba(255,101,132,0.15);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:var(--secondary);line-height:1.7;">
+            Review content reported by community members. Dismiss if no action is needed, or remove the content directly from here.
+          </div>
+          <div id="reportsQueueWrap">
+            <div class="loading-row"><span class="spinner"></span> Loading reports...</div>
+          </div>
+          <div id="reportsQueuePagination" class="pagination-wrap" style="display:none;"></div>
+        </div>
+
+        <!-- ============================= MODERATION LOG ============================= -->
+        <div class="tab-panel" id="tab-modLog">
+          <div class="tab-header">
+            <h2 class="tab-title">Moderation Log</h2>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <select id="modLogActionFilter" class="filter-select" onchange="loadModerationLog()">
+                <option value="">All Actions</option>
+                <option value="post_removed">Post Removed</option>
+                <option value="post_restored">Post Restored</option>
+                <option value="post_approved">Post Approved</option>
+                <option value="post_rejected">Post Rejected</option>
+                <option value="post_locked">Post Locked</option>
+                <option value="post_unlocked">Post Unlocked</option>
+                <option value="post_pinned">Post Pinned</option>
+                <option value="post_unpinned">Post Unpinned</option>
+                <option value="comment_removed">Comment Removed</option>
+                <option value="comment_restored">Comment Restored</option>
+                <option value="report_dismissed">Report Dismissed</option>
+                <option value="report_actioned">Report Actioned</option>
+              </select>
+              <button class="btn btn-secondary btn-sm" onclick="loadModerationLog()">↺ Refresh</button>
+            </div>
+          </div>
+          <div id="modLogWrap">
+            <div class="loading-row"><span class="spinner"></span> Loading log...</div>
+          </div>
+          <div id="modLogPagination" class="pagination-wrap" style="display:none;"></div>
+        </div>
+
         <!-- ============================= SETTINGS (Admin) ============================= -->
         <div class="tab-panel" id="tab-settings">
           <div class="tab-header">
@@ -420,6 +487,13 @@
                 <div class="field">
                   <label>Max Media Per Post</label>
                   <input type="number" id="settingMaxMedia" min="1" max="10" />
+                </div>
+                <div class="field">
+                  <label>Auto-lock Threshold (reports)</label>
+                  <input type="number" id="settingAutoLockThreshold" min="0" max="50" />
+                  <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+                    0 = disabled. When a post reaches this many reports it is automatically locked pending moderator review.
+                  </div>
                 </div>
               </div>
             </div>
@@ -528,6 +602,46 @@
           onkeydown="onCommentKeydown(event)"
         ></textarea>
         <button class="comment-submit-btn" onclick="submitComment()" title="Post comment">↑</button>
+      </div>
+    </div>
+  </div>
+
+<!-- ===== E9G: REPORT MODAL ===== -->
+  <div id="reportModal" class="report-modal" style="display:none;" onclick="handleReportModalClick(event)">
+    <div class="report-modal-panel">
+      <div class="report-modal-header">
+        <h3 class="report-modal-title">🚩 Report Content</h3>
+        <button class="member-detail-close" onclick="closeReportModal()">✕</button>
+      </div>
+      <div class="report-modal-body">
+        <p class="report-modal-notice">
+          Reports are reviewed by community moderators.
+          Please only report content that genuinely violates community rules.
+        </p>
+        <div class="field">
+          <label>Reason for reporting</label>
+          <select id="reportReasonSelect" class="composer-select" style="width:100%;">
+            <option value="spam">📢 Spam or advertising</option>
+            <option value="inappropriate">🔞 Inappropriate content</option>
+            <option value="harassment">😡 Harassment or bullying</option>
+            <option value="misinformation">❌ False information</option>
+            <option value="violence">⚠️ Violent or harmful content</option>
+            <option value="other">💬 Other reason</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Additional details <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
+          <textarea id="reportDetailsInput" class="composer-textarea" rows="3" maxlength="300"
+            placeholder="Provide any additional context to help our moderators review this report..."
+            style="min-height:70px;"></textarea>
+          <div style="text-align:right;font-size:11px;color:var(--muted);margin-top:3px;">
+            <span id="reportDetailsCount">0</span>/300
+          </div>
+        </div>
+      </div>
+      <div class="report-modal-actions">
+        <button class="btn btn-secondary" onclick="closeReportModal()">Cancel</button>
+        <button class="btn btn-danger" id="submitReportBtn" onclick="submitReport()">Submit Report</button>
       </div>
     </div>
   </div>
@@ -723,7 +837,7 @@
     /* Show mod/admin nav */
     var isMod = _member.role === 'moderator' || _member.role === 'admin';
     if (isMod) {
-      ['modNavSection','approvalNavBtn','settingsNavBtn','memberMgmtNavBtn'].forEach(function(id) {
+      ['modNavSection','approvalNavBtn','reportsNavBtn','modLogNavBtn','settingsNavBtn','memberMgmtNavBtn'].forEach(function(id) {
         var el = document.getElementById(id);
         if (el) el.style.display = id === 'modNavSection' ? 'block' : 'flex';
       });
@@ -771,6 +885,8 @@
     }
     if (name === 'members')          loadMembers();
     if (name === 'approval')         loadApprovalQueue();
+    if (name === 'reports')          loadReportsQueue();
+    if (name === 'modLog')           loadModerationLog();
     if (name === 'memberManagement') loadManagedMembers();
     if (name === 'settings')         populateSettings();
 
@@ -803,16 +919,24 @@
   }
 
   async function loadPendingCount() {
-    var res = await communityApi('/admin/posts/pending?limit=1');
-    if (!res.ok) return;
-    var count = res.data.totalPending || 0;
-    var badge = document.getElementById('pendingBadge');
-    var bigBadge = document.getElementById('pendingCountBig');
-    if (badge) {
-      badge.textContent = count;
-      badge.style.display = count > 0 ? 'inline-block' : 'none';
+    var [postsRes, reportsRes] = await Promise.all([
+      communityApi('/admin/posts/pending?limit=1'),
+      communityApi('/admin/reports?status=pending&limit=1')
+    ]);
+
+    if (postsRes.ok) {
+      var count    = postsRes.data.totalPending || 0;
+      var badge    = document.getElementById('pendingBadge');
+      var bigBadge = document.getElementById('pendingCountBig');
+      if (badge) { badge.textContent = count; badge.style.display = count > 0 ? 'inline-block' : 'none'; }
+      if (bigBadge) bigBadge.textContent = count > 0 ? count + ' pending' : '';
     }
-    if (bigBadge) bigBadge.textContent = count > 0 ? count + ' pending' : '';
+
+    if (reportsRes.ok) {
+      var rCount = reportsRes.data.totalPending || 0;
+      var rBadge = document.getElementById('reportsBadge');
+      if (rBadge) { rBadge.textContent = rCount; rBadge.style.display = rCount > 0 ? 'inline-block' : 'none'; }
+    }
   }
 
   /* ============================================
@@ -1258,6 +1382,10 @@
       items.push('<button class="post-menu-item" onclick="startEditPost(\'' + esc(postId) + '\')">✏️ Edit</button>');
       items.push('<button class="post-menu-item post-menu-danger" onclick="deleteOwnPost(\'' + esc(postId) + '\')">🗑️ Delete</button>');
     }
+    /* E9G: Report button for non-own posts */
+    if (!isOwn) {
+      items.push('<button class="post-menu-item" onclick="openReportModal(\'post\',\'' + esc(postId) + '\')">🚩 Report</button>');
+    }
     if (isModAdmin) {
       items.push('<hr class="post-menu-divider" />');
       items.push('<button class="post-menu-item" onclick="adminTogglePin(\'' + esc(postId) + '\', ' + isPinned + ')">' + (isPinned ? '📌 Unpin' : '📌 Pin') + '</button>');
@@ -1613,7 +1741,8 @@
     setVal('settingRules',            _settings.rules            || '');
     setVal('settingMaxPostLength',    _settings.maxPostLength    || 2000);
     setVal('settingMaxCommentLength', _settings.maxCommentLength || 500);
-    setVal('settingMaxMedia',         _settings.maxMediaPerPost  || 4);
+    setVal('settingMaxMedia',             _settings.maxMediaPerPost      || 4);
+    setVal('settingAutoLockThreshold',    _settings.autoLockThreshold    || 0);
   }
 
   async function saveSettings() {
@@ -1631,7 +1760,8 @@
       allowMediaUploads:   getChk('settingMediaUploads'),
       maxPostLength:       parseInt(getVal('settingMaxPostLength'))    || 2000,
       maxCommentLength:    parseInt(getVal('settingMaxCommentLength')) || 500,
-      maxMediaPerPost:     parseInt(getVal('settingMaxMedia'))        || 4
+      maxMediaPerPost:     parseInt(getVal('settingMaxMedia'))             || 4,
+      autoLockThreshold:   parseInt(getVal('settingAutoLockThreshold'))    || 0
     };
     var res = await communityApi('/admin/settings', 'PUT', payload);
     if (res.ok && res.data.success) {
@@ -1644,6 +1774,299 @@
       showToast('❌ ' + ((res.data && res.data.message) || 'Save failed.'));
     }
   }
+
+/* ============================================
+     E9G: REPORT MODAL
+  ============================================ */
+  var _reportTargetType = null;
+  var _reportTargetId   = null;
+
+  function openReportModal(targetType, targetId) {
+    _reportTargetType = targetType;
+    _reportTargetId   = targetId;
+
+    /* Reset form */
+    var reasonEl  = document.getElementById('reportReasonSelect');
+    var detailsEl = document.getElementById('reportDetailsInput');
+    var countEl   = document.getElementById('reportDetailsCount');
+    if (reasonEl)  reasonEl.value  = 'spam';
+    if (detailsEl) detailsEl.value = '';
+    if (countEl)   countEl.textContent = '0';
+
+    var modal = document.getElementById('reportModal');
+    if (modal) modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    /* Details char count */
+    if (detailsEl) {
+      detailsEl.oninput = function() {
+        if (countEl) countEl.textContent = this.value.length;
+      };
+    }
+  }
+
+  function closeReportModal() {
+    var modal = document.getElementById('reportModal');
+    if (modal) modal.style.display = 'none';
+    document.body.style.overflow = '';
+    _reportTargetType = null;
+    _reportTargetId   = null;
+  }
+
+  function handleReportModalClick(e) {
+    if (e.target === document.getElementById('reportModal')) closeReportModal();
+  }
+
+  async function submitReport() {
+    if (!_reportTargetType || !_reportTargetId) return;
+
+    var reason  = (document.getElementById('reportReasonSelect') || {}).value || 'other';
+    var details = ((document.getElementById('reportDetailsInput') || {}).value || '').trim();
+
+    var submitBtn = document.getElementById('submitReportBtn');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px;"></span> Submitting...'; }
+
+    var url = _reportTargetType === 'post'
+      ? '/posts/' + _reportTargetId + '/report'
+      : '/comments/' + _reportTargetId + '/report';
+
+    var res = await communityApi(url, 'POST', { reason, details });
+
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = 'Submit Report'; }
+
+    if (res.ok && res.data.success) {
+      showToast('✅ ' + (res.data.message || 'Report submitted. Our moderators will review it.'));
+      closeReportModal();
+    } else {
+      showToast('❌ ' + ((res.data && res.data.message) || 'Report failed.'));
+    }
+  }
+
+  /* ============================================
+     E9G: REPORTS QUEUE
+  ============================================ */
+  var _reportsPage = 1;
+
+  async function loadReportsQueue() {
+    var wrapEl = document.getElementById('reportsQueueWrap');
+    if (!wrapEl) return;
+    wrapEl.innerHTML = '<div class="loading-row"><span class="spinner"></span> Loading reports...</div>';
+
+    var status = (document.getElementById('reportsStatusFilter') || {}).value || 'pending';
+    var reason = (document.getElementById('reportsReasonFilter') || {}).value || '';
+    var url    = '/admin/reports?status=' + encodeURIComponent(status) + '&page=' + _reportsPage +
+      (reason ? '&reason=' + encodeURIComponent(reason) : '');
+
+    var res = await communityApi(url);
+    if (!res.ok || !res.data.success) {
+      wrapEl.innerHTML = '<div class="empty-state">Could not load reports.</div>';
+      return;
+    }
+
+    var reports    = res.data.reports    || [];
+    var pagination = res.data.pagination || {};
+    var isPending  = status === 'pending';
+
+    /* Update badge */
+    var rBadge = document.getElementById('reportsBadge');
+    if (rBadge) {
+      var tp = res.data.totalPending || 0;
+      rBadge.textContent    = tp;
+      rBadge.style.display  = tp > 0 ? 'inline-block' : 'none';
+    }
+    var bigCount = document.getElementById('reportsCountBig');
+    if (bigCount) bigCount.textContent = res.data.totalPending > 0 ? res.data.totalPending + ' pending' : '';
+
+    if (!reports.length) {
+      wrapEl.innerHTML = '<div class="empty-state">' +
+        (isPending ? '✅ No pending reports. The community is clean!' : 'No reports found for this filter.') +
+        '</div>';
+      return;
+    }
+
+    wrapEl.innerHTML = reports.map(function(r) {
+      var reasonLabel = {
+        spam:           '📢 Spam',
+        inappropriate:  '🔞 Inappropriate',
+        harassment:     '😡 Harassment',
+        misinformation: '❌ Misinformation',
+        violence:       '⚠️ Violence',
+        other:          '💬 Other'
+      }[r.reason] || r.reason;
+
+      var statusBadge =
+        r.status === 'pending'   ? '<span class="badge badge-orange">Pending</span>'  :
+        r.status === 'dismissed' ? '<span class="badge">Dismissed</span>'              :
+        r.status === 'actioned'  ? '<span class="badge badge-red">Actioned</span>'    : '';
+
+      return '<div class="report-card" data-report-id="' + esc(r._id) + '">' +
+        '<div class="report-card-header">' +
+          '<div class="report-card-reason">' + esc(reasonLabel) + '</div>' +
+          statusBadge +
+          '<div class="report-card-time">' + formatTimeAgo(r.createdAt) + '</div>' +
+        '</div>' +
+
+        /* Content preview */
+        (r.contentPreview ? '<div class="report-content-preview">' + nl2br(esc(r.contentPreview.substring(0,150))) + (r.contentPreview.length > 150 ? '…' : '') + '</div>' : '') +
+
+        /* Reporter info */
+        '<div class="report-card-meta">' +
+          '<span class="report-meta-item">Reported by: <strong>' + esc(r.reportedByName || 'Member') + '</strong></span>' +
+          '<span class="report-meta-item"><span class="badge">' + esc(formatMemberType(r.reportedByType)) + '</span></span>' +
+          '<span class="report-meta-item">Target: <strong>' + esc(r.targetType) + '</strong></span>' +
+        '</div>' +
+
+        /* Reporter's details */
+        (r.details ? '<div class="report-details-text">"' + esc(r.details) + '"</div>' : '') +
+
+        /* Actions */
+        (isPending ?
+          '<div class="report-card-actions">' +
+            '<button class="btn btn-secondary btn-sm" onclick="dismissReport(\'' + esc(r._id) + '\')">✓ Dismiss</button>' +
+            '<button class="btn btn-danger btn-sm" onclick="actionReport(\'' + esc(r._id) + '\')">🚫 Remove Content</button>' +
+          '</div>' : '') +
+      '</div>';
+    }).join('');
+
+    /* Pagination */
+    var pagEl = document.getElementById('reportsQueuePagination');
+    if (pagEl && pagination.pages > 1) {
+      pagEl.style.display = 'flex';
+      pagEl.innerHTML =
+        (_reportsPage > 1 ? '<button class="btn btn-secondary btn-sm" onclick="_reportsPage--;loadReportsQueue()">← Prev</button>' : '') +
+        '<span style="font-size:13px;color:var(--muted);">Page ' + _reportsPage + ' of ' + pagination.pages + '</span>' +
+        (pagination.hasMore ? '<button class="btn btn-secondary btn-sm" onclick="_reportsPage++;loadReportsQueue()">Next →</button>' : '');
+    } else if (pagEl) {
+      pagEl.style.display = 'none';
+    }
+  }
+
+  async function dismissReport(reportId) {
+    var note = prompt('Reason for dismissing (optional):') || '';
+    if (note === null) return; /* Cancelled */
+
+    var res = await communityApi('/admin/reports/' + reportId + '/dismiss', 'POST', { note });
+    if (res.ok && res.data.success) {
+      showToast('✅ Report dismissed.');
+      var card = document.querySelector('.report-card[data-report-id="' + reportId + '"]');
+      if (card) card.remove();
+      loadPendingCount();
+      checkEmptyReportsQueue();
+    } else {
+      showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+    }
+  }
+
+  async function actionReport(reportId) {
+    var reason = prompt(
+      'Remove the reported content?\n\nProvide a reason for this moderation action:'
+    );
+    if (reason === null) return; /* Cancelled */
+    if (!reason.trim()) reason = 'Removed following community report';
+
+    var res = await communityApi('/admin/reports/' + reportId + '/action', 'POST', { reason });
+    if (res.ok && res.data.success) {
+      showToast('✅ Content removed and report resolved.');
+      var card = document.querySelector('.report-card[data-report-id="' + reportId + '"]');
+      if (card) card.remove();
+      loadPendingCount();
+      /* Remove the post/comment from feed if visible */
+      loadFeed(true);
+      checkEmptyReportsQueue();
+    } else {
+      showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+    }
+  }
+
+  function checkEmptyReportsQueue() {
+    var wrapEl = document.getElementById('reportsQueueWrap');
+    if (!wrapEl) return;
+    var remaining = wrapEl.querySelectorAll('.report-card').length;
+    if (!remaining) {
+      wrapEl.innerHTML = '<div class="empty-state">✅ No pending reports. The community is clean!</div>';
+    }
+  }
+
+  /* ============================================
+     E9G: MODERATION LOG
+  ============================================ */
+  var _modLogPage = 1;
+
+  async function loadModerationLog() {
+    var wrapEl = document.getElementById('modLogWrap');
+    if (!wrapEl) return;
+    wrapEl.innerHTML = '<div class="loading-row"><span class="spinner"></span> Loading...</div>';
+
+    var action = (document.getElementById('modLogActionFilter') || {}).value || '';
+    var url    = '/admin/moderation/log?page=' + _modLogPage +
+      (action ? '&action=' + encodeURIComponent(action) : '');
+
+    var res = await communityApi(url);
+    if (!res.ok || !res.data.success) {
+      wrapEl.innerHTML = '<div class="empty-state">Could not load moderation log.</div>';
+      return;
+    }
+
+    var events     = res.data.events    || [];
+    var pagination = res.data.pagination || {};
+
+    if (!events.length) {
+      wrapEl.innerHTML = '<div class="empty-state">No moderation events found.</div>';
+      return;
+    }
+
+    wrapEl.innerHTML = events.map(function(ev) {
+      var meta = getModLogMeta(ev.action);
+      return '<div class="mod-log-entry">' +
+        '<div class="mod-log-icon">' + meta.icon + '</div>' +
+        '<div class="mod-log-body">' +
+          '<div class="mod-log-action">' + esc(meta.label) + '</div>' +
+          (ev.contentPreview ?
+            '<div class="mod-log-preview">"' + esc(ev.contentPreview.substring(0, 80)) + (ev.contentPreview.length > 80 ? '…' : '') + '"</div>' : '') +
+          '<div class="mod-log-by">' +
+            'by <strong>' + esc(ev.performedByName || 'System') + '</strong>' +
+            (ev.performedByType ? ' (' + esc(formatMemberType(ev.performedByType)) + ')' : '') +
+            (ev.reason ? ' — ' + esc(ev.reason.substring(0, 80)) : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="mod-log-time">' + formatTimeAgo(ev.createdAt) + '</div>' +
+      '</div>';
+    }).join('');
+
+    /* Pagination */
+    var pagEl = document.getElementById('modLogPagination');
+    if (pagEl && pagination.pages > 1) {
+      pagEl.style.display = 'flex';
+      pagEl.innerHTML =
+        (_modLogPage > 1 ? '<button class="btn btn-secondary btn-sm" onclick="_modLogPage--;loadModerationLog()">← Prev</button>' : '') +
+        '<span style="font-size:13px;color:var(--muted);">Page ' + _modLogPage + ' of ' + pagination.pages + '</span>' +
+        (pagination.hasMore ? '<button class="btn btn-secondary btn-sm" onclick="_modLogPage++;loadModerationLog()">Next →</button>' : '');
+    } else if (pagEl) {
+      pagEl.style.display = 'none';
+    }
+  }
+
+  function getModLogMeta(action) {
+    var map = {
+      post_approved:    { icon: '✅', label: 'Post Approved'    },
+      post_rejected:    { icon: '❌', label: 'Post Rejected'    },
+      post_removed:     { icon: '🚫', label: 'Post Removed'     },
+      post_restored:    { icon: '♻️', label: 'Post Restored'    },
+      post_pinned:      { icon: '📌', label: 'Post Pinned'      },
+      post_unpinned:    { icon: '📌', label: 'Post Unpinned'    },
+      post_locked:      { icon: '🔒', label: 'Discussion Locked' },
+      post_unlocked:    { icon: '🔓', label: 'Discussion Unlocked' },
+      comment_removed:  { icon: '🗑️', label: 'Comment Removed'  },
+      comment_restored: { icon: '♻️', label: 'Comment Restored' },
+      report_dismissed: { icon: '✓',  label: 'Report Dismissed' },
+      report_actioned:  { icon: '⚡', label: 'Report Actioned'  }
+    };
+    return map[action] || { icon: '•', label: action || 'Unknown action' };
+  }
+
+  /* ============================================
+     E9G: SETTINGS — autoLockThreshold
+  ============================================ */
 
   /* ============================================
      E9F: ADMIN STATISTICS
@@ -2605,6 +3028,9 @@
             '<button class="comment-action-link" onclick="openReplyComposer(\'' + esc(comment._id) + '\')">Reply</button>' : '') +
           ((_member && comment.authorId && comment.authorId === _member._id.toString()) ?
             '<button class="comment-action-link" onclick="deleteComment(\'' + esc(comment._id) + '\')">Delete</button>' : '') +
+          /* E9G: Report button for non-own comments */
+          (_member && comment.authorId && comment.authorId !== _member._id.toString() ?
+            '<button class="comment-action-link" onclick="openReportModal(\'comment\',\'' + esc(comment._id) + '\')">🚩 Report</button>' : '') +
           ((_member && (_member.role === 'moderator' || _member.role === 'admin')) ?
             '<button class="comment-action-link comment-action-mod" onclick="modRemoveComment(\'' + esc(comment._id) + '\')">Remove</button>' : '') +
         '</div>' +

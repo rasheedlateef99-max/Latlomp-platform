@@ -2837,3 +2837,167 @@ tr:hover td      { background: rgba(255,255,255,0.01); }
   background:  rgba(255,101,132,0.06) !important;
 }
 
+/* ============================================
+   E9G: REPORT MODAL
+============================================ */
+
+.report-modal {
+  position:        fixed;
+  inset:           0;
+  background:      rgba(0,0,0,0.6);
+  z-index:         700;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  padding:         24px;
+  animation:       fadeIn 0.15s ease;
+}
+
+.report-modal-panel {
+  background:    var(--dark-2);
+  border:        1px solid rgba(255,101,132,0.25);
+  border-radius: var(--radius);
+  width:         100%;
+  max-width:     440px;
+  box-shadow:    0 16px 48px rgba(0,0,0,0.5);
+  overflow:      hidden;
+}
+
+.report-modal-header {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         14px 18px;
+  border-bottom:   1px solid var(--border);
+  background:      rgba(255,101,132,0.04);
+}
+.report-modal-title { font-size: 15px; font-weight: 800; }
+
+.report-modal-body {
+  padding: 16px 18px;
+}
+.report-modal-notice {
+  font-size:     12px;
+  color:         var(--muted);
+  margin-bottom: 14px;
+  line-height:   1.6;
+  padding:       8px 10px;
+  background:    rgba(255,255,255,0.02);
+  border-radius: 6px;
+  border:        1px solid var(--border);
+}
+
+.report-modal-actions {
+  display:         flex;
+  justify-content: flex-end;
+  gap:             10px;
+  padding:         12px 18px 16px;
+  border-top:      1px solid var(--border);
+}
+
+/* ============================================
+   E9G: REPORTS QUEUE
+============================================ */
+
+.report-card {
+  background:    var(--dark-2);
+  border:        1px solid rgba(255,101,132,0.15);
+  border-radius: var(--radius);
+  padding:       14px 16px;
+  margin-bottom: 10px;
+  animation:     fadeIn 0.2s ease;
+}
+.report-card-header {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  margin-bottom:8px;
+  flex-wrap:   wrap;
+}
+.report-card-reason {
+  font-size:   13px;
+  font-weight: 800;
+  color:       #fff;
+  flex:        1;
+}
+.report-card-time {
+  font-size: 11px;
+  color:     var(--muted);
+  flex-shrink:0;
+}
+.report-content-preview {
+  font-size:     13px;
+  color:         var(--secondary);
+  background:    rgba(255,255,255,0.03);
+  border:        1px solid var(--border);
+  border-radius: 6px;
+  padding:       8px 10px;
+  margin-bottom: 8px;
+  line-height:   1.6;
+  white-space:   pre-wrap;
+  word-break:    break-word;
+  max-height:    80px;
+  overflow:      hidden;
+}
+.report-card-meta {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  flex-wrap:   wrap;
+  margin-bottom:6px;
+}
+.report-meta-item { font-size: 12px; color: var(--muted); }
+.report-meta-item strong { color: var(--secondary); }
+.report-details-text {
+  font-size:   12px;
+  color:       var(--muted);
+  font-style:  italic;
+  margin-bottom:10px;
+  padding-left: 8px;
+  border-left: 2px solid var(--border);
+}
+.report-card-actions {
+  display:         flex;
+  justify-content: flex-end;
+  gap:             8px;
+  padding-top:     10px;
+  border-top:      1px solid var(--border);
+  margin-top:      8px;
+}
+
+/* ============================================
+   E9G: MODERATION LOG
+============================================ */
+
+.mod-log-entry {
+  display:       flex;
+  align-items:   flex-start;
+  gap:           12px;
+  padding:       10px 12px;
+  background:    rgba(255,255,255,0.02);
+  border:        1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  animation:     fadeIn 0.15s ease;
+}
+.mod-log-icon {
+  font-size:   18px;
+  flex-shrink: 0;
+  width:       24px;
+  text-align:  center;
+  margin-top:  1px;
+}
+.mod-log-body    { flex: 1; min-width: 0; }
+.mod-log-action  { font-size: 13px; font-weight: 700; color: var(--secondary); margin-bottom: 3px; }
+.mod-log-preview {
+  font-size:   12px;
+  color:       var(--muted);
+  font-style:  italic;
+  margin-bottom:3px;
+  white-space: nowrap;
+  overflow:    hidden;
+  text-overflow:ellipsis;
+}
+.mod-log-by   { font-size: 11px; color: var(--muted); line-height: 1.5; }
+.mod-log-by strong { color: var(--secondary); }
+.mod-log-time { font-size: 11px; color: var(--muted); flex-shrink: 0; white-space: nowrap; }
