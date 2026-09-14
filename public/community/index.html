@@ -164,7 +164,14 @@
 
         <!-- ============================= FEED ============================= -->
         <div class="tab-panel" id="tab-feed">
-
+          <!-- Official Announcements (from SchoolAnnouncement — read only) -->
+          <div id="officialAnnouncementsSection" style="display:none;">
+            <div class="section-heading official-heading">
+              📢 Official Announcements
+              <button class="toggle-pinned-btn" onclick="toggleOfficialSection()">Hide</button>
+            </div>
+            <div id="officialAnnouncementsList"></div>
+          </div>
           <!-- Post Composer -->
           <div class="post-composer" id="postComposer">
             <div class="composer-header">
@@ -214,6 +221,42 @@
                 </div>
               </div>
 
+              <!-- E9E: Announcement reference picker (staff/admin only, shown for announcement type) -->
+              <div id="announcementRefPicker" style="display:none;" class="event-ref-picker" id="announcementRefPicker">
+                <label class="composer-option-label">📢 Link to Official Announcement (optional)</label>
+                <select id="announcementRefSelect" class="composer-select">
+                  <option value="">-- No linked announcement --</option>
+                </select>
+                <div style="font-size:12px;color:var(--muted);margin-top:4px;">
+                  Linking lets members see the official announcement context.
+                </div>
+              </div>
+
+              <!-- E9E: Activity metadata panel (achievement/competition/award/reunion) -->
+              <div id="activityMetaPanel" style="display:none;" class="activity-meta-panel">
+                <div class="composer-option-label" id="activityMetaLabel">Activity Details</div>
+                <div id="activityMetaFields"></div>
+              </div>
+              <!-- Media preview grid (shown when files selected) -->
+              <div id="composerMediaPreview" class="composer-media-preview" style="display:none;"></div>
+
+              <!-- Media toolbar -->
+              <div class="composer-media-bar">
+                <input
+                  type="file"
+                  id="mediaFileInput"
+                  multiple
+                  accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
+                  style="display:none;"
+                  onchange="onMediaFilesSelected(event)"
+                />
+                <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('mediaFileInput').click()">
+                  📎 Add Media
+                </button>
+                <span class="composer-media-hint" id="composerMediaHint">
+                  Images up to 5MB · Videos up to 50MB
+                </span>
+              </div>
               <div class="composer-actions">
                 <button class="btn btn-secondary btn-sm" onclick="closeComposer()">Cancel</button>
                 <button class="btn btn-primary" id="submitPostBtn" onclick="createPost()">
@@ -463,6 +506,9 @@
   var _composerOpen    = false;
   var _availableEvents = [];
   var _activePostMenu  = null;
+  /* E9D: media upload state */
+  var _pendingMediaFiles  = []; /* Array of { file, previewUrl, mimeType, isVideo } */
+  var _uploadingMedia     = false;
 
   var TOKEN_KEY = 'latlomp_community_token';
 
@@ -634,7 +680,10 @@
     if (panel)   panel.classList.add('active');
     if (navItem) navItem.classList.add('active');
 
-    if (name === 'feed')             { if (!_feedCursor && !_feedLoading) loadFeed(true); }
+    if (name === 'feed') {
+      if (!_feedCursor && !_feedLoading) loadFeed(true);
+      loadOfficialAnnouncements();
+    }
     if (name === 'members')          loadMembers();
     if (name === 'approval')         loadApprovalQueue();
     if (name === 'memberManagement') loadManagedMembers();
@@ -751,6 +800,8 @@
     var typeSelect = document.getElementById('postTypeSelect');
     if (typeSelect) typeSelect.value = 'post';
     onPostTypeChange();
+    /* E9D: clear pending media */
+    clearPendingMedia();
   }
 
   function onComposerInput() {
@@ -765,16 +816,35 @@
   }
 
   function onPostTypeChange() {
-    var typeSelect    = document.getElementById('postTypeSelect');
-    var eventPicker   = document.getElementById('eventRefPicker');
-    var eventSelect   = document.getElementById('eventRefSelect');
-    if (!typeSelect || !eventPicker) return;
+    var typeSelect         = document.getElementById('postTypeSelect');
+    var eventPicker        = document.getElementById('eventRefPicker');
+    var announcementPicker = document.getElementById('announcementRefPicker');
+    var activityPanel      = document.getElementById('activityMetaPanel');
+    var eventSelect        = document.getElementById('eventRefSelect');
+    var annSelect          = document.getElementById('announcementRefSelect');
+    if (!typeSelect) return;
 
-    var isEventRef = typeSelect.value === 'event_ref';
-    eventPicker.style.display = isEventRef ? 'block' : 'none';
+    var postType     = typeSelect.value;
+    var isEventRef   = postType === 'event_ref';
+    var isAnnounce   = postType === 'announcement';
+    var isActivity   = ['achievement', 'competition', 'award', 'reunion'].includes(postType);
+    var isStaff      = _member && (_member.memberType === 'staff' || _member.memberType === 'admin');
+
+    if (eventPicker)        eventPicker.style.display        = isEventRef ? 'block' : 'none';
+    if (announcementPicker) announcementPicker.style.display  = (isAnnounce && isStaff) ? 'block' : 'none';
+    if (activityPanel)      activityPanel.style.display       = isActivity ? 'block' : 'none';
 
     if (isEventRef && eventSelect && eventSelect.options.length <= 1) {
       loadEventPicker();
+    }
+    if (isAnnounce && isStaff && annSelect && annSelect.options.length <= 1) {
+      loadAnnouncementPicker();
+    }
+    if (isActivity) {
+      renderActivityMetaFields(postType);
+    } else if (activityPanel) {
+      var container = document.getElementById('activityMetaFields');
+      if (container) container.innerHTML = '';
     }
   }
 
@@ -827,8 +897,52 @@
     var btn = document.getElementById('submitPostBtn');
     if (btn) { btn.innerHTML = '<span class="spinner"></span> Posting...'; btn.disabled = true; }
 
+    /* E9D: upload pending media files first */
+    var mediaIds = [];
+    if (_pendingMediaFiles.length > 0) {
+      if (btn) btn.innerHTML = '<span class="spinner"></span> Uploading media (0/' + _pendingMediaFiles.length + ')...';
+      for (var mi = 0; mi < _pendingMediaFiles.length; mi++) {
+        if (btn) btn.innerHTML = '<span class="spinner"></span> Uploading media (' + (mi + 1) + '/' + _pendingMediaFiles.length + ')...';
+        var formData = new FormData();
+        formData.append('file', _pendingMediaFiles[mi].file);
+        var token    = localStorage.getItem('latlomp_community_token') || _communityToken || '';
+        try {
+          var uploadRes  = await fetch('/api/community/media/upload', {
+            method:  'POST',
+            headers: { 'Authorization': 'Bearer ' + token },
+            body:    formData
+          });
+          var uploadData = await uploadRes.json();
+          if (!uploadRes.ok || !uploadData.success) {
+            showToast('❌ Media upload failed: ' + (uploadData.message || 'Unknown error'));
+            if (btn) { btn.innerHTML = 'Post to Community'; btn.disabled = false; }
+            return;
+          }
+          mediaIds.push(uploadData.media.mediaId);
+        } catch(uploadErr) {
+          showToast('❌ Upload error: ' + uploadErr.message);
+          if (btn) { btn.innerHTML = 'Post to Community'; btn.disabled = false; }
+          return;
+        }
+      }
+      if (btn) btn.innerHTML = '<span class="spinner"></span> Publishing...';
+    }
+
+    /* E9E: collect event ref */
     var payload = { content: content.trim(), postType, visibility };
-    if (refId) payload.refId = refId;
+    if (refId)            payload.refId    = refId;
+    if (mediaIds.length)  payload.mediaIds = mediaIds;
+
+    /* E9E: collect announcement ref (for announcement postType) */
+    if (postType === 'announcement') {
+      var annSelect = document.getElementById('announcementRefSelect');
+      var annRefId  = annSelect ? annSelect.value : '';
+      if (annRefId) payload.refId = annRefId;
+    }
+
+    /* E9E: collect activity meta */
+    var activityMeta = getActivityMetaFromComposer();
+    if (activityMeta) payload.activityMeta = activityMeta;
 
     var res = await communityApi('/posts', 'POST', payload);
 
@@ -1006,7 +1120,16 @@
 
       /* Event reference card */
       (post.postType === 'event_ref' && post.refData ? renderEventRefCard(post.refData) : '') +
+          /* E9E: Activity metadata card */
+      (post.activityMeta ? renderActivityMetaCard(post) : '') +
 
+      /* E9E: Announcement reference card */
+      (post.refType === 'announcement' && post.refData ? renderAnnouncementRefCard(post.refData) : '') +
+
+      /* Media grid */
+      (post.mediaUrls && post.mediaUrls.length
+        ? renderPostMedia(post.mediaUrls, post.mediaMimeTypes)
+        : '') +
       /* Footer: reaction bar + comment button */
       '<div class="post-footer">' +
         '<div class="post-reaction-bar" id="reactionBar-' + esc(post._id) + '">' +
@@ -1435,6 +1558,347 @@
     } else {
       showToast('❌ ' + ((res.data && res.data.message) || 'Save failed.'));
     }
+  }
+
+/* ============================================
+     E9E: OFFICIAL ANNOUNCEMENTS
+  ============================================ */
+  var _officialVisible = true;
+
+  async function loadOfficialAnnouncements() {
+    var section  = document.getElementById('officialAnnouncementsSection');
+    var listEl   = document.getElementById('officialAnnouncementsList');
+    if (!section || !listEl) return;
+
+    var res = await communityApi('/feed/official?limit=5');
+    if (!res.ok || !res.data.success || !res.data.announcements || !res.data.announcements.length) {
+      section.style.display = 'none';
+      return;
+    }
+
+    listEl.innerHTML = res.data.announcements.map(function(a) {
+      return renderOfficialAnnouncement(a);
+    }).join('');
+
+    section.style.display = 'block';
+  }
+
+  function renderOfficialAnnouncement(a) {
+    var content   = a.content || a.body || '';
+    var priority  = a.priority || 'normal';
+    var dateStr   = a.publishedAt || a.createdAt;
+    var truncated = content.length > 280 ? content.substring(0, 280) + '…' : content;
+
+    var priorityClass = priority === 'urgent' ? 'official-urgent'  :
+                        priority === 'high'   ? 'official-high'    : '';
+
+    return '<div class="official-announcement-card ' + esc(priorityClass) + '">' +
+      '<div class="official-announcement-header">' +
+        '<div class="official-badge">' +
+          (priority === 'urgent' ? '🚨' : priority === 'high' ? '⚠️' : '📢') +
+          ' Official' +
+        '</div>' +
+        '<div class="official-date">' + formatTimeAgo(dateStr) + '</div>' +
+      '</div>' +
+      '<div class="official-title">' + esc(a.title || 'Announcement') + '</div>' +
+      (truncated ? '<div class="official-content">' + nl2br(esc(truncated)) + '</div>' : '') +
+      '<div class="official-audience">👁 ' + esc(formatAudience(a.targetAudience)) + '</div>' +
+    '</div>';
+  }
+
+  function toggleOfficialSection() {
+    _officialVisible = !_officialVisible;
+    var listEl = document.getElementById('officialAnnouncementsList');
+    var btn    = document.querySelector('.official-heading .toggle-pinned-btn');
+    if (listEl) listEl.style.display = _officialVisible ? 'block' : 'none';
+    if (btn)    btn.textContent       = _officialVisible ? 'Hide' : 'Show';
+  }
+
+  function formatAudience(audience) {
+    return audience === 'all'      ? 'Everyone'         :
+           audience === 'parents'  ? 'Parents'          :
+           audience === 'students' ? 'Students'         :
+           audience === 'staff'    ? 'Staff'            : (audience || 'Everyone');
+  }
+
+  /* ============================================
+     E9E: ANNOUNCEMENT PICKER (staff/admin)
+  ============================================ */
+  async function loadAnnouncementPicker() {
+    var select = document.getElementById('announcementRefSelect');
+    if (!select) return;
+    select.innerHTML = '<option value="">Loading...</option>';
+
+    var res = await communityApi('/announcements');
+    if (!res.ok || !res.data.announcements) {
+      select.innerHTML = '<option value="">No recent announcements</option>';
+      return;
+    }
+
+    var list = res.data.announcements || [];
+    if (!list.length) {
+      select.innerHTML = '<option value="">No recent published announcements</option>';
+      return;
+    }
+
+    select.innerHTML = '<option value="">-- No linked announcement --</option>' +
+      list.map(function(a) {
+        var dateStr = a.publishedAt || a.createdAt;
+        var date    = dateStr ? ' (' + new Date(dateStr).toLocaleDateString('en-GB') + ')' : '';
+        return '<option value="' + esc(a._id) + '">' + esc(a.title) + date + '</option>';
+      }).join('');
+  }
+
+  /* ============================================
+     E9E: ACTIVITY META COMPOSER
+  ============================================ */
+  var ACTIVITY_META_FIELDS = {
+    achievement: [
+      { key: 'recipient',    label: 'Who achieved this?', placeholder: 'Name or class...' },
+      { key: 'subject',      label: 'Subject / Area',     placeholder: 'e.g. Mathematics, Athletics...' },
+      { key: 'description',  label: 'Details (optional)', placeholder: 'Additional details...' }
+    ],
+    competition: [
+      { key: 'result',       label: 'Result / Position',  placeholder: 'e.g. 1st Place, Runners-up...' },
+      { key: 'opponent',     label: 'Opponent / Event',   placeholder: 'e.g. St. Mary\'s School...' },
+      { key: 'event',        label: 'Competition Name',   placeholder: 'e.g. Regional Science Fair...' }
+    ],
+    award: [
+      { key: 'awardName',    label: 'Award Name',         placeholder: 'e.g. Best Student Award...' },
+      { key: 'recipient',    label: 'Recipient',          placeholder: 'Name or class...' },
+      { key: 'category',     label: 'Category (optional)',placeholder: 'e.g. Academic Excellence...' }
+    ],
+    reunion: [
+      { key: 'graduationYear', label: 'Graduation Year',  placeholder: 'e.g. 2010...' },
+      { key: 'venue',          label: 'Venue (optional)', placeholder: 'Where is it happening?' },
+      { key: 'date',           label: 'Date (optional)',  placeholder: 'When is it happening?' }
+    ]
+  };
+
+  function renderActivityMetaFields(postType) {
+    var fields  = ACTIVITY_META_FIELDS[postType];
+    var panel   = document.getElementById('activityMetaPanel');
+    var container = document.getElementById('activityMetaFields');
+    var labelEl = document.getElementById('activityMetaLabel');
+
+    if (!fields || !panel || !container) return;
+
+    var typeLabels = {
+      achievement: '🏆 Achievement Details',
+      competition: '🏅 Competition Details',
+      award:       '🎖️ Award Details',
+      reunion:     '🎓 Reunion Details'
+    };
+    if (labelEl) labelEl.textContent = typeLabels[postType] || 'Activity Details';
+
+    container.innerHTML = fields.map(function(f) {
+      return '<div class="field" style="margin-bottom:10px;">' +
+        '<label style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:4px;">' + esc(f.label) + '</label>' +
+        '<input type="text" class="activity-meta-input" data-key="' + esc(f.key) + '" ' +
+          'placeholder="' + esc(f.placeholder) + '" maxlength="200" ' +
+          'style="width:100%;background:rgba(255,255,255,0.04);border:1px solid var(--border);' +
+          'border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;font-family:\'Inter\',sans-serif;outline:none;" />' +
+      '</div>';
+    }).join('');
+
+    panel.style.display = 'block';
+  }
+
+  function getActivityMetaFromComposer() {
+    var inputs = document.querySelectorAll('.activity-meta-input');
+    if (!inputs.length) return null;
+    var meta = {};
+    inputs.forEach(function(input) {
+      var key = input.getAttribute('data-key');
+      var val = (input.value || '').trim();
+      if (key && val) meta[key] = val;
+    });
+    return Object.keys(meta).length ? meta : null;
+  }
+
+  /* ============================================
+     E9E: ACTIVITY POST RENDERING
+  ============================================ */
+  function renderActivityMetaCard(post) {
+    var meta = post.activityMeta;
+    if (!meta || !Object.keys(meta).length) return '';
+
+    var fields = ACTIVITY_META_FIELDS[post.postType] || [];
+    var rows   = fields
+      .filter(function(f) { return meta[f.key]; })
+      .map(function(f) {
+        return '<div class="activity-meta-row">' +
+          '<span class="activity-meta-label">' + esc(f.label.replace(' (optional)', '')) + '</span>' +
+          '<span class="activity-meta-value">' + esc(meta[f.key]) + '</span>' +
+        '</div>';
+      }).join('');
+
+    if (!rows) return '';
+
+    return '<div class="activity-meta-card">' + rows + '</div>';
+  }
+
+  function renderAnnouncementRefCard(refData) {
+    if (!refData) return '';
+    var content  = refData.content || refData.body || '';
+    var truncated = content.length > 180 ? content.substring(0, 180) + '…' : content;
+    var priority  = refData.priority || 'normal';
+
+    return '<div class="announcement-ref-card">' +
+      '<div class="announcement-ref-header">' +
+        '<span class="announcement-ref-badge">' +
+          (priority === 'urgent' ? '🚨' : priority === 'high' ? '⚠️' : '📢') +
+          ' Official Announcement' +
+        '</span>' +
+      '</div>' +
+      '<div class="announcement-ref-title">' + esc(refData.title || 'Announcement') + '</div>' +
+      (truncated ? '<div class="announcement-ref-content">' + nl2br(esc(truncated)) + '</div>' : '') +
+    '</div>';
+  }
+
+/* ============================================
+     E9D: MEDIA UPLOAD + DISPLAY
+  ============================================ */
+
+  /* ---- File selection handler ---- */
+  function onMediaFilesSelected(event) {
+    var files   = Array.from(event.target.files || []);
+    var maxMedia= (_settings && _settings.maxMediaPerPost) || 4;
+    var total   = _pendingMediaFiles.length + files.length;
+
+    if (total > maxMedia) {
+      showToast('❌ Maximum ' + maxMedia + ' media items per post.');
+      event.target.value = '';
+      return;
+    }
+
+    var errors = [];
+    files.forEach(function(file) {
+      var isVideo = /^video\//i.test(file.type);
+      var maxSize = isVideo ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        errors.push(file.name + ' is too large (' + (isVideo ? '50MB max for video' : '5MB max for images') + ').');
+        return;
+      }
+      var previewUrl = isVideo ? null : URL.createObjectURL(file);
+      _pendingMediaFiles.push({
+        file:       file,
+        previewUrl: previewUrl,
+        mimeType:   file.type,
+        isVideo:    isVideo
+      });
+    });
+
+    if (errors.length) showToast('❌ ' + errors[0]);
+    event.target.value = '';
+    renderComposerMediaPreview();
+  }
+
+  /* ---- Render media previews in composer ---- */
+  function renderComposerMediaPreview() {
+    var previewEl = document.getElementById('composerMediaPreview');
+    var hintEl    = document.getElementById('composerMediaHint');
+    if (!previewEl) return;
+
+    if (!_pendingMediaFiles.length) {
+      previewEl.style.display = 'none';
+      if (hintEl) hintEl.textContent = 'Images up to 5MB · Videos up to 50MB';
+      return;
+    }
+
+    previewEl.style.display = 'flex';
+    if (hintEl) hintEl.textContent = _pendingMediaFiles.length + ' file(s) selected';
+
+    previewEl.innerHTML = _pendingMediaFiles.map(function(item, i) {
+      if (item.isVideo) {
+        return '<div class="composer-media-item">' +
+          '<div class="composer-media-video-thumb">' +
+            '<span class="composer-media-video-icon">🎬</span>' +
+            '<div class="composer-media-video-name">' + esc(item.file.name) + '</div>' +
+          '</div>' +
+          '<button class="composer-media-remove" onclick="removeMediaFile(' + i + ')" title="Remove">✕</button>' +
+        '</div>';
+      }
+      return '<div class="composer-media-item">' +
+        '<img src="' + esc(item.previewUrl || '') + '" class="composer-media-thumb" alt="Preview" />' +
+        '<button class="composer-media-remove" onclick="removeMediaFile(' + i + ')" title="Remove">✕</button>' +
+      '</div>';
+    }).join('');
+  }
+
+  function removeMediaFile(index) {
+    var item = _pendingMediaFiles[index];
+    if (item && item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+    _pendingMediaFiles.splice(index, 1);
+    renderComposerMediaPreview();
+  }
+
+  function clearPendingMedia() {
+    _pendingMediaFiles.forEach(function(item) {
+      if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+    });
+    _pendingMediaFiles = [];
+    var previewEl = document.getElementById('composerMediaPreview');
+    if (previewEl) previewEl.style.display = 'none';
+    var hintEl = document.getElementById('composerMediaHint');
+    if (hintEl) hintEl.textContent = 'Images up to 5MB · Videos up to 50MB';
+  }
+
+  /* ---- Render media grid inside a post card ---- */
+  function renderPostMedia(mediaUrls, mediaMimeTypes) {
+    if (!mediaUrls || !mediaUrls.length) return '';
+
+    var items = mediaUrls.slice(0, 4);
+    var extra = mediaUrls.length > 4 ? mediaUrls.length - 4 : 0;
+
+    var html = items.map(function(url, i) {
+      var mime    = (mediaMimeTypes && mediaMimeTypes[i]) || '';
+      var isVideo = /^video\//i.test(mime) || /\.(mp4|webm|mov)$/i.test(url);
+
+      if (isVideo) {
+        return '<div class="post-media-item post-media-video-wrap">' +
+          '<video class="post-media-video" src="' + esc(url) + '" controls preload="metadata" playsinline>' +
+            'Your browser does not support video playback.' +
+          '</video>' +
+        '</div>';
+      }
+
+      var showOverlay = extra > 0 && i === 3;
+      return '<div class="post-media-item post-media-img-wrap" onclick="openMediaViewer(\'' + esc(url) + '\')">' +
+        '<img src="' + esc(url) + '" class="post-media-img" alt="Post image" loading="lazy" />' +
+        (showOverlay ? '<div class="post-media-more">+' + extra + '</div>' : '') +
+      '</div>';
+    }).join('');
+
+    return '<div class="post-media-grid post-media-count-' + Math.min(items.length, 4) + '">' +
+      html +
+    '</div>';
+  }
+
+  /* ---- Simple full-screen image viewer ---- */
+  function openMediaViewer(url) {
+    var viewer = document.getElementById('mediaViewer');
+    if (!viewer) {
+      viewer = document.createElement('div');
+      viewer.id        = 'mediaViewer';
+      viewer.className = 'media-viewer';
+      viewer.onclick   = function() { viewer.style.display = 'none'; document.body.style.overflow = ''; };
+      var img          = document.createElement('img');
+      img.id           = 'mediaViewerImg';
+      img.className    = 'media-viewer-img';
+      img.onclick      = function(e) { e.stopPropagation(); };
+      var closeBtn     = document.createElement('button');
+      closeBtn.className = 'media-viewer-close';
+      closeBtn.textContent = '✕';
+      closeBtn.onclick   = function() { viewer.style.display = 'none'; document.body.style.overflow = ''; };
+      viewer.appendChild(img);
+      viewer.appendChild(closeBtn);
+      document.body.appendChild(viewer);
+    }
+    var viewerImg = document.getElementById('mediaViewerImg');
+    if (viewerImg) viewerImg.src = url;
+    viewer.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
   }
 
   /* ============================================

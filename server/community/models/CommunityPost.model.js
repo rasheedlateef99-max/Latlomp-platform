@@ -54,7 +54,7 @@ const communityPostSchema = new mongoose.Schema({
   /* ---- Authoritative reference (event_ref etc.) ---- */
   refType: {
     type:    String,
-    enum:    ['event', null],
+    enum:    ['event', 'announcement', null],
     default: null
   },
   refId: {
@@ -106,9 +106,23 @@ const communityPostSchema = new mongoose.Schema({
     default: null
   },
 
+
+  /* ---- E9E: Activity metadata (achievement/competition/award/reunion) ---- */
+  /* Plain text fields only — sanitized at route layer */
+  activityMeta: {
+    type:    mongoose.Schema.Types.Mixed,
+    default: null
+    /*
+      achievement:  { recipient, subject, description }
+      competition:  { result, position, opponent, event }
+      award:        { awardName, recipient, category, presenter }
+      reunion:      { graduationYear, venue, date, description }
+    */
+  },
   /* ---- Media attachments (E9D — refs only, no binary in MongoDB) ---- */
-  mediaIds:  { type: [mongoose.Schema.Types.ObjectId], default: [] },
-  mediaUrls: { type: [String],                         default: [] }, /* denormalised */
+  mediaIds:       { type: [mongoose.Schema.Types.ObjectId], default: [] },
+  mediaUrls:      { type: [String],                         default: [] }, /* denormalised */
+  mediaMimeTypes: { type: [String],                         default: [] }, /* E9D: parallel to mediaUrls */
 
   /* ---- Denormalised counters ---- */
   commentCount:  { type: Number, default: 0 },

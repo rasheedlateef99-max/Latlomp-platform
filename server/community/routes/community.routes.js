@@ -13,6 +13,14 @@ var mongoose   = require('mongoose');
 var CommunityMembership = require('../models/CommunityMembership.model');
 var CommunitySettings   = require('../models/CommunitySettings.model');
 var CommunityPost       = require('../models/CommunityPost.model');
+var multer              = require('multer');
+var communityMediaSvc   = require('../services/community.media.service');
+
+/* Multer: memory storage, 55MB ceiling covers images + video with header overhead */
+var mediaUpload = multer({
+  storage: multer.memoryStorage(),
+  limits:  { fileSize: 55 * 1024 * 1024 }
+});
 var membershipService   = require('../services/community.membership.service');
 var feedService         = require('../services/community.feed.service');
 
@@ -523,9 +531,10 @@ router.post('/posts', communityProtect, communityWriteGuard, async function(req,
     }
 
     var content = sanitizeText(req.body.content || '');
-    if (!content) {
-      return res.status(400).json({ success: false, message: 'Post content cannot be empty.' });
+    if (!content && (!req.body.mediaIds || !req.body.mediaIds.length)) {
+      return res.status(400).json({ success: false, message: 'Post must have content or media.' });
     }
+
     var maxLen = settings.maxPostLength || 2000;
     if (content.length > maxLen) {
       return res.status(400).json({ success: false, message: 'Post exceeds maximum length of ' + maxLen + ' characters.' });
@@ -545,19 +554,117 @@ router.post('/posts', communityProtect, communityWriteGuard, async function(req,
       return res.status(400).json({ success: false, message: 'You cannot post with visibility "' + visibility + '".' });
     }
 
+   /* ---- Event / Announcement reference ---- */
     var refType = null;
     var refId   = null;
+
     if (postType === 'event_ref') {
       if (!req.body.refId || !mongoose.isValidObjectId(req.body.refId)) {
         return res.status(400).json({ success: false, message: 'An event must be selected for this post type.' });
       }
       var SchoolEvent = require('../../institution/models/SchoolEvent.model');
-      var event = await SchoolEvent.findOne({ _id: req.body.refId, schoolId: req.schoolId, status: 'published' }).select('_id').lean();
+      var event = await SchoolEvent.findOne({
+        _id:      req.body.refId,
+        schoolId: req.schoolId,
+        status:   'published'
+      }).select('_id').lean();
       if (!event) {
         return res.status(404).json({ success: false, message: 'Event not found or not published.' });
       }
       refType = 'event';
       refId   = event._id;
+    }
+
+    /* ---- E9E: Announcement reference (staff only) ---- */
+    if (postType === 'announcement' && req.body.refId) {
+      if (!mongoose.isValidObjectId(req.body.refId)) {
+        return res.status(400).json({ success: false, message: 'Invalid announcement ID.' });
+      }
+      if (memberType !== 'staff' && memberType !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Only staff can reference official announcements.' });
+      }
+      var SchoolAnnouncement = require('../../institution/models/SchoolAnnouncement.model');
+      var announcement = await SchoolAnnouncement.findOne({
+        _id:      req.body.refId,
+        schoolId: req.schoolId,    /* TENANT SCOPE */
+        status:   'published'
+      }).select('_id').lean();
+      if (!announcement) {
+        return res.status(404).json({ success: false, message: 'Announcement not found or not published.' });
+      }
+      refType = 'announcement';
+      refId   = announcement._id;
+    }
+
+    /* ---- E9E: Activity metadata ---- */
+    var activityMeta = null;
+    var activityTypes = ['achievement', 'competition', 'award', 'reunion'];
+    if (activityTypes.includes(postType) && req.body.activityMeta) {
+      var rawMeta = req.body.activityMeta;
+      /* Sanitize each string field — no HTML allowed */
+      var metaFields = {};
+      Object.keys(rawMeta).forEach(function(key) {
+        if (typeof rawMeta[key] === 'string') {
+          var clean = sanitizeText(rawMeta[key]).substring(0, 200);
+          if (clean) metaFields[key] = clean;
+        }
+      });
+      if (Object.keys(metaFields).length) activityMeta = metaFields;
+    }
+
+    /* ---- E9D: Media validation ---- */
+    var mediaIds       = [];
+    var mediaUrls      = [];
+    var mediaMimeTypes = [];
+
+    if (req.body.mediaIds && Array.isArray(req.body.mediaIds) && req.body.mediaIds.length > 0) {
+      if (!settings.allowMediaUploads) {
+        return res.status(403).json({ success: false, message: 'Media uploads are disabled for this community.' });
+      }
+
+      var maxMedia = settings.maxMediaPerPost || 4;
+      if (req.body.mediaIds.length > maxMedia) {
+        return res.status(400).json({
+          success: false,
+          message: 'Maximum ' + maxMedia + ' media items per post.'
+        });
+      }
+
+      /* Validate all IDs are valid ObjectIds */
+      var validIds = req.body.mediaIds.filter(function(id) {
+        return mongoose.isValidObjectId(id);
+      });
+      if (validIds.length !== req.body.mediaIds.length) {
+        return res.status(400).json({ success: false, message: 'Invalid media ID(s).' });
+      }
+
+      /* Verify each media belongs to this school AND this member — TENANT SCOPE + IDOR protection */
+      var SchoolWebsiteMedia = require('../../institution/models/SchoolWebsiteMedia.model');
+      var medias = await SchoolWebsiteMedia.find({
+        _id:         { $in: validIds },
+        schoolId:    req.schoolId,     /* TENANT SCOPE */
+        usageContext:'community_post',
+        uploadedBy:  member.memberRef  /* Must be uploader's own media */
+      }).select('_id url thumbnailUrl mimeType').lean();
+
+      if (medias.length !== validIds.length) {
+        return res.status(400).json({
+          success: false,
+          message: 'One or more media items were not found or do not belong to you.'
+        });
+      }
+
+      /* Preserve the order the client sent */
+      var mediaMap = {};
+      medias.forEach(function(m) { mediaMap[m._id.toString()] = m; });
+      validIds.forEach(function(id) {
+        var m = mediaMap[id.toString()];
+        if (m) {
+          mediaIds.push(m._id);
+          mediaUrls.push(m.url);
+          mediaMimeTypes.push(m.mimeType);
+        }
+      });
     }
 
     var requiresApproval = settings.requirePostApproval && member.role === 'member';
@@ -576,12 +683,18 @@ router.post('/posts', communityProtect, communityWriteGuard, async function(req,
       refId,
       visibility,
       status:           initialStatus,
-      requiresApproval: requiresApproval
+      requiresApproval: requiresApproval,
+      mediaIds,
+      mediaUrls,
+      mediaMimeTypes,
+      activityMeta      /* E9E */
     });
 
     return res.status(201).json({
       success: true,
-      message: requiresApproval ? 'Post submitted and awaiting moderator approval.' : 'Post published.',
+      message: requiresApproval
+        ? 'Post submitted and awaiting moderator approval.'
+        : 'Post published.',
       post: {
         _id:             post._id,
         content:         post.content,
@@ -595,6 +708,12 @@ router.post('/posts', communityProtect, communityWriteGuard, async function(req,
         reactionCount:   0,
         authorName:      post.authorName,
         authorType:      post.authorType,
+        authorId:        post.authorId,
+        mediaUrls:       post.mediaUrls,
+        mediaMimeTypes:  post.mediaMimeTypes,
+        activityMeta:    post.activityMeta || null,
+        refType:         post.refType,
+        refId:           post.refId,
         createdAt:       post.createdAt
       }
     });
@@ -1411,6 +1530,156 @@ router.get('/posts/:id/reactions', communityProtect, async function(req, res) {
 router.get('/comments/:id/reactions', communityProtect, async function(req, res) {
   try {
     return await getReactionSummary(req, res, 'comment', req.params.id);
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+/* ============================================
+   E9D: COMMUNITY MEDIA ROUTES
+   All queries: TENANT SCOPED to req.schoolId.
+   uploadedBy: ALWAYS from req.communityMember.memberRef.
+   IDOR: every fetch/delete includes { schoolId, usageContext }.
+============================================ */
+
+/* POST /api/community/media/upload */
+router.post(
+  '/media/upload',
+  communityProtect,
+  communityWriteGuard,
+  mediaUpload.single('file'),
+  async function(req, res) {
+    try {
+      var member   = req.communityMember;
+      var settings = await ensureSettings(req.schoolId);
+
+      if (!settings.isEnabled) {
+        return res.status(403).json({ success: false, message: 'Community is not enabled.' });
+      }
+      if (!settings.allowMediaUploads) {
+        return res.status(403).json({
+          success: false,
+          message: 'Media uploads have been disabled by the administrator.'
+        });
+      }
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: 'No file provided.' });
+      }
+
+      var result = await communityMediaSvc.uploadCommunityMedia(req.file, {
+        schoolId:   req.schoolId,
+        memberId:   member._id,
+        memberType: member.memberType,
+        memberRef:  member.memberRef
+      });
+
+      return res.status(201).json({ success: true, media: result });
+    } catch(err) {
+      console.error('[community] POST /media/upload:', err.message);
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          message: 'File too large. Maximum 5MB for images, 50MB for videos.'
+        });
+      }
+      return res.status(400).json({ success: false, message: err.message || 'Upload failed.' });
+    }
+  }
+);
+
+/* GET /api/community/media — own uploaded media */
+router.get('/media', communityProtect, async function(req, res) {
+  try {
+    var member = req.communityMember;
+    var result = await communityMediaSvc.getCommunityMedia(
+      req.schoolId,
+      member.memberRef,
+      parseInt(req.query.page)  || 1,
+      parseInt(req.query.limit) || 20
+    );
+    return res.json({ success: true, ...result });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* DELETE /api/community/media/:id — delete own uploaded media */
+router.delete('/media/:id', communityProtect, communityWriteGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid media ID.' });
+    }
+    await communityMediaSvc.deleteCommunityMedia(
+      req.params.id,
+      req.schoolId,
+      req.communityMember.memberRef
+    );
+    return res.json({ success: true, message: 'Media deleted.' });
+  } catch(err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+});
+/* ============================================
+   E9E: OFFICIAL ANNOUNCEMENTS ROUTES
+   SchoolAnnouncement is read-only from community.
+   Never modified through these routes.
+   schoolId: ALWAYS from req.schoolId (JWT token).
+============================================ */
+
+/* GET /api/community/feed/official
+   Returns recent published SchoolAnnouncements visible
+   to the requesting member. Read-only display in community.
+   NOT stored as CommunityPosts — referenced only.
+*/
+router.get('/feed/official', communityProtect, async function(req, res) {
+  try {
+    var member = req.communityMember;
+    var limit  = parseInt(req.query.limit) || 5;
+
+    var announcements = await feedService.getOfficialAnnouncements(
+      req.schoolId,
+      member.memberType,
+      member.role,
+      limit
+    );
+
+    return res.json({ success: true, announcements });
+  } catch(err) {
+    console.error('[community] GET /feed/official:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* GET /api/community/announcements
+   Announcement picker for staff/admin creating a reference post.
+   Returns recent published SchoolAnnouncements for this school.
+   Staff only — regular members cannot see the picker list.
+*/
+router.get('/announcements', communityProtect, async function(req, res) {
+  try {
+    var member = req.communityMember;
+
+    /* Only staff/admin can use the announcement picker */
+    if (member.memberType !== 'staff' && member.memberType !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only staff and administrators can reference official announcements.'
+      });
+    }
+
+    var SchoolAnnouncement = require('../../institution/models/SchoolAnnouncement.model');
+    var fourteenDaysAgo    = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+
+    var announcements = await SchoolAnnouncement.find({
+      schoolId: req.schoolId,   /* TENANT SCOPE */
+      status:   'published',
+      createdAt:{ $gte: fourteenDaysAgo }
+    })
+    .select('title targetAudience priority publishedAt createdAt')
+    .sort({ createdAt: -1 })
+    .limit(20)
+    .lean();
+
+    return res.json({ success: true, announcements });
   } catch(err) {
     return res.status(500).json({ success: false, message: err.message });
   }

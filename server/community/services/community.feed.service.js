@@ -76,6 +76,7 @@ async function getFeed(schoolId, memberType, memberRole, cursor, limit) {
     : null;
 
   posts = await enrichEventRefs(posts, schoolId);
+  posts = await enrichAnnouncementRefs(posts, schoolId);
 
   return { posts, nextCursor, hasMore };
 }
@@ -98,7 +99,8 @@ async function getPinnedPosts(schoolId, memberType, memberRole) {
   .limit(MAX_PINNED)
   .lean();
 
-  return enrichEventRefs(pinned, schoolId);
+  pinned = await enrichEventRefs(pinned, schoolId);
+  return enrichAnnouncementRefs(pinned, schoolId);
 }
 
 /* ============================================
@@ -176,11 +178,93 @@ async function enrichEventRefs(posts, schoolId) {
   });
 }
 
+/* ============================================
+   enrichAnnouncementRefs
+   Batch-loads SchoolAnnouncement data for announcement-ref posts.
+   One query for ALL refs in the batch — no N+1.
+   SchoolAnnouncement is authoritative — never modified here.
+   Adds refData field to each post that references an announcement.
+   
+   ⚠️ SchoolAnnouncement field names inspected:
+   Uses 'content body' in select to handle either field name.
+============================================ */
+async function enrichAnnouncementRefs(posts, schoolId) {
+  if (!posts || !posts.length) return posts;
+
+  var announcementIds = posts
+    .filter(function(p) { return p.refType === 'announcement' && p.refId; })
+    .map(function(p) { return p.refId; });
+
+  if (!announcementIds.length) return posts;
+
+  var SchoolAnnouncement = require('../../institution/models/SchoolAnnouncement.model');
+  var announcements = await SchoolAnnouncement.find({
+    _id:      { $in: announcementIds },
+    schoolId: schoolId,    /* TENANT SCOPE — critical */
+    status:   'published'
+  })
+  .select('title content body targetAudience priority publishedAt createdAt')
+  .lean();
+
+  var announcementMap = {};
+  announcements.forEach(function(a) {
+    announcementMap[a._id.toString()] = a;
+  });
+
+  return posts.map(function(p) {
+    if (p.refType === 'announcement' && p.refId) {
+      p.refData = announcementMap[p.refId.toString()] || null;
+    }
+    return p;
+  });
+}
+
+/* ============================================
+   getOfficialAnnouncements
+   Returns recent published SchoolAnnouncements visible
+   to the requesting member type.
+   Called by GET /api/community/feed/official.
+   These are displayed read-only in the community feed —
+   they are NEVER duplicated into CommunityPost records.
+============================================ */
+async function getOfficialAnnouncements(schoolId, memberType, memberRole, limit) {
+  var SchoolAnnouncement = require('../../institution/models/SchoolAnnouncement.model');
+
+  /* Determine which targetAudience values this member can see */
+  var visibleAudiences;
+  if (memberRole === 'admin' || memberRole === 'moderator' ||
+      memberType === 'admin' || memberType === 'staff') {
+    visibleAudiences = ['all', 'parents', 'students', 'staff'];
+  } else if (memberType === 'student') {
+    visibleAudiences = ['all', 'students'];
+  } else if (memberType === 'parent') {
+    visibleAudiences = ['all', 'parents'];
+  } else {
+    visibleAudiences = ['all'];
+  }
+
+  var thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  return SchoolAnnouncement.find({
+    schoolId:       schoolId,               /* TENANT SCOPE */
+    status:         'published',
+    targetAudience: { $in: visibleAudiences },
+    createdAt:      { $gte: thirtyDaysAgo }
+  })
+  .select('title content body targetAudience priority publishedAt createdAt')
+  .sort({ priority: -1, createdAt: -1 })
+  .limit(Math.min(limit || 5, 10))
+  .lean();
+}
+
 module.exports = {
   getFeed,
   getPinnedPosts,
   getPendingPosts,
   getPendingCount,
+  enrichEventRefs,
+  enrichAnnouncementRefs,
+  getOfficialAnnouncements,
   getVisibilityFor,
   FEED_LIMIT,
   MAX_PINNED

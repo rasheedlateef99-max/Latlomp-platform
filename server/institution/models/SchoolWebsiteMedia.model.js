@@ -43,7 +43,7 @@ var schoolWebsiteMediaSchema = new mongoose.Schema({
   caption:      { type: String, default: '' },
   usageContext: {
     type:    String,
-    enum:    ['logo', 'favicon', 'gallery', 'news', 'staff', 'hero', 'general', 'event'],
+    enum: ['logo', 'favicon', 'gallery', 'news', 'staff', 'hero', 'general', 'event', 'community_post']
     default: 'general'
   },
 
