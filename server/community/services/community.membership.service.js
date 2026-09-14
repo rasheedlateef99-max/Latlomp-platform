@@ -86,6 +86,20 @@ async function findOrCreateMembership(options) {
     lastActiveAt: new Date()
   });
 
+  /* E9F: log join event — non-blocking */
+  var CommunityMembershipLog = require('../models/CommunityMembershipLog.model');
+  CommunityMembershipLog.create({
+    schoolId:        schoolId,
+    memberId:        membership._id,
+    memberRef:       memberRef,
+    memberName:      memberName || 'Member',
+    action:          'joined',
+    newValue:        role,
+    performedByName: memberName + ' (self)'
+  }).catch(function(e) {
+    console.warn('[membership-log] join log failed:', e.message);
+  });
+
   return membership.toObject ? membership.toObject() : membership;
 }
 

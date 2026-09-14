@@ -11,6 +11,30 @@ var router     = express.Router();
 var mongoose   = require('mongoose');
 
 var CommunityMembership = require('../models/CommunityMembership.model');
+var CommunityMembershipLog = require('../models/CommunityMembershipLog.model');
+
+/* ============================================
+   E9F: Membership event logger
+   Fire-and-forget — NEVER blocks user-facing responses.
+   Log failures are warned but never bubble to client.
+============================================ */
+function logMembershipEvent(data) {
+  CommunityMembershipLog.create({
+    schoolId:        data.schoolId,
+    memberId:        data.memberId,
+    memberRef:       data.memberRef,
+    memberName:      data.memberName      || '',
+    action:          data.action,
+    previousValue:   data.previousValue   || null,
+    newValue:        data.newValue        || null,
+    reason:          data.reason          || '',
+    performedById:   data.performedById   || null,
+    performedByName: data.performedByName || '',
+    performedByType: data.performedByType || ''
+  }).catch(function(e) {
+    console.warn('[membership-log] write failed:', e.message);
+  });
+}
 var CommunitySettings   = require('../models/CommunitySettings.model');
 var CommunityPost       = require('../models/CommunityPost.model');
 var multer              = require('multer');
@@ -353,6 +377,12 @@ router.get('/admin/members', communityProtect, communityModGuard, async function
     if (req.query.status)     filter.status     = req.query.status;
     if (req.query.memberType) filter.memberType = req.query.memberType;
     if (req.query.role)       filter.role       = req.query.role;
+    /* E9F: name search — sanitized regex, tenant-scoped */
+    if (req.query.q) {
+      var safeQ = sanitizeText(req.query.q).substring(0, 60)
+        .replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); /* escape regex special chars */
+      if (safeQ) filter.memberName = { $regex: safeQ, $options: 'i' };
+    }
 
     var [members, total] = await Promise.all([
       CommunityMembership.find(filter)
@@ -378,12 +408,32 @@ router.put('/admin/members/:id/role', communityProtect, communityAdminGuard, asy
     if (req.params.id === req.communityMember._id.toString()) {
       return res.status(400).json({ success: false, message: 'You cannot change your own role.' });
     }
+    /* E9F: fetch previous role for log before update */
+    var prevMember = await CommunityMembership.findOne(
+      { _id: req.params.id, schoolId: req.schoolId }
+    ).select('role memberRef memberName').lean();
+
     var member = await CommunityMembership.findOneAndUpdate(
       { _id: req.params.id, schoolId: req.schoolId },
       { $set: { role: req.body.role, updatedBy: req.communityMember.memberRef, updatedByName: req.communityMember.memberName } },
       { new: true }
     );
     if (!member) return res.status(404).json({ success: false, message: 'Member not found.' });
+
+    /* E9F: log role change (non-blocking) */
+    logMembershipEvent({
+      schoolId:        req.schoolId,
+      memberId:        member._id,
+      memberRef:       member.memberRef,
+      memberName:      member.memberName,
+      action:          'role_changed',
+      previousValue:   prevMember ? prevMember.role : null,
+      newValue:        req.body.role,
+      performedById:   req.communityMember._id,
+      performedByName: req.communityMember.memberName,
+      performedByType: req.communityMember.memberType
+    });
+
     return res.json({ success: true, message: 'Role updated.', role: member.role });
   } catch(err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -410,6 +460,22 @@ router.put('/admin/members/:id/suspend', communityProtect, communityModGuard, as
     await CommunityMembership.findByIdAndUpdate(target._id, {
       $set: { status: 'suspended', suspendedAt: new Date(), suspendedUntil: until, suspendedReason: reason, suspendedBy: req.communityMember.memberRef, updatedByName: req.communityMember.memberName }
     });
+
+    /* E9F: log suspension (non-blocking) */
+    logMembershipEvent({
+      schoolId:        req.schoolId,
+      memberId:        target._id,
+      memberRef:       target.memberRef,
+      memberName:      target.memberName,
+      action:          'suspended',
+      previousValue:   'active',
+      newValue:        'suspended',
+      reason:          reason,
+      performedById:   req.communityMember._id,
+      performedByName: req.communityMember.memberName,
+      performedByType: req.communityMember.memberType
+    });
+
     return res.json({ success: true, message: 'Member suspended' + (duration ? ' for ' + duration + ' day(s).' : ' indefinitely.'), suspendedUntil: until, suspendedReason: reason });
   } catch(err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -428,6 +494,21 @@ router.put('/admin/members/:id/unsuspend', communityProtect, communityModGuard, 
       { new: true }
     );
     if (!member) return res.status(404).json({ success: false, message: 'Suspended member not found.' });
+
+    /* E9F: log unsuspension (non-blocking) */
+    logMembershipEvent({
+      schoolId:        req.schoolId,
+      memberId:        member._id,
+      memberRef:       member.memberRef,
+      memberName:      member.memberName,
+      action:          'unsuspended',
+      previousValue:   'suspended',
+      newValue:        'active',
+      performedById:   req.communityMember._id,
+      performedByName: req.communityMember.memberName,
+      performedByType: req.communityMember.memberType
+    });
+
     return res.json({ success: true, message: 'Suspension lifted.', status: 'active' });
   } catch(err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -450,6 +531,22 @@ router.delete('/admin/members/:id', communityProtect, communityAdminGuard, async
       { new: true }
     );
     if (!member) return res.status(404).json({ success: false, message: 'Member not found.' });
+
+    /* E9F: log ban (non-blocking) */
+    logMembershipEvent({
+      schoolId:        req.schoolId,
+      memberId:        member._id,
+      memberRef:       member.memberRef,
+      memberName:      member.memberName,
+      action:          'banned',
+      previousValue:   member.status || 'active',
+      newValue:        'banned',
+      reason:          reason,
+      performedById:   req.communityMember._id,
+      performedByName: req.communityMember.memberName,
+      performedByType: req.communityMember.memberType
+    });
+
     return res.json({ success: true, message: 'Member banned.' });
   } catch(err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -1680,6 +1777,246 @@ router.get('/announcements', communityProtect, async function(req, res) {
     .lean();
 
     return res.json({ success: true, announcements });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   E9F: ROLE & MEMBERSHIP MANAGEMENT ROUTES
+============================================ */
+
+/* ============================================
+   GET /api/community/admin/stats
+   Community statistics for mod/admin dashboard.
+   All queries TENANT SCOPED to req.schoolId.
+============================================ */
+router.get('/admin/stats', communityProtect, communityModGuard, async function(req, res) {
+  try {
+    var schoolId    = req.schoolId;
+    var sevenDaysAgo= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    /* Run all counts in parallel — no sequential blocking */
+    var [
+      totalMembers,
+      activeMembers,
+      suspendedMembers,
+      bannedMembers,
+      membersByType,
+      publishedPosts,
+      pendingPosts,
+      removedPosts,
+      newMembersWeek,
+      postsWeek,
+      commentsWeek
+    ] = await Promise.all([
+      CommunityMembership.countDocuments({ schoolId }),
+      CommunityMembership.countDocuments({ schoolId, status: 'active' }),
+      CommunityMembership.countDocuments({ schoolId, status: 'suspended' }),
+      CommunityMembership.countDocuments({ schoolId, status: 'banned' }),
+      CommunityMembership.aggregate([
+        { $match: { schoolId: schoolId } },
+        { $group: { _id: '$memberType', count: { $sum: 1 } } }
+      ]),
+      CommunityPost.countDocuments({ schoolId, status: 'published' }),
+      CommunityPost.countDocuments({ schoolId, status: 'pending' }),
+      CommunityPost.countDocuments({ schoolId, status: 'removed' }),
+      CommunityMembership.countDocuments({ schoolId, joinedAt: { $gte: sevenDaysAgo } }),
+      CommunityPost.countDocuments({ schoolId, status: 'published', createdAt: { $gte: sevenDaysAgo } }),
+      CommunityComment.countDocuments({ schoolId, status: 'published', createdAt: { $gte: sevenDaysAgo } })
+    ]);
+
+    /* Shape membersByType into a map */
+    var byType = {};
+    membersByType.forEach(function(row) { byType[row._id] = row.count; });
+
+    return res.json({
+      success: true,
+      stats: {
+        members: {
+          total:     totalMembers,
+          active:    activeMembers,
+          suspended: suspendedMembers,
+          banned:    bannedMembers,
+          byType:    byType
+        },
+        posts: {
+          published: publishedPosts,
+          pending:   pendingPosts,
+          removed:   removedPosts
+        },
+        recentActivity: {
+          newMembersThisWeek:  newMembersWeek,
+          postsThisWeek:       postsWeek,
+          commentsThisWeek:    commentsWeek
+        }
+      }
+    });
+  } catch(err) {
+    console.error('[community] GET /admin/stats:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   GET /api/community/admin/moderators
+   List members with moderator or admin role.
+   Used by moderator management panel in settings.
+============================================ */
+router.get('/admin/moderators', communityProtect, communityModGuard, async function(req, res) {
+  try {
+    var moderators = await CommunityMembership.find({
+      schoolId: req.schoolId,          /* TENANT SCOPE */
+      role:     { $in: ['moderator', 'admin'] },
+      status:   { $ne: 'banned' }
+    })
+    .select('memberName memberAvatar memberType role status joinedAt lastActiveAt')
+    .sort({ role: 1, joinedAt: 1 })
+    .lean();
+
+    return res.json({ success: true, moderators });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   GET /api/community/admin/members/:id/profile
+   Single member detail with recent membership log.
+   schoolId scope prevents cross-school lookup.
+============================================ */
+router.get('/admin/members/:id/profile', communityProtect, communityModGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid member ID.' });
+    }
+
+    /* Lookup member — TENANT SCOPE */
+    var member = await CommunityMembership.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId
+    }).lean();
+    if (!member) {
+      return res.status(404).json({ success: false, message: 'Member not found.' });
+    }
+
+    /* Parallel: post count + recent log */
+    var [postCount, recentLog] = await Promise.all([
+      CommunityPost.countDocuments({
+        schoolId: req.schoolId,  /* TENANT SCOPE */
+        authorId: member._id,
+        status:   { $nin: ['removed'] }
+      }),
+      CommunityMembershipLog.find({
+        schoolId: req.schoolId,  /* TENANT SCOPE */
+        memberId: member._id
+      })
+      .select('action previousValue newValue reason performedByName createdAt')
+      .sort({ createdAt: -1 })
+      .limit(15)
+      .lean()
+    ]);
+
+    return res.json({
+      success: true,
+      member: {
+        _id:             member._id,
+        memberName:      member.memberName,
+        memberAvatar:    member.memberAvatar,
+        memberType:      member.memberType,
+        role:            member.role,
+        status:          member.status,
+        suspendedUntil:  member.suspendedUntil  || null,
+        suspendedReason: member.suspendedReason || '',
+        bannedReason:    member.bannedReason    || '',
+        joinedAt:        member.joinedAt,
+        lastActiveAt:    member.lastActiveAt    || null,
+        postCount:       postCount
+      },
+      recentLog: recentLog
+    });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   POST /api/community/leave
+   Member voluntarily leaves the community.
+   Sets status to 'left'. Soft change — record kept.
+   Member must rejoin from their portal to return.
+============================================ */
+router.post('/leave', communityProtect, async function(req, res) {
+  try {
+    var member = req.communityMember;
+
+    /* Admins cannot use self-leave to exit their own community */
+    if (member.role === 'admin') {
+      return res.status(400).json({
+        success: false,
+        message: 'Community administrators cannot leave. Transfer admin role to another member first, or contact a platform administrator.'
+      });
+    }
+
+    await CommunityMembership.findByIdAndUpdate(member._id, {
+      $set: { status: 'left', updatedByName: member.memberName }
+    });
+
+    /* E9F: log self-exit (non-blocking) */
+    logMembershipEvent({
+      schoolId:        req.schoolId,
+      memberId:        member._id,
+      memberRef:       member.memberRef,
+      memberName:      member.memberName,
+      action:          'left',
+      previousValue:   member.status,
+      newValue:        'left',
+      performedById:   null,
+      performedByName: member.memberName + ' (self)',
+      performedByType: member.memberType
+    });
+
+    return res.json({
+      success: true,
+      message: 'You have left the community. You can rejoin from your portal.'
+    });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   GET /api/community/admin/log
+   School-wide membership event log.
+   Paginated, newest first. Mod/admin only.
+============================================ */
+router.get('/admin/log', communityProtect, communityModGuard, async function(req, res) {
+  try {
+    var page  = Math.max(1, parseInt(req.query.page)   || 1);
+    var limit = Math.min(50, parseInt(req.query.limit) || 30);
+    var skip  = (page - 1) * limit;
+    var filter= { schoolId: req.schoolId };  /* TENANT SCOPE */
+
+    if (req.query.action)   filter.action   = req.query.action;
+    if (req.query.memberId && mongoose.isValidObjectId(req.query.memberId)) {
+      filter.memberId = req.query.memberId;
+    }
+
+    var [events, total] = await Promise.all([
+      CommunityMembershipLog.find(filter)
+        .select('action previousValue newValue reason memberName performedByName performedByType createdAt')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      CommunityMembershipLog.countDocuments(filter)
+    ]);
+
+    return res.json({
+      success: true,
+      events,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) }
+    });
   } catch(err) {
     return res.status(500).json({ success: false, message: err.message });
   }

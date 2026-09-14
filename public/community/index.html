@@ -141,6 +141,12 @@
                   ⚠️ Your community write access is currently suspended.
                   <span id="suspensionUntil"></span>
                 </div>
+                <!-- E9F: Leave community button (not shown for admins) -->
+                <div id="leaveCommunityWrap" style="display:none;margin-top:12px;">
+                  <button class="btn btn-secondary btn-sm leave-community-btn" onclick="leaveCommmunity()">
+                    → Leave Community
+                  </button>
+                </div>
               </div>
             </div>
             <div class="card">
@@ -420,6 +426,31 @@
           </div>
         </div>
 
+<!-- E9F: Moderators management card -->
+            <div class="card" style="grid-column: 1 / -1;">
+              <div class="card-head" style="display:flex;align-items:center;justify-content:space-between;">
+                Community Moderators
+                <button class="btn btn-secondary btn-sm" onclick="loadModeratorsPanel()">↺ Refresh</button>
+              </div>
+              <div class="card-body">
+                <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">
+                  Moderators can approve posts, remove inappropriate content, lock discussions, and suspend members.
+                </p>
+                <div id="moderatorsListWrap">
+                  <div style="color:var(--muted);font-size:13px;">Click Refresh to load moderators.</div>
+                </div>
+                <div class="moderator-add-wrap" id="moderatorAddWrap" style="display:none;margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+                  <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">
+                    Add Moderator — Search by name
+                  </div>
+                  <div style="display:flex;gap:8px;">
+                    <input type="text" id="moderatorSearchInput" class="mgmt-search-input" placeholder="Type a member name..." maxlength="60" oninput="onModeratorSearchInput(this.value)" style="flex:1;" />
+                  </div>
+                  <div id="moderatorSearchResults" class="moderator-search-results" style="display:none;"></div>
+                </div>
+              </div>
+            </div>
+
         <!-- ============================= MEMBER MANAGEMENT ============================= -->
         <div class="tab-panel" id="tab-memberManagement">
           <div class="tab-header">
@@ -440,6 +471,23 @@
                 <option value="alumni">Alumni</option>
               </select>
             </div>
+          </div>
+          <!-- E9F: Search bar -->
+          <div class="mgmt-search-bar">
+            <input
+              type="text"
+              id="mgmtSearchInput"
+              class="mgmt-search-input"
+              placeholder="🔍 Search by name..."
+              oninput="onMemberSearchInput(this.value)"
+              maxlength="60"
+            />
+            <select id="mgmtRoleFilter" class="filter-select" onchange="loadManagedMembers()">
+              <option value="">All Roles</option>
+              <option value="admin">Admin</option>
+              <option value="moderator">Moderator</option>
+              <option value="member">Member</option>
+            </select>
           </div>
           <div id="managedMembersWrap">
             <div class="loading-row"><span class="spinner"></span> Loading...</div>
@@ -480,6 +528,35 @@
           onkeydown="onCommentKeydown(event)"
         ></textarea>
         <button class="comment-submit-btn" onclick="submitComment()" title="Post comment">↑</button>
+      </div>
+    </div>
+  </div>
+
+<!-- ===== E9F: MEMBER DETAIL MODAL ===== -->
+  <div id="memberDetailModal" class="member-detail-modal" style="display:none;" onclick="closeMemberDetailModal(event)">
+    <div class="member-detail-panel">
+      <div class="member-detail-header">
+        <div class="member-detail-title-wrap">
+          <div class="member-detail-avatar-lg" id="memberDetailAvatarLg">?</div>
+          <div>
+            <div class="member-detail-name" id="memberDetailName">Member</div>
+            <div class="member-detail-badges" id="memberDetailBadges"></div>
+          </div>
+        </div>
+        <button class="member-detail-close" onclick="closeMemberDetailModal()">✕</button>
+      </div>
+      <div class="member-detail-body">
+        <!-- Stats row -->
+        <div class="member-detail-stats" id="memberDetailStats"></div>
+        <!-- Status notice -->
+        <div id="memberDetailStatusNotice" style="display:none;" class="member-detail-status-notice"></div>
+        <!-- Quick actions for mod/admin -->
+        <div class="member-detail-actions" id="memberDetailQuickActions"></div>
+        <!-- Log -->
+        <div class="member-detail-log-heading">Activity Log</div>
+        <div id="memberDetailLog" class="member-detail-log">
+          <div class="loading-row"><span class="spinner"></span> Loading...</div>
+        </div>
       </div>
     </div>
   </div>
@@ -665,6 +742,14 @@
     }
 
     loadStats();
+    loadAdminStats();
+
+    /* E9F: show leave button for non-admin members */
+    if (_member.role !== 'admin') {
+      var leaveWrap = document.getElementById('leaveCommunityWrap');
+      if (leaveWrap) leaveWrap.style.display = 'block';
+    }
+
     if (_member.role === 'admin') populateSettings();
   }
 
@@ -1557,6 +1642,450 @@
       if (maxEl) maxEl.textContent = payload.maxPostLength;
     } else {
       showToast('❌ ' + ((res.data && res.data.message) || 'Save failed.'));
+    }
+  }
+
+  /* ============================================
+     E9F: ADMIN STATISTICS
+  ============================================ */
+
+  async function loadAdminStats() {
+    var isMod = _member && (_member.role === 'moderator' || _member.role === 'admin');
+    if (!isMod) return;
+
+    /* Show admin stats card */
+    var card = document.getElementById('adminStatsCard');
+    if (card) card.style.display = 'block';
+
+    var body = document.getElementById('adminStatsBody');
+    if (!body) return;
+    body.innerHTML = '<div class="loading-row"><span class="spinner"></span> Loading...</div>';
+
+    var res = await communityApi('/admin/stats');
+    if (!res.ok || !res.data.success) {
+      body.innerHTML = '<div style="color:var(--muted);font-size:13px;">Could not load statistics.</div>';
+      return;
+    }
+
+    var s = res.data.stats;
+    var m = s.members   || {};
+    var p = s.posts     || {};
+    var r = s.recentActivity || {};
+
+    /* Build by-type breakdown */
+    var byType = m.byType || {};
+    var typeRows = Object.keys(byType).map(function(type) {
+      return '<div class="stat-row"><span class="stat-label">' + esc(formatMemberType(type)) + 's</span>' +
+             '<span class="stat-value-sm">' + (byType[type] || 0) + '</span></div>';
+    }).join('');
+
+    body.innerHTML =
+      '<div class="admin-stats-grid">' +
+
+      '<div class="admin-stat-block">' +
+        '<div class="admin-stat-block-title">Members</div>' +
+        '<div class="admin-stat-main">' + (m.total || 0) + '<span class="admin-stat-main-label">total</span></div>' +
+        '<div class="stat-row"><span class="stat-label">Active</span><span class="stat-value-sm badge-green-text">' + (m.active || 0) + '</span></div>' +
+        (m.suspended ? '<div class="stat-row"><span class="stat-label">Suspended</span><span class="stat-value-sm badge-orange-text">' + m.suspended + '</span></div>' : '') +
+        (m.banned    ? '<div class="stat-row"><span class="stat-label">Banned</span><span class="stat-value-sm badge-red-text">' + m.banned + '</span></div>' : '') +
+        typeRows +
+      '</div>' +
+
+      '<div class="admin-stat-block">' +
+        '<div class="admin-stat-block-title">Posts</div>' +
+        '<div class="admin-stat-main">' + (p.published || 0) + '<span class="admin-stat-main-label">published</span></div>' +
+        (p.pending ? '<div class="stat-row"><span class="stat-label">Pending approval</span><span class="stat-value-sm badge-orange-text">' + p.pending + '</span></div>' : '') +
+        (p.removed ? '<div class="stat-row"><span class="stat-label">Removed</span><span class="stat-value-sm badge-red-text">' + p.removed + '</span></div>' : '') +
+      '</div>' +
+
+      '<div class="admin-stat-block">' +
+        '<div class="admin-stat-block-title">This Week</div>' +
+        '<div class="stat-row"><span class="stat-label">New members</span><span class="stat-value-sm">' + (r.newMembersThisWeek || 0) + '</span></div>' +
+        '<div class="stat-row"><span class="stat-label">New posts</span><span class="stat-value-sm">' + (r.postsThisWeek || 0) + '</span></div>' +
+        '<div class="stat-row"><span class="stat-label">New comments</span><span class="stat-value-sm">' + (r.commentsThisWeek || 0) + '</span></div>' +
+      '</div>' +
+
+      '</div>';
+  }
+
+  /* ============================================
+     E9F: MEMBER SEARCH (management tab)
+  ============================================ */
+  var _memberSearchTimeout = null;
+
+  function onMemberSearchInput(val) {
+    clearTimeout(_memberSearchTimeout);
+    _memberSearchTimeout = setTimeout(function() {
+      loadManagedMembers(1, val.trim());
+    }, 350);
+  }
+
+  /* Extended loadManagedMembers to support search */
+  async function loadManagedMembers(page, searchQ) {
+    var wrapEl = document.getElementById('managedMembersWrap');
+    if (!wrapEl) return;
+    wrapEl.innerHTML = '<div class="loading-row"><span class="spinner"></span> Loading...</div>';
+
+    var status = (document.getElementById('mgmtStatusFilter') || {}).value || '';
+    var type   = (document.getElementById('mgmtTypeFilter')   || {}).value || '';
+    var role   = (document.getElementById('mgmtRoleFilter')   || {}).value || '';
+    var q      = searchQ !== undefined
+      ? searchQ
+      : ((document.getElementById('mgmtSearchInput') || {}).value || '').trim();
+    var pg     = page || 1;
+
+    var url = '/admin/members?limit=30&page=' + pg +
+      (status ? '&status='     + encodeURIComponent(status) : '') +
+      (type   ? '&memberType=' + encodeURIComponent(type)   : '') +
+      (role   ? '&role='       + encodeURIComponent(role)   : '') +
+      (q      ? '&q='          + encodeURIComponent(q)      : '');
+
+    var res = await communityApi(url);
+    if (!res.ok || !res.data.members) {
+      wrapEl.innerHTML = '<div class="empty-state">Could not load members.</div>';
+      return;
+    }
+
+    var members   = res.data.members || [];
+    var isAdmin   = _member && _member.role === 'admin';
+    var isMod     = _member && (_member.role === 'moderator' || _member.role === 'admin');
+    var pagination= res.data.pagination || {};
+
+    if (!members.length) {
+      wrapEl.innerHTML = '<div class="empty-state">' + (q ? 'No members found for "' + esc(q) + '".' : 'No members found.') + '</div>';
+      return;
+    }
+
+    wrapEl.innerHTML =
+      '<div class="tbl-wrap"><table><thead><tr>' +
+      '<th>Member</th><th>Type</th><th>Role</th><th>Status</th><th>Last Active</th>' +
+      (isMod ? '<th>Actions</th>' : '') +
+      '</tr></thead><tbody>' +
+      members.map(function(m) {
+        var statusBadge =
+          m.status === 'active'    ? '<span class="badge badge-green">Active</span>'    :
+          m.status === 'suspended' ? '<span class="badge badge-orange">Suspended</span>':
+          m.status === 'banned'    ? '<span class="badge badge-red">Banned</span>'      :
+          m.status === 'left'      ? '<span class="badge">Left</span>'                  :
+                                     '<span class="badge">' + esc(m.status) + '</span>';
+        var isSelf = _member && m._id === _member._id.toString();
+        return '<tr class="member-row' + (isMod ? ' member-row-clickable' : '') + '" ' +
+          (isMod ? 'onclick="openMemberDetailModal(\'' + esc(m._id) + '\')"' : '') + '>' +
+          '<td><div style="display:flex;align-items:center;gap:8px;">' +
+            '<div class="member-row-avatar">' + esc(getInitials(m.memberName)) + '</div>' +
+            '<span style="font-weight:700;color:#fff;">' + esc(m.memberName || 'Member') + '</span>' +
+          '</div></td>' +
+          '<td><span class="badge">' + esc(formatMemberType(m.memberType)) + '</span></td>' +
+          '<td><span class="badge badge-role">' + esc(formatRole(m.role)) + '</span></td>' +
+          '<td>' + statusBadge +
+            (m.suspendedUntil ? '<div style="font-size:11px;color:var(--muted);margin-top:2px;">until ' + fmtDate(m.suspendedUntil) + '</div>' : '') +
+          '</td>' +
+          '<td style="font-size:12px;color:var(--muted);">' + (m.lastActiveAt ? formatTimeAgo(m.lastActiveAt) : '—') + '</td>' +
+          (isMod ? '<td onclick="event.stopPropagation()"><div style="display:flex;gap:5px;flex-wrap:wrap;">' +
+            (!isSelf && m.status === 'active' ? '<button class="btn btn-secondary btn-sm" onclick="promptSuspend(\'' + m._id + '\',\'' + esc(m.memberName) + '\')">Suspend</button>' : '') +
+            (!isSelf && m.status === 'suspended' ? '<button class="btn btn-secondary btn-sm" onclick="unsuspendMember(\'' + m._id + '\')">Unsuspend</button>' : '') +
+            (isAdmin && !isSelf && m.role !== 'admin' ? '<button class="btn btn-secondary btn-sm" onclick="promoteRole(\'' + m._id + '\',\'' + m.role + '\')">Role</button>' : '') +
+            (isAdmin && !isSelf && m.status !== 'banned' ? '<button class="btn btn-danger btn-sm" onclick="banMember(\'' + m._id + '\',\'' + esc(m.memberName) + '\')">Ban</button>' : '') +
+          '</div></td>' : '') +
+        '</tr>';
+      }).join('') + '</tbody></table></div>' +
+      (pagination.pages > 1 ?
+        '<div class="pagination-wrap">' +
+        (pg > 1 ? '<button class="btn btn-secondary btn-sm" onclick="loadManagedMembers(' + (pg-1) + ')">← Prev</button>' : '') +
+        '<span style="font-size:13px;color:var(--muted);">Page ' + pg + ' of ' + pagination.pages + '</span>' +
+        (pagination.hasMore ? '<button class="btn btn-secondary btn-sm" onclick="loadManagedMembers(' + (pg+1) + ')">Next →</button>' : '') +
+        '</div>' : '') +
+      '<p style="font-size:12px;color:var(--muted);margin-top:8px;">' + members.length + ' of ' + (pagination.total || members.length) + ' member(s).' +
+      (isMod ? ' Click a row to view details.' : '') + '</p>';
+  }
+
+  /* ============================================
+     E9F: MEMBER DETAIL MODAL
+  ============================================ */
+  var _detailMemberId = null;
+
+  async function openMemberDetailModal(memberId) {
+    _detailMemberId = memberId;
+    var modal = document.getElementById('memberDetailModal');
+    if (modal) modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    /* Reset */
+    setEl('memberDetailName', 'Loading...');
+    var badges    = document.getElementById('memberDetailBadges');
+    var stats     = document.getElementById('memberDetailStats');
+    var notice    = document.getElementById('memberDetailStatusNotice');
+    var actions   = document.getElementById('memberDetailQuickActions');
+    var logEl     = document.getElementById('memberDetailLog');
+    var avatarEl  = document.getElementById('memberDetailAvatarLg');
+
+    if (badges)  badges.innerHTML  = '';
+    if (stats)   stats.innerHTML   = '';
+    if (notice)  notice.style.display = 'none';
+    if (actions) actions.innerHTML = '';
+    if (logEl)   logEl.innerHTML   = '<div class="loading-row"><span class="spinner"></span> Loading...</div>';
+
+    var res = await communityApi('/admin/members/' + memberId + '/profile');
+    if (!res.ok || !res.data.success) {
+      if (logEl) logEl.innerHTML = '<div class="empty-state">Could not load member details.</div>';
+      return;
+    }
+
+    var m   = res.data.member;
+    var log = res.data.recentLog || [];
+
+    /* Avatar */
+    if (avatarEl) avatarEl.textContent = getInitials(m.memberName);
+
+    /* Name + badges */
+    setEl('memberDetailName', m.memberName || 'Member');
+    if (badges) {
+      badges.innerHTML =
+        '<span class="badge">' + esc(formatMemberType(m.memberType)) + '</span> ' +
+        '<span class="badge badge-role">' + esc(formatRole(m.role)) + '</span>' +
+        (m.status !== 'active' ? ' <span class="badge badge-' + esc(getStatusBadgeType(m.status)) + '">' + esc(m.status) + '</span>' : '');
+    }
+
+    /* Stats */
+    if (stats) {
+      stats.innerHTML =
+        '<div class="member-detail-stat"><div class="member-detail-stat-value">' + (m.postCount || 0) + '</div><div class="member-detail-stat-label">Posts</div></div>' +
+        '<div class="member-detail-stat"><div class="member-detail-stat-value">' + fmtDate(m.joinedAt) + '</div><div class="member-detail-stat-label">Joined</div></div>' +
+        '<div class="member-detail-stat"><div class="member-detail-stat-value">' + (m.lastActiveAt ? formatTimeAgo(m.lastActiveAt) : '—') + '</div><div class="member-detail-stat-label">Last Active</div></div>';
+    }
+
+    /* Status notice */
+    if (notice) {
+      if (m.status === 'suspended') {
+        notice.style.display = 'block';
+        notice.className     = 'member-detail-status-notice notice-suspended';
+        notice.innerHTML     = '⏸ Suspended' + (m.suspendedUntil ? ' until ' + fmtDate(m.suspendedUntil) : ' indefinitely') +
+          (m.suspendedReason ? '<br/><span style="font-size:11px;">Reason: ' + esc(m.suspendedReason) + '</span>' : '');
+      } else if (m.status === 'banned') {
+        notice.style.display = 'block';
+        notice.className     = 'member-detail-status-notice notice-banned';
+        notice.innerHTML     = '🚫 Banned' + (m.bannedReason ? '<br/><span style="font-size:11px;">Reason: ' + esc(m.bannedReason) + '</span>' : '');
+      }
+    }
+
+    /* Quick actions for mod/admin */
+    if (actions && _member) {
+      var isAdmin   = _member.role === 'admin';
+      var isMod     = _member.role === 'moderator' || _member.role === 'admin';
+      var isSelf    = memberId === _member._id.toString();
+      var btns      = [];
+
+      if (!isSelf && isMod) {
+        if (m.status === 'active') {
+          btns.push('<button class="btn btn-secondary btn-sm" onclick="promptSuspend(\'' + esc(m._id) + '\',\'' + esc(m.memberName) + '\');closeMemberDetailModal()">⏸ Suspend</button>');
+        }
+        if (m.status === 'suspended') {
+          btns.push('<button class="btn btn-secondary btn-sm" onclick="unsuspendMember(\'' + esc(m._id) + '\');closeMemberDetailModal()">▶ Unsuspend</button>');
+        }
+        if (isAdmin && m.role !== 'admin') {
+          btns.push('<button class="btn btn-secondary btn-sm" onclick="promoteRole(\'' + esc(m._id) + '\',\'' + esc(m.role) + '\');closeMemberDetailModal()">🔼 Change Role</button>');
+        }
+        if (isAdmin && m.status !== 'banned') {
+          btns.push('<button class="btn btn-danger btn-sm" onclick="banMember(\'' + esc(m._id) + '\',\'' + esc(m.memberName) + '\');closeMemberDetailModal()">🚫 Ban</button>');
+        }
+      }
+      if (btns.length) actions.innerHTML = btns.join('');
+    }
+
+    /* Log */
+    if (logEl) {
+      if (!log.length) {
+        logEl.innerHTML = '<div class="empty-state" style="padding:16px;">No log entries yet.</div>';
+      } else {
+        logEl.innerHTML = log.map(function(entry) {
+          return '<div class="log-entry">' +
+            '<div class="log-entry-icon">' + getLogIcon(entry.action) + '</div>' +
+            '<div class="log-entry-body">' +
+              '<div class="log-entry-action">' + esc(formatLogAction(entry)) + '</div>' +
+              (entry.performedByName ? '<div class="log-entry-by">by ' + esc(entry.performedByName) + '</div>' : '') +
+              (entry.reason ? '<div class="log-entry-reason">"' + esc(entry.reason) + '"</div>' : '') +
+            '</div>' +
+            '<div class="log-entry-date">' + formatTimeAgo(entry.createdAt) + '</div>' +
+          '</div>';
+        }).join('');
+      }
+    }
+  }
+
+  function closeMemberDetailModal(e) {
+    if (e && e.target !== document.getElementById('memberDetailModal')) return;
+    var modal = document.getElementById('memberDetailModal');
+    if (modal) modal.style.display = 'none';
+    document.body.style.overflow = '';
+    _detailMemberId = null;
+  }
+
+  function getStatusBadgeType(status) {
+    return status === 'suspended' ? 'orange' : status === 'banned' ? 'red' : '';
+  }
+
+  function getLogIcon(action) {
+    var icons = {
+      joined:             '🎉',
+      role_changed:       '🔼',
+      suspended:          '⏸',
+      unsuspended:        '▶',
+      banned:             '🚫',
+      left:               '👋',
+      moderator_added:    '🛡️',
+      moderator_removed:  '🔓'
+    };
+    return icons[action] || '•';
+  }
+
+  function formatLogAction(entry) {
+    switch(entry.action) {
+      case 'joined':            return 'Joined the community';
+      case 'role_changed':      return 'Role changed from ' + (entry.previousValue || '?') + ' → ' + (entry.newValue || '?');
+      case 'suspended':         return 'Suspended' + (entry.newValue ? ' until ' + entry.newValue : '');
+      case 'unsuspended':       return 'Suspension lifted';
+      case 'banned':            return 'Permanently banned';
+      case 'left':              return 'Left the community';
+      case 'moderator_added':   return 'Added as moderator';
+      case 'moderator_removed': return 'Removed as moderator';
+      default:                  return entry.action || 'Unknown action';
+    }
+  }
+
+  /* ============================================
+     E9F: MODERATOR MANAGEMENT PANEL
+  ============================================ */
+  var _modSearchTimeout = null;
+
+  async function loadModeratorsPanel() {
+    var wrapEl = document.getElementById('moderatorsListWrap');
+    var addWrap= document.getElementById('moderatorAddWrap');
+    if (!wrapEl) return;
+    wrapEl.innerHTML = '<div class="loading-row"><span class="spinner"></span> Loading...</div>';
+
+    var res = await communityApi('/admin/moderators');
+    if (!res.ok || !res.data.success) {
+      wrapEl.innerHTML = '<div style="color:var(--muted);font-size:13px;">Could not load moderators.</div>';
+      return;
+    }
+
+    var mods   = res.data.moderators || [];
+    var isAdmin= _member && _member.role === 'admin';
+
+    if (!mods.length) {
+      wrapEl.innerHTML = '<div style="color:var(--muted);font-size:13px;">No moderators assigned yet.</div>';
+    } else {
+      wrapEl.innerHTML = '<div class="moderators-list">' +
+        mods.map(function(m) {
+          var isSelf = _member && m._id === _member._id.toString();
+          return '<div class="moderator-row">' +
+            '<div class="moderator-row-avatar">' + esc(getInitials(m.memberName)) + '</div>' +
+            '<div class="moderator-row-info">' +
+              '<div class="moderator-row-name">' + esc(m.memberName || 'Member') + '</div>' +
+              '<div style="display:flex;gap:4px;">' +
+                '<span class="badge">' + esc(formatMemberType(m.memberType)) + '</span>' +
+                '<span class="badge badge-role">' + esc(formatRole(m.role)) + '</span>' +
+              '</div>' +
+            '</div>' +
+            (isAdmin && !isSelf && m.role === 'moderator' ?
+              '<button class="btn btn-secondary btn-sm" onclick="demoteModerator(\'' + esc(m._id) + '\',\'' + esc(m.memberName) + '\')">Remove</button>' : '') +
+          '</div>';
+        }).join('') +
+      '</div>';
+    }
+
+    /* Show add panel for admins */
+    if (addWrap) addWrap.style.display = isAdmin ? 'block' : 'none';
+  }
+
+  async function demoteModerator(memberId, memberName) {
+    if (!confirm('Remove "' + memberName + '" as moderator? They will become a regular member.')) return;
+    var res = await communityApi('/admin/members/' + memberId + '/role', 'PUT', { role: 'member' });
+    if (res.ok && res.data.success) {
+      showToast('✅ ' + memberName + ' removed as moderator.');
+      loadModeratorsPanel();
+    } else {
+      showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+    }
+  }
+
+  function onModeratorSearchInput(val) {
+    clearTimeout(_modSearchTimeout);
+    var resultsEl = document.getElementById('moderatorSearchResults');
+    if (!val.trim()) {
+      if (resultsEl) resultsEl.style.display = 'none';
+      return;
+    }
+    _modSearchTimeout = setTimeout(function() {
+      searchMembersForModerator(val.trim());
+    }, 350);
+  }
+
+  async function searchMembersForModerator(q) {
+    var resultsEl = document.getElementById('moderatorSearchResults');
+    if (!resultsEl) return;
+    resultsEl.style.display = 'block';
+    resultsEl.innerHTML     = '<div class="loading-row"><span class="spinner"></span></div>';
+
+    var res = await communityApi('/admin/members?q=' + encodeURIComponent(q) + '&status=active&limit=8');
+    if (!res.ok || !res.data.members) {
+      resultsEl.innerHTML = '<div style="padding:8px;color:var(--muted);font-size:12px;">No results.</div>';
+      return;
+    }
+
+    var members = (res.data.members || []).filter(function(m) {
+      return m.role === 'member' || m.role === 'staff';
+    });
+
+    if (!members.length) {
+      resultsEl.innerHTML = '<div style="padding:8px;color:var(--muted);font-size:12px;">No eligible members found.</div>';
+      return;
+    }
+
+    resultsEl.innerHTML = members.map(function(m) {
+      return '<div class="mod-search-result" onclick="promoteToModerator(\'' + esc(m._id) + '\',\'' + esc(m.memberName) + '\')">' +
+        '<div class="moderator-row-avatar" style="width:28px;height:28px;font-size:11px;">' + esc(getInitials(m.memberName)) + '</div>' +
+        '<div>' +
+          '<div style="font-size:13px;font-weight:700;color:#fff;">' + esc(m.memberName || 'Member') + '</div>' +
+          '<span class="badge" style="font-size:10px;">' + esc(formatMemberType(m.memberType)) + '</span>' +
+        '</div>' +
+        '<button class="btn btn-primary btn-sm" style="margin-left:auto;">+ Add</button>' +
+      '</div>';
+    }).join('');
+  }
+
+  async function promoteToModerator(memberId, memberName) {
+    var res = await communityApi('/admin/members/' + memberId + '/role', 'PUT', { role: 'moderator' });
+    if (res.ok && res.data.success) {
+      showToast('✅ ' + memberName + ' is now a moderator.');
+      var input = document.getElementById('moderatorSearchInput');
+      if (input) input.value = '';
+      var results = document.getElementById('moderatorSearchResults');
+      if (results) results.style.display = 'none';
+      loadModeratorsPanel();
+    } else {
+      showToast('❌ ' + ((res.data && res.data.message) || 'Failed.'));
+    }
+  }
+
+  /* ============================================
+     E9F: LEAVE COMMUNITY
+  ============================================ */
+  async function leaveCommmunity() {
+    if (!confirm(
+      'Are you sure you want to leave this community?\n\n' +
+      'Your posts and comments will remain. ' +
+      'You can rejoin by logging back into your portal.'
+    )) return;
+
+    var res = await communityApi('/leave', 'POST', {});
+    if (res.ok && res.data.success) {
+      showToast('You have left the community.');
+      /* Clear community token so re-auth is required on next visit */
+      localStorage.removeItem('latlomp_community_token');
+      setTimeout(function() { goBackToPortal(); }, 1500);
+    } else {
+      showToast('❌ ' + ((res.data && res.data.message) || 'Could not leave community.'));
     }
   }
 
