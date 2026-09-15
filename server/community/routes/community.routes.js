@@ -14,6 +14,7 @@ var CommunityMembership = require('../models/CommunityMembership.model');
 var CommunityMembershipLog = require('../models/CommunityMembershipLog.model');
 var CommunityReport        = require('../models/CommunityReport.model');
 var CommunityModerationLog = require('../models/CommunityModerationLog.model');
+var notificationService    = require('../services/community.notification.service');
 
 /* ============================================
    E9F: Membership event logger
@@ -360,7 +361,7 @@ router.put('/admin/settings', communityProtect, communityAdminGuard, async funct
       'requirePostApproval','allowStudentPosts','allowParentPosts',
       'allowAlumniPosts','allowStaffPosts','allowMediaUploads',
       'allowVideoUploads','maxMediaPerPost','maxPostLength','maxCommentLength',
-      'autoLockThreshold'
+      'autoLockThreshold','notificationsEnabled'
     ];
     var update = {};
     allowed.forEach(function(field) {
@@ -969,6 +970,13 @@ router.post('/admin/posts/:id/approve', communityProtect, communityModGuard, asy
       performedByType:  req.communityMember.memberType
     });
 
+    /* E9H: Notify post author — fire-and-forget */
+    var _settings9hApp = await ensureSettings(req.schoolId);
+    notificationService.notifyPostApproved({
+      post:     post,
+      settings: _settings9hApp
+    }).catch(function(e) { console.warn('[community] notify approved failed:', e.message); });
+
     return res.json({ success: true, message: 'Post approved and published.' });
   } catch(err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -1000,6 +1008,14 @@ router.post('/admin/posts/:id/reject', communityProtect, communityModGuard, asyn
       performedByName:  req.communityMember.memberName,
       performedByType:  req.communityMember.memberType
     });
+
+    /* E9H: Notify post author — fire-and-forget */
+    var _settings9hRej = await ensureSettings(req.schoolId);
+    notificationService.notifyPostRejected({
+      post:     post,
+      reason:   post.moderationNote || '',
+      settings: _settings9hRej
+    }).catch(function(e) { console.warn('[community] notify rejected failed:', e.message); });
 
     return res.json({ success: true, message: 'Post rejected.' });
   } catch(err) {

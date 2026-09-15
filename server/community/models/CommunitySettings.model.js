@@ -42,6 +42,8 @@ maxPostLength:       { type: Number, default: 2000  },
   maxCommentLength:    { type: Number, default: 500   },
   /* E9G: auto-lock posts when they receive this many reports. 0 = disabled */
   autoLockThreshold:   { type: Number, default: 0     },
+  /* E9H: email notifications for community activity */
+  notificationsEnabled: { type: Boolean, default: true },
 
   /* ---- Designated moderators (SchoolUser refs) ---- */
   moderators: [{
