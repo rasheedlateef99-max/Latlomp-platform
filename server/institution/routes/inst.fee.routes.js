@@ -123,22 +123,61 @@ router.get('/structures', staffGuard, async (req, res) => {
 /* POST /api/institution/fee/structures */
 router.post('/structures', adminGuard, async (req, res) => {
   try {
-    var { name, description, category, amount, termId, classIds, dueDate } = req.body;
+    var {
+      name, description, category, amount, termId, classIds, dueDate,
+      isFlexible, minAmount, maxAmount, targetAudience, paymentAccountId,
+      allowPartial, visibility, publishedOn
+    } = req.body;
 
-    if (!name)   { return res.status(400).json({ success: false, message: 'Fee name is required.' }); }
-    if (!amount || isNaN(amount) || amount <= 0) {
-      return res.status(400).json({ success: false, message: 'A valid amount is required.' });
+    if (!name) {
+      return res.status(400).json({ success: false, message: 'Fee name is required.' });
+    }
+
+    /* Amount validation depends on whether this is a fixed or flexible item */
+    var flexibleMode = isFlexible === true || isFlexible === 'true';
+    if (!flexibleMode) {
+      if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+        return res.status(400).json({ success: false, message: 'A valid amount is required.' });
+      }
+    } else {
+      /* Flexible: minAmount must be non-negative (can be 0 for open contributions) */
+      var minAmt = parseFloat(minAmount) || 0;
+      if (isNaN(minAmt) || minAmt < 0) {
+        return res.status(400).json({ success: false, message: 'Minimum contribution must be zero or greater.' });
+      }
+    }
+
+    /* Validate paymentAccountId belongs to this school if provided */
+    if (paymentAccountId && mongoose.isValidObjectId(paymentAccountId)) {
+      var SchoolManualPaymentAccount = require('../models/SchoolManualPaymentAccount.model');
+      var acctCheck = await SchoolManualPaymentAccount.findOne({
+        _id:      paymentAccountId,
+        schoolId: req.schoolId     /* TENANT SCOPE */
+      }).select('_id').lean();
+      if (!acctCheck) {
+        return res.status(400).json({ success: false, message: 'Payment account not found.' });
+      }
     }
 
     var structure = await SchoolFeeStructure.create({
-      schoolId:    req.schoolId,
-      name:        name.trim(),
-      description: (description || '').trim(),
-      category:    category || 'tuition',
-      amount:      parseFloat(amount),
-      termId:      termId   || null,
-      classIds:    Array.isArray(classIds) ? classIds : [],
-      dueDate:     dueDate  || null
+      schoolId:         req.schoolId,
+      name:             name.trim(),
+      description:      (description || '').trim(),
+      category:         category        || 'tuition',
+      amount:           flexibleMode ? 0 : parseFloat(amount),
+      termId:           termId          || null,
+      classIds:         Array.isArray(classIds) ? classIds : [],
+      dueDate:          dueDate         || null,
+      isFlexible:       flexibleMode,
+      minAmount:        flexibleMode ? (parseFloat(minAmount) || 0) : 0,
+      maxAmount:        (maxAmount !== undefined && maxAmount !== '' && maxAmount !== null)
+                          ? parseFloat(maxAmount) : null,
+      targetAudience:   Array.isArray(targetAudience) ? targetAudience : ['student', 'parent'],
+      paymentAccountId: (paymentAccountId && mongoose.isValidObjectId(paymentAccountId))
+                          ? paymentAccountId : null,
+      allowPartial:     allowPartial !== false && allowPartial !== 'false',
+      visibility:       visibility      || 'portal',
+      publishedOn:      Array.isArray(publishedOn) ? publishedOn : []
     });
 
     return res.status(201).json({
@@ -154,7 +193,28 @@ router.post('/structures', adminGuard, async (req, res) => {
 /* PUT /api/institution/fee/structures/:id */
 router.put('/structures/:id', adminGuard, async (req, res) => {
   try {
-    var allowed = ['name', 'description', 'category', 'amount', 'termId', 'classIds', 'dueDate', 'isActive'];
+    var allowed = [
+      'name', 'description', 'category', 'amount', 'termId', 'classIds', 'dueDate', 'isActive',
+      'isFlexible', 'minAmount', 'maxAmount', 'targetAudience', 'paymentAccountId',
+      'allowPartial', 'visibility', 'publishedOn'
+    ];
+
+    /* If switching to flexible mode, reset amount to 0 */
+    if (req.body.isFlexible === true || req.body.isFlexible === 'true') {
+      if (!req.body.amount) req.body.amount = 0;
+    }
+
+    /* Validate paymentAccountId belongs to this school if being updated */
+    if (req.body.paymentAccountId && mongoose.isValidObjectId(req.body.paymentAccountId)) {
+      var SchoolManualPaymentAccountPut = require('../models/SchoolManualPaymentAccount.model');
+      var acctCheckPut = await SchoolManualPaymentAccountPut.findOne({
+        _id:      req.body.paymentAccountId,
+        schoolId: req.schoolId
+      }).select('_id').lean();
+      if (!acctCheckPut) {
+        return res.status(400).json({ success: false, message: 'Payment account not found.' });
+      }
+    }
     var updates = {};
     allowed.forEach(function (f) {
       if (req.body[f] !== undefined) { updates[f] = req.body[f]; }
@@ -1011,6 +1071,77 @@ router.get('/student/:studentId/summary', staffGuard, async (req, res) => {
       payments
     });
   } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   P3 — SERVER-SIDE PAYMENT ACCOUNT RESOLUTION
+   GET /api/institution/fee/structures/:id/payment-account
+
+   Returns the payment account linked to a specific fee structure.
+   Server enforces: tenant scope, relationship, active status.
+
+   P9 HOOK: Used by parent/student portals to resolve payment
+   instructions for a specific fee — payers never receive a
+   list of all active accounts, only the applicable one.
+
+   Returns safe display fields only:
+   accountLabel, bankName, accountName, accountNumber,
+   currency, country, instructions.
+   No internal providerAccountId or sensitive fields exposed.
+============================================ */
+router.get('/structures/:id/payment-account', staffGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid fee structure ID.' });
+    }
+
+    /* Step 1: Confirm fee structure belongs to this school — TENANT SCOPE + IDOR */
+    var structure = await SchoolFeeStructure.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId,
+      isActive: true
+    }).select('paymentAccountId name currency isFlexible minAmount amount').lean();
+
+    if (!structure) {
+      return res.status(404).json({ success: false, message: 'Fee structure not found.' });
+    }
+    if (!structure.paymentAccountId) {
+      return res.status(404).json({
+        success: false,
+        message: 'No payment account has been linked to this fee structure. Contact your school administrator.'
+      });
+    }
+
+    /* Step 2: Resolve account — must belong to same school AND be active */
+    var SchoolManualPaymentAccount = require('../models/SchoolManualPaymentAccount.model');
+    var account = await SchoolManualPaymentAccount.findOne({
+      _id:      structure.paymentAccountId,
+      schoolId: req.schoolId,   /* Double tenant scope — prevents cross-school account leak */
+      isActive: true
+    })
+    .select('accountLabel bankName accountName accountNumber currency country instructions displayOrder')
+    .lean();
+
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        message: 'The linked payment account is currently unavailable. Contact your school administrator.'
+      });
+    }
+
+    return res.json({
+      success:      true,
+      feeName:      structure.name,
+      feeAmount:    structure.isFlexible ? null : structure.amount,
+      feeMinAmount: structure.isFlexible ? structure.minAmount : null,
+      isFlexible:   structure.isFlexible,
+      currency:     structure.currency,
+      account:      account
+    });
+  } catch(err) {
+    console.error('[fee] GET /structures/:id/payment-account:', err.message);
     return res.status(500).json({ success: false, message: err.message });
   }
 });

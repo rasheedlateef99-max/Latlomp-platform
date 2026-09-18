@@ -1,0 +1,1900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Fee & Payment — LatLomp Schools</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary:#6c63ff; --pd:#574fd6;
+      --green:#43e97b;   --red:#ff6584;
+      --orange:#ffa500;  --yellow:#ffd600;
+      --dark:#0f0f1a;    --dark-2:#1a1a2e;
+      --border:rgba(255,255,255,0.08);
+      --muted:#6b6b8a;   --secondary:#a0a0c0;
+    }
+    html, body { margin:0; padding:0; background:var(--dark); color:#fff; font-family:'Inter',sans-serif; }
+    @keyframes spin   { to { transform:rotate(360deg); } }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);} }
+
+    /* ---- SIDEBAR ---- */
+    .sidebar { width:240px; flex-shrink:0; background:var(--dark-2); border-right:1px solid var(--border); display:flex; flex-direction:column; position:fixed; top:0; left:0; bottom:0; z-index:400; overflow-y:auto; overflow-x:hidden; transition:transform 0.3s cubic-bezier(0.4,0,0.2,1); }
+    @media(max-width:960px){ .sidebar{transform:translateX(-100%);} .sidebar.open{transform:translateX(0);box-shadow:8px 0 48px rgba(0,0,0,0.6);} }
+    .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:399; }
+    .sidebar-overlay.visible { display:block; }
+    .sb-head { padding:18px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+    .sb-logo { width:38px; height:38px; border-radius:8px; background:linear-gradient(135deg,var(--primary),var(--pd)); display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:800; overflow:hidden; flex-shrink:0; }
+    .sb-logo img { width:100%; height:100%; object-fit:cover; }
+    .sb-school-name { font-size:13px; font-weight:800; color:#fff; line-height:1.3; }
+    .sb-school-sub  { font-size:10px; color:var(--green); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
+    .sb-nav  { flex:1; padding:8px 10px; }
+    .sb-sep  { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.6px; padding:12px 10px 5px; }
+    .nav-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; font-size:13px; font-weight:500; color:var(--secondary); cursor:pointer; transition:all 0.15s; margin-bottom:2px; width:100%; border:none; background:none; font-family:inherit; text-align:left; text-decoration:none; }
+    .nav-item:hover  { background:rgba(255,255,255,0.06); color:#fff; }
+    .nav-item.active { background:rgba(108,99,255,0.15); color:var(--primary); font-weight:700; }
+    .nav-icon { font-size:15px; width:20px; text-align:center; flex-shrink:0; }
+    .sb-footer { padding:10px; border-top:1px solid var(--border); flex-shrink:0; }
+
+    /* ---- MOBILE BAR ---- */
+    .mobile-bar { display:none; align-items:center; justify-content:space-between; padding:0 16px; height:56px; background:var(--dark-2); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:300; }
+    @media(max-width:960px){ .mobile-bar{display:flex!important;} }
+    .ham-btn { background:none; border:none; color:#fff; font-size:22px; cursor:pointer; padding:6px; border-radius:8px; }
+
+    /* ---- MAIN ---- */
+    .main { margin-left:240px; min-height:100vh; }
+    @media(max-width:960px){ .main{margin-left:0!important;} }
+    .page-content { padding:24px; }
+    @media(max-width:960px){ .page-content{padding:16px;} }
+
+    .section { display:none; animation:fadeUp 0.25s ease; }
+    .section.active { display:block; }
+
+    /* ---- STATS ---- */
+    .stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px; }
+    @media(max-width:900px){ .stats-row{grid-template-columns:1fr 1fr;} }
+    @media(max-width:480px){ .stats-row{grid-template-columns:1fr;gap:10px;} }
+    .stat-card { background:var(--dark-2); border:1px solid var(--border); border-radius:14px; padding:18px; position:relative; overflow:hidden; }
+    .stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--ac,var(--primary)); }
+    .stat-label { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px; }
+    .stat-value { font-size:26px; font-weight:900; color:#fff; }
+    .stat-sub   { font-size:11px; color:var(--secondary); margin-top:4px; }
+
+    /* ---- PANEL ---- */
+    .panel { background:var(--dark-2); border:1px solid var(--border); border-radius:14px; margin-bottom:18px; overflow:hidden; }
+    .panel-head { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:8px; }
+    .panel-head h3 { font-size:14px; font-weight:700; color:#fff; margin:0; }
+    .panel-body { padding:18px; }
+
+    /* ---- TABLES ---- */
+    .tbl-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; min-width:520px; font-size:13px; }
+    th { padding:9px 12px; text-align:left; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; color:var(--muted); background:rgba(255,255,255,0.02); border-bottom:1px solid var(--border); white-space:nowrap; }
+    td { padding:10px 12px; color:var(--secondary); border-bottom:1px solid var(--border); vertical-align:middle; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:rgba(255,255,255,0.01); }
+
+    /* ---- BUTTONS ---- */
+    .btn { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; border:none; transition:all 0.15s; text-decoration:none; white-space:nowrap; }
+    .btn-primary   { background:linear-gradient(135deg,var(--primary),var(--pd)); color:#fff; }
+    .btn-green     { background:linear-gradient(135deg,var(--green),#38f9d7); color:#0f0f1a; }
+    .btn-secondary { background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--secondary); }
+    .btn-secondary:hover { background:rgba(255,255,255,0.1); color:#fff; }
+    .btn-danger    { background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); }
+    .btn-orange    { background:rgba(255,165,0,0.1); border:1px solid rgba(255,165,0,0.3); color:var(--orange); }
+    .btn-sm { padding:5px 10px; font-size:12px; border-radius:6px; }
+    .btn:disabled { opacity:0.5; cursor:not-allowed; }
+
+    /* ---- BADGES ---- */
+    .badge { display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700; }
+    .badge-green  { background:rgba(67,233,123,0.12);  color:var(--green); }
+    .badge-red    { background:rgba(255,101,132,0.12); color:var(--red); }
+    .badge-orange { background:rgba(255,165,0,0.12);   color:var(--orange); }
+    .badge-purple { background:rgba(108,99,255,0.12);  color:#a78bfa; }
+    .badge-muted  { background:rgba(255,255,255,0.06); color:var(--secondary); }
+
+    /* ---- FORM ---- */
+    .field { margin-bottom:14px; }
+    .field label { display:block; font-size:11px; font-weight:700; color:var(--secondary); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:5px; }
+    .field label span.req { color:var(--red); }
+    .inp { padding:10px 12px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; color:#fff; font-size:13px; font-family:inherit; outline:none; width:100%; transition:border-color 0.15s; }
+    .inp:focus { border-color:var(--primary); }
+    .inp::placeholder { color:var(--muted); }
+    .sel  { padding:10px 12px; background:var(--dark-2); border:1px solid var(--border); border-radius:8px; color:#fff; font-size:13px; font-family:inherit; outline:none; width:100%; }
+    .sel:focus { border-color:var(--primary); }
+    .sel option { background:var(--dark-2); }
+    .field-hint  { font-size:11px; color:var(--muted); margin-top:4px; line-height:1.5; }
+    .form-row    { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    @media(max-width:540px){ .form-row{grid-template-columns:1fr;} }
+    .toggle-row  { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border); }
+    .toggle-row-last { border-bottom:none; }
+    .toggle-label { font-size:13px; font-weight:600; color:#fff; }
+    .toggle-sub   { font-size:11px; color:var(--muted); margin-top:2px; }
+    .toggle-switch { position:relative; width:40px; height:22px; flex-shrink:0; cursor:pointer; }
+    .toggle-switch input { opacity:0; width:0; height:0; }
+    .toggle-slider { position:absolute; inset:0; border-radius:22px; background:rgba(255,255,255,0.12); transition:background 0.2s; }
+    .toggle-slider::after { content:''; position:absolute; left:3px; top:3px; width:16px; height:16px; border-radius:50%; background:#fff; transition:transform 0.2s; }
+    input:checked + .toggle-slider { background:var(--green); }
+    input:checked + .toggle-slider::after { transform:translateX(18px); }
+
+    /* ---- MODAL ---- */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:600; display:flex; align-items:center; justify-content:center; padding:20px; overflow-y:auto; }
+    .modal-box { background:var(--dark-2); border:1px solid var(--border); border-radius:18px; width:100%; max-width:520px; max-height:92vh; overflow-y:auto; }
+    .modal-head { display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--dark-2); z-index:1; }
+    .modal-head h2 { font-size:16px; font-weight:800; margin:0; }
+    .modal-close { width:30px; height:30px; border-radius:7px; background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--muted); cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; font-family:inherit; }
+    .modal-close:hover { background:rgba(255,101,132,0.15); color:var(--red); }
+    .modal-body { padding:20px 22px; }
+    .modal-foot { display:flex; justify-content:flex-end; gap:10px; padding:14px 22px; border-top:1px solid var(--border); }
+    @media(max-width:600px){ .modal-overlay{align-items:flex-end;padding:0;} .modal-box{border-radius:18px 18px 0 0;max-width:100%;} }
+
+    /* ---- FILTER ROW ---- */
+    .filter-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+
+    /* ---- TABS ---- */
+    .tab-strip { display:flex; gap:4px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:10px; padding:4px; margin-bottom:16px; }
+    .tab-btn { flex:1; padding:8px 12px; border-radius:7px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; border:none; background:none; color:var(--secondary); transition:all 0.15s; text-align:center; }
+    .tab-btn.active { background:rgba(108,99,255,0.2); color:#a78bfa; }
+
+    /* ---- PAGINATION ---- */
+    .pagination { display:flex; gap:6px; align-items:center; justify-content:center; margin-top:14px; flex-wrap:wrap; }
+    .page-btn { padding:5px 12px; border-radius:7px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; border:1px solid var(--border); background:rgba(255,255,255,0.04); color:var(--secondary); }
+    .page-btn.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+    .page-info { font-size:11px; color:var(--muted); }
+
+    /* ---- ACCOUNT DISPLAY ---- */
+    .acct-mini { background:rgba(108,99,255,0.06); border:1px solid rgba(108,99,255,0.2); border-radius:8px; padding:10px 12px; margin-top:8px; font-size:12px; line-height:1.7; }
+    .acct-mini strong { color:#a78bfa; }
+    .acct-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
+    .acct-card { background:var(--dark-2); border:1px solid var(--border); border-radius:12px; padding:16px; }
+    .acct-card::before { content:''; display:block; height:3px; background:linear-gradient(90deg,var(--primary),var(--pd)); border-radius:3px; margin-bottom:12px; }
+    .acct-card-label  { font-size:13px; font-weight:800; color:#fff; margin-bottom:4px; }
+    .acct-card-bank   { font-size:13px; color:var(--secondary); margin-bottom:2px; }
+    .acct-card-name   { font-size:12px; color:var(--muted); }
+    .acct-card-number { font-size:20px; font-weight:900; color:#fff; font-family:monospace; letter-spacing:2px; margin:8px 0; }
+    .acct-card-meta   { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+
+    /* ---- WARNING BANNER ---- */
+    .warning-banner { background:rgba(255,165,0,0.07); border:1px solid rgba(255,165,0,0.25); border-radius:10px; padding:14px 16px; margin-bottom:18px; font-size:13px; color:var(--orange); line-height:1.7; }
+    .info-banner    { background:rgba(108,99,255,0.07); border:1px solid rgba(108,99,255,0.2);  border-radius:10px; padding:12px 16px; margin-bottom:16px; font-size:12px; color:#a78bfa; line-height:1.7; }
+
+    /* ---- PROGRESS BAR (future P7 — placeholder styling only) ---- */
+    .progress-bar-wrap { background:rgba(255,255,255,0.06); border-radius:6px; height:7px; overflow:hidden; }
+    .progress-bar-fill { height:100%; border-radius:6px; background:linear-gradient(90deg,var(--green),#38f9d7); transition:width 0.4s; }
+
+    /* ---- EMPTY ---- */
+    .empty { text-align:center; padding:40px 20px; color:var(--muted); }
+    .empty-icon  { font-size:40px; margin-bottom:10px; }
+    .empty-title { font-size:14px; font-weight:700; color:var(--secondary); margin-bottom:6px; }
+    .empty-sub   { font-size:12px; line-height:1.6; }
+
+    /* ---- SPINNER / TOAST ---- */
+    .spinner { display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; }
+    #toast { position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--dark-2); border:1px solid var(--border); border-radius:10px; padding:11px 18px; font-size:13px; font-weight:600; z-index:9999; display:none; max-width:90%; }
+
+    /* ---- AUDIENCE CHECKBOXES ---- */
+    .audience-checks { display:flex; gap:8px; flex-wrap:wrap; }
+    .audience-chip { display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:20px; font-size:12px; font-weight:600; cursor:pointer; border:1px solid var(--border); background:rgba(255,255,255,0.03); color:var(--secondary); user-select:none; }
+    .audience-chip input { width:0; height:0; opacity:0; position:absolute; }
+    .audience-chip:has(input:checked) { background:rgba(108,99,255,0.15); border-color:rgba(108,99,255,0.4); color:#a78bfa; }
+  </style>
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sb-head">
+    <div class="sb-logo" id="sbLogo">🏫</div>
+    <div>
+      <div class="sb-school-name" id="sbSchoolName">Loading...</div>
+      <div class="sb-school-sub">Fee &amp; Payment</div>
+    </div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-sep">Fee &amp; Payment</div>
+    <button class="nav-item active" data-sec="overview"     onclick="showSection('overview')">    <span class="nav-icon">📊</span> Overview</button>
+    <button class="nav-item"        data-sec="structures"   onclick="showSection('structures')">  <span class="nav-icon">🏷️</span> Fee Structures</button>
+    <button class="nav-item"        data-sec="assignments"  onclick="showSection('assignments')"> <span class="nav-icon">👥</span> Assignments</button>
+    <button class="nav-item"        data-sec="record"       onclick="showSection('record')">      <span class="nav-icon">💵</span> Record Payment</button>
+    <button class="nav-item"        data-sec="campaigns"    onclick="showSection('campaigns')">   <span class="nav-icon">🎯</span> Campaigns</button>
+    <button class="nav-item"        data-sec="accounts"     onclick="showSection('accounts')">    <span class="nav-icon">🏦</span> Payment Accounts</button>
+    <button class="nav-item"        data-sec="outstanding"  onclick="showSection('outstanding')"> <span class="nav-icon">⚠️</span> Outstanding</button>
+    <div class="sb-sep">Links</div>
+    <a class="nav-item" href="/institution/school/finance.html">  <span class="nav-icon">💰</span> Finance</a>
+    <a class="nav-item" href="/institution/school/dashboard.html"><span class="nav-icon">🏠</span> Dashboard</a>
+  </nav>
+  <div class="sb-footer">
+    <button class="nav-item" style="color:var(--red);" onclick="doLogout()"><span class="nav-icon">🚪</span> Logout</button>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="mobile-bar">
+    <button class="ham-btn" onclick="openSidebar()">☰</button>
+    <span style="font-size:14px;font-weight:800;">💳 Fee &amp; Payment</span>
+    <span style="font-size:12px;color:var(--muted);" id="mobileSectionLabel">Overview</span>
+  </div>
+
+  <div class="page-content">
+
+    <!-- ===== OVERVIEW ===== -->
+    <div class="section active" id="sec-overview">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+        <div>
+          <h1 style="font-size:20px;font-weight:800;margin:0 0 3px;">Fee &amp; Payment</h1>
+          <p style="font-size:13px;color:var(--muted);margin:0;">Configure fees, manage assignments, record payments</p>
+        </div>
+        <button class="btn btn-primary" onclick="showSection('structures')">+ New Fee Structure</button>
+      </div>
+      <div class="stats-row" id="overviewStats">
+        <div class="stat-card" style="--ac:var(--primary);">
+          <div class="stat-label">Fee Structures</div>
+          <div class="stat-value" id="statStructures">—</div>
+          <div class="stat-sub" id="statStructuresSub">Loading…</div>
+        </div>
+        <div class="stat-card" style="--ac:var(--red);">
+          <div class="stat-label">⚠️ Outstanding</div>
+          <div class="stat-value" id="statOutstanding">—</div>
+          <div class="stat-sub" id="statOutstandingCount">Loading…</div>
+        </div>
+        <div class="stat-card" style="--ac:var(--green);">
+          <div class="stat-label">✅ Collected</div>
+          <div class="stat-value" id="statCollected">—</div>
+          <div class="stat-sub">This term (verified)</div>
+        </div>
+        <div class="stat-card" style="--ac:var(--orange);">
+          <div class="stat-label">🎯 Active Campaigns</div>
+          <div class="stat-value" id="statCampaigns">—</div>
+          <div class="stat-sub" id="statCampaignsSub">Loading…</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Recent Payments</h3>
+          <button class="btn btn-secondary btn-sm" onclick="showSection('record')">Record Payment →</button>
+        </div>
+        <div id="recentPaymentsWrap">
+          <div style="text-align:center;padding:28px;color:var(--muted);"><span class="spinner"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== FEE STRUCTURES ===== -->
+    <div class="section" id="sec-structures">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>🏷️ Fee Structures</h3>
+          <button class="btn btn-primary btn-sm" onclick="openFeeStructureModal('')">+ New Structure</button>
+        </div>
+        <div class="panel-body">
+          <div class="filter-row">
+            <input type="text" class="inp" id="feeSearch" placeholder="Search by name…" style="width:180px;" oninput="filterFeeTable()" />
+            <select class="sel" id="feeCategoryFilter" onchange="filterFeeTable()" style="width:140px;">
+              <option value="">All Categories</option>
+              <option value="tuition">Tuition</option>
+              <option value="levy">Levy</option>
+              <option value="exam">Exam</option>
+              <option value="development">Development</option>
+              <option value="registration">Registration</option>
+              <option value="admission">Admission</option>
+              <option value="graduation">Graduation</option>
+              <option value="competition">Competition</option>
+              <option value="uniform">Uniform</option>
+              <option value="books">Books</option>
+              <option value="activity">Activity</option>
+              <option value="programme">Programme</option>
+              <option value="transport">Transport</option>
+              <option value="boarding">Boarding</option>
+              <option value="other">Other</option>
+            </select>
+            <select class="sel" id="feeActiveFilter" onchange="filterFeeTable()" style="width:110px;">
+              <option value="">All Statuses</option>
+              <option value="true">Active</option>
+              <option value="false">Inactive</option>
+            </select>
+          </div>
+          <div id="feeStructuresWrap" class="tbl-wrap">
+            <div style="text-align:center;padding:28px;color:var(--muted);"><span class="spinner"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== ASSIGNMENTS ===== -->
+    <div class="section" id="sec-assignments">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>👥 Fee Assignments</h3>
+          <button class="btn btn-primary btn-sm" onclick="openAssignModal()">+ Assign Fee</button>
+        </div>
+        <div class="panel-body">
+          <div class="filter-row">
+            <select class="sel" id="assignFilterStatus" onchange="loadAssignments(1)" style="width:120px;">
+              <option value="">All</option>
+              <option value="pending">Pending</option>
+              <option value="partial">Partial</option>
+              <option value="paid">Paid</option>
+              <option value="waived">Waived</option>
+            </select>
+            <select class="sel" id="assignFilterTerm" onchange="loadAssignments(1)" style="width:160px;">
+              <option value="">All Terms</option>
+            </select>
+            <select class="sel" id="assignFilterClass" onchange="loadAssignments(1)" style="width:140px;">
+              <option value="">All Classes</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="loadAssignments(1)">↺ Refresh</button>
+          </div>
+          <div id="assignmentsWrap" class="tbl-wrap">
+            <div style="text-align:center;padding:28px;color:var(--muted);"><span class="spinner"></span></div>
+          </div>
+          <div id="assignmentsPagination" class="pagination"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== RECORD PAYMENT (STAFF-DIRECT) ===== -->
+    <div class="section" id="sec-record">
+      <div class="warning-banner">
+        <strong>⚠️ Authorised Staff Action — Direct Payment Recording</strong><br/>
+        This section is for recording payments that have <strong>already been physically received</strong> by the school
+        (cash, bank transfer, cheque confirmed in the school's actual bank account).<br/>
+        Staff-recorded payments are immediately treated as confirmed verified transactions.<br/>
+        <span style="color:#fff;font-weight:600;">This is different from a payment claim submitted by a parent or student.</span>
+        Payer-submitted claims will be available as a separate workflow in a future update.
+        Only authorised school financial staff should use this section.
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <h3>💵 Record a Payment</h3>
+          <span style="font-size:11px;color:var(--orange);font-weight:700;">STAFF-DIRECT RECORDING</span>
+        </div>
+        <div class="panel-body">
+          <!-- Step 1: Find student -->
+          <div class="field">
+            <label>Step 1 — Find Student <span class="req">*</span></label>
+            <div style="display:flex;gap:8px;">
+              <input type="text" class="inp" id="recordStudentSearch" placeholder="Search by name or admission number…" style="flex:1;" />
+              <button class="btn btn-secondary" onclick="searchStudentForPayment()">Search</button>
+            </div>
+          </div>
+          <div id="recordStudentResults" style="margin-bottom:14px;"></div>
+
+          <!-- Step 2: Select assignment (shown after student found) -->
+          <div id="recordAssignmentsSection" style="display:none;">
+            <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px;">
+              <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">Fee Obligations for: <span id="recordSelectedStudentName" style="color:#fff;"></span></div>
+              <div id="recordAssignmentsList"></div>
+            </div>
+
+            <!-- Step 3: Payment details (shown after assignment selected) -->
+            <div id="recordPaymentDetailsSection" style="display:none;">
+              <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:12px;">Step 3 — Payment Details</div>
+              <div class="form-row">
+                <div class="field">
+                  <label>Amount <span class="req">*</span></label>
+                  <input type="number" class="inp" id="recordAmount" placeholder="e.g. 50000" min="1" step="0.01" />
+                </div>
+                <div class="field">
+                  <label>Currency</label>
+                  <input type="text" class="inp" id="recordCurrency" value="NGN" maxlength="3" style="text-transform:uppercase;" />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="field">
+                  <label>Payment Method <span class="req">*</span></label>
+                  <select class="sel" id="recordMethod">
+                    <option value="cash">Cash</option>
+                    <option value="bank_transfer" selected>Bank Transfer</option>
+                    <option value="cheque">Cheque</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Reference / Teller No.</label>
+                  <input type="text" class="inp" id="recordReference" placeholder="Bank reference, teller number…" />
+                </div>
+              </div>
+              <div class="field">
+                <label>Note (optional)</label>
+                <input type="text" class="inp" id="recordNote" placeholder="e.g. Paid at front desk, confirmed by bursar" maxlength="200" />
+              </div>
+              <input type="hidden" id="recordAssignmentId" />
+              <input type="hidden" id="recordStudentId" />
+              <button class="btn btn-green" id="recordSubmitBtn" onclick="submitRecordPayment()">
+                ✅ Confirm &amp; Record Payment
+              </button>
+              <div id="recordPaymentResult" style="margin-top:14px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== CAMPAIGNS ===== -->
+    <div class="section" id="sec-campaigns">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>🎯 Payment Campaigns &amp; Activities</h3>
+          <button class="btn btn-primary btn-sm" onclick="openCampaignModal('')">+ New Campaign</button>
+        </div>
+        <div class="panel-body">
+          <div class="filter-row">
+            <select class="sel" id="campaignStatusFilter" onchange="loadCampaigns()" style="width:130px;">
+              <option value="">All Statuses</option>
+              <option value="active">Active</option>
+              <option value="paused">Paused</option>
+              <option value="closed">Closed</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="loadCampaigns()">↺ Refresh</button>
+          </div>
+          <div id="campaignsWrap" class="tbl-wrap">
+            <div style="text-align:center;padding:28px;color:var(--muted);"><span class="spinner"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PAYMENT ACCOUNTS PREVIEW ===== -->
+    <div class="section" id="sec-accounts">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>🏦 Active Payment Accounts</h3>
+          <a href="/institution/school/finance.html" class="btn btn-secondary btn-sm" target="_blank">Manage in Finance →</a>
+        </div>
+        <div class="panel-body">
+          <div class="info-banner">
+            These are the payment accounts your school has configured.
+            Link each fee structure or campaign to the appropriate account using the forms above.
+            Payment account management (add, edit, deactivate) is done in
+            <a href="/institution/school/finance.html" style="color:#a78bfa;">Finance → Payment Methods</a>.
+          </div>
+          <div id="accountsPreviewWrap">
+            <div style="text-align:center;padding:24px;color:var(--muted);"><span class="spinner"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== OUTSTANDING ===== -->
+    <div class="section" id="sec-outstanding">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>⚠️ Outstanding Balances</h3>
+          <div id="outstandingTotalBadge" style="font-size:13px;font-weight:700;color:var(--red);"></div>
+        </div>
+        <div class="panel-body">
+          <div class="filter-row">
+            <input type="text" class="inp" id="outSearch" placeholder="Search student…" style="width:180px;" />
+            <select class="sel" id="outTermFilter" style="width:160px;">
+              <option value="">All Terms</option>
+            </select>
+            <select class="sel" id="outClassFilter" style="width:140px;">
+              <option value="">All Classes</option>
+            </select>
+            <button class="btn btn-primary btn-sm" onclick="loadOutstanding(1)">Search</button>
+          </div>
+          <div id="outstandingWrap" class="tbl-wrap">
+            <div style="text-align:center;padding:28px;color:var(--muted);"><span class="spinner"></span></div>
+          </div>
+          <div id="outstandingPagination" class="pagination"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end page-content -->
+</div><!-- end main -->
+
+<!-- ===== MODAL: FEE STRUCTURE ===== -->
+<div class="modal-overlay" id="feeStructureModal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2 id="feeStructureModalTitle">New Fee Structure</h2>
+      <button class="modal-close" onclick="closeModal('feeStructureModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="feeStructureEditId" />
+
+      <div class="form-row">
+        <div class="field">
+          <label>Fee Name <span class="req">*</span></label>
+          <input type="text" class="inp" id="fsName" placeholder="e.g. 2026/2027 School Fee" maxlength="100" />
+        </div>
+        <div class="field">
+          <label>Category</label>
+          <select class="sel" id="fsCategory">
+            <option value="tuition">Tuition</option>
+            <option value="levy">Levy / PTA</option>
+            <option value="exam">Exam Fee</option>
+            <option value="development">Development</option>
+            <option value="registration">Registration</option>
+            <option value="admission">Admission</option>
+            <option value="graduation">Graduation</option>
+            <option value="competition">Competition</option>
+            <option value="uniform">Uniform</option>
+            <option value="books">Books</option>
+            <option value="activity">Activity</option>
+            <option value="programme">Programme</option>
+            <option value="transport">Transport</option>
+            <option value="boarding">Boarding</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Description</label>
+        <input type="text" class="inp" id="fsDescription" placeholder="Brief description (optional)" maxlength="200" />
+      </div>
+
+      <!-- Flexible toggle -->
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Flexible Amount</div>
+          <div class="toggle-sub">On = contributor enters their own amount ≥ minimum</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="fsIsFlexible" onchange="onFsFlexibleChange()" />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <!-- Fixed amount (shown when not flexible) -->
+      <div id="fsFixedAmountRow" class="form-row" style="margin-top:12px;">
+        <div class="field">
+          <label>Amount <span class="req">*</span></label>
+          <input type="number" class="inp" id="fsAmount" placeholder="e.g. 100000" min="1" step="0.01" />
+        </div>
+        <div class="field">
+          <label>Currency</label>
+          <select class="sel" id="fsCurrency">
+            <option value="NGN">NGN</option>
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+            <option value="GBP">GBP</option>
+            <option value="GHS">GHS</option>
+            <option value="KES">KES</option>
+            <option value="ZAR">ZAR</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Flexible amount fields (shown when flexible) -->
+      <div id="fsFlexibleAmountRow" class="form-row" style="display:none;margin-top:12px;">
+        <div class="field">
+          <label>Minimum Contribution</label>
+          <input type="number" class="inp" id="fsMinAmount" placeholder="e.g. 1000 (0 = any amount)" min="0" step="0.01" />
+        </div>
+        <div class="field">
+          <label>Maximum (Optional)</label>
+          <input type="number" class="inp" id="fsMaxAmount" placeholder="Leave blank = no limit" min="0" step="0.01" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label>Academic Term</label>
+          <select class="sel" id="fsTerm">
+            <option value="">All Terms / Session-wide</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Due Date</label>
+          <input type="date" class="inp" id="fsDueDate" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Classes</label>
+        <div id="fsClassCheckboxes" style="display:flex;flex-wrap:wrap;gap:7px;padding:4px 0;max-height:110px;overflow-y:auto;">
+          <span style="font-size:12px;color:var(--muted);">Loading classes…</span>
+        </div>
+        <div class="field-hint">Leave all unchecked = applies to all classes</div>
+      </div>
+
+      <div class="field">
+        <label>Linked Payment Account</label>
+        <select class="sel" id="fsPaymentAccount" onchange="showFsAccountPreview()">
+          <option value="">— None (link an account for payer instructions) —</option>
+        </select>
+        <div id="fsAccountPreview" class="acct-mini" style="display:none;"></div>
+        <div class="field-hint">
+          The payer will receive the instructions from this account.
+          Manage accounts in <a href="/institution/school/finance.html" style="color:#a78bfa;">Finance → Payment Methods</a>.
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Target Audience</label>
+        <div class="audience-checks" id="fsAudienceChecks">
+          <label class="audience-chip"><input type="checkbox" value="student"  /> 🧑‍🎓 Student</label>
+          <label class="audience-chip"><input type="checkbox" value="parent"   /> 👨‍👩‍👧 Parent</label>
+          <label class="audience-chip"><input type="checkbox" value="alumni"   /> 🎓 Alumni</label>
+          <label class="audience-chip"><input type="checkbox" value="staff"    /> 👩‍🏫 Staff</label>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label>Visibility</label>
+          <select class="sel" id="fsVisibility">
+            <option value="internal">Internal (staff only)</option>
+            <option value="portal" selected>Portal (authenticated users)</option>
+            <option value="website">Website (public)</option>
+            <option value="community">Community (authenticated community)</option>
+          </select>
+        </div>
+        <div style="padding-top:22px;">
+          <div class="toggle-row toggle-row-last">
+            <div>
+              <div class="toggle-label" style="font-size:12px;">Allow Partial Payment</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="fsAllowPartial" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('feeStructureModal')">Cancel</button>
+      <button class="btn btn-primary" id="fsSaveBtn" onclick="saveFeeStructure()">Create Structure</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: ASSIGN FEE ===== -->
+<div class="modal-overlay" id="assignModal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>Assign Fee</h2>
+      <button class="modal-close" onclick="closeModal('assignModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="tab-strip">
+        <button class="tab-btn active" id="assignTabBulk" onclick="setAssignMode('bulk')">📚 Bulk (by class)</button>
+        <button class="tab-btn" id="assignTabIndividual" onclick="setAssignMode('individual')">👤 Individual</button>
+      </div>
+
+      <!-- Shared: fee structure selector -->
+      <div class="field">
+        <label>Fee Structure <span class="req">*</span></label>
+        <select class="sel" id="assignFeeStructure">
+          <option value="">— Select fee structure —</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Academic Term</label>
+          <select class="sel" id="assignTerm">
+            <option value="">Use fee structure's term</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Discount Amount</label>
+          <input type="number" class="inp" id="assignDiscount" placeholder="0" min="0" step="0.01" />
+          <div class="field-hint">Flat discount from the fee amount</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Due Date Override</label>
+        <input type="date" class="inp" id="assignDueDate" />
+        <div class="field-hint">Leave blank to use the fee structure's due date</div>
+      </div>
+
+      <!-- BULK: class selector -->
+      <div id="assignBulkSection">
+        <div class="field">
+          <label>Assign to Class <span class="req">*</span></label>
+          <select class="sel" id="assignClass">
+            <option value="">— Select class —</option>
+          </select>
+        </div>
+        <div class="info-banner" id="assignBulkInfo" style="display:none;"></div>
+      </div>
+
+      <!-- INDIVIDUAL: student search -->
+      <div id="assignIndividualSection" style="display:none;">
+        <div class="field">
+          <label>Search Student <span class="req">*</span></label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" class="inp" id="assignStudentSearch" placeholder="Name or admission number…" style="flex:1;" />
+            <button class="btn btn-secondary btn-sm" onclick="searchAssignStudent()">Search</button>
+          </div>
+        </div>
+        <div id="assignStudentResults"></div>
+        <input type="hidden" id="assignStudentId" />
+      </div>
+
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('assignModal')">Cancel</button>
+      <button class="btn btn-primary" id="assignSaveBtn" onclick="saveAssignment()">Assign Fee</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: CAMPAIGN ===== -->
+<div class="modal-overlay" id="campaignModal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2 id="campaignModalTitle">New Campaign</h2>
+      <button class="modal-close" onclick="closeModal('campaignModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="campaignEditId" />
+
+      <div class="form-row">
+        <div class="field">
+          <label>Campaign Title <span class="req">*</span></label>
+          <input type="text" class="inp" id="campTitle" placeholder="e.g. 25th Anniversary Fund" maxlength="100" />
+        </div>
+        <div class="field">
+          <label>Category</label>
+          <select class="sel" id="campCategory">
+            <option value="general">General</option>
+            <option value="anniversary">Anniversary</option>
+            <option value="fundraising">Fundraising</option>
+            <option value="development">Development Fund</option>
+            <option value="event">Event / Programme</option>
+            <option value="scholarship">Scholarship</option>
+            <option value="building">Building / Infrastructure</option>
+            <option value="equipment">Equipment</option>
+            <option value="bursary">Bursary</option>
+            <option value="sports">Sports</option>
+            <option value="library">Library</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Description</label>
+        <textarea class="inp" id="campDescription" rows="3" placeholder="Brief description of the campaign…" style="resize:vertical;" maxlength="500"></textarea>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label>Minimum Contribution</label>
+          <input type="number" class="inp" id="campMinContribution" placeholder="e.g. 1000 (0 = any amount)" min="0" step="0.01" />
+        </div>
+        <div class="field">
+          <label>Target Amount (Optional)</label>
+          <input type="number" class="inp" id="campTargetAmount" placeholder="Leave blank = no target" min="0" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label>Currency</label>
+          <select class="sel" id="campCurrency">
+            <option value="NGN">NGN</option>
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+            <option value="GBP">GBP</option>
+            <option value="GHS">GHS</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Status</label>
+          <select class="sel" id="campStatus">
+            <option value="active">Active</option>
+            <option value="paused">Paused</option>
+            <option value="closed">Closed</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label>Start Date</label>
+          <input type="date" class="inp" id="campStartDate" />
+        </div>
+        <div class="field">
+          <label>End Date</label>
+          <input type="date" class="inp" id="campEndDate" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Linked Payment Account</label>
+        <select class="sel" id="campPaymentAccount" onchange="showCampAccountPreview()">
+          <option value="">— None (link an account for payer instructions) —</option>
+        </select>
+        <div id="campAccountPreview" class="acct-mini" style="display:none;"></div>
+      </div>
+
+      <div class="field">
+        <label>Target Audience</label>
+        <div class="audience-checks" id="campAudienceChecks">
+          <label class="audience-chip"><input type="checkbox" value="student"  /> 🧑‍🎓 Student</label>
+          <label class="audience-chip"><input type="checkbox" value="parent"   /> 👨‍👩‍👧 Parent</label>
+          <label class="audience-chip"><input type="checkbox" value="alumni"   /> 🎓 Alumni</label>
+          <label class="audience-chip"><input type="checkbox" value="staff"    /> 👩‍🏫 Staff</label>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label>Visibility</label>
+          <select class="sel" id="campVisibility">
+            <option value="internal">Internal (staff only)</option>
+            <option value="portal">Portal (authenticated users)</option>
+            <option value="website">Website (public)</option>
+            <option value="community">Community (authenticated)</option>
+          </select>
+        </div>
+        <div style="padding-top:22px;">
+          <div class="toggle-row toggle-row-last">
+            <div>
+              <div class="toggle-label" style="font-size:12px;">Allow Bank Transfer Claims</div>
+              <div class="toggle-sub">Payers can submit manual payment notifications</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="campAllowManualClaim" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('campaignModal')">Cancel</button>
+      <button class="btn btn-primary" id="campSaveBtn" onclick="saveCampaign()">Create Campaign</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="/institution/js/inst.api.js"></script>
+<script>
+/* ============================================================
+   FEE & PAYMENT — P3
+   Uses instApi(), instToast(), instFmtDate() from inst.api.js
+   All API calls are tenant-scoped via instProtect on the server.
+   schoolId ALWAYS comes from the authenticated JWT — never from
+   user-supplied body data.
+============================================================ */
+
+/* ---- Global state ---- */
+var _feeStructures = [];
+var _campaigns     = [];
+var _classes       = [];
+var _terms         = [];
+var _activeAccounts= [];
+var _school        = null;
+var _assignMode    = 'bulk';
+var _assignPage    = 1;
+var _outPage       = 1;
+var _selectedStudentForRecord = null;
+
+/* ============================================================
+   INIT
+============================================================ */
+document.addEventListener('DOMContentLoaded', async function() {
+  if (!instRequireAuth('school_admin')) return;
+  await initPage();
+});
+
+async function initPage() {
+  await Promise.all([
+    loadSchoolInfo(),
+    loadClasses(),
+    loadTerms(),
+    loadActiveAccounts()
+  ]);
+  populateFormSelectors();
+  showSection('overview');
+  loadOverview();
+}
+
+async function loadSchoolInfo() {
+  try {
+    var res = await instApi('/school');
+    if (res.ok && res.data && (res.data.school || res.data)) {
+      _school = res.data.school || res.data;
+      var nameEl = document.getElementById('sbSchoolName');
+      if (nameEl) nameEl.textContent = _school.name || 'My School';
+      var logoEl = document.getElementById('sbLogo');
+      if (logoEl && _school.logo) {
+        logoEl.innerHTML = '<img src="' + esc(_school.logo) + '" alt="logo" />';
+      } else if (logoEl && _school.name) {
+        logoEl.textContent = _school.name.charAt(0).toUpperCase();
+        if (_school.primaryColor) logoEl.style.background = 'linear-gradient(135deg,' + _school.primaryColor + ',' + (_school.secondaryColor || _school.primaryColor) + ')';
+      }
+    }
+  } catch(e) { /* Non-fatal */ }
+}
+
+async function loadClasses() {
+  var res = await instApi('/structure/classes');
+  _classes = (res.ok && res.data && res.data.classes) ? res.data.classes : [];
+}
+
+async function loadTerms() {
+  var res = await instApi('/structure/terms');
+  _terms = (res.ok && res.data && res.data.terms) ? res.data.terms : [];
+}
+
+async function loadActiveAccounts() {
+  var res = await instApi('/fee/manual-accounts/active');
+  _activeAccounts = (res.ok && res.data && res.data.accounts) ? res.data.accounts : [];
+}
+
+/* Populate shared selectors in forms and filters */
+function populateFormSelectors() {
+  /* Term selectors */
+  var termOptions = '<option value="">All Terms / Session-wide</option>' +
+    _terms.map(function(t) {
+      return '<option value="' + esc(t._id) + '"' + (t.isCurrent ? ' selected' : '') + '>' +
+        esc(t.name) + ' — ' + esc(t.session) + (t.isCurrent ? ' ✓' : '') + '</option>';
+    }).join('');
+  ['fsTerm','assignTerm','assignFilterTerm','outTermFilter'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.innerHTML = el.id === 'fsTerm'
+      ? termOptions
+      : '<option value="">All Terms</option>' + _terms.map(function(t) {
+          return '<option value="' + esc(t._id) + '">' + esc(t.name) + ' — ' + esc(t.session) + '</option>';
+        }).join('');
+  });
+
+  /* Class selectors */
+  var classOptions = _classes.map(function(c) {
+    return '<option value="' + esc(c._id) + '">' + esc(c.name) + '</option>';
+  }).join('');
+  ['assignClass','assignFilterClass','outClassFilter'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.innerHTML = '<option value="">All Classes</option>' + classOptions;
+  });
+
+  /* Payment account selectors */
+  var acctOptions = '<option value="">— None —</option>' +
+    _activeAccounts.map(function(a) {
+      return '<option value="' + esc(a._id) + '">' +
+        esc(a.accountLabel) + ' — ' + esc(a.bankName) + ' (' + esc(a.currency) + ')' +
+        '</option>';
+    }).join('');
+  ['fsPaymentAccount','campPaymentAccount'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.innerHTML = acctOptions;
+  });
+}
+
+/* ============================================================
+   SIDEBAR / SECTION NAVIGATION
+============================================================ */
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
+  document.querySelectorAll('.nav-item[data-sec]').forEach(function(n) { n.classList.remove('active'); });
+  var sectionEl = document.getElementById('sec-' + name);
+  if (sectionEl) sectionEl.classList.add('active');
+  var navEl = document.querySelector('[data-sec="' + name + '"]');
+  if (navEl) navEl.classList.add('active');
+  var labels = { overview:'Overview', structures:'Fee Structures', assignments:'Assignments', record:'Record Payment', campaigns:'Campaigns', accounts:'Payment Accounts', outstanding:'Outstanding' };
+  var mobEl  = document.getElementById('mobileSectionLabel');
+  if (mobEl) mobEl.textContent = labels[name] || name;
+  if (window.innerWidth <= 960) closeSidebar();
+
+  /* Lazy load section data */
+  if (name === 'structures')  loadFeeStructures();
+  if (name === 'assignments') loadAssignments(1);
+  if (name === 'campaigns')   loadCampaigns();
+  if (name === 'accounts')    loadAccountsPreview();
+  if (name === 'outstanding') loadOutstanding(1);
+}
+
+function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('visible'); }
+function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('visible'); }
+window.addEventListener('resize', function() { if (window.innerWidth > 960) closeSidebar(); });
+
+/* ============================================================
+   OVERVIEW
+============================================================ */
+async function loadOverview() {
+  /* Stats in parallel */
+  var [summaryRes, campaignRes, recentRes] = await Promise.all([
+    instApi('/fee/reports/summary'),
+    instApi('/finance/donations/campaigns?status=active'),
+    instApi('/fee/payments?limit=8&status=confirmed')
+  ]);
+
+  if (summaryRes.ok && summaryRes.data && summaryRes.data.report) {
+    var r = summaryRes.data.report.summary;
+    setEl('statStructures',      r ? (r.totalStudentsAssigned || 0) + ' students assigned' : '—');
+    setEl('statStructuresSub',   '');
+    setEl('statOutstanding',     r ? fmtCurrency(r.totalCharged - r.totalCollected, 'NGN') : '—');
+    setEl('statOutstandingCount','');
+    setEl('statCollected',       r ? fmtCurrency(r.totalCollected, 'NGN') : '—');
+  }
+
+  /* Count fee structures */
+  var fsRes = await instApi('/fee/structures?active=true');
+  if (fsRes.ok && fsRes.data) {
+    _feeStructures = fsRes.data.structures || [];
+    setEl('statStructures', _feeStructures.length);
+    setEl('statStructuresSub', _feeStructures.filter(function(s) { return s.isActive; }).length + ' active');
+  }
+
+  if (campaignRes.ok && campaignRes.data) {
+    var camps = campaignRes.data.campaigns || [];
+    setEl('statCampaigns',    camps.length);
+    setEl('statCampaignsSub', camps.length ? camps.map(function(c) { return c.title; }).join(', ').substring(0, 50) : 'No active campaigns');
+  }
+
+  var recentWrap = document.getElementById('recentPaymentsWrap');
+  if (recentWrap) {
+    if (recentRes.ok && recentRes.data && recentRes.data.payments && recentRes.data.payments.length) {
+      recentWrap.innerHTML = buildPaymentsTable(recentRes.data.payments);
+    } else {
+      recentWrap.innerHTML = '<div class="empty"><div class="empty-icon">💵</div>' +
+        '<div class="empty-title">No payments recorded yet.</div>' +
+        '<div class="empty-sub">Use "Record Payment" when you receive money at the school.</div></div>';
+    }
+  }
+}
+
+function buildPaymentsTable(payments) {
+  return '<div class="tbl-wrap"><table><thead><tr>' +
+    '<th>Date</th><th>Receipt</th><th>Student</th><th>Fee</th>' +
+    '<th>Amount</th><th>Method</th><th>Status</th>' +
+    '</tr></thead><tbody>' +
+    payments.map(function(p) {
+      var st  = p.studentId    || {};
+      var fs  = p.feeStructureId || {};
+      var stBadge = p.status === 'confirmed' ? 'badge-green' : p.status === 'reversed' ? 'badge-red' : 'badge-orange';
+      return '<tr>' +
+        '<td>' + fmtDate(p.recordedAt || p.createdAt) + '</td>' +
+        '<td style="font-family:monospace;font-size:11px;color:#a78bfa;">' + esc(p.receiptNumber || '—') + '</td>' +
+        '<td style="font-weight:700;color:#fff;">' + esc(st.name || '—') + '<br/><span style="font-size:11px;color:var(--muted);">' + esc(st.admissionNo || '') + '</span></td>' +
+        '<td>' + esc(fs.name || '—') + '</td>' +
+        '<td style="font-weight:700;color:var(--green);">' + fmtCurrency(p.amount, p.currency) + '</td>' +
+        '<td><span class="badge badge-muted">' + esc(p.method || '—') + '</span></td>' +
+        '<td><span class="badge ' + stBadge + '">' + esc(p.status) + '</span></td>' +
+      '</tr>';
+    }).join('') + '</tbody></table></div>';
+}
+
+/* ============================================================
+   FEE STRUCTURES
+============================================================ */
+async function loadFeeStructures() {
+  var wrap = document.getElementById('feeStructuresWrap');
+  if (!wrap) return;
+  wrap.innerHTML = '<div style="text-align:center;padding:24px;"><span class="spinner"></span></div>';
+  var res = await instApi('/fee/structures');
+  if (!res.ok) { wrap.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Could not load fee structures.</div></div>'; return; }
+  _feeStructures = res.data.structures || [];
+  renderFeeTable();
+}
+
+function filterFeeTable() { renderFeeTable(); }
+
+function renderFeeTable() {
+  var wrap = document.getElementById('feeStructuresWrap');
+  if (!wrap) return;
+  var search   = ((document.getElementById('feeSearch')        || {}).value || '').toLowerCase();
+  var catFilter= (document.getElementById('feeCategoryFilter') || {}).value || '';
+  var actFilter= (document.getElementById('feeActiveFilter')   || {}).value || '';
+
+  var filtered = _feeStructures.filter(function(s) {
+    if (search   && !s.name.toLowerCase().includes(search)) return false;
+    if (catFilter && s.category !== catFilter) return false;
+    if (actFilter !== '' && String(s.isActive) !== actFilter) return false;
+    return true;
+  });
+
+  if (!filtered.length) {
+    wrap.innerHTML = '<div class="empty"><div class="empty-icon">🏷️</div><div class="empty-title">No fee structures found.</div>' +
+      '<div class="empty-sub">Click "+ New Structure" to create your first fee.</div></div>';
+    return;
+  }
+
+  wrap.innerHTML = '<table><thead><tr>' +
+    '<th>Name</th><th>Category</th><th>Amount</th><th>Account</th><th>Audience</th><th>Visibility</th><th>Status</th><th></th>' +
+    '</tr></thead><tbody>' +
+    filtered.map(function(s) {
+      var amtDisplay = s.isFlexible
+        ? '<span style="font-size:11px;color:#a78bfa;">Flexible</span><br/>' +
+          (s.minAmount ? 'min ' + fmtCurrency(s.minAmount, s.currency || 'NGN') : 'Any amount')
+        : fmtCurrency(s.amount, s.currency || 'NGN');
+
+      var acctDisplay = s.paymentAccountId
+        ? '<span style="font-size:11px;color:var(--green);">✅ Linked</span>'
+        : '<span style="font-size:11px;color:var(--red);">⚠️ None</span>';
+
+      var visMap = { internal:'Internal', portal:'Portal', website:'Website', community:'Community' };
+      return '<tr>' +
+        '<td style="font-weight:700;color:#fff;">' + esc(s.name) + '<br/><span style="font-size:11px;color:var(--muted);">' + esc(s.description || '') + '</span></td>' +
+        '<td><span class="badge badge-purple">' + esc(s.category || '') + '</span></td>' +
+        '<td>' + amtDisplay + '</td>' +
+        '<td>' + acctDisplay + '</td>' +
+        '<td style="font-size:11px;">' + ((s.targetAudience || []).join(', ') || '—') + '</td>' +
+        '<td><span class="badge badge-muted">' + esc(visMap[s.visibility] || s.visibility || '—') + '</span></td>' +
+        '<td><span class="badge ' + (s.isActive ? 'badge-green' : 'badge-muted') + '">' + (s.isActive ? 'Active' : 'Inactive') + '</span></td>' +
+        '<td style="white-space:nowrap;">' +
+          '<button class="btn btn-secondary btn-sm" onclick="openFeeStructureModal(\'' + esc(s._id) + '\')">✏️</button> ' +
+          '<button class="btn btn-secondary btn-sm" onclick="openAssignModalForStructure(\'' + esc(s._id) + '\')">👥 Assign</button> ' +
+          '<button class="btn btn-danger btn-sm"    onclick="deleteFeeStructure(\'' + esc(s._id) + '\',\'' + esc(s.name) + '\')">🗑</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('') + '</tbody></table>';
+}
+
+function openFeeStructureModal(editId) {
+  /* Reset form */
+  document.getElementById('feeStructureEditId').value = '';
+  document.getElementById('feeStructureModalTitle').textContent = 'New Fee Structure';
+  document.getElementById('fsSaveBtn').textContent = 'Create Structure';
+  ['fsName','fsDescription','fsAmount','fsMinAmount','fsMaxAmount'].forEach(function(id) {
+    var el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('fsCategory').value  = 'tuition';
+  document.getElementById('fsCurrency').value  = 'NGN';
+  document.getElementById('fsVisibility').value = 'portal';
+  document.getElementById('fsTerm').value       = '';
+  document.getElementById('fsDueDate').value    = '';
+  document.getElementById('fsIsFlexible').checked  = false;
+  document.getElementById('fsAllowPartial').checked = true;
+  document.getElementById('fsPaymentAccount').value = '';
+  document.getElementById('fsAccountPreview').style.display = 'none';
+  onFsFlexibleChange();
+
+  /* Class checkboxes */
+  var cbWrap = document.getElementById('fsClassCheckboxes');
+  if (cbWrap) {
+    cbWrap.innerHTML = _classes.length
+      ? _classes.map(function(c) {
+          return '<label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--secondary);' +
+            'cursor:pointer;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:rgba(255,255,255,0.02);">' +
+            '<input type="checkbox" class="fs-class-cb" value="' + c._id + '" style="cursor:pointer;accent-color:var(--primary);" />' +
+            esc(c.name) + '</label>';
+        }).join('')
+      : '<span style="font-size:12px;color:var(--muted);">No classes configured. Applies to all classes.</span>';
+  }
+
+  /* Audience checkboxes — default student + parent */
+  document.querySelectorAll('#fsAudienceChecks input').forEach(function(cb) {
+    cb.checked = cb.value === 'student' || cb.value === 'parent';
+  });
+
+  /* If editing, populate */
+  if (editId) {
+    var s = _feeStructures.find(function(x) { return x._id === editId; });
+    if (!s) return;
+    document.getElementById('feeStructureEditId').value = s._id;
+    document.getElementById('feeStructureModalTitle').textContent = 'Edit Fee Structure';
+    document.getElementById('fsSaveBtn').textContent = 'Save Changes';
+    document.getElementById('fsName').value        = s.name || '';
+    document.getElementById('fsDescription').value = s.description || '';
+    document.getElementById('fsCategory').value    = s.category || 'tuition';
+    document.getElementById('fsCurrency').value    = s.currency || 'NGN';
+    document.getElementById('fsVisibility').value  = s.visibility || 'portal';
+    document.getElementById('fsDueDate').value     = s.dueDate ? s.dueDate.split('T')[0] : '';
+    document.getElementById('fsTerm').value        = s.termId ? (s.termId._id || s.termId) : '';
+    document.getElementById('fsIsFlexible').checked   = !!s.isFlexible;
+    document.getElementById('fsAllowPartial').checked = s.allowPartial !== false;
+    if (s.isFlexible) {
+      document.getElementById('fsMinAmount').value = s.minAmount || '';
+      document.getElementById('fsMaxAmount').value = s.maxAmount || '';
+    } else {
+      document.getElementById('fsAmount').value = s.amount || '';
+    }
+    onFsFlexibleChange();
+
+    if (s.paymentAccountId) {
+      var acctId = s.paymentAccountId._id || s.paymentAccountId;
+      document.getElementById('fsPaymentAccount').value = acctId;
+      showFsAccountPreview();
+    }
+
+    /* Class checkboxes */
+    var assignedClassIds = (s.classIds || []).map(function(c) { return c._id || c; });
+    document.querySelectorAll('.fs-class-cb').forEach(function(cb) {
+      cb.checked = assignedClassIds.includes(cb.value);
+    });
+
+    /* Audience */
+    var aud = s.targetAudience || [];
+    document.querySelectorAll('#fsAudienceChecks input').forEach(function(cb) {
+      cb.checked = aud.includes(cb.value);
+    });
+  }
+
+  document.getElementById('feeStructureModal').style.display = 'flex';
+}
+
+function onFsFlexibleChange() {
+  var isFlexible = document.getElementById('fsIsFlexible').checked;
+  document.getElementById('fsFixedAmountRow').style.display   = isFlexible ? 'none'  : 'grid';
+  document.getElementById('fsFlexibleAmountRow').style.display = isFlexible ? 'grid' : 'none';
+}
+
+function showFsAccountPreview() {
+  var sel = document.getElementById('fsPaymentAccount');
+  var preview = document.getElementById('fsAccountPreview');
+  if (!sel || !preview) return;
+  var acctId = sel.value;
+  if (!acctId) { preview.style.display = 'none'; return; }
+  var acct = _activeAccounts.find(function(a) { return a._id === acctId; });
+  if (!acct) { preview.style.display = 'none'; return; }
+  preview.innerHTML = '🏦 <strong>' + esc(acct.bankName) + '</strong> · ' +
+    esc(acct.accountName) + ' · ' + esc(acct.accountNumber) + ' · ' + esc(acct.currency) +
+    (acct.instructions ? '<br/>📋 ' + esc(acct.instructions) : '');
+  preview.style.display = 'block';
+}
+
+async function saveFeeStructure() {
+  var editId     = document.getElementById('feeStructureEditId').value.trim();
+  var name       = (document.getElementById('fsName')     || {}).value.trim();
+  var isFlexible = document.getElementById('fsIsFlexible').checked;
+
+  if (!name) { showToast('❌ Fee name is required.'); return; }
+  if (!isFlexible) {
+    var amt = parseFloat((document.getElementById('fsAmount') || {}).value);
+    if (!amt || amt <= 0) { showToast('❌ A valid amount is required.'); return; }
+  }
+
+  var classIds = [];
+  document.querySelectorAll('.fs-class-cb:checked').forEach(function(cb) { classIds.push(cb.value); });
+
+  var audience = [];
+  document.querySelectorAll('#fsAudienceChecks input:checked').forEach(function(cb) { audience.push(cb.value); });
+  if (!audience.length) { showToast('❌ Select at least one target audience.'); return; }
+
+  var payload = {
+    name:             name,
+    description:      (document.getElementById('fsDescription')  || {}).value.trim(),
+    category:         (document.getElementById('fsCategory')      || {}).value,
+    currency:         (document.getElementById('fsCurrency')      || {}).value,
+    termId:           (document.getElementById('fsTerm')          || {}).value || null,
+    classIds:         classIds,
+    dueDate:          (document.getElementById('fsDueDate')       || {}).value || null,
+    isFlexible:       isFlexible,
+    amount:           isFlexible ? 0 : parseFloat((document.getElementById('fsAmount') || {}).value) || 0,
+    minAmount:        isFlexible ? (parseFloat((document.getElementById('fsMinAmount') || {}).value) || 0) : 0,
+    maxAmount:        isFlexible ? (parseFloat((document.getElementById('fsMaxAmount') || {}).value) || null) : null,
+    targetAudience:   audience,
+    paymentAccountId: (document.getElementById('fsPaymentAccount') || {}).value || null,
+    allowPartial:     (document.getElementById('fsAllowPartial')   || {}).checked,
+    visibility:       (document.getElementById('fsVisibility')     || {}).value,
+    isActive:         true
+  };
+
+  var btn = document.getElementById('fsSaveBtn');
+  if (btn) { btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true; }
+
+  var res = editId
+    ? await instApi('/fee/structures/' + editId, 'PUT', payload)
+    : await instApi('/fee/structures', 'POST', payload);
+
+  if (btn) { btn.innerHTML = editId ? 'Save Changes' : 'Create Structure'; btn.disabled = false; }
+
+  if (res.ok && res.data && res.data.success) {
+    showToast('✅ ' + (res.data.message || 'Fee structure saved.'));
+    closeModal('feeStructureModal');
+    loadFeeStructures();
+  } else {
+    showToast('❌ ' + ((res.data && res.data.message) || 'Failed to save.'));
+  }
+}
+
+async function deleteFeeStructure(id, name) {
+  if (!confirm('Delete "' + name + '"?\n\nThis will fail if students are assigned to this fee. Mark it inactive instead if you want to preserve history.')) return;
+  var res = await instApi('/fee/structures/' + id, 'DELETE');
+  if (res.ok && res.data && res.data.success) {
+    showToast('✅ ' + (res.data.message || 'Deleted.'));
+    loadFeeStructures();
+  } else {
+    showToast('❌ ' + ((res.data && res.data.message) || 'Delete failed.'));
+  }
+}
+
+/* ============================================================
+   ASSIGNMENTS
+============================================================ */
+async function loadAssignments(page) {
+  _assignPage = page || 1;
+  var wrap = document.getElementById('assignmentsWrap');
+  if (!wrap) return;
+  wrap.innerHTML = '<div style="text-align:center;padding:24px;"><span class="spinner"></span></div>';
+
+  var status  = (document.getElementById('assignFilterStatus') || {}).value || '';
+  var termId  = (document.getElementById('assignFilterTerm')   || {}).value || '';
+  var classId = (document.getElementById('assignFilterClass')  || {}).value || '';
+  var query   = '?page=' + _assignPage + '&limit=30';
+  if (status)  query += '&status='  + status;
+  if (termId)  query += '&termId='  + termId;
+  if (classId) query += '&classId=' + classId;
+
+  var res = await instApi('/fee/assignments' + query);
+  if (!res.ok) { wrap.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Could not load assignments.</div></div>'; return; }
+
+  var assignments = res.data.assignments || [];
+  var total       = res.data.total || 0;
+
+  if (!assignments.length) {
+    wrap.innerHTML = '<div class="empty"><div class="empty-icon">👥</div><div class="empty-title">No assignments found.</div>' +
+      '<div class="empty-sub">Assign a fee structure to a class or student using the "+ Assign Fee" button.</div></div>';
+    document.getElementById('assignmentsPagination').innerHTML = '';
+    return;
+  }
+
+  wrap.innerHTML = '<table><thead><tr>' +
+    '<th>Student</th><th>Fee</th><th>Term</th><th>Due</th><th>Paid / Total</th><th>Status</th><th></th>' +
+    '</tr></thead><tbody>' +
+    assignments.map(function(a) {
+      var st  = a.studentId    || {};
+      var fs  = a.feeStructureId || {};
+      var tm  = a.termId       || {};
+      var stBadge = { paid:'badge-green', partial:'badge-orange', pending:'badge-red', waived:'badge-purple', cancelled:'badge-muted', overpaid:'badge-orange' }[a.status] || 'badge-muted';
+      var progress = a.amountDue > 0 ? Math.min(100, Math.round((a.amountPaid / a.amountDue) * 100)) : 0;
+      return '<tr>' +
+        '<td style="font-weight:700;color:#fff;">' + esc(st.name || '—') + '<br/><span style="font-size:11px;color:var(--muted);">' + esc(st.admissionNo || '') + '</span></td>' +
+        '<td style="font-size:12px;">' + esc(fs.name || '—') + '</td>' +
+        '<td style="font-size:12px;color:var(--muted);">' + esc(tm.name || 'All Terms') + '</td>' +
+        '<td style="font-size:12px;color:var(--muted);">' + (a.dueDate ? fmtDate(a.dueDate) : '—') + '</td>' +
+        '<td>' +
+          '<div style="font-size:12px;font-weight:700;color:#fff;">' + fmtCurrency(a.amountPaid, a.currency) + ' / ' + fmtCurrency(a.amountDue, a.currency) + '</div>' +
+          '<div class="progress-bar-wrap" style="margin-top:4px;"><div class="progress-bar-fill" style="width:' + progress + '%;"></div></div>' +
+          '<div style="font-size:10px;color:var(--muted);margin-top:2px;">' + progress + '%</div>' +
+        '</td>' +
+        '<td><span class="badge ' + stBadge + '">' + esc(a.status) + '</span></td>' +
+        '<td style="white-space:nowrap;">' +
+          (a.status !== 'waived' && a.status !== 'cancelled'
+            ? '<button class="btn btn-orange btn-sm" onclick="waiveFee(\'' + esc(a._id) + '\',\'' + esc(fs.name || '') + '\')">Waive</button> '
+            : '') +
+          '<button class="btn btn-danger btn-sm" onclick="deleteAssignment(\'' + esc(a._id) + '\')">🗑</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('') + '</tbody></table>';
+
+  var pages = Math.ceil(total / 30);
+  renderPagination('assignmentsPagination', _assignPage, pages, loadAssignments);
+}
+
+function openAssignModal() {
+  /* Populate fee structure selector */
+  var fsSel = document.getElementById('assignFeeStructure');
+  if (fsSel) {
+    fsSel.innerHTML = '<option value="">— Select fee structure —</option>' +
+      _feeStructures.filter(function(s) { return s.isActive; }).map(function(s) {
+        return '<option value="' + esc(s._id) + '">' + esc(s.name) +
+          ' — ' + fmtCurrency(s.amount || s.minAmount || 0, s.currency) + '</option>';
+      }).join('');
+  }
+
+  /* Reset */
+  document.getElementById('assignDiscount').value = '';
+  document.getElementById('assignDueDate').value  = '';
+  document.getElementById('assignStudentId').value = '';
+  var srEl = document.getElementById('assignStudentResults');
+  if (srEl) srEl.innerHTML = '';
+
+  setAssignMode('bulk');
+  document.getElementById('assignModal').style.display = 'flex';
+}
+
+function openAssignModalForStructure(feeStructureId) {
+  openAssignModal();
+  var fsSel = document.getElementById('assignFeeStructure');
+  if (fsSel) fsSel.value = feeStructureId;
+}
+
+function setAssignMode(mode) {
+  _assignMode = mode;
+  document.getElementById('assignTabBulk').classList.toggle('active', mode === 'bulk');
+  document.getElementById('assignTabIndividual').classList.toggle('active', mode === 'individual');
+  document.getElementById('assignBulkSection').style.display       = mode === 'bulk'       ? 'block' : 'none';
+  document.getElementById('assignIndividualSection').style.display = mode === 'individual' ? 'block' : 'none';
+}
+
+async function searchAssignStudent() {
+  var q   = (document.getElementById('assignStudentSearch') || {}).value.trim();
+  var wrap = document.getElementById('assignStudentResults');
+  if (!q || !wrap) return;
+  wrap.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:6px 0;"><span class="spinner" style="width:12px;height:12px;border-width:1.5px;"></span> Searching…</div>';
+  var res = await instApi('/students/list?search=' + encodeURIComponent(q) + '&limit=8');
+  var students = (res.ok && res.data && res.data.students) ? res.data.students : [];
+  if (!students.length) { wrap.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:6px 0;">No students found.</div>'; return; }
+  wrap.innerHTML = students.map(function(s) {
+    return '<div onclick="selectAssignStudent(\'' + esc(s._id) + '\',\'' + esc(s.name) + '\')" ' +
+      'style="padding:8px 10px;border-radius:7px;border:1px solid var(--border);background:rgba(255,255,255,0.02);cursor:pointer;margin-bottom:5px;font-size:13px;color:#fff;">' +
+      esc(s.name) + ' <span style="font-size:11px;color:var(--muted);">' + esc(s.admissionNo || '') + ' — ' + esc(s.class || '') + '</span></div>';
+  }).join('');
+}
+
+function selectAssignStudent(id, name) {
+  document.getElementById('assignStudentId').value = id;
+  var wrap = document.getElementById('assignStudentResults');
+  if (wrap) wrap.innerHTML = '<div style="font-size:12px;color:var(--green);padding:4px 0;">✅ Selected: <strong>' + esc(name) + '</strong></div>';
+  var searchEl = document.getElementById('assignStudentSearch');
+  if (searchEl) searchEl.value = name;
+}
+
+async function saveAssignment() {
+  var feeStructureId = (document.getElementById('assignFeeStructure') || {}).value;
+  if (!feeStructureId) { showToast('❌ Select a fee structure.'); return; }
+
+  var btn  = document.getElementById('assignSaveBtn');
+  var body = {
+    feeStructureId: feeStructureId,
+    termId:         (document.getElementById('assignTerm')     || {}).value || null,
+    discount:       parseFloat((document.getElementById('assignDiscount') || {}).value) || 0,
+    dueDate:        (document.getElementById('assignDueDate')  || {}).value || null
+  };
+
+  var endpoint;
+  if (_assignMode === 'bulk') {
+    var classId = (document.getElementById('assignClass') || {}).value;
+    if (!classId) { showToast('❌ Select a class.'); return; }
+    body.classId = classId;
+    endpoint = '/fee/assignments/bulk';
+  } else {
+    var studentId = (document.getElementById('assignStudentId') || {}).value;
+    if (!studentId) { showToast('❌ Select a student.'); return; }
+    body.studentId = studentId;
+    endpoint = '/fee/assignments';
+  }
+
+  if (btn) { btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true; }
+  var res = await instApi(endpoint, 'POST', body);
+  if (btn) { btn.innerHTML = 'Assign Fee'; btn.disabled = false; }
+
+  if (res.ok && res.data && res.data.success) {
+    showToast('✅ ' + (res.data.message || 'Fee assigned.'));
+    closeModal('assignModal');
+    loadAssignments(1);
+  } else {
+    showToast('❌ ' + ((res.data && res.data.message) || 'Assignment failed.'));
+  }
+}
+
+async function waiveFee(assignmentId, feeName) {
+  var reason = prompt('Reason for waiving "' + feeName + '"? (required)');
+  if (reason === null) return;
+  if (!reason.trim()) { showToast('❌ A reason is required to waive a fee.'); return; }
+  var res = await instApi('/fee/assignments/' + assignmentId + '/waive', 'PUT', { reason: reason.trim() });
+  if (res.ok && res.data && res.data.success) {
+    showToast('✅ Fee waived.');
+    loadAssignments(_assignPage);
+  } else {
+    showToast('❌ ' + ((res.data && res.data.message) || 'Waiver failed.'));
+  }
+}
+
+async function deleteAssignment(id) {
+  if (!confirm('Delete this fee assignment?\n\nThis will fail if payments have already been recorded against it.')) return;
+  var res = await instApi('/fee/assignments/' + id, 'DELETE');
+  if (res.ok && res.data && res.data.success) {
+    showToast('✅ Assignment deleted.');
+    loadAssignments(_assignPage);
+  } else {
+    showToast('❌ ' + ((res.data && res.data.message) || 'Delete failed.'));
+  }
+}
+
+/* ============================================================
+   RECORD PAYMENT (STAFF-DIRECT)
+   IMPORTANT: This is for payments already received by the school.
+   This is NOT a payment claim workflow.
+   Only authorised financial staff should use this section.
+============================================================ */
+async function searchStudentForPayment() {
+  var q    = (document.getElementById('recordStudentSearch') || {}).value.trim();
+  var wrap = document.getElementById('recordStudentResults');
+  if (!q || !wrap) return;
+  wrap.innerHTML = '<div style="font-size:12px;color:var(--muted);"><span class="spinner" style="width:12px;height:12px;border-width:1.5px;"></span> Searching…</div>';
+
+  var res      = await instApi('/students/list?search=' + encodeURIComponent(q) + '&limit=6');
+  var students = (res.ok && res.data && res.data.students) ? res.data.students : [];
+
+  if (!students.length) {
+    wrap.innerHTML = '<div style="font-size:12px;color:var(--muted);">No students found.</div>';
+    return;
+  }
+
+  wrap.innerHTML = students.map(function(s) {
+    return '<div onclick="selectStudentForPayment(\'' + esc(s._id) + '\',\'' + esc(s.name) + '\')" ' +
+      'style="padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.02);cursor:pointer;margin-bottom:6px;font-size:13px;color:#fff;transition:background 0.15s;"' +
+      ' onmouseover="this.style.background=\'rgba(255,255,255,0.06)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.02)\'">' +
+      '<strong>' + esc(s.name) + '</strong> <span style="font-size:11px;color:var(--muted);">' +
+      esc(s.admissionNo || '') + (s.class ? ' — ' + esc(s.class) : '') + '</span></div>';
+  }).join('');
+}
+
+async function selectStudentForPayment(studentId, studentName) {
+  _selectedStudentForRecord = { _id: studentId, name: studentName };
+
+  var resultsEl = document.getElementById('recordStudentResults');
+  if (resultsEl) resultsEl.innerHTML = '<div style="font-size:12px;color:var(--green);padding:4px 0;">✅ <strong>' + esc(studentName) + '</strong></div>';
+
+  var searchEl = document.getElementById('recordStudentSearch');
+  if (searchEl) searchEl.value = studentName;
+
+  /* Load assignments for this student */
+  var section = document.getElementById('recordAssignmentsSection');
+  var nameEl  = document.getElementById('recordSelectedStudentName');
+  if (section) section.style.display = 'block';
+  if (nameEl)  nameEl.textContent    = studentName;
+
+  /* Reset payment detail section */
+  document.getElementById('recordPaymentDetailsSection').style.display = 'none';
+  document.getElementById('recordAssignmentId').value = '';
+
+  var listWrap = document.getElementById('recordAssignmentsList');
+  if (listWrap) {
+    listWrap.innerHTML = '<div style="font-size:12px;color:var(--muted);"><span class="spinner" style="width:12px;height:12px;border-width:1.5px;"></span> Loading fee obligations…</div>';
+  }
+
+  var res         = await instApi('/fee/student/' + studentId + '/summary');
+  var assignments = (res.ok && res.data && res.data.assignments) ? res.data.assignments : [];
+
+  var payable = assignments.filter(function(a) {
+    return ['pending', 'partial', 'overpaid'].includes(a.status);
+  });
+
+  if (!listWrap) return;
+  if (!payable.length) {
+    listWrap.innerHTML = '<div style="font-size:13px;color:var(--muted);">No outstanding fee obligations for this student.</div>';
+    return;
+  }
+
+  listWrap.innerHTML = payable.map(function(a) {
+    var fs     = a.feeStructureId || {};
+    var stMap  = { pending:'badge-red', partial:'badge-orange', overpaid:'badge-orange' };
+    return '<div onclick="selectAssignmentForPayment(\'' + esc(a._id) + '\',\'' + esc(a.currency || 'NGN') + '\')" ' +
+      'style="padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.02);cursor:pointer;margin-bottom:6px;transition:background 0.15s;"' +
+      ' onmouseover="this.style.background=\'rgba(255,255,255,0.05)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.02)\'">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">' +
+        '<div style="font-size:13px;font-weight:700;color:#fff;">' + esc(fs.name || 'Fee') + '</div>' +
+        '<span class="badge ' + (stMap[a.status] || 'badge-muted') + '">' + esc(a.status) + '</span>' +
+      '</div>' +
+      '<div style="font-size:12px;color:var(--secondary);margin-top:4px;">' +
+        'Balance: <strong style="color:var(--red);">' + fmtCurrency(a.balance, a.currency) + '</strong>' +
+        ' — Paid: ' + fmtCurrency(a.amountPaid, a.currency) + ' / ' + fmtCurrency(a.amountDue, a.currency) +
+      '</div></div>';
+  }).join('');
+}
+
+function selectAssignmentForPayment(assignmentId, currency) {
+  document.getElementById('recordAssignmentId').value = assignmentId;
+  document.getElementById('recordStudentId').value    = _selectedStudentForRecord ? _selectedStudentForRecord._id : '';
+  document.getElementById('recordCurrency').value     = currency || 'NGN';
+  document.getElementById('recordPaymentDetailsSection').style.display = 'block';
+  document.getElementById('recordPaymentResult').innerHTML = '';
+}
+
+async function submitRecordPayment() {
+  var assignmentId = (document.getElementById('recordAssignmentId') || {}).value;
+  var amount       = parseFloat((document.getElementById('recordAmount')    || {}).value);
+  var method       = (document.getElementById('recordMethod')   || {}).value;
+  var reference    = ((document.getElementById('recordReference') || {}).value || '').trim();
+  var note         = ((document.getElementById('recordNote')      || {}).value || '').trim();
+
+  if (!assignmentId) { showToast('❌ Select a fee obligation first.'); return; }
+  if (!amount || amount <= 0) { showToast('❌ Enter a valid payment amount.'); return; }
+
+  var btn     = document.getElementById('recordSubmitBtn');
+  var resultEl = document.getElementById('recordPaymentResult');
+  if (btn) { btn.innerHTML = '<span class="spinner"></span> Recording…'; btn.disabled = true; }
+
+  var res = await instApi('/fee/payments', 'POST', {
+    assignmentId: assignmentId,
+    amount:       amount,
+    method:       method,
+    externalRef:  reference,
+    note:         note
+  });
+
+  if (btn) { btn.innerHTML = '✅ Confirm & Record Payment'; btn.disabled = false; }
+
+  if (res.ok && res.data && res.data.success) {
+    if (resultEl) {
+      resultEl.innerHTML = '<div style="background:rgba(67,233,123,0.1);border:1px solid rgba(67,233,123,0.3);border-radius:10px;padding:16px;">' +
+        '<div style="font-size:14px;font-weight:800;color:var(--green);margin-bottom:8px;">✅ Payment Recorded Successfully</div>' +
+        '<div style="font-size:13px;color:var(--secondary);line-height:1.8;">' +
+          'Amount: <strong style="color:#fff;">' + fmtCurrency(amount, (document.getElementById('recordCurrency') || {}).value || 'NGN') + '</strong><br/>' +
+          'Receipt: <strong style="color:#a78bfa;font-family:monospace;">' + esc(res.data.receiptNumber || '—') + '</strong><br/>' +
+          'Balance: <strong>' + fmtCurrency(res.data.balance || 0, '') + '</strong><br/>' +
+          'Status: <span class="badge ' + (res.data.assignmentStatus === 'paid' ? 'badge-green' : 'badge-orange') + '">' +
+            esc(res.data.assignmentStatus || '') + '</span>' +
+        '</div>' +
+        '<a href="/api/institution/finance/transactions" target="_blank" style="display:inline-block;margin-top:12px;" class="btn btn-secondary btn-sm">View in Finance →</a>' +
+      '</div>';
+    }
+    /* Reset form for next payment */
+    document.getElementById('recordPaymentDetailsSection').style.display = 'none';
+    document.getElementById('recordAssignmentId').value = '';
+    document.getElementById('recordAmount').value = '';
+    document.getElementById('recordReference').value = '';
+    document.getElementById('recordNote').value = '';
+    /* Reload student obligations */
+    if (_selectedStudentForRecord) {
+      selectStudentForPayment(_selectedStudentForRecord._id, _selectedStudentForRecord.name);
+    }
+  } else {
+    if (resultEl) {
+      resultEl.innerHTML = '<div style="background:rgba(255,101,132,0.1);border:1px solid rgba(255,101,132,0.3);border-radius:8px;padding:12px;color:var(--red);font-size:13px;">' +
+        '❌ ' + esc((res.data && res.data.message) || 'Payment recording failed.') + '</div>';
+    }
+  }
+}
+
+/* ============================================================
+   CAMPAIGNS
+============================================================ */
+async function loadCampaigns() {
+  var wrap = document.getElementById('campaignsWrap');
+  if (!wrap) return;
+  wrap.innerHTML = '<div style="text-align:center;padding:24px;"><span class="spinner"></span></div>';
+  var statusF = (document.getElementById('campaignStatusFilter') || {}).value || '';
+  var query   = statusF ? '?status=' + statusF : '';
+  var res     = await instApi('/finance/donations/campaigns' + query);
+  if (!res.ok) { wrap.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Could not load campaigns.</div></div>'; return; }
+  var campaigns = res.data.campaigns || [];
+  if (!campaigns.length) {
+    wrap.innerHTML = '<div class="empty"><div class="empty-icon">🎯</div><div class="empty-title">No campaigns yet.</div>' +
+      '<div class="empty-sub">Create a campaign for anniversary funds, donations, fundraising and other activities.</div></div>';
+    return;
+  }
+
+  wrap.innerHTML = '<table><thead><tr>' +
+    '<th>Title</th><th>Category</th><th>Min Contribution</th><th>Target / Collected</th><th>Audience</th><th>Visibility</th><th>Status</th><th></th>' +
+    '</tr></thead><tbody>' +
+    campaigns.map(function(c) {
+      var stBadge = { active:'badge-green', paused:'badge-orange', closed:'badge-muted', cancelled:'badge-red' }[c.status] || 'badge-muted';
+      var acctDisplay = c.paymentAccountId
+        ? '<span style="font-size:11px;color:var(--green);">✅ Linked</span>'
+        : '<span style="font-size:11px;color:var(--red);">⚠️ None</span>';
+      return '<tr>' +
+        '<td style="font-weight:700;color:#fff;">' + esc(c.title) + '<br/>' + acctDisplay + '</td>' +
+        '<td><span class="badge badge-purple">' + esc(c.category || 'general') + '</span></td>' +
+        '<td>' + (c.minContribution ? fmtCurrency(c.minContribution, c.currency) : '<span style="color:var(--muted);">Any</span>') + '</td>' +
+        '<td style="font-size:12px;">' +
+          (c.targetAmount ? fmtCurrency(c.targetAmount, c.currency) : '—') + '<br/>' +
+          '<span style="color:var(--green);">' + fmtCurrency(c.totalCollected || 0, c.currency) + ' collected</span>' +
+        '</td>' +
+        '<td style="font-size:11px;">' + ((c.targetAudience || []).join(', ') || '—') + '</td>' +
+        '<td><span class="badge badge-muted">' + esc(c.visibility || 'internal') + '</span></td>' +
+        '<td><span class="badge ' + stBadge + '">' + esc(c.status) + '</span></td>' +
+        '<td><button class="btn btn-secondary btn-sm" onclick="openCampaignModal(\'' + esc(c._id) + '\')">✏️ Edit</button></td>' +
+      '</tr>';
+    }).join('') + '</tbody></table>';
+}
+
+function openCampaignModal(editId) {
+  document.getElementById('campaignEditId').value = '';
+  document.getElementById('campaignModalTitle').textContent = 'New Campaign';
+  document.getElementById('campSaveBtn').textContent = 'Create Campaign';
+  ['campTitle','campDescription','campMinContribution','campTargetAmount'].forEach(function(id) {
+    var el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('campCategory').value      = 'general';
+  document.getElementById('campCurrency').value      = 'NGN';
+  document.getElementById('campStatus').value        = 'active';
+  document.getElementById('campStartDate').value     = '';
+  document.getElementById('campEndDate').value       = '';
+  document.getElementById('campPaymentAccount').value = '';
+  document.getElementById('campVisibility').value    = 'internal';
+  document.getElementById('campAllowManualClaim').checked = true;
+  document.getElementById('campAccountPreview').style.display = 'none';
+
+  /* Default audience: parent + alumni + student */
+  document.querySelectorAll('#campAudienceChecks input').forEach(function(cb) {
+    cb.checked = ['parent','alumni','student'].includes(cb.value);
+  });
+
+  if (editId) {
+    /* Load campaign data from existing list — finance/donations/campaigns route */
+    instApi('/finance/donations/campaigns').then(function(res) {
+      if (!res.ok) return;
+      var c = (res.data.campaigns || []).find(function(x) { return x._id === editId; });
+      if (!c) return;
+      document.getElementById('campaignEditId').value          = c._id;
+      document.getElementById('campaignModalTitle').textContent = 'Edit Campaign';
+      document.getElementById('campSaveBtn').textContent        = 'Save Changes';
+      document.getElementById('campTitle').value           = c.title || '';
+      document.getElementById('campDescription').value     = c.description || '';
+      document.getElementById('campCategory').value        = c.category || 'general';
+      document.getElementById('campCurrency').value        = c.currency || 'NGN';
+      document.getElementById('campStatus').value          = c.status || 'active';
+      document.getElementById('campMinContribution').value = c.minContribution || '';
+      document.getElementById('campTargetAmount').value    = c.targetAmount || '';
+      document.getElementById('campVisibility').value      = c.visibility || 'internal';
+      document.getElementById('campStartDate').value       = c.startDate ? c.startDate.split('T')[0] : '';
+      document.getElementById('campEndDate').value         = c.endDate   ? c.endDate.split('T')[0]   : '';
+      document.getElementById('campAllowManualClaim').checked = c.allowManualClaim !== false;
+
+      if (c.paymentAccountId) {
+        document.getElementById('campPaymentAccount').value = c.paymentAccountId._id || c.paymentAccountId;
+        showCampAccountPreview();
+      }
+      var aud = c.targetAudience || [];
+      document.querySelectorAll('#campAudienceChecks input').forEach(function(cb) {
+        cb.checked = aud.includes(cb.value);
+      });
+    });
+  }
+
+  document.getElementById('campaignModal').style.display = 'flex';
+}
+
+function showCampAccountPreview() {
+  var sel     = document.getElementById('campPaymentAccount');
+  var preview = document.getElementById('campAccountPreview');
+  if (!sel || !preview) return;
+  var acctId  = sel.value;
+  if (!acctId) { preview.style.display = 'none'; return; }
+  var acct    = _activeAccounts.find(function(a) { return a._id === acctId; });
+  if (!acct)  { preview.style.display = 'none'; return; }
+  preview.innerHTML = '🏦 <strong>' + esc(acct.bankName) + '</strong> · ' +
+    esc(acct.accountName) + ' · ' + esc(acct.accountNumber) + ' · ' + esc(acct.currency) +
+    (acct.instructions ? '<br/>📋 ' + esc(acct.instructions) : '');
+  preview.style.display = 'block';
+}
+
+async function saveCampaign() {
+  var editId = document.getElementById('campaignEditId').value.trim();
+  var title  = (document.getElementById('campTitle') || {}).value.trim();
+  if (!title) { showToast('❌ Campaign title is required.'); return; }
+
+  var audience = [];
+  document.querySelectorAll('#campAudienceChecks input:checked').forEach(function(cb) { audience.push(cb.value); });
+  if (!audience.length) { showToast('❌ Select at least one target audience.'); return; }
+
+  var payload = {
+    title:            title,
+    description:      (document.getElementById('campDescription')     || {}).value.trim(),
+    category:         (document.getElementById('campCategory')        || {}).value,
+    currency:         (document.getElementById('campCurrency')        || {}).value,
+    status:           (document.getElementById('campStatus')          || {}).value,
+    minContribution:  parseFloat((document.getElementById('campMinContribution') || {}).value) || 0,
+    targetAmount:     parseFloat((document.getElementById('campTargetAmount')    || {}).value) || null,
+    paymentAccountId: (document.getElementById('campPaymentAccount')  || {}).value || null,
+    visibility:       (document.getElementById('campVisibility')      || {}).value,
+    allowManualClaim: (document.getElementById('campAllowManualClaim')|| {}).checked,
+    targetAudience:   audience,
+    startDate:        (document.getElementById('campStartDate')       || {}).value || null,
+    endDate:          (document.getElementById('campEndDate')         || {}).value || null
+  };
+
+  var btn = document.getElementById('campSaveBtn');
+  if (btn) { btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true; }
+
+  var res = editId
+    ? await instApi('/finance/donations/campaigns/' + editId, 'PUT', payload)
+    : await instApi('/finance/donations/campaigns', 'POST', payload);
+
+  if (btn) { btn.innerHTML = editId ? 'Save Changes' : 'Create Campaign'; btn.disabled = false; }
+
+  if (res.ok && res.data && res.data.success) {
+    showToast('✅ ' + (res.data.message || 'Campaign saved.'));
+    closeModal('campaignModal');
+    loadCampaigns();
+  } else {
+    showToast('❌ ' + ((res.data && res.data.message) || 'Failed to save campaign.'));
+  }
+}
+
+/* ============================================================
+   PAYMENT ACCOUNTS PREVIEW
+============================================================ */
+async function loadAccountsPreview() {
+  var wrap = document.getElementById('accountsPreviewWrap');
+  if (!wrap) return;
+  /* Reload to get fresh data */
+  await loadActiveAccounts();
+  if (!_activeAccounts.length) {
+    wrap.innerHTML = '<div class="empty"><div class="empty-icon">🏦</div>' +
+      '<div class="empty-title">No active payment accounts.</div>' +
+      '<div class="empty-sub">Configure payment accounts in <a href="/institution/school/finance.html" style="color:#a78bfa;">Finance → Payment Methods</a>.</div></div>';
+    return;
+  }
+  wrap.innerHTML = '<div class="acct-grid">' +
+    _activeAccounts.map(function(a) {
+      var typeLabel = { main:'Main Account', development:'Development Fund', foreign:'Foreign Currency', event:'Event', operational:'Operational', other:'Other' }[a.accountType] || a.accountType;
+      /* Count fee structures and campaigns linked to this account */
+      var fsCount   = _feeStructures.filter(function(s) {
+        return (s.paymentAccountId && (s.paymentAccountId._id || s.paymentAccountId) === a._id);
+      }).length;
+      return '<div class="acct-card">' +
+        '<div class="acct-card-label">' + esc(a.accountLabel) + '</div>' +
+        '<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">' + esc(typeLabel) + '</div>' +
+        '<div class="acct-card-bank">🏦 ' + esc(a.bankName) + '</div>' +
+        '<div class="acct-card-name">' + esc(a.accountName) + '</div>' +
+        '<div class="acct-card-number">' + esc(a.accountNumber) + '</div>' +
+        '<div class="acct-card-meta">' +
+          '<span class="badge badge-purple">' + esc(a.currency) + '</span>' +
+          '<span class="badge badge-muted">' + esc(a.country || '') + '</span>' +
+          (fsCount ? '<span class="badge badge-green">' + fsCount + ' fee' + (fsCount !== 1 ? 's' : '') + '</span>' : '') +
+        '</div>' +
+        (a.instructions ? '<div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;border-top:1px solid var(--border);padding-top:8px;">📋 ' + esc(a.instructions) + '</div>' : '') +
+      '</div>';
+    }).join('') + '</div>';
+}
+
+/* ============================================================
+   OUTSTANDING BALANCES
+============================================================ */
+async function loadOutstanding(page) {
+  _outPage = page || 1;
+  var wrap    = document.getElementById('outstandingWrap');
+  var totalEl = document.getElementById('outstandingTotalBadge');
+  if (!wrap) return;
+  wrap.innerHTML = '<div style="text-align:center;padding:24px;"><span class="spinner"></span></div>';
+
+  var search  = ((document.getElementById('outSearch')    || {}).value || '').trim();
+  var termId  = (document.getElementById('outTermFilter') || {}).value || '';
+  var classId = (document.getElementById('outClassFilter')|| {}).value || '';
+  var query   = '?page=' + _outPage + '&limit=30';
+  if (search)  query += '&studentName=' + encodeURIComponent(search);
+  if (termId)  query += '&termId='  + termId;
+  if (classId) query += '&classId=' + classId;
+
+  var res = await instApi('/fee/outstanding' + query);
+  if (!res.ok) { wrap.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Could not load outstanding balances.</div></div>'; return; }
+
+  var assignments = res.data.outstanding || res.data.assignments || [];
+  var summary     = res.data.summary     || {};
+  var total       = res.data.total       || 0;
+
+  if (totalEl) {
+    totalEl.textContent = 'Total outstanding: ' + fmtCurrency(summary.totalOutstanding || 0, 'NGN');
+  }
+
+  if (!assignments.length) {
+    wrap.innerHTML = '<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">No outstanding balances.</div>' +
+      '<div class="empty-sub">All assigned fees have been paid.</div></div>';
+    document.getElementById('outstandingPagination').innerHTML = '';
+    return;
+  }
+
+  wrap.innerHTML = '<table><thead><tr>' +
+    '<th>Student</th><th>Class</th><th>Fee</th><th>Term</th><th>Due</th><th>Paid</th><th>Balance</th><th>Status</th>' +
+    '</tr></thead><tbody>' +
+    assignments.map(function(a) {
+      var st  = a.studentId    || {};
+      var fs  = a.feeStructureId || {};
+      var tm  = a.termId       || {};
+      var stBadge = a.status === 'partial' ? 'badge-orange' : 'badge-red';
+      return '<tr>' +
+        '<td style="font-weight:700;color:#fff;">' + esc(st.name || '—') + '<br/><span style="font-size:11px;color:var(--muted);">' + esc(st.admissionNo || '') + '</span></td>' +
+        '<td style="font-size:12px;">' + esc(st.class || '—') + '</td>' +
+        '<td style="font-size:12px;">' + esc(fs.name || '—') + '</td>' +
+        '<td style="font-size:12px;color:var(--muted);">' + esc(tm.name || 'All') + '</td>' +
+        '<td style="color:#fff;">' + fmtCurrency(a.amountDue, a.currency) + '</td>' +
+        '<td style="color:var(--green);">' + fmtCurrency(a.amountPaid || 0, a.currency) + '</td>' +
+        '<td style="font-weight:700;color:var(--red);">' + fmtCurrency(a.balance, a.currency) + '</td>' +
+        '<td><span class="badge ' + stBadge + '">' + esc(a.status) + '</span></td>' +
+      '</tr>';
+    }).join('') + '</tbody></table>';
+
+  var pages = Math.ceil(total / 30);
+  renderPagination('outstandingPagination', _outPage, pages, loadOutstanding);
+}
+
+/* ============================================================
+   PAGINATION
+============================================================ */
+function renderPagination(containerId, current, total, callback) {
+  var el = document.getElementById(containerId);
+  if (!el || total <= 1) { if (el) el.innerHTML = ''; return; }
+  var html = '';
+  if (current > 1) html += '<button class="page-btn" onclick="(' + callback.name + ')(' + (current-1) + ')">←</button>';
+  var start = Math.max(1, current - 2), end = Math.min(total, current + 2);
+  for (var i = start; i <= end; i++) {
+    html += '<button class="page-btn' + (i === current ? ' active' : '') + '" onclick="(' + callback.name + ')(' + i + ')">' + i + '</button>';
+  }
+  if (current < total) html += '<button class="page-btn" onclick="(' + callback.name + ')(' + (current+1) + ')">→</button>';
+  html += '<span class="page-info">Page ' + current + ' of ' + total + '</span>';
+  el.innerHTML = html;
+}
+
+/* ============================================================
+   UTILITIES
+=========================

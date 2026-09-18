@@ -22,7 +22,9 @@ const schoolFeeStructureSchema = new mongoose.Schema({
   description: { type: String, default: '' },
   category: {
     type:    String,
-    enum:    ['tuition', 'levy', 'exam', 'development', 'transport', 'boarding', 'other'],
+    enum:    ['tuition', 'levy', 'exam', 'development', 'transport', 'boarding',
+              'registration', 'admission', 'graduation', 'competition',
+              'uniform', 'books', 'activity', 'programme', 'other'],
     default: 'tuition'
   },
 
@@ -41,6 +43,42 @@ const schoolFeeStructureSchema = new mongoose.Schema({
 
   /* ---- Currency (ISO code) ---- */
   currency: { type: String, default: 'NGN' },
+
+  /* ---- P3: Flexible amount ---- */
+  /* isFlexible:true → amount = 0; minAmount/maxAmount define the acceptable range.
+     Assignment engine uses amount for fixed fees.
+     For flexible items the payer declares their own amount (≥ minAmount). */
+  isFlexible: { type: Boolean, default: false },
+  minAmount:  { type: Number, default: 0, min: 0 },
+  maxAmount:  { type: Number, default: null },   /* null = no upper cap */
+
+  /* ---- P3: Audience & access ---- */
+  targetAudience: {
+    type:    [String],
+    enum:    ['student', 'parent', 'alumni', 'staff', 'all'],
+    default: ['student', 'parent']
+  },
+
+  /* ---- P3: Linked payment account ----
+     ObjectId reference only — bank details are never copied here.
+     Resolved server-side via GET /fee/structures/:id/payment-account.
+     P6 deletion-protection hook guards this reference. */
+  paymentAccountId: {
+    type:    mongoose.Schema.Types.ObjectId,
+    ref:     'SchoolManualPaymentAccount',
+    default: null
+  },
+
+  allowPartial: { type: Boolean, default: true },
+
+  /* ---- P3: Visibility & publication ---- */
+  visibility: {
+    type:    String,
+    enum:    ['internal', 'portal', 'website', 'community'],
+    default: 'portal'
+  },
+  /* publishedOn controls explicit website / community publication (P9) */
+  publishedOn: { type: [String], default: [] },
 
   /* ---- Status ---- */
   isActive: { type: Boolean, default: true }

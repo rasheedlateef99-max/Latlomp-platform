@@ -14,7 +14,8 @@ const schoolDonationCampaignSchema = new mongoose.Schema({
   description: { type: String, default: '' },
   category: {
     type:    String,
-    enum:    ['building','scholarship','equipment','library','sports','general','bursary','other'],
+    enum:    ['building','scholarship','equipment','library','sports','general',
+              'bursary','anniversary','fundraising','development','event','programme','other'],
     default: 'general'
   },
   targetAmount: { type: Number, default: null },
@@ -31,7 +32,28 @@ const schoolDonationCampaignSchema = new mongoose.Schema({
   /* Running totals — updated on each confirmed donation */
   totalCollected: { type: Number, default: 0 },
   donationCount:  { type: Number, default: 0 },
-
+/* ---- P3: Extended config ---- */
+  /* ObjectId reference only — bank details never copied here.
+     Resolved server-side via GET /finance/donations/campaigns/:id/payment-account.
+     P6 deletion-protection hook guards this reference. */
+  paymentAccountId: {
+    type:    mongoose.Schema.Types.ObjectId,
+    ref:     'SchoolManualPaymentAccount',
+    default: null
+  },
+  allowManualClaim: { type: Boolean, default: true },   /* enable bank-transfer claim path (P4) */
+  minContribution:  { type: Number, default: 0, min: 0 },
+  targetAudience: {
+    type:    [String],
+    enum:    ['student', 'parent', 'alumni', 'staff', 'all'],
+    default: ['parent', 'alumni', 'student']
+  },
+  visibility: {
+    type:    String,
+    enum:    ['internal', 'portal', 'website', 'community'],
+    default: 'internal'
+  },
+  publishedOn: { type: [String], default: [] },
   createdBy:     { type: mongoose.Schema.Types.ObjectId, ref: 'SchoolUser', required: true },
   createdByName: { type: String, default: '' },
   closedBy:      { type: mongoose.Schema.Types.ObjectId, ref: 'SchoolUser', default: null },

@@ -299,25 +299,49 @@ router.post('/statements/generate', seniorGuard, async function(req, res) {
 router.post('/donations/campaigns', seniorGuard, async function(req, res) {
   try {
     var Campaign = require('../models/SchoolDonationCampaign.model');
-    var { title, description, category, targetAmount, currency,
-          isPublic, startDate, endDate } = req.body;
+    var {
+      title, description, category, targetAmount, currency,
+      isPublic, startDate, endDate,
+      paymentAccountId, allowManualClaim, minContribution,
+      targetAudience, visibility, publishedOn
+    } = req.body;
+
     if (!title) {
       return res.status(400).json({ success: false, message: 'Campaign title is required.' });
     }
 
+    /* Validate paymentAccountId belongs to this school if provided */
+    if (paymentAccountId && mongoose.isValidObjectId(paymentAccountId)) {
+      var SchoolManualPaymentAccount = require('../models/SchoolManualPaymentAccount.model');
+      var campAcctCheck = await SchoolManualPaymentAccount.findOne({
+        _id:      paymentAccountId,
+        schoolId: req.schoolId    /* TENANT SCOPE */
+      }).select('_id').lean();
+      if (!campAcctCheck) {
+        return res.status(400).json({ success: false, message: 'Payment account not found.' });
+      }
+    }
+
     var campaign = await Campaign.create({
-      schoolId:      req.schoolId,
-      title:         title.trim(),
-      description:   (description || '').trim(),
-      category:      category      || 'general',
-      targetAmount:  targetAmount  || null,
-      currency:      currency      || 'NGN',
-      isPublic:      !!isPublic,
-      startDate:     startDate ? new Date(startDate) : new Date(),
-      endDate:       endDate   ? new Date(endDate)   : null,
-      status:        'active',
-      createdBy:     req.schoolUser._id,
-      createdByName: req.schoolUser.name || ''
+      schoolId:         req.schoolId,
+      title:            title.trim(),
+      description:      (description || '').trim(),
+      category:         category             || 'general',
+      targetAmount:     targetAmount         || null,
+      currency:         currency             || 'NGN',
+      isPublic:         !!isPublic,
+      startDate:        startDate ? new Date(startDate) : new Date(),
+      endDate:          endDate   ? new Date(endDate)   : null,
+      status:           'active',
+      paymentAccountId: (paymentAccountId && mongoose.isValidObjectId(paymentAccountId))
+                          ? paymentAccountId : null,
+      allowManualClaim: allowManualClaim !== false && allowManualClaim !== 'false',
+      minContribution:  parseFloat(minContribution) || 0,
+      targetAudience:   Array.isArray(targetAudience) ? targetAudience : ['parent', 'alumni', 'student'],
+      visibility:       visibility           || 'internal',
+      publishedOn:      Array.isArray(publishedOn) ? publishedOn : [],
+      createdBy:        req.schoolUser._id,
+      createdByName:    req.schoolUser.name  || ''
     });
 
     return res.status(201).json({ success: true, message: 'Donation campaign created.', campaign });
@@ -350,7 +374,23 @@ router.put('/donations/campaigns/:id', seniorGuard, async function(req, res) {
       return res.status(400).json({ success: false, message: 'Invalid campaign ID.' });
     }
     var Campaign = require('../models/SchoolDonationCampaign.model');
-    var allowed  = ['title','description','category','targetAmount','isPublic','status','endDate'];
+    var allowed = [
+      'title', 'description', 'category', 'targetAmount', 'isPublic', 'status', 'endDate',
+      'paymentAccountId', 'allowManualClaim', 'minContribution',
+      'targetAudience', 'visibility', 'publishedOn'
+    ];
+
+    /* Validate paymentAccountId if being updated */
+    if (req.body.paymentAccountId && mongoose.isValidObjectId(req.body.paymentAccountId)) {
+      var SchoolManualPaymentAccountUpd = require('../models/SchoolManualPaymentAccount.model');
+      var campAcctUpd = await SchoolManualPaymentAccountUpd.findOne({
+        _id:      req.body.paymentAccountId,
+        schoolId: req.schoolId
+      }).select('_id').lean();
+      if (!campAcctUpd) {
+        return res.status(400).json({ success: false, message: 'Payment account not found.' });
+      }
+    }
     var updates  = {};
     allowed.forEach(function(f) {
       if (req.body[f] !== undefined) { updates[f] = req.body[f]; }
@@ -711,6 +751,70 @@ router.get('/students/:studentId', manageGuard, async function(req, res) {
     });
   } catch(err) {
     console.error('[finance] GET /students/:id:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   P3 — CAMPAIGN PAYMENT ACCOUNT RESOLUTION
+   GET /api/institution/finance/donations/campaigns/:id/payment-account
+
+   Server-side resolution for campaign payment instructions.
+   Same tenant + relationship + active-status enforcement as
+   the fee structure equivalent in inst.fee.routes.js.
+
+   P9 HOOK: Used by alumni/parent/student portals to get payment
+   instructions for a specific campaign contribution.
+============================================ */
+router.get('/donations/campaigns/:id/payment-account', readGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid campaign ID.' });
+    }
+
+    var CampaignModel = require('../models/SchoolDonationCampaign.model');
+    var campaign = await CampaignModel.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId,            /* TENANT SCOPE + IDOR */
+      status:   { $in: ['active', 'paused'] }
+    }).select('paymentAccountId title currency minContribution').lean();
+
+    if (!campaign) {
+      return res.status(404).json({ success: false, message: 'Campaign not found.' });
+    }
+    if (!campaign.paymentAccountId) {
+      return res.status(404).json({
+        success: false,
+        message: 'No payment account has been linked to this campaign. Contact your school administrator.'
+      });
+    }
+
+    /* Resolve account — must belong to same school AND be active */
+    var SchoolManualPaymentAccount = require('../models/SchoolManualPaymentAccount.model');
+    var account = await SchoolManualPaymentAccount.findOne({
+      _id:      campaign.paymentAccountId,
+      schoolId: req.schoolId,            /* Double tenant scope */
+      isActive: true
+    })
+    .select('accountLabel bankName accountName accountNumber currency country instructions')
+    .lean();
+
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        message: 'The linked payment account is currently unavailable. Contact your school administrator.'
+      });
+    }
+
+    return res.json({
+      success:         true,
+      campaignTitle:   campaign.title,
+      currency:        campaign.currency,
+      minContribution: campaign.minContribution,
+      account:         account
+    });
+  } catch(err) {
+    console.error('[finance] GET /donations/campaigns/:id/payment-account:', err.message);
     return res.status(500).json({ success: false, message: err.message });
   }
 });
