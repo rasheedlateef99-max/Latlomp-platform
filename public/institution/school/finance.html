@@ -142,6 +142,23 @@
     .page-btn { padding:6px 14px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif; border:1px solid var(--border); background:rgba(255,255,255,0.04); color:var(--secondary); }
     .page-btn.active { background:var(--primary); border-color:var(--primary); color:#fff; }
     .page-info { font-size:12px; color:var(--muted); }
+    /* ---- P2: Payment account cards ---- */
+    .account-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px; margin-bottom:20px; }
+    .account-card { background:var(--dark-2); border:1px solid var(--border); border-radius:14px; padding:18px; position:relative; overflow:hidden; animation:fadeUp 0.2s ease; }
+    .account-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--primary),#574fd6); }
+    .account-card.inactive::before { background:var(--border); }
+    .account-card.inactive { opacity:0.6; }
+    .account-card-top { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:12px; }
+    .account-card-label { font-size:13px; font-weight:800; color:#fff; }
+    .account-card-type  { font-size:10px; color:var(--muted); font-weight:600; text-transform:uppercase; margin-top:2px; }
+    .account-card-bank  { font-size:14px; font-weight:700; color:var(--secondary); margin-bottom:4px; }
+    .account-card-name  { font-size:12px; color:var(--muted); margin-bottom:8px; }
+    .account-card-number { font-size:18px; font-weight:900; color:#fff; letter-spacing:2px; margin-bottom:6px; font-family:monospace; }
+    .account-card-meta  { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+    .account-card-instructions { font-size:11px; color:var(--secondary); background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:6px; padding:8px 10px; margin-bottom:12px; line-height:1.6; }
+    .account-card-actions { display:flex; gap:6px; flex-wrap:wrap; padding-top:12px; border-top:1px solid var(--border); }
+    .fmtCurrency-chip { display:inline-block; background:rgba(108,99,255,0.12); color:#a78bfa; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:700; }
+    .country-chip  { display:inline-block; background:rgba(255,255,255,0.04); color:var(--muted); border-radius:6px; padding:2px 8px; font-size:11px; font-weight:600; }
   </style>
 </head>
 <body>
@@ -165,6 +182,7 @@
   <button class="tab-btn" onclick="showSection('donations')">💛 Donations</button>
   <button class="tab-btn" onclick="showSection('refunds')">↩️ Refunds</button>
   <button class="tab-btn" onclick="showSection('statements')">📄 Statements</button>
+  <button class="tab-btn" onclick="showSection('paymentMethods')">🏦 Methods</button>
 </div>
 
 <div class="layout">
@@ -181,6 +199,7 @@
     <button class="nav-item"        data-sec="refunds"        onclick="showSection('refunds')">↩️ Refunds</button>
     <div class="nav-sec">Reports</div>
     <button class="nav-item"        data-sec="statements"     onclick="showSection('statements')">📄 Statements</button>
+    <button class="nav-item" data-sec="paymentMethods" onclick="showSection('paymentMethods')">🏦 Payment Methods</button>
     <div class="nav-sec">Quick Links</div>
     <a href="/institution/school/dashboard.html" class="nav-item">← Back to School</a>
   </nav>
@@ -498,7 +517,120 @@
         </div>
       </div>
     </div>
+<!-- ============ PAYMENT METHODS (P2) ============ -->
+    <div class="section" id="sec-paymentMethods">
 
+      <div class="panel">
+        <div class="panel-head">
+          <h3>🏦 Bank Transfer Payment Methods</h3>
+          <button class="btn btn-primary btn-sm" onclick="openPaymentMethodForm()">+ Add Account</button>
+        </div>
+        <div class="panel-body">
+          <div style="background:rgba(108,99,255,0.05);border:1px solid rgba(108,99,255,0.15);border-radius:10px;padding:14px 16px;margin-bottom:18px;font-size:12px;color:#a78bfa;line-height:1.7;">
+            These payment details are shown to parents and students so they can transfer money directly to the school.
+            LatLomp does not process these payments — the school receives the funds directly in its own bank account.
+            Only <strong>active</strong> accounts are displayed to payers.
+          </div>
+          <div id="pmAccountsGrid" class="account-grid">
+            <div style="text-align:center;padding:32px;color:var(--muted);">
+              <span class="spinner"></span> Loading payment accounts...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add / Edit Form Panel -->
+      <div id="pmFormPanel" class="panel" style="display:none;">
+        <div class="panel-head">
+          <h3 id="pmFormTitle">Add Payment Account</h3>
+          <button class="btn btn-secondary btn-sm" onclick="closePaymentMethodForm()">✕ Cancel</button>
+        </div>
+        <div class="panel-body">
+          <input type="hidden" id="pmEditId" value="" />
+
+          <div class="form-grid">
+            <div class="field">
+              <label>Account Label <span style="color:var(--red);">*</span></label>
+              <input type="text" id="pmLabel" class="inp inp-full"
+                placeholder="e.g. Main NGN Account, Development Fund" maxlength="80" />
+            </div>
+            <div class="field">
+              <label>Account Type</label>
+              <select id="pmType" class="sel" style="width:100%;">
+                <option value="main">Main Account</option>
+                <option value="development">Development Fund</option>
+                <option value="foreign">Foreign Currency Account</option>
+                <option value="event">Event / Activity</option>
+                <option value="operational">Operational</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Bank Name <span style="color:var(--red);">*</span></label>
+              <input type="text" id="pmBankName" class="inp inp-full"
+                placeholder="e.g. First Bank, GTBank, Zenith Bank" maxlength="80" />
+            </div>
+            <div class="field">
+              <label>Account Name <span style="color:var(--red);">*</span></label>
+              <input type="text" id="pmAccountName" class="inp inp-full"
+                placeholder="Name as it appears on the account" maxlength="120" />
+            </div>
+            <div class="field">
+              <label>Account Number <span style="color:var(--red);">*</span></label>
+              <input type="text" id="pmAccountNumber" class="inp inp-full"
+                placeholder="e.g. 1234567890" maxlength="40" />
+            </div>
+            <div class="field">
+              <label>Currency</label>
+              <select id="pmCurrency" class="sel" style="width:100%;">
+                <option value="NGN">NGN — Nigerian Naira</option>
+                <option value="USD">USD — US Dollar</option>
+                <option value="EUR">EUR — Euro</option>
+                <option value="GBP">GBP — British Pound</option>
+                <option value="GHS">GHS — Ghanaian Cedi</option>
+                <option value="KES">KES — Kenyan Shilling</option>
+                <option value="ZAR">ZAR — South African Rand</option>
+                <option value="XOF">XOF — CFA Franc (WAEMU)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Country (ISO code)</label>
+              <input type="text" id="pmCountry" class="inp inp-full"
+                placeholder="e.g. NG, US, GB, GH, KE" maxlength="4"
+                style="text-transform:uppercase;" />
+            </div>
+            <div class="field">
+              <label>Display Order</label>
+              <input type="number" id="pmDisplayOrder" class="inp inp-full"
+                placeholder="0 = first" min="0" max="99" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Payment Instructions
+              <span style="font-weight:400;color:var(--muted);font-size:10px;">
+                — shown to payers alongside account details
+              </span>
+            </label>
+            <textarea id="pmInstructions" class="inp inp-full"
+              style="height:80px;resize:vertical;"
+              maxlength="400"
+              placeholder='e.g. "Use the student&apos;s full name as the payment reference. Payments are usually confirmed within 24–48 hours."'></textarea>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-top:4px;">
+            <button class="btn btn-primary" onclick="savePaymentMethod()">
+              💾 Save Account
+            </button>
+            <button class="btn btn-secondary" onclick="closePaymentMethodForm()">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <!-- END PAYMENT METHODS -->
   </div><!-- end main -->
 </div><!-- end layout -->
 
@@ -571,7 +703,18 @@ async function loadSchoolInfo() {
     /* Non-fatal — topbar school name stays blank */
   }
 }
-
+/* ---- P2: Fee API helper (for /api/institution/fee/... endpoints) ---- */
+function feeApi(path, method, body) {
+  var opts = {
+    method:  method || 'GET',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _token }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  return fetch('/api/institution/fee' + path, opts)
+    .then(function(r) {
+      return r.json().then(function(d) { return { ok: r.ok, data: d, status: r.status }; });
+    });
+}
 function api(path, method, body) {
   var opts = {
     method:  method || 'GET',
@@ -583,7 +726,7 @@ function api(path, method, body) {
 }
 
 function showSection(name) {
-  var sections = ['dashboard','transactions','outstanding','analytics','reconciliation','donations','refunds','statements'];
+  var sections = ['dashboard','transactions','outstanding','analytics','reconciliation','donations','refunds','statements','paymentMethods'];
   sections.forEach(function(s) {
     var el = document.getElementById('sec-' + s);
     if (el) el.style.display = s === name ? 'block' : 'none';
@@ -602,6 +745,7 @@ function showSection(name) {
   if (name === 'reconciliation') loadReconciliation(1);
   if (name === 'donations')      { loadCampaigns(); loadDonations(); }
   if (name === 'refunds')        loadRefunds();
+  if (name === 'paymentMethods') loadPaymentMethods();
 }
 
 /* ---- Period ---- */
@@ -1160,7 +1304,204 @@ function showToast(msg) {
   clearTimeout(el._t);
   el._t = setTimeout(function() { el.style.display = 'none'; }, 3500);
 }
+/* ============================================
+   P2: PAYMENT METHODS
+   Manages SchoolManualPaymentAccount records.
+   All API calls go to /api/institution/fee/manual-accounts
+   using the feeApi() helper.
+============================================ */
+var _pmEditId = '';
 
+async function loadPaymentMethods() {
+  var grid = document.getElementById('pmAccountsGrid');
+  if (!grid) return;
+  grid.innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);"><span class="spinner"></span> Loading...</div>';
+
+  var res  = await feeApi('/manual-accounts');
+  var data = res.data;
+
+  if (!res.ok || !data.success) {
+    grid.innerHTML = '<div class="empty"><div class="empty-icon">🏦</div>' +
+      '<div class="empty-title">Could not load payment accounts.</div></div>';
+    return;
+  }
+
+  var accounts = data.accounts || [];
+
+  if (!accounts.length) {
+    grid.innerHTML = '<div class="empty"><div class="empty-icon">🏦</div>' +
+      '<div class="empty-title">No payment accounts configured yet.</div>' +
+      '<div class="empty-sub" style="font-size:12px;color:var(--muted);margin-top:8px;">' +
+      'Click "Add Account" to configure your first bank transfer payment method.</div></div>';
+    return;
+  }
+
+  grid.innerHTML = accounts.map(function(acc) {
+    var typeLabel = {
+      main:        'Main Account',
+      development: 'Development Fund',
+      foreign:     'Foreign Currency',
+      event:       'Event / Activity',
+      operational: 'Operational',
+      other:       'Other'
+    }[acc.accountType] || acc.accountType;
+
+    return '<div class="account-card' + (acc.isActive ? '' : ' inactive') + '" ' +
+           'id="acct-' + esc(acc._id) + '">' +
+
+      '<div class="account-card-top">' +
+        '<div>' +
+          '<div class="account-card-label">' + esc(acc.accountLabel) + '</div>' +
+          '<div class="account-card-type">' + esc(typeLabel) + '</div>' +
+        '</div>' +
+        '<span class="badge ' + (acc.isActive ? 'badge-green' : 'badge-muted') + '">' +
+          (acc.isActive ? 'Active' : 'Inactive') +
+        '</span>' +
+      '</div>' +
+
+      '<div class="account-card-bank">🏦 ' + esc(acc.bankName) + '</div>' +
+      '<div class="account-card-name">' + esc(acc.accountName) + '</div>' +
+      '<div class="account-card-number">' + esc(acc.accountNumber) + '</div>' +
+
+      '<div class="account-card-meta">' +
+        '<span class="fmtCurrency-chip">' + esc(acc.currency) + '</span>' +
+        '<span class="country-chip">' + esc(acc.country || '') + '</span>' +
+        (acc.displayOrder ? '<span class="country-chip">Order: ' + acc.displayOrder + '</span>' : '') +
+      '</div>' +
+
+      (acc.instructions ?
+        '<div class="account-card-instructions">📋 ' + esc(acc.instructions) + '</div>'
+      : '') +
+
+      '<div class="account-card-actions">' +
+        '<button class="btn btn-secondary btn-sm" ' +
+          'onclick="editPaymentMethod(' + JSON.stringify(acc).replace(/"/g,'&quot;') + ')">✏️ Edit</button>' +
+        '<button class="btn btn-secondary btn-sm" onclick="togglePaymentMethod(\'' + esc(acc._id) + '\',' +
+          (acc.isActive ? 'true' : 'false') + ')">' +
+          (acc.isActive ? '🔇 Deactivate' : '✅ Activate') + '</button>' +
+        '<button class="btn btn-secondary btn-sm" style="color:var(--red);" ' +
+          'onclick="deletePaymentMethod(\'' + esc(acc._id) + '\',\'' + esc(acc.accountLabel) + '\')">🗑️</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function openPaymentMethodForm() {
+  _pmEditId = '';
+  document.getElementById('pmFormTitle').textContent     = 'Add Payment Account';
+  document.getElementById('pmEditId').value              = '';
+  document.getElementById('pmLabel').value               = '';
+  document.getElementById('pmType').value                = 'main';
+  document.getElementById('pmBankName').value            = '';
+  document.getElementById('pmAccountName').value         = '';
+  document.getElementById('pmAccountNumber').value       = '';
+  document.getElementById('pmCurrency').value            = 'NGN';
+  document.getElementById('pmCountry').value             = 'NG';
+  document.getElementById('pmDisplayOrder').value        = '0';
+  document.getElementById('pmInstructions').value        = '';
+  var panel = document.getElementById('pmFormPanel');
+  if (panel) { panel.style.display = 'block'; panel.scrollIntoView({ behavior:'smooth', block:'start' }); }
+}
+
+function editPaymentMethod(acc) {
+  _pmEditId = acc._id;
+  document.getElementById('pmFormTitle').textContent     = 'Edit Payment Account';
+  document.getElementById('pmEditId').value              = acc._id;
+  document.getElementById('pmLabel').value               = acc.accountLabel    || '';
+  document.getElementById('pmType').value                = acc.accountType     || 'main';
+  document.getElementById('pmBankName').value            = acc.bankName        || '';
+  document.getElementById('pmAccountName').value         = acc.accountName     || '';
+  document.getElementById('pmAccountNumber').value       = acc.accountNumber   || '';
+  document.getElementById('pmCurrency').value            = acc.currency        || 'NGN';
+  document.getElementById('pmCountry').value             = acc.country         || 'NG';
+  document.getElementById('pmDisplayOrder').value        = (acc.displayOrder !== undefined ? acc.displayOrder : 0);
+  document.getElementById('pmInstructions').value        = acc.instructions    || '';
+  var panel = document.getElementById('pmFormPanel');
+  if (panel) { panel.style.display = 'block'; panel.scrollIntoView({ behavior:'smooth', block:'start' }); }
+}
+
+function closePaymentMethodForm() {
+  _pmEditId = '';
+  var panel = document.getElementById('pmFormPanel');
+  if (panel) panel.style.display = 'none';
+}
+
+async function savePaymentMethod() {
+  var label        = (document.getElementById('pmLabel')         || {}).value || '';
+  var bankName     = (document.getElementById('pmBankName')      || {}).value || '';
+  var accountName  = (document.getElementById('pmAccountName')   || {}).value || '';
+  var accountNumber= (document.getElementById('pmAccountNumber') || {}).value || '';
+
+  if (!label.trim())        { showToast('❌ Account label is required.');   return; }
+  if (!bankName.trim())     { showToast('❌ Bank name is required.');        return; }
+  if (!accountName.trim())  { showToast('❌ Account name is required.');     return; }
+  if (!accountNumber.trim()){ showToast('❌ Account number is required.');   return; }
+
+  var payload = {
+    accountLabel:   label.trim(),
+    accountType:    (document.getElementById('pmType')         || {}).value || 'main',
+    bankName:       bankName.trim(),
+    accountName:    accountName.trim(),
+    accountNumber:  accountNumber.trim(),
+    currency:       (document.getElementById('pmCurrency')     || {}).value || 'NGN',
+    country:        ((document.getElementById('pmCountry')     || {}).value || 'NG').toUpperCase(),
+    displayOrder:   parseInt((document.getElementById('pmDisplayOrder') || {}).value) || 0,
+    instructions:   (document.getElementById('pmInstructions') || {}).value || ''
+  };
+
+  var isEdit = !!_pmEditId;
+  var res;
+
+  if (isEdit) {
+    res = await feeApi('/manual-accounts/' + _pmEditId, 'PUT', payload);
+  } else {
+    res = await feeApi('/manual-accounts', 'POST', payload);
+  }
+
+  var data = res.data;
+  if (data && data.success) {
+    showToast('✅ ' + (data.message || 'Payment account saved.'));
+    closePaymentMethodForm();
+    loadPaymentMethods();
+  } else {
+    showToast('❌ ' + ((data && data.message) || 'Failed to save payment account.'));
+  }
+}
+
+async function togglePaymentMethod(id, currentlyActive) {
+  var action = currentlyActive ? 'deactivate' : 'activate';
+  if (!confirm('Are you sure you want to ' + action + ' this payment account?\n\n' +
+    (currentlyActive
+      ? 'Deactivating will immediately hide it from parents and students.'
+      : 'Activating will make it visible to parents and students.'))) {
+    return;
+  }
+
+  var res  = await feeApi('/manual-accounts/' + id + '/toggle', 'PUT');
+  var data = res.data;
+  if (data && data.success) {
+    showToast('✅ ' + (data.message || 'Payment account updated.'));
+    loadPaymentMethods();
+  } else {
+    showToast('❌ ' + ((data && data.message) || 'Toggle failed.'));
+  }
+}
+
+async function deletePaymentMethod(id, label) {
+  if (!confirm('Delete "' + label + '"?\n\nThis cannot be undone. ' +
+    'Deactivating is safer if you may need these details again.')) {
+    return;
+  }
+
+  var res  = await feeApi('/manual-accounts/' + id, 'DELETE');
+  var data = res.data;
+  if (data && data.success) {
+    showToast('✅ ' + (data.message || 'Payment account deleted.'));
+    loadPaymentMethods();
+  } else {
+    showToast('❌ ' + ((data && data.message) || 'Delete failed.'));
+  }
+}
 function doLogout() {
   if (!confirm('Log out of Finance Portal?')) return;
   localStorage.removeItem('latlomp_inst_token');

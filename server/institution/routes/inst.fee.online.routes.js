@@ -10,6 +10,8 @@ const SchoolFeeStructure   = require('../models/SchoolFeeStructure.model');
 const SchoolStudent        = require('../models/SchoolStudent.model');
 const PlatformConfig       = require('../models/PlatformConfig.model');
 const { getProvider }      = require('../providers/payment.provider');
+const SchoolManualPaymentAccount = require('../models/SchoolManualPaymentAccount.model');
+const { logAudit }               = require('../../middleware/audit.middleware');
 const { getPlatformFeePercent } = require('../config/fee.config');
 const {
   instProtect, schoolAdminOnly,
@@ -449,5 +451,331 @@ router.get('/payment-account/supported-currencies', staffGuard, async (req, res)
     return res.status(500).json({ success: false, message: err.message });
   }
 });
+/* ============================================
+   P2 — SCHOOL MANUAL PAYMENT ACCOUNTS
+
+   School-configured bank/payment methods.
+   NO Paystack. NO provider calls. NO bank API.
+   School admin manually enters their own details.
+   LatLomp stores and displays them securely to payers.
+
+   Tenant isolation: schoolId ALWAYS from req.schoolId
+   (set by instProtect from JWT) — NEVER from body.
+
+   Route summary:
+     GET  /manual-accounts         — list all (admin)
+     GET  /manual-accounts/active  — list active (staff)
+     POST /manual-accounts         — create (admin)
+     PUT  /manual-accounts/:id     — update (admin)
+     PUT  /manual-accounts/:id/toggle — activate/deactivate (admin)
+     DELETE /manual-accounts/:id   — delete if no references (admin)
+============================================ */
+
+/* GET /api/institution/fee/manual-accounts
+   Full account list for admin management.
+   adminGuard — shows complete account details.
+*/
+router.get('/manual-accounts', adminGuard, async function(req, res) {
+  try {
+    var accounts = await SchoolManualPaymentAccount.find({
+      schoolId: req.schoolId          /* TENANT SCOPE — from JWT */
+    })
+    .sort({ displayOrder: 1, createdAt: -1 })
+    .lean();
+
+    return res.json({ success: true, count: accounts.length, accounts });
+  } catch(err) {
+    console.error('[manual-accounts] GET /manual-accounts:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* GET /api/institution/fee/manual-accounts/active
+   Active accounts only — safe for portal display.
+   staffGuard — consumed by parent/student portals in P9.
+   Returns complete account details for payers who need
+   to know where to send money.
+   NOTE: Must be declared BEFORE /manual-accounts/:id
+   so Express matches this literal route correctly.
+*/
+router.get('/manual-accounts/active', staffGuard, async function(req, res) {
+  try {
+    var accounts = await SchoolManualPaymentAccount.find({
+      schoolId: req.schoolId,         /* TENANT SCOPE — from JWT */
+      isActive: true
+    })
+    .select('accountLabel accountType bankName accountName accountNumber currency country instructions displayOrder')
+    .sort({ displayOrder: 1, createdAt: -1 })
+    .lean();
+
+    return res.json({ success: true, count: accounts.length, accounts });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* POST /api/institution/fee/manual-accounts
+   Create a new manual payment account.
+   adminGuard — configuration is admin-only.
+   schoolId: ALWAYS from req.schoolId — NEVER from body.
+*/
+router.post('/manual-accounts', adminGuard, async function(req, res) {
+  try {
+    var {
+      accountLabel, accountType, bankName, accountName,
+      accountNumber, country, currency, instructions, displayOrder
+    } = req.body;
+
+    /* Required field validation */
+    if (!accountLabel || !accountLabel.trim()) {
+      return res.status(400).json({ success: false, message: 'Account label is required.' });
+    }
+    if (!bankName || !bankName.trim()) {
+      return res.status(400).json({ success: false, message: 'Bank name is required.' });
+    }
+    if (!accountName || !accountName.trim()) {
+      return res.status(400).json({ success: false, message: 'Account name is required.' });
+    }
+    if (!accountNumber || !accountNumber.trim()) {
+      return res.status(400).json({ success: false, message: 'Account number is required.' });
+    }
+
+    /* Reasonable cap — prevents abuse without blocking legitimate use */
+    var existingCount = await SchoolManualPaymentAccount.countDocuments({
+      schoolId: req.schoolId
+    });
+    if (existingCount >= 20) {
+      return res.status(400).json({
+        success: false,
+        message: 'Maximum of 20 payment accounts per school. ' +
+                 'Please deactivate or remove an existing account first.'
+      });
+    }
+
+    var account = await SchoolManualPaymentAccount.create({
+      schoolId:      req.schoolId,           /* TENANT SCOPE — from JWT only */
+      accountLabel:  accountLabel.trim(),
+      accountType:   accountType             || 'main',
+      bankName:      bankName.trim(),
+      accountName:   accountName.trim(),
+      accountNumber: accountNumber.trim(),
+      country:       (country      || 'NG').trim(),
+      currency:      (currency     || 'NGN').trim().toUpperCase(),
+      instructions:  (instructions || '').trim(),
+      displayOrder:  parseInt(displayOrder)  || 0,
+      isActive:      true,
+      createdBy:     req.schoolUser._id,
+      createdByName: req.schoolUser.name     || ''
+    });
+
+    logAudit({
+      req,
+      action:     'institution.payment_account.manual.created',
+      resource:   'SchoolManualPaymentAccount',
+      resourceId: account._id.toString(),
+      success:    true,
+      message:    'Manual payment account created: "' + account.accountLabel +
+                  '" currency=' + account.currency +
+                  ' bank=' + account.bankName +
+                  ' by=' + (req.schoolUser.name || req.schoolUser.email || 'unknown')
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: '"' + account.accountLabel + '" payment account created.',
+      account
+    });
+  } catch(err) {
+    console.error('[manual-accounts] POST:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* PUT /api/institution/fee/manual-accounts/:id
+   Update an existing manual payment account.
+   adminGuard only. Tenant scope verified by { schoolId } query.
+   Allowed fields whitelist prevents mass-assignment.
+*/
+router.put('/manual-accounts/:id', adminGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid account ID.' });
+    }
+
+    /* Whitelist — only these fields may be updated */
+    var ALLOWED = [
+      'accountLabel', 'accountType', 'bankName', 'accountName',
+      'accountNumber', 'country', 'currency', 'instructions',
+      'displayOrder', 'isActive'
+    ];
+    var updates = {};
+    ALLOWED.forEach(function(f) {
+      if (req.body[f] !== undefined) {
+        updates[f] = typeof req.body[f] === 'string' ? req.body[f].trim() : req.body[f];
+      }
+    });
+
+    if (!Object.keys(updates).length) {
+      return res.status(400).json({ success: false, message: 'No valid fields provided for update.' });
+    }
+
+    /* Normalise */
+    if (updates.currency)      updates.currency      = updates.currency.toUpperCase();
+    if (updates.displayOrder !== undefined) {
+      updates.displayOrder = parseInt(updates.displayOrder) || 0;
+    }
+
+    /* Audit trail — who last changed this */
+    updates.updatedBy     = req.schoolUser._id;
+    updates.updatedByName = req.schoolUser.name || '';
+
+    var account = await SchoolManualPaymentAccount.findOneAndUpdate(
+      { _id: req.params.id, schoolId: req.schoolId }, /* TENANT SCOPE + IDOR prevention */
+      { $set: updates },
+      { new: true, runValidators: true }
+    );
+
+    if (!account) {
+      return res.status(404).json({ success: false, message: 'Payment account not found.' });
+    }
+
+    logAudit({
+      req,
+      action:     'institution.payment_account.manual.updated',
+      resource:   'SchoolManualPaymentAccount',
+      resourceId: account._id.toString(),
+      success:    true,
+      message:    'Manual payment account updated: "' + account.accountLabel +
+                  '" fields=' + Object.keys(updates).filter(function(k) {
+                    return k !== 'updatedBy' && k !== 'updatedByName';
+                  }).join(',') +
+                  ' by=' + (req.schoolUser.name || req.schoolUser.email || 'unknown')
+    });
+
+    return res.json({ success: true, message: 'Payment account updated.', account });
+  } catch(err) {
+    console.error('[manual-accounts] PUT /:id:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* PUT /api/institution/fee/manual-accounts/:id/toggle
+   Activate or deactivate a payment account.
+   adminGuard only.
+   Inactive accounts stop appearing in portal displays immediately.
+   Does NOT delete payment history — only controls visibility.
+*/
+router.put('/manual-accounts/:id/toggle', adminGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid account ID.' });
+    }
+
+    /* Read then save to get the toggled value — prevents flip-flop on concurrent requests */
+    var account = await SchoolManualPaymentAccount.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId      /* TENANT SCOPE + IDOR prevention */
+    });
+
+    if (!account) {
+      return res.status(404).json({ success: false, message: 'Payment account not found.' });
+    }
+
+    account.isActive      = !account.isActive;
+    account.updatedBy     = req.schoolUser._id;
+    account.updatedByName = req.schoolUser.name || '';
+    await account.save();
+
+    var action = account.isActive ? 'activated' : 'deactivated';
+
+    logAudit({
+      req,
+      action:     'institution.payment_account.manual.toggled',
+      resource:   'SchoolManualPaymentAccount',
+      resourceId: account._id.toString(),
+      success:    true,
+      message:    'Manual payment account ' + action +
+                  ': "' + account.accountLabel + '"' +
+                  ' by=' + (req.schoolUser.name || req.schoolUser.email || 'unknown')
+    });
+
+    return res.json({
+      success:  true,
+      message:  '"' + account.accountLabel + '" ' + action + '.',
+      isActive: account.isActive,
+      account
+    });
+  } catch(err) {
+    console.error('[manual-accounts] PUT /:id/toggle:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* DELETE /api/institution/fee/manual-accounts/:id
+   Delete a manual payment account.
+   adminGuard only. Tenant scope enforced by query.
+
+   P6 HOOK: When SchoolPaymentClaim and SchoolFeePayment gain
+   a paymentAccountId field (P4/P6), add reference checks here
+   to prevent deletion of accounts with payment claim history.
+   For P2, no payment records yet reference manual accounts.
+*/
+router.delete('/manual-accounts/:id', adminGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid account ID.' });
+    }
+
+    /* Confirm account exists and belongs to this school — TENANT SCOPE + IDOR */
+    var account = await SchoolManualPaymentAccount.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId
+    });
+
+    if (!account) {
+      return res.status(404).json({ success: false, message: 'Payment account not found.' });
+    }
+
+    /* ---- P6 HOOK: Add reference check here ----
+       var claimCount = await SchoolPaymentClaim.countDocuments({
+         paymentAccountId: req.params.id, schoolId: req.schoolId
+       });
+       if (claimCount > 0) {
+         return res.status(400).json({
+           success: false,
+           message: claimCount + ' payment claim(s) reference this account. ' +
+                    'Deactivate it instead of deleting to preserve payment history.'
+         });
+       }
+    ---- End P6 hook ---- */
+
+    var deletedLabel    = account.accountLabel;
+    var deletedCurrency = account.currency;
+    var deletedBank     = account.bankName;
+
+    await SchoolManualPaymentAccount.findByIdAndDelete(account._id);
+
+    logAudit({
+      req,
+      action:     'institution.payment_account.manual.deleted',
+      resource:   'SchoolManualPaymentAccount',
+      resourceId: req.params.id,
+      success:    true,
+      message:    'Manual payment account deleted: "' + deletedLabel +
+                  '" currency=' + deletedCurrency +
+                  ' bank=' + deletedBank +
+                  ' by=' + (req.schoolUser.name || req.schoolUser.email || 'unknown')
+    });
+
+    return res.json({
+      success: true,
+      message: '"' + deletedLabel + '" has been deleted.'
+    });
+  } catch(err) {
+    console.error('[manual-accounts] DELETE /:id:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 
 module.exports = router;

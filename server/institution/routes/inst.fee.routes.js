@@ -3,6 +3,7 @@ const express             = require('express');
 const router              = express.Router();
 const mongoose            = require('mongoose');
 const SchoolFeeStructure  = require('../models/SchoolFeeStructure.model');
+const SchoolCounter       = require('../models/SchoolCounter.model');
 const SchoolFeeAssignment = require('../models/SchoolFeeAssignment.model');
 const SchoolFeePayment    = require('../models/SchoolFeePayment.model');
 const SchoolStudent       = require('../models/SchoolStudent.model');
@@ -21,16 +22,48 @@ var adminGuard = [instProtect, schoolAdminOnly, requireActiveSubscription];
 var staffGuard = [instProtect, teacherOrAdmin,  requireActiveSubscription];
 
 /* ============================================
-   RECEIPT NUMBER GENERATOR
-   Format: SCH-YYYYMMDD-NNNN
+   RECEIPT NUMBER GENERATOR (P2 — atomic counter)
+   Format: RCP-YYYYMMDD-NNNN
+
+   Uses SchoolCounter with atomic MongoDB $inc.
+   findOneAndUpdate with $inc is a single atomic
+   operation — concurrency-safe. Two simultaneous
+   payments always receive different sequence numbers.
+
+   On first use for a school the counter is seeded
+   from the existing payment count so the new sequence
+   continues from where the old countDocuments method
+   left off — no numbering gaps or collisions.
 ============================================ */
 async function generateReceiptNumber(schoolId) {
+  var key = 'rcpt:' + schoolId.toString();
+
+  /* Seed counter on first use for this school */
+  var counterDoc = await SchoolCounter.findOne({ _id: key }).lean();
+  if (!counterDoc) {
+    /* $setOnInsert only writes seq if the document is being created.
+       If two requests race here, only one insert wins; the other is
+       a no-op update. Either way, seq is set exactly once. */
+    var seedCount = await SchoolFeePayment.countDocuments({ schoolId: schoolId });
+    await SchoolCounter.findOneAndUpdate(
+      { _id: key },
+      { $setOnInsert: { seq: seedCount } },
+      { upsert: true }
+    );
+  }
+
+  /* Atomic increment — returns the incremented document */
+  var counter = await SchoolCounter.findOneAndUpdate(
+    { _id: key },
+    { $inc: { seq: 1 } },
+    { new: true }
+  );
+
   var today = new Date();
   var date  = today.getFullYear().toString() +
               String(today.getMonth() + 1).padStart(2, '0') +
               String(today.getDate()).padStart(2, '0');
-  var count = await SchoolFeePayment.countDocuments({ schoolId: schoolId });
-  return 'RCP-' + date + '-' + String(count + 1).padStart(4, '0');
+  return 'RCP-' + date + '-' + String(counter.seq).padStart(4, '0');
 }
 
 /* ============================================
