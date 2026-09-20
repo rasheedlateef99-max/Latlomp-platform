@@ -4,6 +4,7 @@ const router              = express.Router();
 const mongoose            = require('mongoose');
 const SchoolFeeStructure  = require('../models/SchoolFeeStructure.model');
 const SchoolCounter       = require('../models/SchoolCounter.model');
+const SchoolPaymentClaim  = require('../models/SchoolPaymentClaim.model');
 const SchoolFeeAssignment = require('../models/SchoolFeeAssignment.model');
 const SchoolFeePayment    = require('../models/SchoolFeePayment.model');
 const SchoolStudent       = require('../models/SchoolStudent.model');
@@ -1142,6 +1143,524 @@ router.get('/structures/:id/payment-account', staffGuard, async function(req, re
     });
   } catch(err) {
     console.error('[fee] GET /structures/:id/payment-account:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   P4 — PAYMENT CLAIMS
+   Staff-side: submit, list, edit, cancel claims.
+   Portal submission (parent/student/alumni) added in P9.
+
+   ARCHITECTURAL BOUNDARY:
+   POST/PUT/DELETE here = claim management (Fee & Payment side)
+   GET /finance/claims  = verification queue (Finance side, P5)
+   These are the same model viewed from different perspectives.
+
+   TENANT ISOLATION:
+   schoolId ALWAYS from req.schoolId (JWT — set by instProtect).
+   Never from req.body.
+
+   CLAIM VS PAYMENT:
+   Claims are awaiting_verification by default.
+   They become authoritative transactions ONLY after
+   a finance officer explicitly verifies them (P5/P6).
+   No auto-verification. No shortcut.
+============================================ */
+
+/* ---- Internal: duplicate reference warning check ---- */
+async function checkDuplicateReference(schoolId, reference, paymentAccountId, excludeId) {
+  if (!reference || !reference.trim()) return null;
+  var filter = {
+    schoolId:         schoolId,
+    reference:        reference.trim(),
+    status:           { $in: ['awaiting_verification', 'verified'] }
+  };
+  if (paymentAccountId && mongoose.isValidObjectId(paymentAccountId)) {
+    filter.paymentAccountId = paymentAccountId;
+  }
+  if (excludeId) filter._id = { $ne: excludeId };
+  return await SchoolPaymentClaim.findOne(filter).select('_id payerName amount createdAt').lean();
+}
+
+/* ---- Internal: fire-and-forget finance notification ---- */
+function notifyFinanceOfNewClaim(claim, school) {
+  try {
+    var emailSvc = require('../services/inst.email.service');
+    /* sendPaymentClaimReceived() will be added to inst.email.service.js in P10.
+       Until then, it silently skips if the function does not exist. */
+    if (typeof emailSvc.sendPaymentClaimReceived === 'function') {
+      emailSvc.sendPaymentClaimReceived({
+        toEmail:    school.financeEmail || school.email || '',
+        schoolName: school.name || '',
+        payerName:  claim.payerName,
+        amount:     claim.amount,
+        currency:   claim.currency,
+        reference:  claim.reference,
+        claimId:    claim._id.toString()
+      }).catch(function(e) {
+        console.warn('[claim] Finance email notification failed (non-fatal):', e.message);
+      });
+    }
+  } catch(e) {
+    /* inst.email.service.js not available or threw — non-fatal */
+    console.warn('[claim] Could not load email service (non-fatal):', e.message);
+  }
+}
+
+/* ============================================
+   POST /api/institution/fee/claims
+   Submit a payment claim.
+   Staff submits on behalf of an external payer,
+   or records a walk-in donor/organisation donation.
+
+   Payer portals (parent/student/alumni) will
+   call this same route in P9 with their own auth.
+
+   Duplicate reference check: warns but does NOT
+   block — the same bank reference may legitimately
+   appear on a corrected resubmission.
+============================================ */
+router.post('/claims', staffGuard, async function(req, res) {
+  try {
+    var {
+      payerType, payerName, payerEmail, payerPhone, payerId,
+      assignmentId, feeStructureId, campaignId, studentId,
+      paymentAccountId, amount, currency,
+      reference, paymentDate, evidenceUrl, note
+    } = req.body;
+
+    /* ---- Required field validation ---- */
+    if (!payerType || !['parent','student','alumni','staff','external','organisation'].includes(payerType)) {
+      return res.status(400).json({ success: false, message: 'Valid payer type is required.' });
+    }
+    if (!payerName || !payerName.trim()) {
+      return res.status(400).json({ success: false, message: 'Payer name is required.' });
+    }
+    if (!amount || parseFloat(amount) <= 0 || isNaN(parseFloat(amount))) {
+      return res.status(400).json({ success: false, message: 'A valid payment amount is required.' });
+    }
+    if (!paymentDate) {
+      return res.status(400).json({ success: false, message: 'Payment date is required.' });
+    }
+
+    /* At least one payment purpose must be provided */
+    var hasAssignment = assignmentId && mongoose.isValidObjectId(assignmentId);
+    var hasCampaign   = campaignId   && mongoose.isValidObjectId(campaignId);
+    if (!hasAssignment && !hasCampaign) {
+      return res.status(400).json({
+        success: false,
+        message: 'Either a fee assignment or a campaign must be specified.'
+      });
+    }
+
+    /* ---- Tenant validation of referenced documents ---- */
+    var resolvedFeeStructureId = feeStructureId || null;
+
+    if (hasAssignment) {
+      var assignment = await SchoolFeeAssignment.findOne({
+        _id:      assignmentId,
+        schoolId: req.schoolId              /* TENANT SCOPE */
+      }).select('_id feeStructureId studentId status').lean();
+
+      if (!assignment) {
+        return res.status(404).json({ success: false, message: 'Fee assignment not found.' });
+      }
+      if (['paid', 'waived', 'cancelled'].includes(assignment.status)) {
+        return res.status(400).json({
+          success: false,
+          message: 'This fee assignment is already ' + assignment.status + '. No claim needed.'
+        });
+      }
+      /* Denormalise fee structure ID from assignment */
+      resolvedFeeStructureId = assignment.feeStructureId;
+      /* Resolve student from assignment if not supplied */
+      if (!studentId) studentId = assignment.studentId;
+    }
+
+    if (hasCampaign) {
+      var campaign = await require('../models/SchoolDonationCampaign.model').findOne({
+        _id:      campaignId,
+        schoolId: req.schoolId,            /* TENANT SCOPE */
+        status:   { $in: ['active', 'paused'] }
+      }).select('_id allowManualClaim minContribution currency').lean();
+
+      if (!campaign) {
+        return res.status(404).json({ success: false, message: 'Campaign not found or closed.' });
+      }
+      if (!campaign.allowManualClaim) {
+        return res.status(400).json({
+          success: false,
+          message: 'This campaign does not accept manual payment claims.'
+        });
+      }
+      if (campaign.minContribution && parseFloat(amount) < campaign.minContribution) {
+        return res.status(400).json({
+          success: false,
+          message: 'Minimum contribution for this campaign is ' +
+            (campaign.currency || 'NGN') + ' ' +
+            campaign.minContribution.toLocaleString() + '.'
+        });
+      }
+    }
+
+    /* ---- Validate paymentAccountId belongs to this school ---- */
+    if (paymentAccountId && mongoose.isValidObjectId(paymentAccountId)) {
+      var SchoolManualPaymentAccount = require('../models/SchoolManualPaymentAccount.model');
+      var acct = await SchoolManualPaymentAccount.findOne({
+        _id:      paymentAccountId,
+        schoolId: req.schoolId,            /* TENANT SCOPE */
+        isActive: true
+      }).select('_id').lean();
+      if (!acct) {
+        return res.status(400).json({
+          success: false,
+          message: 'Payment account not found or inactive.'
+        });
+      }
+    }
+
+    /* ---- Duplicate reference warning ---- */
+    var duplicate = null;
+    if (reference && reference.trim()) {
+      duplicate = await checkDuplicateReference(
+        req.schoolId, reference, paymentAccountId, null
+      );
+    }
+
+    /* ---- Create the claim ---- */
+    var claim = await SchoolPaymentClaim.create({
+      schoolId:          req.schoolId,          /* TENANT SCOPE — from JWT only */
+      payerType:         payerType,
+      payerId:           (payerId && mongoose.isValidObjectId(payerId)) ? payerId : null,
+      payerName:         payerName.trim(),
+      payerEmail:        (payerEmail || '').trim().toLowerCase(),
+      payerPhone:        (payerPhone || '').trim(),
+      assignmentId:      hasAssignment ? assignmentId : null,
+      feeStructureId:    resolvedFeeStructureId  || null,
+      campaignId:        hasCampaign   ? campaignId : null,
+      studentId:         (studentId && mongoose.isValidObjectId(studentId)) ? studentId : null,
+      paymentAccountId:  (paymentAccountId && mongoose.isValidObjectId(paymentAccountId))
+                           ? paymentAccountId : null,
+      amount:            parseFloat(amount),
+      currency:          (currency || 'NGN').toUpperCase().trim(),
+      reference:         (reference || '').trim(),
+      paymentDate:       new Date(paymentDate),
+      evidenceUrl:       (evidenceUrl || '').trim(),
+      note:              (note || '').trim(),
+      status:            'awaiting_verification',
+      submittedBy:       req.schoolUser._id,
+      submittedByName:   req.schoolUser.name || '',
+      submittedVia:      'staff'
+    });
+
+    /* ---- Audit log ---- */
+    var { logAudit } = require('../../middleware/audit.middleware');
+    logAudit({
+      req,
+      action:     'institution.payment_claim.created',
+      resource:   'SchoolPaymentClaim',
+      resourceId: claim._id.toString(),
+      success:    true,
+      message:    'Payment claim created.' +
+                  ' payer=' + claim.payerName +
+                  ' amount=' + claim.currency + ' ' + claim.amount +
+                  ' ref=' + (claim.reference || 'none') +
+                  ' via=staff' +
+                  ' by=' + (req.schoolUser.name || req.schoolUser.email || 'unknown')
+    });
+
+    /* ---- Notify finance staff — fire-and-forget ---- */
+    var schoolDoc = await School.findById(req.schoolId).select('name email financeEmail').lean();
+    if (schoolDoc) notifyFinanceOfNewClaim(claim, schoolDoc);
+
+    var response = {
+      success: true,
+      message: 'Payment claim submitted. Awaiting finance verification.',
+      claim
+    };
+
+    /* ---- Warn about duplicate reference ---- */
+    if (duplicate) {
+      response.warning = 'A claim with this reference already exists (from ' +
+        duplicate.payerName + '). Verify this is not a duplicate before confirming.';
+      response.duplicateClaimId = duplicate._id;
+    }
+
+    return res.status(201).json(response);
+  } catch(err) {
+    console.error('[claims] POST /claims:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   GET /api/institution/fee/claims
+   List claims for staff management.
+   Paginated, filterable by status/payer/assignment/campaign.
+   All queries TENANT SCOPED.
+============================================ */
+router.get('/claims', staffGuard, async function(req, res) {
+  try {
+    var page   = Math.max(1, parseInt(req.query.page)   || 1);
+    var limit  = Math.min(50, parseInt(req.query.limit) || 20);
+    var skip   = (page - 1) * limit;
+
+    var filter = { schoolId: req.schoolId };  /* TENANT SCOPE */
+    if (req.query.status)    filter.status    = req.query.status;
+    if (req.query.payerType) filter.payerType = req.query.payerType;
+    if (req.query.studentId && mongoose.isValidObjectId(req.query.studentId)) {
+      filter.studentId = req.query.studentId;
+    }
+    if (req.query.assignmentId && mongoose.isValidObjectId(req.query.assignmentId)) {
+      filter.assignmentId = req.query.assignmentId;
+    }
+    if (req.query.campaignId && mongoose.isValidObjectId(req.query.campaignId)) {
+      filter.campaignId = req.query.campaignId;
+    }
+    /* Date range */
+    if (req.query.from || req.query.to) {
+      filter.createdAt = {};
+      if (req.query.from) filter.createdAt.$gte = new Date(req.query.from);
+      if (req.query.to)   filter.createdAt.$lte = new Date(req.query.to);
+    }
+
+    var [claims, total, pendingCount] = await Promise.all([
+      SchoolPaymentClaim.find(filter)
+        .populate('assignmentId',   'amountDue amountPaid balance status')
+        .populate('feeStructureId', 'name category')
+        .populate('campaignId',     'title category')
+        .populate('studentId',      'name admissionNo class')
+        .populate('paymentAccountId', 'accountLabel bankName currency')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      SchoolPaymentClaim.countDocuments(filter),
+      /* Always return pending count for badge */
+      SchoolPaymentClaim.countDocuments({ schoolId: req.schoolId, status: 'awaiting_verification' })
+    ]);
+
+    return res.json({
+      success: true,
+      claims,
+      pendingCount,
+      pagination: {
+        page, limit, total,
+        pages:   Math.ceil(total / limit),
+        hasMore: skip + claims.length < total
+      }
+    });
+  } catch(err) {
+    console.error('[claims] GET /claims:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   GET /api/institution/fee/claims/:id
+   Full claim detail with populated fields.
+============================================ */
+router.get('/claims/:id', staffGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid claim ID.' });
+    }
+
+    var claim = await SchoolPaymentClaim.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId            /* TENANT SCOPE + IDOR */
+    })
+    .populate('assignmentId',    'amountDue amountPaid balance status discount')
+    .populate('feeStructureId',  'name category amount currency')
+    .populate('campaignId',      'title category currency targetAmount totalCollected')
+    .populate('studentId',       'name admissionNo class passportPhotoUrl')
+    .populate('paymentAccountId','accountLabel bankName accountName accountNumber currency country instructions')
+    .populate('reviewedBy',      'name email')
+    .populate('resultPaymentId', 'receiptNumber amount status recordedAt')
+    .lean();
+
+    if (!claim) {
+      return res.status(404).json({ success: false, message: 'Claim not found.' });
+    }
+
+    return res.json({ success: true, claim });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   PUT /api/institution/fee/claims/:id
+   Edit an unverified claim.
+   Only awaiting_verification or needs_correction
+   claims can be edited.
+============================================ */
+router.put('/claims/:id', staffGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid claim ID.' });
+    }
+
+    var claim = await SchoolPaymentClaim.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId            /* TENANT SCOPE + IDOR */
+    });
+
+    if (!claim) {
+      return res.status(404).json({ success: false, message: 'Claim not found.' });
+    }
+    if (!['awaiting_verification', 'needs_correction'].includes(claim.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Only claims awaiting verification or needing correction can be edited. ' +
+                 'Current status: ' + claim.status
+      });
+    }
+
+    /* Whitelist of editable fields */
+    var EDITABLE = [
+      'payerName', 'payerEmail', 'payerPhone',
+      'amount', 'currency', 'paymentAccountId',
+      'reference', 'paymentDate', 'evidenceUrl', 'note'
+    ];
+    var updates = {};
+    EDITABLE.forEach(function(f) {
+      if (req.body[f] !== undefined) {
+        updates[f] = typeof req.body[f] === 'string' ? req.body[f].trim() : req.body[f];
+      }
+    });
+
+    /* Validate amount if being updated */
+    if (updates.amount !== undefined) {
+      updates.amount = parseFloat(updates.amount);
+      if (isNaN(updates.amount) || updates.amount <= 0) {
+        return res.status(400).json({ success: false, message: 'Invalid amount.' });
+      }
+    }
+
+    /* Validate paymentAccountId if being updated */
+    if (updates.paymentAccountId) {
+      if (!mongoose.isValidObjectId(updates.paymentAccountId)) {
+        return res.status(400).json({ success: false, message: 'Invalid payment account ID.' });
+      }
+      var SchoolManualPaymentAccountEdit = require('../models/SchoolManualPaymentAccount.model');
+      var acctEdit = await SchoolManualPaymentAccountEdit.findOne({
+        _id:      updates.paymentAccountId,
+        schoolId: req.schoolId,          /* TENANT SCOPE */
+        isActive: true
+      }).select('_id').lean();
+      if (!acctEdit) {
+        return res.status(400).json({ success: false, message: 'Payment account not found or inactive.' });
+      }
+    }
+
+    /* Duplicate reference check if reference is being updated */
+    if (updates.reference && updates.reference !== claim.reference.toString()) {
+      var dupCheck = await checkDuplicateReference(
+        req.schoolId, updates.reference,
+        updates.paymentAccountId || claim.paymentAccountId,
+        claim._id
+      );
+      if (dupCheck) {
+        /* Warn but do not block */
+        updates._duplicateWarning = dupCheck._id;
+      }
+    }
+
+    /* If claim was needs_correction and being resubmitted, move to awaiting */
+    if (claim.status === 'needs_correction') {
+      updates.status        = 'awaiting_verification';
+      updates.correctionNote = '';  /* Clear the correction note on resubmit */
+    }
+
+    updates.currency = updates.currency ? updates.currency.toUpperCase() : undefined;
+
+    var updatedClaim = await SchoolPaymentClaim.findByIdAndUpdate(
+      claim._id,
+      { $set: updates },
+      { new: true }
+    ).lean();
+
+    var { logAudit: logAuditEdit } = require('../../middleware/audit.middleware');
+    logAuditEdit({
+      req,
+      action:     'institution.payment_claim.updated',
+      resource:   'SchoolPaymentClaim',
+      resourceId: claim._id.toString(),
+      success:    true,
+      message:    'Payment claim updated.' +
+                  ' fields=' + Object.keys(updates).filter(function(k) { return k !== '_duplicateWarning'; }).join(',') +
+                  ' by=' + (req.schoolUser.name || 'unknown')
+    });
+
+    var response = { success: true, message: 'Claim updated.', claim: updatedClaim };
+    if (updates._duplicateWarning) {
+      response.warning = 'Another claim with this reference exists. Verify this is not a duplicate.';
+      response.duplicateClaimId = updates._duplicateWarning;
+    }
+
+    return res.json(response);
+  } catch(err) {
+    console.error('[claims] PUT /claims/:id:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   DELETE /api/institution/fee/claims/:id
+   Cancel an unverified claim.
+   Once verified, a claim cannot be deleted —
+   use the financial void/reversal workflow (P6+).
+============================================ */
+router.delete('/claims/:id', adminGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid claim ID.' });
+    }
+
+    var claim = await SchoolPaymentClaim.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId            /* TENANT SCOPE + IDOR */
+    });
+
+    if (!claim) {
+      return res.status(404).json({ success: false, message: 'Claim not found.' });
+    }
+    if (claim.status === 'verified') {
+      return res.status(400).json({
+        success: false,
+        message: 'Verified claims cannot be deleted. ' +
+                 'Use the financial reversal workflow to correct a verified payment.'
+      });
+    }
+    if (claim.resultPaymentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'This claim has an associated payment record and cannot be deleted.'
+      });
+    }
+
+    /* Soft cancel rather than hard delete — keeps audit trail */
+    claim.status = 'cancelled';
+    await claim.save();
+
+    var { logAudit: logAuditDel } = require('../../middleware/audit.middleware');
+    logAuditDel({
+      req,
+      action:     'institution.payment_claim.cancelled',
+      resource:   'SchoolPaymentClaim',
+      resourceId: claim._id.toString(),
+      success:    true,
+      message:    'Payment claim cancelled.' +
+                  ' payer=' + claim.payerName +
+                  ' amount=' + claim.currency + ' ' + claim.amount +
+                  ' by=' + (req.schoolUser.name || 'unknown')
+    });
+
+    return res.json({ success: true, message: 'Claim cancelled.' });
+  } catch(err) {
+    console.error('[claims] DELETE /claims/:id:', err.message);
     return res.status(500).json({ success: false, message: err.message });
   }
 });

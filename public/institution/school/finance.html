@@ -159,6 +159,17 @@
     .account-card-actions { display:flex; gap:6px; flex-wrap:wrap; padding-top:12px; border-top:1px solid var(--border); }
     .fmtCurrency-chip { display:inline-block; background:rgba(108,99,255,0.12); color:#a78bfa; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:700; }
     .country-chip  { display:inline-block; background:rgba(255,255,255,0.04); color:var(--muted); border-radius:6px; padding:2px 8px; font-size:11px; font-weight:600; }
+
+    /* ---- P4: Claim cards ---- */
+    .claim-card { background:var(--dark-2); border:1px solid var(--border); border-radius:12px; padding:16px 18px; margin-bottom:10px; animation:fadeUp 0.2s ease; }
+    .claim-card-top { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+    .claim-card-payer { font-size:14px; font-weight:800; color:#fff; }
+    .claim-card-meta  { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
+    .claim-card-amount { font-size:18px; font-weight:900; color:var(--green); }
+    .claim-card-ref   { font-family:monospace; font-size:11px; color:#a78bfa; background:rgba(108,99,255,0.1); padding:2px 7px; border-radius:5px; }
+    .claim-card-detail { font-size:12px; color:var(--secondary); line-height:1.7; margin-bottom:10px; }
+    .claim-card-actions { display:flex; gap:7px; flex-wrap:wrap; padding-top:10px; border-top:1px solid var(--border); }
+    .pending-count-badge { display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px; border-radius:11px; background:var(--orange); color:#0f0f1a; font-size:11px; font-weight:800; padding:0 6px; margin-left:6px; }
   </style>
 </head>
 <body>
@@ -183,6 +194,7 @@
   <button class="tab-btn" onclick="showSection('refunds')">↩️ Refunds</button>
   <button class="tab-btn" onclick="showSection('statements')">📄 Statements</button>
   <button class="tab-btn" onclick="showSection('paymentMethods')">🏦 Methods</button>
+  <button class="tab-btn" onclick="showSection('claims')">📨 Claims</button>
 </div>
 
 <div class="layout">
@@ -200,6 +212,7 @@
     <div class="nav-sec">Reports</div>
     <button class="nav-item"        data-sec="statements"     onclick="showSection('statements')">📄 Statements</button>
     <button class="nav-item" data-sec="paymentMethods" onclick="showSection('paymentMethods')">🏦 Payment Methods</button>
+    <button class="nav-item" data-sec="claims" onclick="showSection('claims')">📨 <span>Claims</span><span id="claimsNavBadge" style="display:none;" class="pending-count-badge">0</span></button>
     <div class="nav-sec">Quick Links</div>
     <a href="/institution/school/dashboard.html" class="nav-item">← Back to School</a>
   </nav>
@@ -632,9 +645,169 @@
     </div>
     <!-- END PAYMENT METHODS -->
   </div><!-- end main -->
+
+<!-- ============ CLAIMS (P4) ============ -->
+    <div class="section" id="sec-claims">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>📨 Payment Claims</h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <select class="sel" id="claimsStatusFilter" onchange="loadClaimsSection()" style="width:170px;">
+              <option value="awaiting_verification">⏳ Awaiting Verification</option>
+              <option value="needs_correction">🔧 Needs Correction</option>
+              <option value="verified">✅ Verified</option>
+              <option value="rejected">❌ Rejected</option>
+              <option value="cancelled">🚫 Cancelled</option>
+            </select>
+            <button class="btn btn-primary btn-sm" onclick="openSubmitClaimModal()">+ Submit Claim</button>
+            <button class="btn btn-secondary btn-sm" onclick="loadClaimsSection()">↺ Refresh</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div style="background:rgba(108,99,255,0.05);border:1px solid rgba(108,99,255,0.15);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:#a78bfa;line-height:1.7;">
+            A <strong>Payment Claim</strong> is a payer's notification that they have transferred money to the school.
+            Claims are <strong>not</strong> verified transactions. Only after a finance officer confirms receipt
+            does a claim become an authoritative verified payment (P5).
+          </div>
+          <div id="claimsWrap">
+            <div style="text-align:center;padding:24px;color:var(--muted);">Loading claims…</div>
+          </div>
+          <div id="claimsPagination" class="pagination"></div>
+        </div>
+      </div>
+    </div>
+    <!-- END CLAIMS -->
+
 </div><!-- end layout -->
 
 <div id="toast"></div>
+
+<!-- ===== P4: SUBMIT CLAIM MODAL ===== -->
+<div class="modal-overlay" id="submitClaimModal" style="display:none;">
+  <div style="background:var(--dark-2);border:1px solid var(--border);border-radius:18px;width:100%;max-width:540px;max-height:92vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--dark-2);z-index:1;">
+      <h2 style="font-size:15px;font-weight:800;margin:0;">📨 Submit Payment Claim</h2>
+      <button style="width:28px;height:28px;border-radius:7px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--muted);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;font-family:inherit;" onclick="closeModal('submitClaimModal')">✕</button>
+    </div>
+    <div style="padding:18px 20px;">
+      <div style="background:rgba(255,165,0,0.07);border:1px solid rgba(255,165,0,0.2);border-radius:8px;padding:11px 14px;margin-bottom:16px;font-size:12px;color:var(--orange);line-height:1.7;">
+        ⚠️ <strong>Staff action.</strong> Use this to record a claim on behalf of an external donor, organisation,
+        or walk-in payer. This claim must be verified by an authorised finance officer before it becomes a
+        confirmed transaction.
+      </div>
+
+      <div id="claimErr" style="display:none;background:rgba(255,101,132,0.1);border:1px solid rgba(255,101,132,0.3);color:var(--red);padding:11px;border-radius:8px;font-size:13px;margin-bottom:14px;"></div>
+
+      <!-- Payment type tabs -->
+      <div style="display:flex;gap:3px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:9px;padding:3px;margin-bottom:16px;">
+        <button style="flex:1;padding:7px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border:none;background:rgba(108,99,255,0.2);color:#a78bfa;" id="claimTabFee" onclick="setClaimType('fee')">📚 Fee Assignment</button>
+        <button style="flex:1;padding:7px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border:none;background:none;color:var(--secondary);" id="claimTabCampaign" onclick="setClaimType('campaign')">🎯 Campaign</button>
+      </div>
+
+      <!-- Fee assignment selector (shown for 'fee' type) -->
+      <div id="claimFeeSection">
+        <div class="field">
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--secondary);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Search Student / Assignment</label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" class="inp" id="claimStudentSearch" placeholder="Student name or admission number…" style="flex:1;" />
+            <button class="btn btn-secondary btn-sm" onclick="searchClaimStudent()">Search</button>
+          </div>
+        </div>
+        <div id="claimStudentResults" style="margin-bottom:12px;"></div>
+        <input type="hidden" id="claimAssignmentId" />
+        <input type="hidden" id="claimStudentId" />
+      </div>
+
+      <!-- Campaign selector (shown for 'campaign' type) -->
+      <div id="claimCampaignSection" style="display:none;">
+        <div class="field">
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--secondary);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Campaign</label>
+          <select class="sel" id="claimCampaignId" style="width:100%;">
+            <option value="">— Loading campaigns… —</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Payer details -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field">
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--secondary);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Payer Name <span style="color:var(--red);">*</span></label>
+          <input type="text" class="inp" id="claimPayerName" placeholder="Full name of the payer" />
+        </div>
+        <div class="field">
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--secondary);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Payer Type</label>
+          <select class="sel" id="claimPayerType" style="width:100%;">
+            <option value="parent">Parent</option>
+            <option value="student">Student</option>
+            <option value="alumni">Alumni</option>
+            <option value="external" selected>External / Guest</option>
+            <option value="organisation">Organisation</option>
+            <option value="staff">Staff</option>
+          </select>
+        </div>
+        <div class="field">
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--secondary);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Payer Email</label>
+          <input type="email" class="inp" id="claimPayerEmail" placeholder="Optional" />
+        </div>
+        <div class="field">
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--secondary);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Payer Phone</label>
+          <input type="text" class="inp" id="claimPayerPhone" placeholder="Optional" />
+        </div>
+      </div>
+
+      <!-- Payment details -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field">
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--secondary);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Amount <span style="color:var(--red);">*</span></label>
+          <input type="number" class="inp" id="claimAmount" placeholder="e.g. 50000" min="0.01" step="0.01" />
+        </div>
+        <div class="field">
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--secondary);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Currency</label>
+          <select class="sel" id="claimCurrency" style="width:100%;">
+            <option value="NGN">NGN</option><option value="USD">USD</option>
+            <option value="EUR">EUR</option><option value="GBP">GBP</option>
+            <option value="GHS">GHS</option><option value="KES">KES</option>
+          </select>
+        </div>
+        <div class="field">
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--secondary);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Payment Date <span style="color:var(--red);">*</span></label>
+          <input type="date" class="inp" id="claimPaymentDate" />
+        </div>
+        <div class="field">
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--secondary);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Bank Reference / Teller No.</label>
+          <input type="text" class="inp" id="claimReference" placeholder="Transfer reference number" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label style="display:block;font-size:11px;font-weight:700;color:var(--secondary);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Payment Account</label>
+        <select class="sel" id="claimPaymentAccount" style="width:100%;">
+          <option value="">— None specified —</option>
+        </select>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px;line-height:1.5;">Which school bank account did the payer transfer to?</div>
+      </div>
+
+      <div class="field">
+        <label style="display:block;font-size:11px;font-weight:700;color:var(--secondary);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Evidence URL (optional)</label>
+        <input type="url" class="inp" id="claimEvidenceUrl" placeholder="Link to screenshot, photo, or document" />
+        <div style="font-size:11px;color:var(--muted);margin-top:3px;">Google Drive, WhatsApp image link, etc.</div>
+      </div>
+
+      <div class="field">
+        <label style="display:block;font-size:11px;font-weight:700;color:var(--secondary);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Note (optional)</label>
+        <textarea class="inp" id="claimNote" rows="2" maxlength="500" placeholder="Any additional context for the finance team…" style="resize:vertical;"></textarea>
+      </div>
+
+      <div id="claimDuplicateWarning" style="display:none;background:rgba(255,165,0,0.08);border:1px solid rgba(255,165,0,0.25);border-radius:8px;padding:11px 14px;font-size:12px;color:var(--orange);margin-bottom:12px;line-height:1.6;"></div>
+
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:10px;padding:14px 20px;border-top:1px solid var(--border);">
+      <button class="btn btn-secondary" onclick="closeModal('submitClaimModal')">Cancel</button>
+      <button class="btn btn-primary" id="claimSubmitBtn" onclick="submitClaim()">Submit Claim</button>
+    </div>
+  </div>
+</div>
+<!-- END SUBMIT CLAIM MODAL -->
 
 <script>
 /* ============================================
@@ -678,6 +851,7 @@ document.addEventListener('DOMContentLoaded', function() {
   showSection('dashboard');
   loadDashboard();
   loadSchoolInfo();
+  loadClaimsBadge();
 });
 
 async function loadSchoolInfo() {
@@ -726,7 +900,7 @@ function api(path, method, body) {
 }
 
 function showSection(name) {
-  var sections = ['dashboard','transactions','outstanding','analytics','reconciliation','donations','refunds','statements','paymentMethods'];
+  var sections = ['dashboard','transactions','outstanding','analytics','reconciliation','donations','refunds','statements','paymentMethods','claims'];
   sections.forEach(function(s) {
     var el = document.getElementById('sec-' + s);
     if (el) el.style.display = s === name ? 'block' : 'none';
@@ -746,6 +920,7 @@ function showSection(name) {
   if (name === 'donations')      { loadCampaigns(); loadDonations(); }
   if (name === 'refunds')        loadRefunds();
   if (name === 'paymentMethods') loadPaymentMethods();
+  if (name === 'claims')         loadClaimsSection();
 }
 
 /* ---- Period ---- */
@@ -1500,6 +1675,333 @@ async function deletePaymentMethod(id, label) {
     loadPaymentMethods();
   } else {
     showToast('❌ ' + ((data && data.message) || 'Delete failed.'));
+  }
+  /* ============================================
+     P4: PAYMENT CLAIMS — FINANCE SIDE
+     Staff can submit claims, see pending queue,
+     cancel unverified claims.
+     Verification (verify/reject) is added in P5.
+  ============================================ */
+  var _claimsPage   = 1;
+  var _claimType    = 'fee';
+  var _claimCampaigns = [];
+
+  /* Dashboard badge: pending claims count */
+  async function loadClaimsBadge() {
+    var res = await api('/claims/pending/count');
+    if (!res.ok) return;
+    var count  = res.data.count || 0;
+    var badge  = document.getElementById('claimsNavBadge');
+    if (badge) {
+      badge.textContent   = count > 99 ? '99+' : count;
+      badge.style.display = count > 0 ? 'inline-flex' : 'none';
+    }
+  }
+
+  /* Load paginated claims for the selected status */
+  async function loadClaimsSection() {
+    var wrap = document.getElementById('claimsWrap');
+    if (!wrap) return;
+    wrap.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);"><span class="spinner"></span></div>';
+
+    var status = (document.getElementById('claimsStatusFilter') || {}).value || 'awaiting_verification';
+    var url    = '/claims?status=' + encodeURIComponent(status) + '&page=' + _claimsPage;
+
+    var res  = await api(url);
+    var data = res.data;
+
+    if (!res.ok || !data.success) {
+      wrap.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Could not load claims.</div></div>';
+      return;
+    }
+
+    /* Update badge */
+    var badge = document.getElementById('claimsNavBadge');
+    if (badge) {
+      var pc = data.pendingCount || 0;
+      badge.textContent   = pc > 99 ? '99+' : pc;
+      badge.style.display = pc > 0 ? 'inline-flex' : 'none';
+    }
+
+    var claims = data.claims || [];
+    if (!claims.length) {
+      var statusLabels = {
+        awaiting_verification: 'No pending claims — all caught up!',
+        verified: 'No verified claims yet.',
+        rejected: 'No rejected claims.',
+        needs_correction: 'No claims needing correction.',
+        cancelled: 'No cancelled claims.'
+      };
+      wrap.innerHTML = '<div class="empty"><div class="empty-icon">📨</div>' +
+        '<div class="empty-title">' + esc(statusLabels[status] || 'No claims found.') + '</div></div>';
+      document.getElementById('claimsPagination').innerHTML = '';
+      return;
+    }
+
+    wrap.innerHTML = claims.map(function(c) {
+      var stBadge = {
+        awaiting_verification: '<span class="badge badge-orange">⏳ Awaiting Verification</span>',
+        verified:              '<span class="badge badge-green">✅ Verified</span>',
+        rejected:              '<span class="badge badge-red">❌ Rejected</span>',
+        needs_correction:      '<span class="badge badge-yellow">🔧 Needs Correction</span>',
+        cancelled:             '<span class="badge badge-muted">🚫 Cancelled</span>'
+      }[c.status] || '<span class="badge badge-muted">' + esc(c.status) + '</span>';
+
+      var student  = c.studentId      || {};
+      var fee      = c.feeStructureId || {};
+      var campaign = c.campaignId     || {};
+      var account  = c.paymentAccountId || {};
+      var purpose  = fee.name ? ('Fee: ' + fee.name) : (campaign.title ? 'Campaign: ' + campaign.title : 'General');
+
+      return '<div class="claim-card">' +
+        '<div class="claim-card-top">' +
+          '<div>' +
+            '<div class="claim-card-payer">' + esc(c.payerName) + '</div>' +
+            '<div style="font-size:11px;color:var(--muted);">' + esc(c.payerType) +
+              (c.payerEmail ? ' · ' + esc(c.payerEmail) : '') + '</div>' +
+          '</div>' +
+          stBadge +
+        '</div>' +
+
+        '<div class="claim-card-meta">' +
+          '<span class="claim-card-amount">' + fmt(c.amount) + '</span>' +
+          (c.reference ? '<span class="claim-card-ref">Ref: ' + esc(c.reference) + '</span>' : '') +
+          '<span style="font-size:11px;color:var(--muted);">' + fmtDate(c.paymentDate) + '</span>' +
+        '</div>' +
+
+        '<div class="claim-card-detail">' +
+          '📋 ' + esc(purpose) +
+          (student.name ? '<br/>🧑‍🎓 Student: <strong>' + esc(student.name) + '</strong>' +
+            (student.admissionNo ? ' (' + esc(student.admissionNo) + ')' : '') : '') +
+          (account.bankName ? '<br/>🏦 Account: ' + esc(account.accountLabel || account.bankName) +
+            ' (' + esc(account.currency || '') + ')' : '') +
+          (c.note ? '<br/>💬 ' + esc(c.note.substring(0,80)) + (c.note.length > 80 ? '…' : '') : '') +
+          (c.evidenceUrl ? '<br/><a href="' + esc(c.evidenceUrl) + '" target="_blank" rel="noopener noreferrer" style="color:#a78bfa;font-size:11px;">📎 View Evidence</a>' : '') +
+        '</div>' +
+
+        (c.rejectionReason  ? '<div style="font-size:12px;color:var(--red);margin-bottom:8px;">❌ Rejected: ' + esc(c.rejectionReason) + '</div>' : '') +
+        (c.correctionNote   ? '<div style="font-size:12px;color:var(--yellow);margin-bottom:8px;">🔧 Correction needed: ' + esc(c.correctionNote) + '</div>' : '') +
+
+        '<div class="claim-card-actions">' +
+          '<span style="font-size:11px;color:var(--muted);">Submitted ' + fmtDate(c.createdAt) +
+            (c.submittedByName ? ' by ' + esc(c.submittedByName) : '') + '</span>' +
+          (c.status === 'awaiting_verification' || c.status === 'needs_correction'
+            ? '<button class="btn btn-danger btn-sm" style="margin-left:auto;" onclick="cancelClaim(\'' + esc(c._id) + '\')">Cancel</button>'
+            : '') +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    var pagination = data.pagination || {};
+    renderPagination('claimsPagination', _claimsPage, pagination.pages || 1,
+      function(p) { _claimsPage = p; loadClaimsSection(); });
+  }
+
+  async function cancelClaim(claimId) {
+    if (!confirm('Cancel this claim?\n\nThe claim will be marked as cancelled. No payment will be recorded.')) return;
+    var res  = await feeApi('/claims/' + claimId, 'DELETE');
+    var data = res.data;
+    if (data && data.success) {
+      showToast('✅ Claim cancelled.');
+      loadClaimsSection();
+      loadClaimsBadge();
+    } else {
+      showToast('❌ ' + ((data && data.message) || 'Could not cancel claim.'));
+    }
+  }
+
+  /* ---- Submit Claim Modal ---- */
+  async function openSubmitClaimModal() {
+    /* Reset form */
+    ['claimPayerName','claimPayerEmail','claimPayerPhone',
+     'claimAmount','claimReference','claimEvidenceUrl','claimNote',
+     'claimStudentSearch','claimAssignmentId','claimStudentId'].forEach(function(id) {
+      var el = document.getElementById(id); if (el) el.value = '';
+    });
+    document.getElementById('claimPayerType').value  = 'external';
+    document.getElementById('claimCurrency').value   = 'NGN';
+    document.getElementById('claimPaymentDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('claimErr').style.display = 'none';
+    document.getElementById('claimDuplicateWarning').style.display = 'none';
+
+    var srEl = document.getElementById('claimStudentResults');
+    if (srEl) srEl.innerHTML = '';
+
+    setClaimType('fee');
+
+    /* Load payment accounts into selector */
+    var acctRes = await feeApi('/manual-accounts/active');
+    var accounts = (acctRes.ok && acctRes.data && acctRes.data.accounts) ? acctRes.data.accounts : [];
+    var acctSel  = document.getElementById('claimPaymentAccount');
+    if (acctSel) {
+      acctSel.innerHTML = '<option value="">— None specified —</option>' +
+        accounts.map(function(a) {
+          return '<option value="' + esc(a._id) + '">' +
+            esc(a.accountLabel) + ' — ' + esc(a.bankName) + ' (' + esc(a.currency) + ')</option>';
+        }).join('');
+    }
+
+    /* Load campaigns into selector */
+    var campRes = await api('/donations/campaigns?status=active');
+    _claimCampaigns = (campRes.ok && campRes.data && campRes.data.campaigns) ? campRes.data.campaigns : [];
+    var campSel  = document.getElementById('claimCampaignId');
+    if (campSel) {
+      campSel.innerHTML = '<option value="">— Select campaign —</option>' +
+        _claimCampaigns.map(function(c) {
+          return '<option value="' + esc(c._id) + '">' + esc(c.title) + ' (' + esc(c.currency) + ')</option>';
+        }).join('');
+    }
+
+    document.getElementById('submitClaimModal').style.display = 'flex';
+  }
+
+  function setClaimType(type) {
+    _claimType = type;
+    var feeTab  = document.getElementById('claimTabFee');
+    var campTab = document.getElementById('claimTabCampaign');
+    var feeSec  = document.getElementById('claimFeeSection');
+    var campSec = document.getElementById('claimCampaignSection');
+    if (feeTab)  { feeTab.style.background  = type === 'fee'      ? 'rgba(108,99,255,0.2)' : 'none';
+                   feeTab.style.color       = type === 'fee'      ? '#a78bfa' : 'var(--secondary)'; }
+    if (campTab) { campTab.style.background = type === 'campaign' ? 'rgba(108,99,255,0.2)' : 'none';
+                   campTab.style.color      = type === 'campaign' ? '#a78bfa' : 'var(--secondary)'; }
+    if (feeSec)  feeSec.style.display  = type === 'fee'      ? 'block' : 'none';
+    if (campSec) campSec.style.display = type === 'campaign' ? 'block' : 'none';
+  }
+
+  async function searchClaimStudent() {
+    var q    = (document.getElementById('claimStudentSearch') || {}).value.trim();
+    var wrap = document.getElementById('claimStudentResults');
+    if (!q || !wrap) return;
+    wrap.innerHTML = '<div style="font-size:12px;color:var(--muted);"><span class="spinner" style="width:12px;height:12px;border-width:1.5px;"></span> Searching…</div>';
+
+    /* Use finance API base as it's authenticated staff context */
+    var res = await feeApi('/students/list?search=' + encodeURIComponent(q) + '&limit=6');
+    var students = (res.ok && res.data && res.data.students) ? res.data.students : [];
+    if (!students.length) { wrap.innerHTML = '<div style="font-size:12px;color:var(--muted);">No students found.</div>'; return; }
+
+    wrap.innerHTML = students.map(function(s) {
+      return '<div onclick="selectClaimStudent(\'' + esc(s._id) + '\',\'' + esc(s.name) + '\')" ' +
+        'style="padding:8px 10px;border-radius:7px;border:1px solid var(--border);' +
+        'background:rgba(255,255,255,0.02);cursor:pointer;margin-bottom:5px;font-size:13px;color:#fff;">' +
+        '<strong>' + esc(s.name) + '</strong> ' +
+        '<span style="font-size:11px;color:var(--muted);">' +
+        esc(s.admissionNo || '') + (s.class ? ' — ' + esc(s.class) : '') + '</span>' +
+      '</div>';
+    }).join('');
+  }
+
+  async function selectClaimStudent(studentId, studentName) {
+    document.getElementById('claimStudentId').value    = studentId;
+    document.getElementById('claimStudentSearch').value = studentName;
+
+    /* Pre-fill payer name if empty */
+    var payerNameEl = document.getElementById('claimPayerName');
+    if (payerNameEl && !payerNameEl.value) payerNameEl.value = studentName;
+
+    /* Load student's outstanding assignments */
+    var wrap = document.getElementById('claimStudentResults');
+    if (wrap) wrap.innerHTML = '<div style="font-size:12px;color:var(--muted);">Loading fee obligations…</div>';
+
+    var res = await feeApi('/student/' + studentId + '/summary');
+    var assignments = (res.ok && res.data && res.data.assignments) ? res.data.assignments : [];
+    var payable     = assignments.filter(function(a) { return ['pending','partial'].includes(a.status); });
+
+    if (!wrap) return;
+    if (!payable.length) {
+      wrap.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">✅ No outstanding fees for this student. ' +
+        '<span style="color:#fff;font-weight:700;">' + esc(studentName) + '</span> selected.</div>';
+      return;
+    }
+
+    wrap.innerHTML = '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">Outstanding fees — click to select:</div>' +
+      payable.map(function(a) {
+        var fs = a.feeStructureId || {};
+        return '<div onclick="selectClaimAssignment(\'' + esc(a._id) + '\')" ' +
+          'style="padding:8px 10px;border-radius:7px;border:1px solid var(--border);' +
+          'background:rgba(255,255,255,0.02);cursor:pointer;margin-bottom:5px;font-size:12px;">' +
+          '<strong style="color:#fff;">' + esc(fs.name || 'Fee') + '</strong> — ' +
+          'Balance: <span style="color:var(--red);font-weight:700;">' + fmt(a.balance) + '</span>' +
+        '</div>';
+      }).join('');
+  }
+
+  function selectClaimAssignment(assignmentId) {
+    document.getElementById('claimAssignmentId').value = assignmentId;
+    /* Visual feedback */
+    var cards = document.querySelectorAll('#claimStudentResults > div[onclick]');
+    cards.forEach(function(card) {
+      var isSelected = card.getAttribute('onclick').includes(assignmentId);
+      card.style.borderColor = isSelected ? 'var(--primary)' : 'var(--border)';
+      card.style.background  = isSelected ? 'rgba(108,99,255,0.1)' : 'rgba(255,255,255,0.02)';
+    });
+  }
+
+  async function submitClaim() {
+    var errEl   = document.getElementById('claimErr');
+    var warnEl  = document.getElementById('claimDuplicateWarning');
+    var btn     = document.getElementById('claimSubmitBtn');
+    if (errEl)  errEl.style.display  = 'none';
+    if (warnEl) warnEl.style.display = 'none';
+
+    /* Build payload */
+    var payload = {
+      payerType:         (document.getElementById('claimPayerType')      || {}).value || 'external',
+      payerName:         ((document.getElementById('claimPayerName')     || {}).value || '').trim(),
+      payerEmail:        ((document.getElementById('claimPayerEmail')    || {}).value || '').trim(),
+      payerPhone:        ((document.getElementById('claimPayerPhone')    || {}).value || '').trim(),
+      amount:            parseFloat((document.getElementById('claimAmount')        || {}).value) || 0,
+      currency:          (document.getElementById('claimCurrency')       || {}).value || 'NGN',
+      paymentDate:       (document.getElementById('claimPaymentDate')    || {}).value || '',
+      reference:         ((document.getElementById('claimReference')     || {}).value || '').trim(),
+      paymentAccountId:  (document.getElementById('claimPaymentAccount') || {}).value || null,
+      evidenceUrl:       ((document.getElementById('claimEvidenceUrl')   || {}).value || '').trim(),
+      note:              ((document.getElementById('claimNote')          || {}).value || '').trim()
+    };
+
+    if (_claimType === 'fee') {
+      payload.assignmentId = (document.getElementById('claimAssignmentId') || {}).value || null;
+      payload.studentId    = (document.getElementById('claimStudentId')    || {}).value || null;
+    } else {
+      payload.campaignId   = (document.getElementById('claimCampaignId')   || {}).value || null;
+    }
+
+    /* Client-side validation */
+    if (!payload.payerName) { if (errEl) { errEl.textContent='Payer name is required.'; errEl.style.display='block'; } return; }
+    if (!payload.amount || payload.amount <= 0) { if (errEl) { errEl.textContent='A valid amount is required.'; errEl.style.display='block'; } return; }
+    if (!payload.paymentDate) { if (errEl) { errEl.textContent='Payment date is required.'; errEl.style.display='block'; } return; }
+    if (_claimType === 'fee' && !payload.assignmentId) {
+      if (errEl) { errEl.textContent='Please select a student and fee assignment.'; errEl.style.display='block'; } return;
+    }
+    if (_claimType === 'campaign' && !payload.campaignId) {
+      if (errEl) { errEl.textContent='Please select a campaign.'; errEl.style.display='block'; } return;
+    }
+
+    if (btn) { btn.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:1.5px;"></span> Submitting…'; btn.disabled = true; }
+
+    var res  = await feeApi('/claims', 'POST', payload);
+    var data = res.data;
+
+    if (btn) { btn.innerHTML = 'Submit Claim'; btn.disabled = false; }
+
+    if (res.ok && data && data.success) {
+      showToast('✅ Claim submitted. Awaiting finance verification.');
+      closeModal('submitClaimModal');
+      /* Switch to claims section to show result */
+      showSection('claims');
+      _claimsPage = 1;
+      document.getElementById('claimsStatusFilter').value = 'awaiting_verification';
+      loadClaimsSection();
+      loadClaimsBadge();
+      /* Show duplicate warning if present */
+      if (data.warning) {
+        showToast('⚠️ ' + data.warning);
+      }
+    } else {
+      var msg = (data && data.message) || 'Failed to submit claim.';
+      if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+      showToast('❌ ' + msg);
+    }
   }
 }
 function doLogout() {

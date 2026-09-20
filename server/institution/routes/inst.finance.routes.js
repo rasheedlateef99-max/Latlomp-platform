@@ -18,6 +18,7 @@ const router          = express.Router();
 const mongoose        = require('mongoose');
 const School          = require('../models/School.model');
 const financeService  = require('../services/finance.service');
+const SchoolPaymentClaim = require('../models/SchoolPaymentClaim.model');
 const financePdf      = require('../services/finance.pdf.service');
 const {
   instProtect, schoolAdminOnly,
@@ -815,6 +816,100 @@ router.get('/donations/campaigns/:id/payment-account', readGuard, async function
     });
   } catch(err) {
     console.error('[finance] GET /donations/campaigns/:id/payment-account:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   P4 — FINANCE VIEW OF PAYMENT CLAIMS
+
+   Finance staff reads claims here to build the
+   verification queue (P5 expands this into full
+   verify/reject UI).
+
+   GET /api/institution/finance/claims
+   Paginated claim list. Finance read access.
+   Includes populated payer, assignment,
+   campaign, and payment account data.
+
+   GET /api/institution/finance/claims/pending/count
+   Count of awaiting_verification claims.
+   Used by the finance dashboard badge.
+   Separate lightweight endpoint — no heavy populate.
+============================================ */
+
+/* GET /api/institution/finance/claims/pending/count
+   Must be declared BEFORE /claims/:id to avoid
+   Express treating 'pending' as a dynamic param.
+*/
+router.get('/claims/pending/count', readGuard, async function(req, res) {
+  try {
+    var count = await SchoolPaymentClaim.countDocuments({
+      schoolId: req.schoolId,          /* TENANT SCOPE */
+      status:   'awaiting_verification'
+    });
+    return res.json({ success: true, count });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* GET /api/institution/finance/claims */
+router.get('/claims', readGuard, async function(req, res) {
+  try {
+    var page   = Math.max(1, parseInt(req.query.page)   || 1);
+    var limit  = Math.min(50, parseInt(req.query.limit) || 20);
+    var skip   = (page - 1) * limit;
+
+    /* Default to pending for the verification queue */
+    var filter = {
+      schoolId: req.schoolId,          /* TENANT SCOPE */
+      status:   req.query.status || 'awaiting_verification'
+    };
+
+    if (req.query.payerType && req.query.payerType !== '') {
+      filter.payerType = req.query.payerType;
+    }
+    if (req.query.campaignId && mongoose.isValidObjectId(req.query.campaignId)) {
+      filter.campaignId = req.query.campaignId;
+    }
+    if (req.query.from || req.query.to) {
+      filter.paymentDate = {};
+      if (req.query.from) filter.paymentDate.$gte = new Date(req.query.from);
+      if (req.query.to)   filter.paymentDate.$lte = new Date(req.query.to);
+    }
+
+    var [claims, total, pendingCount] = await Promise.all([
+      SchoolPaymentClaim.find(filter)
+        .populate('feeStructureId',  'name category')
+        .populate('campaignId',      'title category')
+        .populate('studentId',       'name admissionNo class passportPhotoUrl')
+        .populate('assignmentId',    'amountDue amountPaid balance status')
+        .populate('paymentAccountId','accountLabel bankName currency')
+        .populate('submittedBy',     'name email')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      SchoolPaymentClaim.countDocuments(filter),
+      SchoolPaymentClaim.countDocuments({
+        schoolId: req.schoolId,        /* TENANT SCOPE */
+        status:   'awaiting_verification'
+      })
+    ]);
+
+    return res.json({
+      success: true,
+      claims,
+      pendingCount,
+      pagination: {
+        page, limit, total,
+        pages:   Math.ceil(total / limit),
+        hasMore: skip + claims.length < total
+      }
+    });
+  } catch(err) {
+    console.error('[finance] GET /claims:', err.message);
     return res.status(500).json({ success: false, message: err.message });
   }
 });
