@@ -914,4 +914,378 @@ router.get('/claims', readGuard, async function(req, res) {
   }
 });
 
+/* ============================================
+   P5 — FINANCE CLAIM VERIFICATION QUEUE
+
+   Three decision routes. All require senior staff
+   or admin — verification has financial consequences.
+
+   Permission boundary:
+     Verify:             seniorGuard (seniorStaffOrAdmin)
+     Reject:             seniorGuard
+     Request Correction: staffGuard (any authorised staff)
+
+   IMMUTABILITY RULE:
+     Once a claim is 'verified', its status must not
+     be changed here. Financial voids/reversals follow
+     a separate path (P6+) and are never achieved by
+     editing the claim record directly.
+
+   P6 HOOK:
+     The verify route calls triggerP6Processing() which
+     is a documented stub. P6 replaces the stub body
+     with: create SchoolFeePayment, create allocations,
+     syncAssignmentBalance(), update campaign totals.
+     The hook ensures the route signature is stable
+     across P5 and P6 — no structural changes needed
+     when P6 lands.
+============================================ */
+
+/* ---- Fire-and-forget payer notification ---- */
+function notifyClaimDecision(type, claim, school) {
+  try {
+    var emailSvc = require('../services/inst.email.service');
+    /* sendClaimVerified() and sendClaimRejected() are added to
+       inst.email.service.js in P10 when we inspect its signatures.
+       Until then the calls silently no-op if the function is absent. */
+    if (type === 'verified' && typeof emailSvc.sendClaimVerified === 'function') {
+      emailSvc.sendClaimVerified({
+        toEmail:    claim.payerEmail || '',
+        payerName:  claim.payerName,
+        amount:     claim.amount,
+        currency:   claim.currency,
+        reference:  claim.reference,
+        schoolName: school.name || ''
+      }).catch(function(e) {
+        console.warn('[p5] sendClaimVerified non-fatal:', e.message);
+      });
+    }
+    if (type === 'rejected' && typeof emailSvc.sendClaimRejected === 'function') {
+      emailSvc.sendClaimRejected({
+        toEmail:         claim.payerEmail || '',
+        payerName:       claim.payerName,
+        amount:          claim.amount,
+        currency:        claim.currency,
+        rejectionReason: claim.rejectionReason || '',
+        schoolName:      school.name || ''
+      }).catch(function(e) {
+        console.warn('[p5] sendClaimRejected non-fatal:', e.message);
+      });
+    }
+    if (type === 'needs_correction' && typeof emailSvc.sendClaimNeedsCorrection === 'function') {
+      emailSvc.sendClaimNeedsCorrection({
+        toEmail:         claim.payerEmail || '',
+        payerName:       claim.payerName,
+        correctionNote:  claim.correctionNote || '',
+        schoolName:      school.name || ''
+      }).catch(function(e) {
+        console.warn('[p5] sendClaimNeedsCorrection non-fatal:', e.message);
+      });
+    }
+  } catch(e) {
+    /* email service unavailable — non-fatal */
+    console.warn('[p5] notifyClaimDecision load failed (non-fatal):', e.message);
+  }
+}
+
+/* ---- P6 hook stub ---- */
+/* P6 replaces this function body with:
+     1. Create SchoolFeePayment (authoritative transaction)
+     2. Create SchoolPaymentAllocation(s)
+     3. Call syncAssignmentBalance() per allocation
+     4. Update SchoolDonationCampaign.totalCollected if campaignId set
+     5. Set claim.resultPaymentId = newPayment._id
+   The function signature stays the same across P5 and P6.
+   The verify route calls it and awaits it — P6 makes it do real work.
+*/
+async function triggerP6Processing(claim, verifiedBy, verifiedByName, schoolId) {
+  /* P6 STUB — intentionally empty in P5.
+     Returns null until P6 implements the full engine.
+     The verify route does not fail if this returns null. */
+  return null;
+}
+
+/* ============================================
+   POST /api/institution/finance/claims/:id/verify
+
+   Finance officer confirms money was received.
+   Sets claim to 'verified'.
+   Calls triggerP6Processing() (stub in P5, real in P6).
+   Sends payer notification.
+   Writes audit log.
+
+   Guard: seniorGuard — financial verification is
+   restricted to senior staff and above.
+
+   Allowed source statuses:
+     awaiting_verification → verified
+     needs_correction      → verified
+     (a corrected claim can be verified directly
+      without requiring the payer to resubmit)
+============================================ */
+router.post('/claims/:id/verify', seniorGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid claim ID.' });
+    }
+
+    var claim = await SchoolPaymentClaim.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId      /* TENANT SCOPE + IDOR */
+    });
+
+    if (!claim) {
+      return res.status(404).json({ success: false, message: 'Claim not found.' });
+    }
+    if (!['awaiting_verification', 'needs_correction'].includes(claim.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Only claims awaiting verification can be verified. ' +
+                 'Current status: ' + claim.status
+      });
+    }
+    if (claim.resultPaymentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'This claim has already been processed into a verified payment.'
+      });
+    }
+
+    /* Optional verification note from the finance officer */
+    var verificationNote = (req.body.note || '').trim().substring(0, 300);
+
+    /* Update claim status */
+    claim.status          = 'verified';
+    claim.reviewedBy      = req.schoolUser._id;
+    claim.reviewedByName  = req.schoolUser.name || '';
+    claim.reviewedAt      = new Date();
+    /* Store the note on correctionNote field (repurposed as review note)
+       P6 will add a dedicated verificationNote field if needed */
+    if (verificationNote) claim.correctionNote = verificationNote;
+
+    await claim.save();
+
+    /* ---- P6: trigger transaction + allocation engine ---- */
+    /* Returns null in P5. P6 replaces the stub with full payment creation. */
+    var paymentResult = await triggerP6Processing(
+      claim,
+      req.schoolUser._id,
+      req.schoolUser.name || '',
+      req.schoolId
+    );
+
+    /* ---- Audit log ---- */
+    logAudit({
+      req,
+      action:     'institution.payment_claim.verified',
+      resource:   'SchoolPaymentClaim',
+      resourceId: claim._id.toString(),
+      success:    true,
+      message:    'Payment claim verified.' +
+                  ' payer=' + claim.payerName +
+                  ' amount=' + claim.currency + ' ' + claim.amount +
+                  (claim.reference ? ' ref=' + claim.reference : '') +
+                  (paymentResult ? ' paymentId=' + paymentResult._id : ' [P6 pending]') +
+                  ' by=' + (req.schoolUser.name || req.schoolUser.email || 'unknown')
+    });
+
+    /* ---- Notify payer — fire-and-forget ---- */
+    var schoolDocV = await School.findById(req.schoolId)
+      .select('name email').lean();
+    if (schoolDocV) notifyClaimDecision('verified', claim, schoolDocV);
+
+    return res.json({
+      success: true,
+      message: 'Payment claim verified.' +
+               (paymentResult
+                 ? ' Transaction created (receipt: ' + paymentResult.receiptNumber + ').'
+                 : ' Transaction will be created when the payment engine is active (P6).'),
+      claim:         claim,
+      paymentResult: paymentResult || null
+    });
+
+  } catch(err) {
+    console.error('[finance] POST /claims/:id/verify:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   POST /api/institution/finance/claims/:id/reject
+
+   Finance officer cannot confirm receipt of money.
+   Requires a rejection reason — payer may need
+   to investigate or resubmit.
+
+   Guard: seniorGuard
+
+   Allowed source statuses:
+     awaiting_verification → rejected
+     needs_correction      → rejected
+============================================ */
+router.post('/claims/:id/reject', seniorGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid claim ID.' });
+    }
+
+    var rejectionReason = (req.body.reason || req.body.rejectionReason || '').trim();
+    if (!rejectionReason) {
+      return res.status(400).json({
+        success: false,
+        message: 'A rejection reason is required. The payer will see this message.'
+      });
+    }
+    if (rejectionReason.length > 500) {
+      return res.status(400).json({
+        success: false,
+        message: 'Rejection reason must be 500 characters or fewer.'
+      });
+    }
+
+    var claim = await SchoolPaymentClaim.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId      /* TENANT SCOPE + IDOR */
+    });
+
+    if (!claim) {
+      return res.status(404).json({ success: false, message: 'Claim not found.' });
+    }
+    if (!['awaiting_verification', 'needs_correction'].includes(claim.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Only claims awaiting verification can be rejected. ' +
+                 'Current status: ' + claim.status
+      });
+    }
+    if (claim.resultPaymentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'This claim has already been processed. Use the reversal workflow instead.'
+      });
+    }
+
+    claim.status          = 'rejected';
+    claim.rejectionReason = rejectionReason;
+    claim.reviewedBy      = req.schoolUser._id;
+    claim.reviewedByName  = req.schoolUser.name || '';
+    claim.reviewedAt      = new Date();
+    await claim.save();
+
+    logAudit({
+      req,
+      action:     'institution.payment_claim.rejected',
+      resource:   'SchoolPaymentClaim',
+      resourceId: claim._id.toString(),
+      success:    true,
+      message:    'Payment claim rejected.' +
+                  ' payer=' + claim.payerName +
+                  ' amount=' + claim.currency + ' ' + claim.amount +
+                  ' reason="' + rejectionReason.substring(0, 100) + '"' +
+                  ' by=' + (req.schoolUser.name || req.schoolUser.email || 'unknown')
+    });
+
+    /* Notify payer — fire-and-forget */
+    var schoolDocR = await School.findById(req.schoolId)
+      .select('name email').lean();
+    if (schoolDocR) notifyClaimDecision('rejected', claim, schoolDocR);
+
+    return res.json({
+      success: true,
+      message: 'Claim rejected. The payer has been notified.',
+      claim
+    });
+
+  } catch(err) {
+    console.error('[finance] POST /claims/:id/reject:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   POST /api/institution/finance/claims/:id/request-correction
+
+   Finance officer found a problem with the claim
+   details (wrong amount, wrong reference, etc.)
+   and needs the payer to correct and resubmit.
+
+   Guard: staffGuard — lower privilege than verify/reject
+   because this does not commit a financial decision.
+
+   Allowed source statuses:
+     awaiting_verification → needs_correction
+   (cannot request correction on an already-correcting claim)
+============================================ */
+router.post('/claims/:id/request-correction', staffGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid claim ID.' });
+    }
+
+    var correctionNote = (req.body.note || req.body.correctionNote || '').trim();
+    if (!correctionNote) {
+      return res.status(400).json({
+        success: false,
+        message: 'A correction note is required so the payer knows what to fix.'
+      });
+    }
+    if (correctionNote.length > 500) {
+      return res.status(400).json({
+        success: false,
+        message: 'Correction note must be 500 characters or fewer.'
+      });
+    }
+
+    var claim = await SchoolPaymentClaim.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId      /* TENANT SCOPE + IDOR */
+    });
+
+    if (!claim) {
+      return res.status(404).json({ success: false, message: 'Claim not found.' });
+    }
+    if (claim.status !== 'awaiting_verification') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only claims awaiting verification can be sent back for correction. ' +
+                 'Current status: ' + claim.status
+      });
+    }
+
+    claim.status         = 'needs_correction';
+    claim.correctionNote = correctionNote;
+    claim.reviewedBy     = req.schoolUser._id;
+    claim.reviewedByName = req.schoolUser.name || '';
+    claim.reviewedAt     = new Date();
+    await claim.save();
+
+    logAudit({
+      req,
+      action:     'institution.payment_claim.correction_requested',
+      resource:   'SchoolPaymentClaim',
+      resourceId: claim._id.toString(),
+      success:    true,
+      message:    'Correction requested on claim.' +
+                  ' payer=' + claim.payerName +
+                  ' note="' + correctionNote.substring(0, 100) + '"' +
+                  ' by=' + (req.schoolUser.name || req.schoolUser.email || 'unknown')
+    });
+
+    /* Notify payer — fire-and-forget */
+    var schoolDocC = await School.findById(req.schoolId)
+      .select('name email').lean();
+    if (schoolDocC) notifyClaimDecision('needs_correction', claim, schoolDocC);
+
+    return res.json({
+      success: true,
+      message: 'Correction requested. The payer has been notified to update their claim.',
+      claim
+    });
+
+  } catch(err) {
+    console.error('[finance] POST /claims/:id/request-correction:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

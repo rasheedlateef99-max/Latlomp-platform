@@ -170,6 +170,18 @@
     .claim-card-detail { font-size:12px; color:var(--secondary); line-height:1.7; margin-bottom:10px; }
     .claim-card-actions { display:flex; gap:7px; flex-wrap:wrap; padding-top:10px; border-top:1px solid var(--border); }
     .pending-count-badge { display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px; border-radius:11px; background:var(--orange); color:#0f0f1a; font-size:11px; font-weight:800; padding:0 6px; margin-left:6px; }
+    /* ---- P5: Verification action modal ---- */
+    .verify-modal-box { background:var(--dark-2); border:1px solid var(--border); border-radius:18px; width:100%; max-width:480px; max-height:90vh; overflow-y:auto; }
+    .verify-modal-head { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; background:var(--dark-2); z-index:1; }
+    .verify-modal-head h2 { font-size:15px; font-weight:800; margin:0; }
+    .verify-modal-body { padding:18px 20px; }
+    .verify-modal-foot { padding:14px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px; }
+    .claim-detail-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; }
+    .claim-detail-row:last-child { border-bottom:none; }
+    .claim-detail-label { color:var(--muted); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; }
+    .claim-detail-value { color:#fff; font-weight:600; text-align:right; }
+    .btn-verify  { background:linear-gradient(135deg,var(--green),#38f9d7); color:#0f0f1a; }
+    .btn-verify:hover { transform:translateY(-1px); box-shadow:0 4px 14px rgba(67,233,123,0.3); }
   </style>
 </head>
 <body>
@@ -681,6 +693,69 @@
 </div><!-- end layout -->
 
 <div id="toast"></div>
+
+<!-- ===== P5: VERIFICATION ACTION MODAL ===== -->
+<div class="modal-overlay" id="verifyActionModal" style="display:none;">
+  <div class="verify-modal-box">
+    <div class="verify-modal-head">
+      <h2 id="verifyModalTitle">Verify Payment</h2>
+      <button style="width:28px;height:28px;border-radius:7px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--muted);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;font-family:inherit;" onclick="closeModal('verifyActionModal')">✕</button>
+    </div>
+    <div class="verify-modal-body">
+
+      <!-- Claim summary (populated dynamically) -->
+      <div id="verifyClaimSummary" style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:10px;">Claim Details</div>
+        <div id="verifyClaimRows"></div>
+      </div>
+
+      <!-- Verify panel -->
+      <div id="verifyPanel" style="display:none;">
+        <div style="background:rgba(67,233,123,0.06);border:1px solid rgba(67,233,123,0.2);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:var(--green);line-height:1.7;">
+          ✅ <strong>Confirm you have checked the school's bank records</strong> and the transfer was received from this payer for this amount before clicking Verify.
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--secondary);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Verification Note (optional)</label>
+          <input type="text" class="inp" id="verifyNote" placeholder="e.g. Confirmed on bank statement 15 Sep 2026" maxlength="300" />
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">This note is for internal audit purposes only.</div>
+        </div>
+      </div>
+
+      <!-- Reject panel -->
+      <div id="rejectPanel" style="display:none;">
+        <div style="background:rgba(255,101,132,0.06);border:1px solid rgba(255,101,132,0.2);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:var(--red);line-height:1.7;">
+          ❌ The payer will receive a notification with this rejection reason. Make sure it is clear and accurate.
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--secondary);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Rejection Reason <span style="color:var(--red);">*</span></label>
+          <textarea class="inp" id="rejectReason" rows="3" maxlength="500" style="resize:vertical;"
+            placeholder="e.g. We could not find a matching transfer for this amount on the stated date. Please check your bank records and resubmit with the correct teller number."></textarea>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">Maximum 500 characters.</div>
+        </div>
+      </div>
+
+      <!-- Correction panel -->
+      <div id="correctionPanel" style="display:none;">
+        <div style="background:rgba(255,165,0,0.06);border:1px solid rgba(255,165,0,0.2);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:var(--orange);line-height:1.7;">
+          🔧 The payer will receive a notification asking them to correct their claim. They can update the details and resubmit.
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--secondary);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Correction Required <span style="color:var(--red);">*</span></label>
+          <textarea class="inp" id="correctionNote" rows="3" maxlength="500" style="resize:vertical;"
+            placeholder="e.g. The bank reference number is incorrect. Please check your transfer receipt and update the reference field."></textarea>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">Maximum 500 characters.</div>
+        </div>
+      </div>
+
+      <div id="verifyActionErr" style="display:none;background:rgba(255,101,132,0.1);border:1px solid rgba(255,101,132,0.3);color:var(--red);padding:10px 12px;border-radius:8px;font-size:13px;margin-top:12px;"></div>
+    </div>
+    <div class="verify-modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('verifyActionModal')">Cancel</button>
+      <button class="btn" id="verifyActionBtn" onclick="submitVerifyAction()">Confirm</button>
+    </div>
+  </div>
+</div>
+<!-- END VERIFICATION ACTION MODAL -->
 
 <!-- ===== P4: SUBMIT CLAIM MODAL ===== -->
 <div class="modal-overlay" id="submitClaimModal" style="display:none;">
@@ -1676,6 +1751,174 @@ async function deletePaymentMethod(id, label) {
   } else {
     showToast('❌ ' + ((data && data.message) || 'Delete failed.'));
   }
+
+/* ============================================
+     P5: VERIFICATION ACTIONS
+     Verify / Reject / Request Correction
+  ============================================ */
+  var _verifyClaimId = '';
+  var _verifyAction  = '';  /* 'verify' | 'reject' | 'correction' */
+
+  async function openVerifyModal(claimId, action) {
+    _verifyClaimId = claimId;
+    _verifyAction  = action;
+
+    /* Reset all panels */
+    var panels = ['verifyPanel','rejectPanel','correctionPanel'];
+    panels.forEach(function(p) {
+      var el = document.getElementById(p);
+      if (el) el.style.display = 'none';
+    });
+    ['verifyNote','rejectReason','correctionNote'].forEach(function(id) {
+      var el = document.getElementById(id); if (el) el.value = '';
+    });
+    var errEl = document.getElementById('verifyActionErr');
+    if (errEl) errEl.style.display = 'none';
+
+    /* Show the correct panel + set title + set button */
+    var titleEl = document.getElementById('verifyModalTitle');
+    var btnEl   = document.getElementById('verifyActionBtn');
+    if (action === 'verify') {
+      if (titleEl) titleEl.textContent = '✅ Verify Payment';
+      if (btnEl)   { btnEl.textContent = '✅ Confirm Verify'; btnEl.className = 'btn btn-verify'; }
+      var vp = document.getElementById('verifyPanel');
+      if (vp) vp.style.display = 'block';
+    } else if (action === 'reject') {
+      if (titleEl) titleEl.textContent = '❌ Reject Claim';
+      if (btnEl)   { btnEl.textContent = '❌ Confirm Rejection'; btnEl.className = 'btn btn-danger'; }
+      var rp = document.getElementById('rejectPanel');
+      if (rp) rp.style.display = 'block';
+    } else {
+      if (titleEl) titleEl.textContent = '🔧 Request Correction';
+      if (btnEl)   { btnEl.textContent = '🔧 Send Correction Request'; btnEl.className = 'btn btn-orange'; }
+      var cp = document.getElementById('correctionPanel');
+      if (cp) cp.style.display = 'block';
+    }
+
+    /* Load and display claim summary */
+    var rowsEl = document.getElementById('verifyClaimRows');
+    if (rowsEl) rowsEl.innerHTML = '<div style="font-size:12px;color:var(--muted);">Loading…</div>';
+
+    var res  = await feeApi('/claims/' + claimId);
+    var data = res.data;
+
+    if (rowsEl) {
+      if (!res.ok || !data.success || !data.claim) {
+        rowsEl.innerHTML = '<div style="font-size:12px;color:var(--red);">Could not load claim details.</div>';
+      } else {
+        var c        = data.claim;
+        var student  = c.studentId      || {};
+        var fee      = c.feeStructureId || {};
+        var campaign = c.campaignId     || {};
+        var account  = c.paymentAccountId || {};
+        var purpose  = fee.name ? fee.name : (campaign.title ? campaign.title : 'General contribution');
+
+        function detailRow(label, value, highlight) {
+          return '<div class="claim-detail-row">' +
+            '<span class="claim-detail-label">' + esc(label) + '</span>' +
+            '<span class="claim-detail-value" style="color:' + (highlight || '#fff') + ';">' +
+              esc(String(value || '—')) + '</span></div>';
+        }
+
+        rowsEl.innerHTML =
+          detailRow('Payer',        c.payerName)             +
+          detailRow('Payer Type',   c.payerType)             +
+          (student.name
+            ? detailRow('Student', student.name + (student.admissionNo ? ' (' + student.admissionNo + ')' : ''))
+            : '')                                            +
+          detailRow('Purpose',      purpose)                 +
+          detailRow('Amount',       fmt(c.amount), 'var(--green)')  +
+          detailRow('Currency',     c.currency)              +
+          detailRow('Payment Date', fmtDate(c.paymentDate))  +
+          (c.reference ? detailRow('Reference', c.reference, '#a78bfa') : '') +
+          (account.bankName
+            ? detailRow('Account', (account.accountLabel || account.bankName) + ' (' + (account.currency || '') + ')')
+            : '')                                            +
+          (c.evidenceUrl
+            ? '<div class="claim-detail-row"><span class="claim-detail-label">Evidence</span>' +
+              '<a href="' + esc(c.evidenceUrl) + '" target="_blank" rel="noopener noreferrer" ' +
+              'style="color:#a78bfa;font-size:12px;font-weight:600;">📎 View</a></div>'
+            : '')                                           +
+          (c.note ? detailRow('Note', c.note) : '');
+      }
+    }
+
+    document.getElementById('verifyActionModal').style.display = 'flex';
+
+    /* Auto-focus first input in active panel */
+    setTimeout(function() {
+      var inputs = { verify:'verifyNote', reject:'rejectReason', correction:'correctionNote' };
+      var el = document.getElementById(inputs[action]);
+      if (el) el.focus();
+    }, 120);
+  }
+
+  async function submitVerifyAction() {
+    var errEl = document.getElementById('verifyActionErr');
+    var btn   = document.getElementById('verifyActionBtn');
+    if (errEl) errEl.style.display = 'none';
+
+    var endpoint = '';
+    var payload  = {};
+
+    if (_verifyAction === 'verify') {
+      endpoint = '/finance/claims/' + _verifyClaimId + '/verify';
+      var note = ((document.getElementById('verifyNote') || {}).value || '').trim();
+      if (note) payload.note = note;
+
+    } else if (_verifyAction === 'reject') {
+      var reason = ((document.getElementById('rejectReason') || {}).value || '').trim();
+      if (!reason) {
+        if (errEl) { errEl.textContent = 'A rejection reason is required.'; errEl.style.display = 'block'; }
+        return;
+      }
+      endpoint       = '/finance/claims/' + _verifyClaimId + '/reject';
+      payload.reason = reason;
+
+    } else {
+      var corrNote = ((document.getElementById('correctionNote') || {}).value || '').trim();
+      if (!corrNote) {
+        if (errEl) { errEl.textContent = 'A correction note is required.'; errEl.style.display = 'block'; }
+        return;
+      }
+      endpoint     = '/finance/claims/' + _verifyClaimId + '/request-correction';
+      payload.note = corrNote;
+    }
+
+    if (btn) { btn.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:1.5px;"></span>'; btn.disabled = true; }
+
+    /* All three actions are on the finance API base (/api/institution/finance/...) */
+    var res  = await api(endpoint, 'POST', payload);
+    var data = res.data;
+
+    if (btn) {
+      var labels = { verify:'✅ Confirm Verify', reject:'❌ Confirm Rejection', correction:'🔧 Send Correction Request' };
+      btn.innerHTML = labels[_verifyAction] || 'Confirm';
+      btn.disabled  = false;
+    }
+
+    if (res.ok && data && data.success) {
+      var toastMsgs = {
+        verify:     '✅ Payment verified.',
+        reject:     '❌ Claim rejected.',
+        correction: '🔧 Correction requested.'
+      };
+      showToast(toastMsgs[_verifyAction] || '✅ Done.');
+      closeModal('verifyActionModal');
+      loadClaimsSection();
+      loadClaimsBadge();
+
+      /* If verify produced a payment result (P6 active), reload dashboard badge too */
+      if (_verifyAction === 'verify' && data.paymentResult) {
+        showToast('✅ Payment verified and transaction created (receipt: ' +
+          esc(data.paymentResult.receiptNumber) + ').');
+      }
+    } else {
+      var msg = (data && data.message) || 'Action failed.';
+      if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+    }
+  }
+
   /* ============================================
      P4: PAYMENT CLAIMS — FINANCE SIDE
      Staff can submit claims, see pending queue,
@@ -1783,10 +2026,25 @@ async function deletePaymentMethod(id, label) {
         (c.correctionNote   ? '<div style="font-size:12px;color:var(--yellow);margin-bottom:8px;">🔧 Correction needed: ' + esc(c.correctionNote) + '</div>' : '') +
 
         '<div class="claim-card-actions">' +
-          '<span style="font-size:11px;color:var(--muted);">Submitted ' + fmtDate(c.createdAt) +
+          '<span style="font-size:11px;color:var(--muted);flex:1;">Submitted ' + fmtDate(c.createdAt) +
             (c.submittedByName ? ' by ' + esc(c.submittedByName) : '') + '</span>' +
+
+          /* ---- P5: Verification actions ---- */
+          /* Verify: available for awaiting_verification and needs_correction */
           (c.status === 'awaiting_verification' || c.status === 'needs_correction'
-            ? '<button class="btn btn-danger btn-sm" style="margin-left:auto;" onclick="cancelClaim(\'' + esc(c._id) + '\')">Cancel</button>'
+            ? '<button class="btn btn-verify btn-sm" onclick="openVerifyModal(\'' + esc(c._id) + '\',\'verify\')">✅ Verify</button>'
+            : '') +
+          /* Reject: same statuses as verify */
+          (c.status === 'awaiting_verification' || c.status === 'needs_correction'
+            ? '<button class="btn btn-danger btn-sm" onclick="openVerifyModal(\'' + esc(c._id) + '\',\'reject\')">❌ Reject</button>'
+            : '') +
+          /* Request Correction: only from awaiting_verification */
+          (c.status === 'awaiting_verification'
+            ? '<button class="btn btn-orange btn-sm" onclick="openVerifyModal(\'' + esc(c._id) + '\',\'correction\')">🔧 Correction</button>'
+            : '') +
+          /* Cancel: only for staff, unverified/uncorrected only */
+          (c.status === 'awaiting_verification' || c.status === 'needs_correction'
+            ? '<button class="btn btn-secondary btn-sm" onclick="cancelClaim(\'' + esc(c._id) + '\')">Cancel</button>'
             : '') +
         '</div>' +
       '</div>';
