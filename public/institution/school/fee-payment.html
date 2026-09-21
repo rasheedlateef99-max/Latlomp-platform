@@ -178,6 +178,47 @@
     .audience-chip { display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:20px; font-size:12px; font-weight:600; cursor:pointer; border:1px solid var(--border); background:rgba(255,255,255,0.03); color:var(--secondary); user-select:none; }
     .audience-chip input { width:0; height:0; opacity:0; position:absolute; }
     .audience-chip:has(input:checked) { background:rgba(108,99,255,0.15); border-color:rgba(108,99,255,0.4); color:#a78bfa; }
+
+/* ---- P7: Progress cards ---- */
+    .progress-hero { background:linear-gradient(135deg,rgba(108,99,255,0.15),rgba(67,233,123,0.08)); border:1px solid rgba(108,99,255,0.25); border-radius:14px; padding:20px 22px; margin-bottom:18px; }
+    .progress-hero-top { display:flex; align-items:center; gap:14px; margin-bottom:14px; flex-wrap:wrap; }
+    .progress-hero-avatar { width:46px; height:46px; border-radius:10px; background:linear-gradient(135deg,var(--primary),var(--pd)); display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:900; color:#fff; flex-shrink:0; overflow:hidden; }
+    .progress-hero-avatar img { width:100%; height:100%; object-fit:cover; }
+    .progress-hero-name { font-size:17px; font-weight:900; color:#fff; }
+    .progress-hero-sub  { font-size:12px; color:var(--muted); margin-top:2px; }
+    .progress-hero-bar-wrap { background:rgba(255,255,255,0.08); border-radius:8px; height:11px; overflow:hidden; margin:10px 0 6px; }
+    .progress-hero-bar-fill { height:100%; border-radius:8px; transition:width 0.5s cubic-bezier(0.4,0,0.2,1); }
+    .progress-hero-stats { display:flex; gap:20px; flex-wrap:wrap; margin-top:8px; }
+    .progress-hero-stat { text-align:center; }
+    .progress-hero-stat-val { font-size:16px; font-weight:900; color:#fff; }
+    .progress-hero-stat-lbl { font-size:10px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:0.3px; margin-top:2px; }
+    .progress-card { background:var(--dark-2); border:1px solid var(--border); border-radius:12px; padding:16px 18px; margin-bottom:12px; animation:fadeUp 0.2s ease; }
+    .progress-card-top { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+    .progress-card-name { font-size:14px; font-weight:800; color:#fff; }
+    .progress-card-term { font-size:11px; color:var(--muted); margin-top:2px; }
+    .progress-bar-track { background:rgba(255,255,255,0.06); border-radius:6px; height:8px; overflow:hidden; margin:8px 0 4px; }
+    .progress-bar-fill-anim { height:100%; border-radius:6px; transition:width 0.5s cubic-bezier(0.4,0,0.2,1); }
+    .progress-pct { font-size:11px; color:var(--muted); display:flex; justify-content:space-between; }
+    .progress-amounts { display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; font-size:12px; }
+    .progress-amount-item { display:flex; flex-direction:column; gap:2px; }
+    .progress-amount-label { font-size:10px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:0.3px; }
+    .progress-amount-value { font-size:14px; font-weight:800; }
+    .progress-card-payments { margin-top:12px; padding-top:10px; border-top:1px solid var(--border); }
+    .payment-line { display:flex; align-items:center; gap:8px; padding:4px 0; font-size:12px; color:var(--secondary); }
+    .payment-line-rcpt { font-family:monospace; font-size:11px; color:#a78bfa; }
+    /* Status colours */
+    .pbar-not-paid  { background:var(--red);    }
+    .pbar-partial   { background:var(--orange); }
+    .pbar-paid      { background:var(--green);  }
+    .pbar-overpaid  { background:#a78bfa;       }
+    .ptext-not-paid { color:var(--red);    }
+    .ptext-partial  { color:var(--orange); }
+    .ptext-paid     { color:var(--green);  }
+    .ptext-overpaid { color:#a78bfa;       }
+    /* Outstanding mini bar */
+    .mini-bar-track { background:rgba(255,255,255,0.06); border-radius:3px; height:5px; overflow:hidden; margin-top:4px; width:100%; min-width:80px; }
+    .mini-bar-fill  { height:100%; border-radius:3px; }
+
   </style>
 </head>
 <body>
@@ -201,6 +242,7 @@
     <button class="nav-item"        data-sec="campaigns"    onclick="showSection('campaigns')">   <span class="nav-icon">🎯</span> Campaigns</button>
     <button class="nav-item"        data-sec="accounts"     onclick="showSection('accounts')">    <span class="nav-icon">🏦</span> Payment Accounts</button>
     <button class="nav-item"        data-sec="outstanding"  onclick="showSection('outstanding')"> <span class="nav-icon">⚠️</span> Outstanding</button>
+    <button class="nav-item"        data-sec="progress"     onclick="showSection('progress')">    <span class="nav-icon">📈</span> Student Progress</button>
     <div class="sb-sep">Links</div>
     <a class="nav-item" href="/institution/school/finance.html">  <span class="nav-icon">💰</span> Finance</a>
     <a class="nav-item" href="/institution/school/dashboard.html"><span class="nav-icon">🏠</span> Dashboard</a>
@@ -482,6 +524,43 @@
         </div>
       </div>
     </div>
+
+<!-- ===== STUDENT PROGRESS (P7) ===== -->
+    <div class="section" id="sec-progress">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>📈 Student Fee Progress</h3>
+          <span style="font-size:11px;color:var(--muted);">Allocation-based · verified payments only</span>
+        </div>
+        <div class="panel-body">
+          <div class="info-banner">
+            Progress is calculated from verified payment allocations only.
+            Pending claims awaiting finance verification do not affect these figures.
+          </div>
+
+          <!-- Search -->
+          <div class="field" style="margin-bottom:0;">
+            <label>Search Student</label>
+            <div style="display:flex;gap:8px;">
+              <input type="text" class="inp" id="progressStudentSearch"
+                placeholder="Name or admission number…" style="flex:1;"
+                onkeydown="if(event.key==='Enter')searchProgressStudent()" />
+              <button class="btn btn-primary" onclick="searchProgressStudent()">Search</button>
+            </div>
+          </div>
+          <div id="progressStudentResults" style="margin-top:10px;"></div>
+        </div>
+      </div>
+
+      <!-- Progress display (rendered after student selected) -->
+      <div id="progressDisplay" style="display:none;">
+        <!-- Overall summary hero card -->
+        <div class="progress-hero" id="progressHero"></div>
+        <!-- Per-obligation cards -->
+        <div id="progressCards"></div>
+      </div>
+    </div>
+    <!-- END STUDENT PROGRESS -->
 
   </div><!-- end page-content -->
 </div><!-- end main -->
@@ -975,7 +1054,7 @@ function showSection(name) {
   if (sectionEl) sectionEl.classList.add('active');
   var navEl = document.querySelector('[data-sec="' + name + '"]');
   if (navEl) navEl.classList.add('active');
-  var labels = { overview:'Overview', structures:'Fee Structures', assignments:'Assignments', record:'Record Payment', campaigns:'Campaigns', accounts:'Payment Accounts', outstanding:'Outstanding' };
+  var labels = { overview:'Overview', structures:'Fee Structures', assignments:'Assignments', record:'Record Payment', campaigns:'Campaigns', accounts:'Payment Accounts', outstanding:'outstanding', 'progress':'Student Progress' };
   var mobEl  = document.getElementById('mobileSectionLabel');
   if (mobEl) mobEl.textContent = labels[name] || name;
   if (window.innerWidth <= 960) closeSidebar();
@@ -986,6 +1065,7 @@ function showSection(name) {
   if (name === 'campaigns')   loadCampaigns();
   if (name === 'accounts')    loadAccountsPreview();
   if (name === 'outstanding') loadOutstanding(1);
+  if (name === 'progress')    initProgressSection();
 }
 
 function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('visible'); }
@@ -1050,7 +1130,12 @@ function buildPaymentsTable(payments) {
       return '<tr>' +
         '<td>' + fmtDate(p.recordedAt || p.createdAt) + '</td>' +
         '<td style="font-family:monospace;font-size:11px;color:#a78bfa;">' + esc(p.receiptNumber || '—') + '</td>' +
-        '<td style="font-weight:700;color:#fff;">' + esc(st.name || '—') + '<br/><span style="font-size:11px;color:var(--muted);">' + esc(st.admissionNo || '') + '</span></td>' +
+        '<td style="font-weight:700;color:#fff;">' +
+          '<a href="#" style="color:#fff;text-decoration:none;" ' +
+            'onclick="event.preventDefault();viewStudentProgress(\'' + esc(st._id || '') + '\',\'' + esc(st.name || '') + '\')">' +
+            esc(st.name || '—') + '</a>' +
+          '<br/><span style="font-size:11px;color:var(--muted);">' + esc(st.admissionNo || '') + '</span>' +
+        '</td>' +
         '<td>' + esc(fs.name || '—') + '</td>' +
         '<td style="font-weight:700;color:var(--green);">' + fmtCurrency(p.amount, p.currency) + '</td>' +
         '<td><span class="badge badge-muted">' + esc(p.method || '—') + '</span></td>' +
@@ -1058,6 +1143,32 @@ function buildPaymentsTable(payments) {
       '</tr>';
     }).join('') + '</tbody></table></div>';
 }
+
+/* ============================================================
+   Not sure
+============================================================ */
+
+function doLogout() {
+  if (!confirm('Log out of Finance Portal?')) return;
+  localStorage.removeItem('latlomp_inst_token');
+  localStorage.removeItem('latlomp_inst_user');
+  localStorage.removeItem('instToken');
+  localStorage.removeItem('latlomp_token');
+  window.location.replace('/institution/index.html');
+}
+/* Navigate to Student Progress section pre-selecting a student */
+function viewStudentProgress(studentId, studentName) {
+  showSection('progress');
+  if (studentId) {
+    var searchEl = document.getElementById('progressStudentSearch');
+    if (searchEl) searchEl.value = studentName;
+    loadStudentProgress(studentId, studentName);
+  }
+}
+
+/* ============================================================
+   Not sure
+============================================================ */
 
 /* ============================================================
    FEE STRUCTURES
@@ -1819,6 +1930,247 @@ async function loadAccountsPreview() {
 }
 
 /* ============================================================
+   P7: STUDENT PROGRESS
+   Uses GET /fee/students/:id/progress (allocation-based)
+   No N+1: single batch allocation query per student.
+============================================================ */
+var _progressStudentId = '';
+
+function initProgressSection() {
+  /* Reset search on section entry */
+  var searchEl = document.getElementById('progressStudentSearch');
+  if (searchEl) searchEl.value = '';
+  document.getElementById('progressStudentResults').innerHTML = '';
+  document.getElementById('progressDisplay').style.display   = 'none';
+}
+
+async function searchProgressStudent() {
+  var q    = (document.getElementById('progressStudentSearch') || {}).value.trim();
+  var wrap = document.getElementById('progressStudentResults');
+  if (!q || !wrap) return;
+  wrap.innerHTML = '<div style="font-size:12px;color:var(--muted);"><span class="spinner" style="width:12px;height:12px;border-width:1.5px;"></span> Searching…</div>';
+
+  var res      = await instApi('/students/list?search=' + encodeURIComponent(q) + '&limit=8');
+  var students = (res.ok && res.data && res.data.students) ? res.data.students : [];
+
+  if (!students.length) {
+    wrap.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:8px 0;">No students found.</div>';
+    return;
+  }
+
+  wrap.innerHTML = students.map(function(s) {
+    return '<div onclick="loadStudentProgress(\'' + esc(s._id) + '\',\'' + esc(s.name) + '\')" ' +
+      'style="padding:10px 12px;border-radius:8px;border:1px solid var(--border);' +
+      'background:rgba(255,255,255,0.02);cursor:pointer;margin-bottom:6px;' +
+      'display:flex;align-items:center;gap:12px;transition:background 0.15s;"' +
+      ' onmouseover="this.style.background=\'rgba(255,255,255,0.06)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.02)\'">' +
+      (s.passportPhotoUrl
+        ? '<img src="' + esc(s.passportPhotoUrl) + '" style="width:34px;height:34px;border-radius:7px;object-fit:cover;flex-shrink:0;" />'
+        : '<div style="width:34px;height:34px;border-radius:7px;background:rgba(108,99,255,0.2);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0;">' + esc((s.name || 'S').charAt(0)) + '</div>') +
+      '<div>' +
+        '<div style="font-size:13px;font-weight:700;color:#fff;">' + esc(s.name) + '</div>' +
+        '<div style="font-size:11px;color:var(--muted);">' +
+          esc(s.admissionNo || '') + (s.class ? ' · ' + esc(s.class) : '') +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+async function loadStudentProgress(studentId, studentName) {
+  _progressStudentId = studentId;
+
+  var searchEl = document.getElementById('progressStudentSearch');
+  if (searchEl) searchEl.value = studentName;
+  document.getElementById('progressStudentResults').innerHTML = '';
+
+  var heroEl   = document.getElementById('progressHero');
+  var cardsEl  = document.getElementById('progressCards');
+  var displayEl= document.getElementById('progressDisplay');
+  if (!heroEl || !cardsEl || !displayEl) return;
+
+  displayEl.style.display = 'block';
+  heroEl.innerHTML  = '<div style="text-align:center;padding:20px;"><span class="spinner"></span> Loading…</div>';
+  cardsEl.innerHTML = '';
+
+  var res  = await instApi('/fee/students/' + studentId + '/progress');
+  var data = res.data;
+
+  if (!res.ok || !data.success) {
+    heroEl.innerHTML = '<div style="text-align:center;color:var(--red);">Could not load progress data.</div>';
+    return;
+  }
+
+  var student = data.student || {};
+  var summary = data.summary || {};
+  var items   = data.progressItems || [];
+
+  /* ---- Overall summary hero card ---- */
+  var overallPct   = summary.overallPercentage || 0;
+  var heroBarColor = overallPct >= 100 ? 'var(--green)' : overallPct > 0 ? 'var(--orange)' : 'var(--red)';
+  var heroStatus   = overallPct >= 100 ? '✅ Fully Paid' : overallPct > 0 ? '⏳ Partially Paid' : '❌ Not Paid';
+
+  heroEl.innerHTML =
+    '<div class="progress-hero-top">' +
+      (student.passportPhotoUrl
+        ? '<div class="progress-hero-avatar"><img src="' + esc(student.passportPhotoUrl) + '" alt="" /></div>'
+        : '<div class="progress-hero-avatar">' + esc((student.name || 'S').charAt(0)) + '</div>') +
+      '<div style="flex:1;">' +
+        '<div class="progress-hero-name">' + esc(student.name || '—') + '</div>' +
+        '<div class="progress-hero-sub">' +
+          esc(student.admissionNo || '') + (student.class ? ' · ' + esc(student.class) : '') +
+        '</div>' +
+      '</div>' +
+      '<span class="badge ' + (overallPct >= 100 ? 'badge-green' : overallPct > 0 ? 'badge-orange' : 'badge-red') + '">' +
+        esc(heroStatus) + '</span>' +
+    '</div>' +
+
+    '<div class="progress-hero-bar-wrap">' +
+      '<div class="progress-hero-bar-fill" style="width:' + overallPct + '%;background:' + heroBarColor + ';"></div>' +
+    '</div>' +
+
+    '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--secondary);margin-bottom:12px;">' +
+      '<span>' + overallPct + '% overall</span>' +
+      '<span>' + items.length + ' obligation' + (items.length !== 1 ? 's' : '') + '</span>' +
+    '</div>' +
+
+    '<div class="progress-hero-stats">' +
+      buildHeroStat(fmtCurrency(summary.totalAllocated || 0, summary.currency), 'Verified Paid') +
+      buildHeroStat(fmtCurrency(summary.totalRemaining || 0, summary.currency), 'Remaining') +
+      buildHeroStat(fmtCurrency(summary.totalRequired  || 0, summary.currency), 'Total Required') +
+    '</div>';
+
+  if (!items.length) {
+    cardsEl.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>' +
+      '<div class="empty-title">No fee obligations assigned yet.</div>' +
+      '<div class="empty-sub">Assign a fee structure to this student using the Assignments section.</div></div>';
+    return;
+  }
+
+  /* ---- Per-obligation progress cards ---- */
+  cardsEl.innerHTML = items.map(function(item) {
+    var p     = item.progress || {};
+    var fs    = item.feeStructureId || {};
+    var tm    = item.termId || {};
+    var pct   = p.percentage || 0;
+    var remaining = p.remaining || 0;
+
+    var barClass  = 'pbar-'  + (p.status || 'not_paid');
+    var textClass = 'ptext-' + (p.status || 'not_paid');
+    var statusLabel = {
+      not_paid: '❌ Not Paid', partial: '⏳ Partial',
+      paid: '✅ Paid', overpaid: '⚠️ Overpaid'
+    }[p.status] || p.status;
+
+    /* Allocation / payment lines */
+    var paymentLines = (p.allocations || []).map(function(al) {
+      var pmt = al.paymentId || {};
+      return '<div class="payment-line">' +
+        '<span style="color:var(--green);font-weight:700;">+' + fmtCurrency(al.amount, al.currency) + '</span>' +
+        (pmt.receiptNumber ? '<span class="payment-line-rcpt">' + esc(pmt.receiptNumber) + '</span>' : '') +
+        '<span style="font-size:11px;">' + esc(pmt.method || '') + '</span>' +
+        '<span style="font-size:11px;color:var(--muted);">' + fmtDate(pmt.recordedAt) + '</span>' +
+      '</div>';
+    }).join('');
+
+    return '<div class="progress-card">' +
+      '<div class="progress-card-top">' +
+        '<div>' +
+          '<div class="progress-card-name">' + esc(fs.name || 'Fee') + '</div>' +
+          '<div class="progress-card-term">' + esc(tm.name || 'All Terms') +
+            (tm.session ? ' · ' + esc(tm.session) : '') + '</div>' +
+        '</div>' +
+        '<span class="badge ' +
+          (p.status === 'paid' ? 'badge-green' : p.status === 'partial' ? 'badge-orange' :
+           p.status === 'overpaid' ? 'badge-purple' : 'badge-red') + '">' +
+          esc(statusLabel) + '</span>' +
+      '</div>' +
+
+      /* Progress bar */
+      '<div class="progress-bar-track">' +
+        '<div class="progress-bar-fill-anim ' + barClass + '" style="width:' + pct + '%;"></div>' +
+      '</div>' +
+      '<div class="progress-pct">' +
+        '<span class="' + textClass + '" style="font-weight:700;">' + pct + '%</span>' +
+        '<span>' + fmtCurrency(p.totalAllocated || 0, p.currency) + ' / ' +
+          fmtCurrency(p.netObligation || 0, p.currency) + '</span>' +
+      '</div>' +
+
+      /* Amounts breakdown */
+      '<div class="progress-amounts">' +
+        '<div class="progress-amount-item">' +
+          '<div class="progress-amount-label">Required</div>' +
+          '<div class="progress-amount-value">' + fmtCurrency(p.required || 0, p.currency) + '</div>' +
+        '</div>' +
+        (item.discount ? '<div class="progress-amount-item">' +
+          '<div class="progress-amount-label">Discount</div>' +
+          '<div class="progress-amount-value" style="color:#a78bfa;">−' + fmtCurrency(item.discount, p.currency) + '</div>' +
+        '</div>' : '') +
+        '<div class="progress-amount-item">' +
+          '<div class="progress-amount-label">Verified Paid</div>' +
+          '<div class="progress-amount-value ' + textClass + '">' + fmtCurrency(p.totalAllocated || 0, p.currency) + '</div>' +
+        '</div>' +
+        (remaining > 0 ? '<div class="progress-amount-item">' +
+          '<div class="progress-amount-label">Remaining</div>' +
+          '<div class="progress-amount-value" style="color:var(--red);">' + fmtCurrency(remaining, p.currency) + '</div>' +
+        '</div>' : '') +
+      '</div>' +
+
+      /* Payment history */
+      (paymentLines
+        ? '<div class="progress-card-payments">' +
+            '<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:5px;">Payment History</div>' +
+            paymentLines +
+          '</div>'
+        : (p.status === 'not_paid'
+          ? '<div style="font-size:12px;color:var(--muted);margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">No verified payments yet.</div>'
+          : '')) +
+
+      /* Action buttons */
+      '<div style="display:flex;gap:7px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">' +
+        (p.status !== 'paid' && p.status !== 'waived'
+          ? '<button class="btn btn-green btn-sm" onclick="jumpToRecordPayment(\'' + esc(item._id) + '\',\'' + esc(studentId) + '\',\'' + esc(student.name || '') + '\')">💵 Record Payment</button>'
+          : '') +
+        '<button class="btn btn-secondary btn-sm" onclick="refreshProgressCard(\'' + esc(item._id) + '\',\'' + esc(studentId) + '\')">↺ Refresh</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function buildHeroStat(value, label) {
+  return '<div class="progress-hero-stat">' +
+    '<div class="progress-hero-stat-val">' + esc(String(value)) + '</div>' +
+    '<div class="progress-hero-stat-lbl">' + esc(label) + '</div>' +
+  '</div>';
+}
+
+function jumpToRecordPayment(assignmentId, studentId, studentName) {
+  /* Pre-select the student in the Record Payment section */
+  showSection('record');
+  var searchEl = document.getElementById('recordStudentSearch');
+  if (searchEl) searchEl.value = studentName;
+  selectStudentForPayment(studentId, studentName).then(function() {
+    /* Auto-select the specific assignment in the list */
+    setTimeout(function() {
+      var cards = document.querySelectorAll('#recordAssignmentsList > div[onclick]');
+      cards.forEach(function(card) {
+        if (card.getAttribute('onclick') && card.getAttribute('onclick').includes(assignmentId)) {
+          card.click();
+        }
+      });
+    }, 600);
+  });
+}
+
+async function refreshProgressCard(assignmentId, studentId) {
+  /* Reload the full student progress — simplest correct approach */
+  if (studentId && studentId === _progressStudentId) {
+    var nameEl = document.getElementById('progressStudentSearch');
+    var name   = nameEl ? nameEl.value : '';
+    await loadStudentProgress(studentId, name);
+  }
+}
+/* ============================================================
    OUTSTANDING BALANCES
 ============================================================ */
 async function loadOutstanding(page) {
@@ -1869,7 +2221,14 @@ async function loadOutstanding(page) {
         '<td style="font-size:12px;color:var(--muted);">' + esc(tm.name || 'All') + '</td>' +
         '<td style="color:#fff;">' + fmtCurrency(a.amountDue, a.currency) + '</td>' +
         '<td style="color:var(--green);">' + fmtCurrency(a.amountPaid || 0, a.currency) + '</td>' +
-        '<td style="font-weight:700;color:var(--red);">' + fmtCurrency(a.balance, a.currency) + '</td>' +
+        '<td>' +
+          '<div style="font-weight:700;color:var(--red);">' + fmtCurrency(a.balance, a.currency) + '</div>' +
+          (a.amountDue > 0
+            ? '<div class="mini-bar-track"><div class="mini-bar-fill ' +
+                (a.amountPaid >= a.amountDue ? 'pbar-paid' : a.amountPaid > 0 ? 'pbar-partial' : 'pbar-not-paid') +
+                '" style="width:' + Math.min(100, Math.round(((a.amountPaid || 0) / a.amountDue) * 100)) + '%;"></div></div>'
+            : '') +
+        '</td>' +
         '<td><span class="badge ' + stBadge + '">' + esc(a.status) + '</span></td>' +
       '</tr>';
     }).join('') + '</tbody></table>';
@@ -1894,7 +2253,3 @@ function renderPagination(containerId, current, total, callback) {
   html += '<span class="page-info">Page ' + current + ' of ' + total + '</span>';
   el.innerHTML = html;
 }
-
-/* ============================================================
-   UTILITIES
-=========================

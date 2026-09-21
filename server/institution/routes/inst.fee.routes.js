@@ -1665,4 +1665,230 @@ router.delete('/claims/:id', adminGuard, async function(req, res) {
   }
 });
 
+/* ============================================
+   P7 — PAYMENT PROGRESS ROUTES
+
+   Both routes query SchoolPaymentAllocation
+   directly — the authoritative source of verified
+   payment data. No reliance on the denormalised
+   amountPaid field on SchoolFeeAssignment (which
+   stays as a fast cache for list queries).
+
+   FORMULA (both routes use the same logic):
+     netObligation  = amountDue - discount
+     totalAllocated = SUM(allocation.amount
+                          WHERE assignmentId = X)
+     remaining      = MAX(0, netObligation - totalAllocated)
+     percentage     = (totalAllocated / netObligation) × 100
+     status         = not_paid | partial | paid | overpaid
+
+   TENANT ISOLATION:
+   schoolId enforced on every query in both routes.
+   P9 HOOK: portals call these endpoints for their
+   progress display — same data, same tenant rules.
+============================================ */
+
+/* ---- Shared: compute progress from allocation slice ---- */
+function computeProgress(netObligation, totalAllocated, currency) {
+  var remaining  = Math.max(0, netObligation - totalAllocated);
+  var rawPct     = netObligation > 0 ? (totalAllocated / netObligation) * 100 : 0;
+  var percentage = Math.round(rawPct * 10) / 10;      /* 1 decimal place */
+  var status;
+  if (totalAllocated <= 0)                            status = 'not_paid';
+  else if (totalAllocated < netObligation)            status = 'partial';
+  else if (totalAllocated > netObligation)            status = 'overpaid';
+  else                                                 status = 'paid';
+  return {
+    netObligation,
+    totalAllocated,
+    remaining,
+    percentage:    Math.min(percentage, 100),     /* capped for bar display */
+    rawPercentage: percentage,                    /* may exceed 100 if overpaid */
+    status,
+    currency: currency || 'NGN'
+  };
+}
+
+/* ============================================
+   GET /api/institution/fee/assignments/:id/progress
+   Authoritative progress for one assignment.
+   Returns the full allocation history alongside
+   the calculated figures.
+
+   P9 hook: parent/student portals use this to
+   show a single obligation's progress without
+   loading all of a student's assignments.
+============================================ */
+router.get('/assignments/:id/progress', staffGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid assignment ID.' });
+    }
+
+    var SchoolPaymentAllocation = require('../models/SchoolPaymentAllocation.model');
+
+    /* Step 1: Load assignment — TENANT SCOPE + IDOR */
+    var assignment = await SchoolFeeAssignment.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId
+    })
+    .populate('studentId',      'name admissionNo class passportPhotoUrl')
+    .populate('feeStructureId', 'name category amount currency description')
+    .populate('termId',         'name session')
+    .lean();
+
+    if (!assignment) {
+      return res.status(404).json({ success: false, message: 'Assignment not found.' });
+    }
+
+    /* Step 2: Batch-load allocations — double tenant scope */
+    var allocations = await SchoolPaymentAllocation.find({
+      assignmentId: req.params.id,
+      schoolId:     req.schoolId        /* double tenant scope — defense in depth */
+    })
+    .populate('paymentId', 'receiptNumber method recordedAt payerName payerType claimId verifiedAt')
+    .sort({ createdAt: 1 })
+    .lean();
+
+    var totalAllocated = allocations.reduce(function(s, a) { return s + (a.amount || 0); }, 0);
+    var netObligation  = Math.max(0, (assignment.amountDue || 0) - (assignment.discount || 0));
+
+    return res.json({
+      success:    true,
+      assignment: assignment,
+      progress:   Object.assign(
+        computeProgress(netObligation, totalAllocated, assignment.currency),
+        {
+          required:     assignment.amountDue  || 0,
+          discount:     assignment.discount   || 0,
+          paymentCount: allocations.length,
+          allocations:  allocations
+        }
+      )
+    });
+  } catch(err) {
+    console.error('[fee] GET /assignments/:id/progress:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   GET /api/institution/fee/students/:studentId/progress
+   All assignments with allocation-based progress
+   for one student. No N+1 — one allocation batch
+   query covers every assignment.
+
+   P9 hook: parent/student portals call this to
+   show the full "My Fees" dashboard.
+============================================ */
+router.get('/students/:studentId/progress', staffGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.studentId)) {
+      return res.status(400).json({ success: false, message: 'Invalid student ID.' });
+    }
+
+    var SchoolPaymentAllocation = require('../models/SchoolPaymentAllocation.model');
+
+    /* Step 1: Confirm student belongs to this school — TENANT SCOPE */
+    var student = await SchoolStudent.findOne({
+      _id:      req.params.studentId,
+      schoolId: req.schoolId
+    }).select('name admissionNo class classId passportPhotoUrl').lean();
+
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student not found.' });
+    }
+
+    /* Step 2: Load all assignments */
+    var assignments = await SchoolFeeAssignment.find({
+      studentId: req.params.studentId,
+      schoolId:  req.schoolId           /* TENANT SCOPE */
+    })
+    .populate('feeStructureId', 'name category amount currency paymentAccountId')
+    .populate('termId',         'name session')
+    .sort({ createdAt: -1 })
+    .lean();
+
+    if (!assignments.length) {
+      return res.json({
+        success:       true,
+        student:       student,
+        progressItems: [],
+        summary: {
+          totalRequired: 0, totalAllocated: 0,
+          totalRemaining: 0, overallPercentage: 0, currency: 'NGN'
+        }
+      });
+    }
+
+    /* Step 3: Batch-load ALL allocations for all assignments in one query */
+    var assignmentIds  = assignments.map(function(a) { return a._id; });
+    var allAllocations = await SchoolPaymentAllocation.find({
+      assignmentId: { $in: assignmentIds },
+      schoolId:     req.schoolId         /* TENANT SCOPE */
+    })
+    .populate('paymentId', 'receiptNumber method recordedAt payerName payerType verifiedAt')
+    .sort({ createdAt: 1 })
+    .lean();
+
+    /* Step 4: Group allocations by assignment ID */
+    var allocationsByAssignment = {};
+    allAllocations.forEach(function(al) {
+      var key = al.assignmentId.toString();
+      if (!allocationsByAssignment[key]) allocationsByAssignment[key] = [];
+      allocationsByAssignment[key].push(al);
+    });
+
+    /* Step 5: Build progress items + accumulate summary */
+    var summaryRequired  = 0;
+    var summaryAllocated = 0;
+    var currencyRef      = 'NGN';
+
+    var progressItems = assignments.map(function(a) {
+      var aId            = a._id.toString();
+      var aAllocations   = allocationsByAssignment[aId] || [];
+      var totalAllocated = aAllocations.reduce(function(s, al) { return s + (al.amount || 0); }, 0);
+      var netObligation  = Math.max(0, (a.amountDue || 0) - (a.discount || 0));
+      var currency       = a.currency || 'NGN';
+
+      summaryRequired  += netObligation;
+      summaryAllocated += totalAllocated;
+      currencyRef       = currency;
+
+      return Object.assign({}, a, {
+        progress: Object.assign(
+          computeProgress(netObligation, totalAllocated, currency),
+          {
+            required:     a.amountDue  || 0,
+            discount:     a.discount   || 0,
+            paymentCount: aAllocations.length,
+            allocations:  aAllocations
+          }
+        )
+      });
+    });
+
+    var summaryRemaining = Math.max(0, summaryRequired - summaryAllocated);
+    var summaryPct       = summaryRequired > 0
+      ? Math.round((Math.min(summaryAllocated, summaryRequired) / summaryRequired) * 100)
+      : 0;
+
+    return res.json({
+      success:       true,
+      student:       student,
+      progressItems: progressItems,
+      summary: {
+        totalRequired:     summaryRequired,
+        totalAllocated:    Math.min(summaryAllocated, summaryRequired),
+        totalRemaining:    summaryRemaining,
+        overallPercentage: summaryPct,
+        currency:          currencyRef
+      }
+    });
+  } catch(err) {
+    console.error('[fee] GET /students/:studentId/progress:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

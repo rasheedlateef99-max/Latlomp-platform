@@ -545,6 +545,119 @@ async function assembleStatementData(schoolId, period, school) {
   };
 }
 
+/* ============================================
+   getStudentFeeProgress(schoolId, studentId)
+   Returns allocation-based progress for all of a
+   student's fee assignments. Mirrors the route
+   GET /fee/students/:studentId/progress but is
+   callable directly from other service functions.
+
+   No N+1: batch allocation query per call.
+   Tenant scoped on every query.
+============================================ */
+async function getStudentFeeProgress(schoolId, studentId) {
+  try {
+    var Assignment = getSchoolFeeAssignment();
+    var Student    = getSchoolStudent();
+    if (!Assignment || !Student) return null;
+
+    var SchoolPaymentAllocation;
+    try {
+      SchoolPaymentAllocation = require('../models/SchoolPaymentAllocation.model');
+    } catch(e) {
+      console.warn('[finance.service] SchoolPaymentAllocation not available:', e.message);
+      return null;
+    }
+
+    var sid = toObjectId(schoolId);
+    var uid = toObjectId(studentId);
+    if (!sid || !uid) return null;
+
+    var student = await Student.findOne({ _id: uid, schoolId: sid })
+      .select('name admissionNo class passportPhotoUrl').lean();
+    if (!student) return null;
+
+    var assignments = await Assignment.find({ studentId: uid, schoolId: sid })
+      .populate('feeStructureId', 'name category amount')
+      .populate('termId', 'name session')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!assignments.length) {
+      return {
+        student,
+        progressItems: [],
+        summary: { totalRequired: 0, totalAllocated: 0, totalRemaining: 0, overallPercentage: 0, currency: 'NGN' }
+      };
+    }
+
+    var assignmentIds  = assignments.map(function(a) { return a._id; });
+    var allAllocations = await SchoolPaymentAllocation.find({
+      assignmentId: { $in: assignmentIds },
+      schoolId:     sid                   /* TENANT SCOPE */
+    }).lean();
+
+    var allocationsByAssignment = {};
+    allAllocations.forEach(function(al) {
+      var key = al.assignmentId.toString();
+      if (!allocationsByAssignment[key]) allocationsByAssignment[key] = [];
+      allocationsByAssignment[key].push(al);
+    });
+
+    var totalRequired  = 0;
+    var totalAllocated = 0;
+    var currencyRef    = 'NGN';
+
+    var progressItems = assignments.map(function(a) {
+      var aId          = a._id.toString();
+      var aAllocs      = allocationsByAssignment[aId] || [];
+      var allocated    = aAllocs.reduce(function(s, al) { return s + (al.amount || 0); }, 0);
+      var netObl       = Math.max(0, (a.amountDue || 0) - (a.discount || 0));
+      var remaining    = Math.max(0, netObl - allocated);
+      var rawPct       = netObl > 0 ? (allocated / netObl) * 100 : 0;
+      var percentage   = Math.min(Math.round(rawPct * 10) / 10, 100);
+      var currency     = a.currency || 'NGN';
+      var status       = allocated <= 0 ? 'not_paid'
+                       : allocated < netObl ? 'partial'
+                       : allocated > netObl ? 'overpaid'
+                       : 'paid';
+
+      totalRequired  += netObl;
+      totalAllocated += allocated;
+      currencyRef     = currency;
+
+      return Object.assign({}, a, {
+        progress: {
+          required: a.amountDue || 0, discount: a.discount || 0,
+          netObligation: netObl, totalAllocated: allocated,
+          remaining, percentage, status, currency,
+          paymentCount: aAllocs.length
+        }
+      });
+    });
+
+    var summaryRemaining = Math.max(0, totalRequired - totalAllocated);
+    var overallPct       = totalRequired > 0
+      ? Math.round((Math.min(totalAllocated, totalRequired) / totalRequired) * 100)
+      : 0;
+
+    return {
+      student,
+      progressItems,
+      summary: {
+        totalRequired,
+        totalAllocated:    Math.min(totalAllocated, totalRequired),
+        totalRemaining:    summaryRemaining,
+        overallPercentage: overallPct,
+        currency:          currencyRef
+      }
+    };
+  } catch(err) {
+    console.error('[finance.service] getStudentFeeProgress:', err.message);
+    return null;
+  }
+}
+
 module.exports = {
   buildPeriodMatch,
   getFinanceSummary,
@@ -552,5 +665,6 @@ module.exports = {
   getOutstandingBalances,
   getAnalyticsTrends,
   getTransactionById,
-  assembleStatementData
+  assembleStatementData,
+  getStudentFeeProgress     /* P7 */
 };

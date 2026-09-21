@@ -440,8 +440,213 @@ function generateStatementExcel(statementData) {
   return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 }
 
+/* ============================================
+   generateClaimReceiptPDF(payment, allocations, school)
+   P8: Professional receipt for claim-verified payments.
+   Handles non-student payers, campaign contributions,
+   and multiple allocation lines.
+
+   payment:     SchoolFeePayment (populated, with P6 fields:
+                payerName, payerType, verifiedBy, verifiedAt,
+                claimId, paymentAccountId)
+   allocations: SchoolPaymentAllocation[] (populated)
+   school:      School document
+
+   Original generateReceiptPDF() is UNCHANGED.
+   This is an additive function using the same helpers.
+============================================ */
+async function generateClaimReceiptPDF(payment, allocations, school) {
+  var PDFDocument = getPDFDocument();
+  var primary     = (school && school.primaryColor) || '#6c63ff';
+
+  var logoBuffer = null;
+  try { logoBuffer = await fetchImageBuffer(school && school.logo); } catch(e) {}
+
+  return new Promise(function(resolve, reject) {
+    try {
+      var doc    = new PDFDocument({ size: [420, 595], margin: 0 });
+      var chunks = [];
+      doc.on('data', function(c) { chunks.push(c); });
+      doc.on('end',  function()  { resolve(Buffer.concat(chunks)); });
+      doc.on('error', reject);
+
+      var W      = doc.page.width;
+      var margin = 28;
+      var usable = W - (margin * 2);
+
+      /* ---- Header band ---- */
+      doc.fillColor(primary).rect(0, 0, W, 80).fill();
+      if (logoBuffer) {
+        try { doc.image(logoBuffer, margin, 14, { width: 50, height: 50 }); }
+        catch(e) {}
+      }
+      doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(13)
+         .text((school && school.name || 'School').toUpperCase(),
+               margin + 58, 18, { width: usable - 58, lineBreak: false });
+      doc.font('Helvetica').fontSize(8).fillColor('rgba(255,255,255,0.75)')
+         .text('OFFICIAL PAYMENT RECEIPT', margin + 58, 35, { lineBreak: false });
+      doc.fontSize(7).fillColor('rgba(255,255,255,0.55)')
+         .text([(school && school.address), (school && school.phone)]
+               .filter(Boolean).join(' · '),
+               margin + 58, 49, { lineBreak: false });
+
+      var y = 90;
+
+      /* ---- Receipt number badge ---- */
+      doc.fillColor(primary).fillOpacity(0.08).rect(margin, y, usable, 34).fill();
+      doc.fillOpacity(1).fillColor(primary).font('Helvetica-Bold').fontSize(7.5)
+         .text('RECEIPT NUMBER', margin + 10, y + 7, { lineBreak: false });
+      doc.fillColor('#1a1a2e').fontSize(13).font('Helvetica-Bold')
+         .text(payment.receiptNumber || '—', margin + 10, y + 18, { lineBreak: false });
+      doc.fillColor(primary).font('Helvetica-Bold').fontSize(8.5)
+         .text('VERIFIED ✓', W - margin - 65, y + 13, { lineBreak: false });
+      y += 46;
+
+      /* ---- Amount ---- */
+      doc.fillColor(primary).font('Helvetica-Bold').fontSize(8.5)
+         .text('AMOUNT PAID', margin, y, { lineBreak: false });
+      y += 13;
+      doc.fillColor('#1a1a2e').font('Helvetica-Bold').fontSize(26)
+         .text(fmtAmount(payment.amount, payment.currency), margin, y, { lineBreak: false });
+      y += 34;
+
+      /* ---- Info rows helper ---- */
+      function infoRow(label, value, highlight) {
+        doc.strokeColor('#eeeeee').lineWidth(0.35)
+           .moveTo(margin, y).lineTo(margin + usable, y).stroke();
+        doc.fillColor('#888888').font('Helvetica').fontSize(7.5)
+           .text(label, margin, y + 4, { lineBreak: false });
+        doc.fillColor(highlight ? primary : '#1a1a2e')
+           .font(highlight ? 'Helvetica-Bold' : 'Helvetica').fontSize(8.5)
+           .text(String(value || '—'), margin + 120, y + 4,
+                 { width: usable - 120, lineBreak: false, align: 'right', ellipsis: true });
+        y += 21;
+      }
+
+      /* ---- Payer info ---- */
+      var payerTypeLabel = {
+        parent: 'Parent / Guardian', student: 'Student',
+        alumni: 'Alumni', staff: 'Staff',
+        external: 'External Payer', organisation: 'Organisation'
+      }[payment.payerType] || (payment.payerType || 'Payer');
+
+      infoRow('Payer Name',   payment.payerName || '—');
+      infoRow('Payer Type',   payerTypeLabel);
+
+      /* ---- Per-allocation: student and purpose ---- */
+      allocations = allocations || [];
+      if (allocations.length === 1) {
+        var al  = allocations[0];
+        var st  = al.studentId      || null;
+        var fs  = al.feeStructureId || null;
+        var cp  = al.campaignId     || null;
+        if (st)  infoRow('Student',   (st.name || '—') + (st.admissionNo ? ' · ' + st.admissionNo : ''));
+        if (fs)  infoRow('Purpose',   fs.name  || '—');
+        else if (cp) infoRow('Campaign', cp.title || '—');
+      } else if (allocations.length > 1) {
+        /* Multiple allocations — show count; breakdown below */
+        infoRow('Allocation',
+          allocations.length + ' items — see breakdown below');
+      }
+
+      /* ---- Payment method + reference ---- */
+      var methodLabel = {
+        cash: 'Cash', bank_transfer: 'Bank Transfer',
+        paystack: 'Paystack Online', cheque: 'Cheque', other: 'Other'
+      }[payment.method] || (payment.method || '—');
+
+      infoRow('Payment Method', methodLabel);
+
+      if (payment.externalRef) {
+        infoRow('Bank Reference', payment.externalRef, true);
+      }
+
+      infoRow('Payment Date',
+        fmtDateTime(payment.recordedAt || payment.createdAt));
+
+      /* ---- Verification trail ---- */
+      if (payment.verifiedAt) {
+        /* verifiedBy may be an ObjectId or populated object */
+        var verifiedByName = (payment.verifiedBy && payment.verifiedBy.name)
+          ? payment.verifiedBy.name
+          : (payment.verifiedByName || 'Finance Officer');
+        infoRow('Verified By',  verifiedByName);
+        infoRow('Verified At',  fmtDateTime(payment.verifiedAt));
+      }
+
+      infoRow('Status', 'CONFIRMED ✓', true);
+
+      /* ---- Multiple allocation breakdown ---- */
+      if (allocations.length > 1) {
+        y += 6;
+        var remainingSpace = doc.page.height - 50 - y;
+        var needsHeight    = 20 + (allocations.length * 17);
+        if (remainingSpace < needsHeight) { doc.addPage(); y = 30; }
+
+        doc.fillColor(primary).fillOpacity(0.06)
+           .rect(margin, y, usable, 17).fill();
+        doc.fillOpacity(1).fillColor(primary).font('Helvetica-Bold').fontSize(7.5)
+           .text('ALLOCATION BREAKDOWN', margin + 6, y + 5, { lineBreak: false });
+        y += 17;
+
+        allocations.forEach(function(al) {
+          var alSt   = al.studentId      || null;
+          var alFs   = al.feeStructureId || null;
+          var alCp   = al.campaignId     || null;
+          var alDesc = alSt  ? (alSt.name || '')   + (alFs ? ' — ' + alFs.name : '')
+                     : alCp  ? (alCp.title || 'Campaign')
+                     :          'General contribution';
+
+          doc.strokeColor('#eeeeee').lineWidth(0.25)
+             .moveTo(margin, y).lineTo(margin + usable, y).stroke();
+          doc.fillColor('#1a1a2e').font('Helvetica').fontSize(7.5)
+             .text(alDesc, margin + 6, y + 3,
+                   { width: usable - 80, lineBreak: false, ellipsis: true });
+          doc.fillColor(primary).font('Helvetica-Bold').fontSize(7.5)
+             .text(fmtAmount(al.amount, al.currency || payment.currency),
+                   margin + usable - 70, y + 3,
+                   { width: 70, lineBreak: false, align: 'right' });
+          y += 17;
+        });
+      }
+
+      /* ---- Payment account note (safe display only) ---- */
+      var payAcct = payment.paymentAccountId;
+      if (payAcct && payAcct.bankName) {
+        y += 4;
+        doc.fillColor('#aaaaaa').font('Helvetica').fontSize(7)
+           .text('Received into: ' + (payAcct.accountLabel || payAcct.bankName) +
+                 ' · ' + (payAcct.accountName || '') +
+                 ' · ' + (payAcct.currency || payment.currency || ''),
+                 margin, y, { width: usable });
+        y += 15;
+      }
+
+      /* ---- Footer ---- */
+      var footerY = doc.page.height - 44;
+      if (y > footerY - 10) { doc.addPage(); footerY = doc.page.height - 44; }
+
+      doc.fillColor(primary).fillOpacity(0.05)
+         .rect(0, footerY, W, 44).fill();
+      doc.fillOpacity(1).fillColor('#888888').font('Helvetica').fontSize(6.5)
+         .text('This is an official receipt issued by ' +
+               (school && school.name ? school.name : 'the school') +
+               ' via the LatLomp Education Platform.',
+               margin, footerY + 9, { width: usable, align: 'center' });
+      doc.fontSize(6)
+         .text('Generated: ' + fmtDateTime(new Date()),
+               margin, footerY + 22, { width: usable, align: 'center' });
+      doc.text('LatLomp records confirmed payments — it does not hold or process school funds.',
+               margin, footerY + 33, { width: usable, align: 'center' });
+
+      doc.end();
+    } catch(err) { reject(err); }
+  });
+}
+
 module.exports = {
   generateReceiptPDF,
+  generateClaimReceiptPDF,          /* P8 */
   generateStatementPDF,
   generateStatementExcel,
   fmtAmount,

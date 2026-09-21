@@ -6,6 +6,7 @@
   <title>Finance — LatLomp Schools</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -182,6 +183,57 @@
     .claim-detail-value { color:#fff; font-weight:600; text-align:right; }
     .btn-verify  { background:linear-gradient(135deg,var(--green),#38f9d7); color:#0f0f1a; }
     .btn-verify:hover { transform:translateY(-1px); box-shadow:0 4px 14px rgba(67,233,123,0.3); }
+    
+    /* ---- P7: Student progress panel in finance ---- */
+    .student-progress-panel { background:var(--dark-2); border:1px solid var(--border); border-radius:14px; margin-top:16px; overflow:hidden; animation:fadeUp 0.2s ease; }
+    .student-progress-panel-head { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--border); background:rgba(255,255,255,0.02); flex-wrap:wrap; gap:8px; }
+    .student-progress-panel-head h4 { font-size:13px; font-weight:700; margin:0; }
+    .fin-progress-item { padding:12px 16px; border-bottom:1px solid var(--border); }
+    .fin-progress-item:last-child { border-bottom:none; }
+    .fin-progress-name { font-size:13px; font-weight:700; color:#fff; margin-bottom:2px; }
+    .fin-progress-term { font-size:11px; color:var(--muted); margin-bottom:7px; }
+    .fin-progress-bar-track { background:rgba(255,255,255,0.06); border-radius:5px; height:7px; overflow:hidden; margin-bottom:5px; }
+    .fin-progress-bar-fill  { height:100%; border-radius:5px; transition:width 0.4s ease; }
+    .fin-progress-row { display:flex; justify-content:space-between; font-size:11px; color:var(--secondary); flex-wrap:wrap; gap:6px; }
+    .out-student-link { color:#fff; text-decoration:none; font-weight:700; cursor:pointer; }
+    .out-student-link:hover { color:#a78bfa; }
+    .fin-mini-bar-track { background:rgba(255,255,255,0.06); border-radius:3px; height:5px; overflow:hidden; margin-top:4px; }
+    .fin-mini-bar-fill  { height:100%; border-radius:3px; }
+
+    /* ---- P8: Receipt viewer modal ---- */
+    .receipt-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:700; display:flex; align-items:center; justify-content:center; padding:20px; overflow-y:auto; }
+    .receipt-modal-box { background:#f4f4f8; border-radius:16px; width:100%; max-width:440px; max-height:92vh; overflow-y:auto; box-shadow:0 24px 60px rgba(0,0,0,0.5); }
+    .receipt-modal-toolbar { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:var(--dark-2); border-radius:16px 16px 0 0; gap:8px; flex-wrap:wrap; }
+    .receipt-modal-toolbar h3 { font-size:13px; font-weight:800; color:#fff; margin:0; flex:1; }
+    /* Receipt card itself — white background for HTML render */
+    .receipt-card { background:#fff; padding:24px; font-family:'Inter',sans-serif; color:#1a1a2e; }
+    .receipt-card-header { background:var(--primary); border-radius:10px; padding:18px; margin-bottom:18px; display:flex; align-items:center; gap:12px; }
+    .receipt-card-school-logo { width:44px; height:44px; border-radius:8px; background:rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-weight:900; font-size:18px; color:#fff; overflow:hidden; flex-shrink:0; }
+    .receipt-card-school-logo img { width:100%; height:100%; object-fit:cover; }
+    .receipt-card-school-name { font-size:14px; font-weight:800; color:#fff; }
+    .receipt-card-school-sub  { font-size:11px; color:rgba(255,255,255,0.7); margin-top:2px; }
+    .receipt-number-band { background:rgba(108,99,255,0.07); border:1px solid rgba(108,99,255,0.2); border-radius:8px; padding:10px 14px; margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; }
+    .receipt-number-label { font-size:10px; font-weight:700; color:#888; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:3px; }
+    .receipt-number-value { font-size:15px; font-weight:900; color:#1a1a2e; font-family:monospace; }
+    .receipt-verified-badge { background:#43e97b; color:#0f0f1a; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:800; }
+    .receipt-amount-section { text-align:center; padding:14px 0; border-bottom:2px solid #f0f0f8; margin-bottom:12px; }
+    .receipt-amount-label { font-size:11px; font-weight:700; color:#888; text-transform:uppercase; margin-bottom:4px; }
+    .receipt-amount-value { font-size:30px; font-weight:900; color:#1a1a2e; }
+    .receipt-row { display:flex; justify-content:space-between; align-items:flex-start; padding:7px 0; border-bottom:1px solid #f4f4f8; font-size:12px; gap:8px; }
+    .receipt-row:last-child { border-bottom:none; }
+    .receipt-row-label { color:#888; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; flex-shrink:0; }
+    .receipt-row-value { color:#1a1a2e; font-weight:600; text-align:right; word-break:break-word; }
+    .receipt-row-value.accent { color:#6c63ff; font-family:monospace; }
+    .receipt-alloc-section { background:#f8f8ff; border-radius:8px; padding:12px; margin:12px 0; }
+    .receipt-alloc-title { font-size:10px; font-weight:700; color:#888; text-transform:uppercase; margin-bottom:8px; }
+    .receipt-alloc-row { display:flex; justify-content:space-between; font-size:12px; color:#1a1a2e; padding:4px 0; border-bottom:1px solid #ebebf5; }
+    .receipt-alloc-row:last-child { border-bottom:none; }
+    .receipt-footer { background:#f0f0f8; border-radius:8px; padding:10px 12px; margin-top:14px; font-size:10px; color:#999; text-align:center; line-height:1.6; }
+    /* Receipt history section */
+    .receipt-history-row { display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+    .receipt-history-row:last-child { border-bottom:none; }
+    .receipt-rcpt-num { font-family:monospace; font-size:12px; color:#a78bfa; font-weight:700; }
+
   </style>
 </head>
 <body>
@@ -207,6 +259,7 @@
   <button class="tab-btn" onclick="showSection('statements')">📄 Statements</button>
   <button class="tab-btn" onclick="showSection('paymentMethods')">🏦 Methods</button>
   <button class="tab-btn" onclick="showSection('claims')">📨 Claims</button>
+  <button class="tab-btn" onclick="showSection('receipts')">🧾 Receipts</button>
 </div>
 
 <div class="layout">
@@ -225,6 +278,7 @@
     <button class="nav-item"        data-sec="statements"     onclick="showSection('statements')">📄 Statements</button>
     <button class="nav-item" data-sec="paymentMethods" onclick="showSection('paymentMethods')">🏦 Payment Methods</button>
     <button class="nav-item" data-sec="claims" onclick="showSection('claims')">📨 <span>Claims</span><span id="claimsNavBadge" style="display:none;" class="pending-count-badge">0</span></button>
+    <button class="nav-item" data-sec="receipts" onclick="showSection('receipts')">🧾 Receipts</button>
     <div class="nav-sec">Quick Links</div>
     <a href="/institution/school/dashboard.html" class="nav-item">← Back to School</a>
   </nav>
@@ -656,6 +710,38 @@
 
     </div>
     <!-- END PAYMENT METHODS -->
+     <!-- ============ RECEIPT HISTORY (P8) ============ -->
+    <div class="section" id="sec-receipts">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>🧾 Receipt History</h3>
+          <button class="btn btn-secondary btn-sm" onclick="loadReceiptHistory()">↺ Refresh</button>
+        </div>
+        <div class="panel-body">
+          <div class="filter-row">
+            <input type="text"   class="inp" id="rcptSearch"  placeholder="Receipt No. or reference…" style="width:180px;" />
+            <input type="text"   class="inp" id="rcptPayer"   placeholder="Payer name…" style="width:160px;" />
+            <input type="date"   class="inp" id="rcptFrom"    />
+            <input type="date"   class="inp" id="rcptTo"      />
+            <select class="sel"  id="rcptMethod" style="width:130px;">
+              <option value="">All Methods</option>
+              <option value="cash">Cash</option>
+              <option value="bank_transfer">Bank Transfer</option>
+              <option value="paystack">Paystack</option>
+              <option value="cheque">Cheque</option>
+            </select>
+            <button class="btn btn-primary" onclick="searchReceipts()">Search</button>
+          </div>
+          <div id="receiptHistoryWrap">
+            <div style="text-align:center;padding:24px;color:var(--muted);">
+              <span class="spinner"></span> Loading recent receipts…
+            </div>
+          </div>
+          <div id="receiptHistoryPagination" class="pagination"></div>
+        </div>
+      </div>
+    </div>
+    <!-- END RECEIPT HISTORY -->
   </div><!-- end main -->
 
 <!-- ============ CLAIMS (P4) ============ -->
@@ -693,6 +779,28 @@
 </div><!-- end layout -->
 
 <div id="toast"></div>
+
+<!-- ===== P8: RECEIPT VIEWER MODAL ===== -->
+<div class="receipt-modal-overlay" id="receiptViewerModal" style="display:none;" onclick="handleReceiptOverlayClick(event)">
+  <div class="receipt-modal-box">
+    <!-- Toolbar -->
+    <div class="receipt-modal-toolbar">
+      <h3>🧾 Payment Receipt</h3>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn btn-green btn-sm"     id="rcptDownloadPdfBtn" onclick="downloadReceiptPdf()">📄 PDF</button>
+        <button class="btn btn-secondary btn-sm" id="rcptDownloadPngBtn" onclick="downloadReceiptPng()">📷 Image</button>
+        <button class="btn btn-secondary btn-sm" onclick="closeReceiptViewer()">✕</button>
+      </div>
+    </div>
+    <!-- Receipt card (captured by html2canvas for PNG) -->
+    <div id="receiptCardWrap">
+      <div style="padding:40px;text-align:center;color:var(--muted);">
+        <span class="spinner"></span> Building receipt…
+      </div>
+    </div>
+  </div>
+</div>
+<!-- END RECEIPT VIEWER MODAL -->
 
 <!-- ===== P5: VERIFICATION ACTION MODAL ===== -->
 <div class="modal-overlay" id="verifyActionModal" style="display:none;">
@@ -975,7 +1083,7 @@ function api(path, method, body) {
 }
 
 function showSection(name) {
-  var sections = ['dashboard','transactions','outstanding','analytics','reconciliation','donations','refunds','statements','paymentMethods','claims'];
+  var sections = ['dashboard','transactions','outstanding','analytics','reconciliation','donations','refunds','statements','paymentMethods','claims','receipts'];
   sections.forEach(function(s) {
     var el = document.getElementById('sec-' + s);
     if (el) el.style.display = s === name ? 'block' : 'none';
@@ -996,6 +1104,7 @@ function showSection(name) {
   if (name === 'refunds')        loadRefunds();
   if (name === 'paymentMethods') loadPaymentMethods();
   if (name === 'claims')         loadClaimsSection();
+  if (name === 'receipts')       loadReceiptHistory();
 }
 
 /* ---- Period ---- */
@@ -1155,13 +1264,24 @@ async function loadOutstanding(page) {
         var tm = a.termId       || {};
         var statusClass = a.status === 'paid' ? 'badge-green' : a.status === 'partial' ? 'badge-orange' : 'badge-red';
         return '<tr>' +
-          '<td style="font-weight:700;color:#fff;">' + esc(st.name || '—') +
-            '<br/><span style="font-size:11px;color:var(--muted);">' + esc(st.admissionNo || '') + '</span></td>' +
+          '<td>' +
+          '<a class="out-student-link" href="#" ' +
+            'onclick="event.preventDefault();showStudentProgressPanel(\'' + esc(st._id || '') + '\',\'' + esc(st.name || '') + '\')">' +
+            esc(st.name || '—') + '</a>' +
+          '<br/><span style="font-size:11px;color:var(--muted);">' + esc(st.admissionNo || '') + '</span>' +
+        '</td>' +
           '<td style="font-size:12px;">' + esc(st.class || '—') + '</td>' +
           '<td style="font-size:12px;">' + esc(fs.name || '—') + '<br/><span style="font-size:10px;color:var(--muted);">' + esc(tm.name || '') + '</span></td>' +
           '<td style="color:#fff;">' + fmt(a.amountDue) + '</td>' +
           '<td style="color:var(--green);">' + fmt(a.amountPaid) + '</td>' +
-          '<td style="color:var(--red);font-weight:700;">' + fmt(a.balance) + '</td>' +
+          '<td>' +
+            '<div style="font-weight:700;color:var(--red);">' + fmt(a.balance) + '</div>' +
+            (a.amountDue > 0
+              ? '<div class="fin-mini-bar-track"><div class="fin-mini-bar-fill" style="width:' +
+                  Math.min(100, Math.round(((a.amountPaid || 0) / a.amountDue) * 100)) + '%;' +
+                  'background:' + ((a.amountPaid || 0) > 0 ? 'var(--orange)' : 'var(--red)') + ';"></div></div>'
+              : '') +
+          '</td>' +
           '<td><span class="badge ' + statusClass + '">' + esc(a.status) + '</span></td>' +
         '</tr>';
       }).join('') + '</tbody></table></div>';
@@ -1752,6 +1872,342 @@ async function deletePaymentMethod(id, label) {
     showToast('❌ ' + ((data && data.message) || 'Delete failed.'));
   }
 
+
+/* ============================================
+     P8: RECEIPT VIEWER + HISTORY
+  ============================================ */
+  var _currentReceiptClaimId  = '';
+  var _currentReceiptData     = null;
+  var _receiptHistoryPage     = 1;
+
+  /* ---- Receipt viewer ---- */
+  async function openReceiptViewer(claimId) {
+    _currentReceiptClaimId = claimId;
+    _currentReceiptData    = null;
+
+    var modal   = document.getElementById('receiptViewerModal');
+    var wrapEl  = document.getElementById('receiptCardWrap');
+    if (!modal || !wrapEl) return;
+
+    wrapEl.innerHTML = '<div style="padding:40px;text-align:center;color:#888;">' +
+      '<span class="spinner" style="border-color:rgba(0,0,0,0.2);border-top-color:#6c63ff;"></span>' +
+      ' Building receipt…</div>';
+    modal.style.display = 'flex';
+
+    /* Fetch claim detail (includes resultPaymentId populated) */
+    var claimRes = await feeApi('/claims/' + claimId);
+    if (!claimRes.ok || !claimRes.data.success) {
+      wrapEl.innerHTML = '<div style="padding:24px;text-align:center;color:#ff6584;">Could not load receipt data.</div>';
+      return;
+    }
+    var claim   = claimRes.data.claim;
+    var payment = claim.resultPaymentId || {};
+
+    /* Fetch full payment + allocations from finance transaction endpoint */
+    var txnRes  = null;
+    var allocations = [];
+    if (payment._id || payment) {
+      var payId = payment._id || payment;
+      txnRes    = await api('/transactions/' + payId);
+      if (txnRes.ok && txnRes.data.success) {
+        allocations = txnRes.data.transaction.allocations || [];
+      }
+    }
+
+    _currentReceiptData = { claim, payment: txnRes ? txnRes.data.transaction : payment, allocations };
+
+    /* Build HTML receipt card */
+    wrapEl.innerHTML = buildReceiptCard(_currentReceiptData);
+  }
+
+  function closeReceiptViewer() {
+    var modal = document.getElementById('receiptViewerModal');
+    if (modal) modal.style.display = 'none';
+    _currentReceiptClaimId = '';
+    _currentReceiptData    = null;
+  }
+
+  function handleReceiptOverlayClick(e) {
+    if (e.target === document.getElementById('receiptViewerModal')) {
+      closeReceiptViewer();
+    }
+  }
+
+  function buildReceiptCard(data) {
+    if (!data) return '<div style="padding:24px;text-align:center;color:#ff6584;">No receipt data.</div>';
+    var claim    = data.claim    || {};
+    var payment  = data.payment  || {};
+    var allocations = data.allocations || [];
+    var receiptNum  = payment.receiptNumber || '—';
+
+    /* School info injected via topbar if available */
+    var schoolName = (document.getElementById('topbarSchool') || {}).textContent || 'School';
+
+    /* Payer type label */
+    var ptMap = {
+      parent:'Parent / Guardian', student:'Student', alumni:'Alumni',
+      staff:'Staff', external:'External', organisation:'Organisation'
+    };
+    var payerTypeLabel = ptMap[payment.payerType || claim.payerType] || (payment.payerType || '');
+
+    /* Method label */
+    var mMap = { cash:'Cash', bank_transfer:'Bank Transfer', paystack:'Paystack Online', cheque:'Cheque' };
+    var methodLabel = mMap[payment.method] || (payment.method || '—');
+
+    function row(label, value, accent) {
+      return '<div class="receipt-row">' +
+        '<span class="receipt-row-label">' + esc(label) + '</span>' +
+        '<span class="receipt-row-value' + (accent ? ' accent' : '') + '">' + esc(String(value || '—')) + '</span>' +
+      '</div>';
+    }
+
+    var studentRows = '';
+    var purposeRows = '';
+    if (allocations.length === 1) {
+      var al = allocations[0];
+      var st = al.studentId      || null;
+      var fs = al.feeStructureId || null;
+      var cp = al.campaignId     || null;
+      if (st) studentRows += row('Student', (st.name || '') + (st.admissionNo ? ' · ' + st.admissionNo : ''));
+      if (fs) purposeRows += row('Purpose', fs.name  || '');
+      else if (cp) purposeRows += row('Campaign', cp.title || '');
+    } else if (allocations.length > 1) {
+      purposeRows += row('Allocations', allocations.length + ' items — see breakdown');
+    }
+
+    var allocHtml = '';
+    if (allocations.length > 1) {
+      allocHtml = '<div class="receipt-alloc-section">' +
+        '<div class="receipt-alloc-title">Allocation Breakdown</div>' +
+        allocations.map(function(al) {
+          var alSt = al.studentId      || null;
+          var alFs = al.feeStructureId || null;
+          var alCp = al.campaignId     || null;
+          var desc = alSt  ? (alSt.name || '') + (alFs ? ' — ' + alFs.name : '')
+                   : alCp  ? (alCp.title || 'Campaign')
+                   :          'General contribution';
+          return '<div class="receipt-alloc-row">' +
+            '<span>' + esc(desc) + '</span>' +
+            '<span style="font-weight:700;">' +
+              fmtCurrencyDisplay(al.amount, al.currency || payment.currency) + '</span>' +
+          '</div>';
+        }).join('') +
+      '</div>';
+    }
+
+    /* Verified by */
+    var verifiedBy = (payment.verifiedBy && payment.verifiedBy.name)
+      ? payment.verifiedBy.name : '';
+    var verifiedAt = payment.verifiedAt ? fmtDate(payment.verifiedAt) : '';
+
+    /* Account info */
+    var acctInfo = '';
+    var acct     = payment.paymentAccountId;
+    if (acct && acct.bankName) {
+      acctInfo = row('Received Into',
+        (acct.accountLabel || acct.bankName) + ' · ' + (acct.accountName || '') +
+        ' · ' + (acct.currency || payment.currency || ''));
+    }
+
+    return '<div class="receipt-card" id="receiptCardInner">' +
+
+      /* Header */
+      '<div class="receipt-card-header">' +
+        '<div class="receipt-card-school-logo">🏫</div>' +
+        '<div>' +
+          '<div class="receipt-card-school-name">' + esc(schoolName.toUpperCase()) + '</div>' +
+          '<div class="receipt-card-school-sub">OFFICIAL PAYMENT RECEIPT</div>' +
+        '</div>' +
+      '</div>' +
+
+      /* Receipt number + verified */
+      '<div class="receipt-number-band">' +
+        '<div>' +
+          '<div class="receipt-number-label">Receipt Number</div>' +
+          '<div class="receipt-number-value">' + esc(receiptNum) + '</div>' +
+        '</div>' +
+        '<span class="receipt-verified-badge">✓ VERIFIED</span>' +
+      '</div>' +
+
+      /* Amount */
+      '<div class="receipt-amount-section">' +
+        '<div class="receipt-amount-label">Amount Paid</div>' +
+        '<div class="receipt-amount-value">' +
+          fmtCurrencyDisplay(payment.amount || claim.amount || 0,
+                             payment.currency || claim.currency) +
+        '</div>' +
+      '</div>' +
+
+      /* Details */
+      row('Payer', payment.payerName || claim.payerName) +
+      (payerTypeLabel ? row('Payer Type', payerTypeLabel) : '') +
+      studentRows + purposeRows +
+      row('Method',         methodLabel) +
+      (payment.externalRef ? row('Bank Ref', payment.externalRef, true) : '') +
+      row('Payment Date',   fmtDate(payment.recordedAt || claim.paymentDate || '')) +
+      (verifiedBy ? row('Verified By', verifiedBy) : '') +
+      (verifiedAt ? row('Verified At', verifiedAt) : '') +
+      acctInfo +
+      row('Status', 'CONFIRMED') +
+
+      /* Allocation breakdown */
+      allocHtml +
+
+      /* Footer */
+      '<div class="receipt-footer">' +
+        'This receipt was issued by ' + esc(schoolName) + ' via the LatLomp Education Platform.<br/>' +
+        'Generated: ' + fmtDate(new Date().toISOString()) +
+      '</div>' +
+    '</div>';
+  }
+
+  /* Utility: currency display for receipt card (white background) */
+  function fmtCurrencyDisplay(amount, currency) {
+    var symbols = { NGN:'₦', USD:'$', EUR:'€', GBP:'£', GHS:'₵', KES:'KSh', ZAR:'R' };
+    var sym = currency ? (symbols[currency] || currency + ' ') : '₦';
+    return sym + Number(amount || 0).toLocaleString('en-NG', {
+      minimumFractionDigits: 2, maximumFractionDigits: 2
+    });
+  }
+
+  /* Download PDF via the richer /claims/:id/receipt endpoint */
+  function downloadReceiptPdf() {
+    if (!_currentReceiptClaimId) return;
+    var btn = document.getElementById('rcptDownloadPdfBtn');
+    if (btn) { btn.innerHTML = '⏳ Downloading…'; btn.disabled = true; }
+    var a = document.createElement('a');
+    a.href     = '/api/institution/finance/claims/' + _currentReceiptClaimId + '/receipt';
+    a.target   = '_blank';
+    a.download = 'Receipt_' + _currentReceiptClaimId + '.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function() {
+      if (btn) { btn.innerHTML = '📄 PDF'; btn.disabled = false; }
+    }, 2500);
+  }
+
+  /* Download PNG via html2canvas (client-side — no server dependency) */
+  async function downloadReceiptPng() {
+    var btn = document.getElementById('rcptDownloadPngBtn');
+    if (btn) { btn.innerHTML = '⏳ Capturing…'; btn.disabled = true; }
+
+    var el = document.getElementById('receiptCardInner');
+    if (!el) {
+      if (btn) { btn.innerHTML = '📷 Image'; btn.disabled = false; }
+      showToast('❌ Receipt card not rendered.');
+      return;
+    }
+
+    try {
+      if (typeof html2canvas === 'undefined') {
+        showToast('❌ Image library not loaded. Try again.');
+        if (btn) { btn.innerHTML = '📷 Image'; btn.disabled = false; }
+        return;
+      }
+
+      var canvas = await html2canvas(el, {
+        scale:           2,           /* 2× for retina-quality PNG */
+        useCORS:         true,
+        backgroundColor: '#ffffff',
+        logging:         false
+      });
+
+      var link = document.createElement('a');
+      link.download = 'Receipt_' + (_currentReceiptData && _currentReceiptData.payment
+        ? (_currentReceiptData.payment.receiptNumber || 'receipt') : 'receipt') + '.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      showToast('✅ Receipt image saved.');
+    } catch(e) {
+      console.error('[P8] html2canvas error:', e);
+      showToast('❌ Image capture failed. Download PDF instead.');
+    }
+
+    if (btn) { btn.innerHTML = '📷 Image'; btn.disabled = false; }
+  }
+
+  /* ---- Receipt History ---- */
+  async function loadReceiptHistory() {
+    searchReceipts();
+  }
+
+  async function searchReceipts() {
+    var wrap = document.getElementById('receiptHistoryWrap');
+    if (!wrap) return;
+    wrap.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);"><span class="spinner"></span></div>';
+
+    var rcptNum = ((document.getElementById('rcptSearch')  || {}).value || '').trim();
+    var payer   = ((document.getElementById('rcptPayer')   || {}).value || '').trim();
+    var from    = (document.getElementById('rcptFrom')     || {}).value || '';
+    var to      = (document.getElementById('rcptTo')       || {}).value || '';
+    var method  = (document.getElementById('rcptMethod')   || {}).value || '';
+
+    var query = '?status=confirmed&limit=25&page=' + _receiptHistoryPage;
+    if (rcptNum) query += '&receiptNumber=' + encodeURIComponent(rcptNum);
+    if (payer)   query += '&payerName='     + encodeURIComponent(payer);
+    if (from)    query += '&from='          + from;
+    if (to)      query += '&to='            + to;
+    if (method)  query += '&method='        + method;
+
+    var res  = await api('/receipts/search' + query);
+    var data = res.data;
+
+    if (!res.ok || !data.success) {
+      wrap.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div>' +
+        '<div class="empty-title">Could not load receipts.</div></div>';
+      return;
+    }
+
+    var receipts = data.receipts || [];
+    if (!receipts.length) {
+      wrap.innerHTML = '<div class="empty"><div class="empty-icon">🧾</div>' +
+        '<div class="empty-title">No receipts found.</div>' +
+        '<div class="empty-sub">Try adjusting your search filters.</div></div>';
+      document.getElementById('receiptHistoryPagination').innerHTML = '';
+      return;
+    }
+
+    wrap.innerHTML = '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;">' +
+      receipts.map(function(t) {
+        var st  = t.studentId    || {};
+        var fs  = t.feeStructureId || {};
+        var mMap = { cash:'Cash', bank_transfer:'Bank Transfer', paystack:'Paystack', cheque:'Cheque' };
+        var methodBadge = mMap[t.method] || t.method || '';
+        /* Prefer payerName (P6 field) over student name */
+        var displayName = t.payerName ? t.payerName :
+          (st.name ? st.name + (st.admissionNo ? ' (' + st.admissionNo + ')' : '') : '—');
+
+        return '<div class="receipt-history-row">' +
+          '<div style="min-width:0;flex:1;">' +
+            '<div style="font-weight:700;color:#fff;font-size:13px;">' + esc(displayName) + '</div>' +
+            '<div style="font-size:11px;color:var(--muted);">' +
+              esc(fs.name || t.note || '') + '</div>' +
+          '</div>' +
+          '<div style="text-align:right;flex-shrink:0;">' +
+            '<div style="font-weight:700;color:var(--green);">' + fmt(t.amount) + '</div>' +
+            '<div style="font-size:11px;color:var(--muted);">' + fmtDate(t.recordedAt) + '</div>' +
+          '</div>' +
+          '<div style="flex-shrink:0;min-width:90px;text-align:right;">' +
+            '<div class="receipt-rcpt-num">' + esc(t.receiptNumber || '—') + '</div>' +
+            '<span class="badge badge-muted" style="font-size:10px;">' + esc(methodBadge) + '</span>' +
+          '</div>' +
+          '<div style="flex-shrink:0;display:flex;gap:5px;">' +
+            (t.claimId
+              ? '<button class="btn btn-green btn-sm" ' +
+                  'onclick="openReceiptViewer(\'' + esc(t.claimId) + '\')">🧾</button>'
+              : '') +
+            '<a href="/api/institution/finance/transactions/' + esc(t._id) +
+              '/receipt" target="_blank" class="btn btn-secondary btn-sm">📄</a>' +
+          '</div>' +
+        '</div>';
+      }).join('') +
+    '</div>';
+
+    renderPagination('receiptHistoryPagination', _receiptHistoryPage,
+      data.pages || 1, function(p) { _receiptHistoryPage = p; searchReceipts(); });
+  }
+
 /* ============================================
      P5: VERIFICATION ACTIONS
      Verify / Reject / Request Correction
@@ -1930,6 +2386,115 @@ async function deletePaymentMethod(id, label) {
     }
   }
 
+
+/* ============================================
+     P7: STUDENT PROGRESS PANEL IN FINANCE
+     Shown inline below the outstanding table
+     when a staff member clicks a student name.
+  ============================================ */
+  var _finProgressStudentId = '';
+
+  async function showStudentProgressPanel(studentId, studentName) {
+    if (!studentId) return;
+    _finProgressStudentId = studentId;
+
+    /* Remove any existing panel */
+    var old = document.getElementById('finStudentProgressPanel');
+    if (old) old.remove();
+
+    /* Create and inject panel below outstanding section */
+    var outSection = document.getElementById('sec-outstanding');
+    if (!outSection) return;
+
+    var panel = document.createElement('div');
+    panel.id  = 'finStudentProgressPanel';
+    panel.className = 'student-progress-panel';
+    panel.innerHTML =
+      '<div class="student-progress-panel-head">' +
+        '<h4>📈 ' + esc(studentName) + ' — Fee Progress</h4>' +
+        '<div style="display:flex;gap:8px;">' +
+          '<button class="btn btn-secondary btn-sm" onclick="showStudentProgressPanel(\'' + esc(studentId) + '\',\'' + esc(studentName) + '\')">↺</button>' +
+          '<button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'finStudentProgressPanel\').remove()">✕</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="finStudentProgressBody" style="padding:16px;text-align:center;color:var(--muted);">' +
+        '<span class="spinner"></span> Loading progress…' +
+      '</div>';
+    outSection.appendChild(panel);
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    /* Load from the new progress endpoint */
+    var res  = await feeApi('/students/' + studentId + '/progress');
+    var data = res.data;
+    var bodyEl = document.getElementById('finStudentProgressBody');
+    if (!bodyEl) return;
+
+    if (!res.ok || !data.success) {
+      bodyEl.innerHTML = '<div style="color:var(--red);">Could not load progress data.</div>';
+      return;
+    }
+
+    var summary = data.summary || {};
+    var items   = data.progressItems || [];
+
+    if (!items.length) {
+      bodyEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">No fee obligations found for this student.</div>';
+      return;
+    }
+
+    /* Summary row */
+    var overallPct   = summary.overallPercentage || 0;
+    var summaryHtml  =
+      '<div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">' +
+        '<div style="flex:1;min-width:200px;">' +
+          '<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">Overall Progress</div>' +
+          '<div class="fin-progress-bar-track" style="height:10px;">' +
+            '<div class="fin-progress-bar-fill" style="width:' + overallPct + '%;' +
+              'background:' + (overallPct >= 100 ? 'var(--green)' : overallPct > 0 ? 'var(--orange)' : 'var(--red)') + ';"></div>' +
+          '</div>' +
+          '<div style="font-size:11px;color:var(--secondary);margin-top:4px;">' + overallPct + '%</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:16px;flex-wrap:wrap;">' +
+          '<div style="text-align:center;">' +
+            '<div style="font-size:14px;font-weight:800;color:var(--green);">' + fmt(summary.totalAllocated || 0) + '</div>' +
+            '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Verified Paid</div>' +
+          '</div>' +
+          '<div style="text-align:center;">' +
+            '<div style="font-size:14px;font-weight:800;color:var(--red);">' + fmt(summary.totalRemaining || 0) + '</div>' +
+            '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Remaining</div>' +
+          '</div>' +
+          '<div style="text-align:center;">' +
+            '<div style="font-size:14px;font-weight:800;color:#fff;">' + fmt(summary.totalRequired || 0) + '</div>' +
+            '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Required</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    /* Per-obligation rows */
+    var rowsHtml = items.map(function(item) {
+      var p   = item.progress || {};
+      var fs  = item.feeStructureId || {};
+      var tm  = item.termId || {};
+      var pct = p.percentage || 0;
+      var barBg = p.status === 'paid' ? 'var(--green)'
+                : p.status === 'partial' ? 'var(--orange)'
+                : 'var(--red)';
+      return '<div class="fin-progress-item">' +
+        '<div class="fin-progress-name">' + esc(fs.name || 'Fee') + '</div>' +
+        '<div class="fin-progress-term">' + esc(tm.name || 'All Terms') + (tm.session ? ' · ' + esc(tm.session) : '') + '</div>' +
+        '<div class="fin-progress-bar-track"><div class="fin-progress-bar-fill" style="width:' + pct + '%;background:' + barBg + ';"></div></div>' +
+        '<div class="fin-progress-row">' +
+          '<span style="color:' + barBg + ';font-weight:700;">' + pct + '%</span>' +
+          '<span>' + fmt(p.totalAllocated || 0) + ' / ' + fmt(p.netObligation || 0) + '</span>' +
+          '<span class="badge ' + (p.status === 'paid' ? 'badge-green' : p.status === 'partial' ? 'badge-orange' : 'badge-red') + '" style="font-size:10px;">' +
+            esc(p.status === 'not_paid' ? 'Not Paid' : p.status === 'partial' ? 'Partial' : p.status === 'paid' ? 'Paid' : esc(p.status)) + '</span>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    bodyEl.innerHTML = summaryHtml + rowsHtml;
+  }
+
   /* ============================================
      P4: PAYMENT CLAIMS — FINANCE SIDE
      Staff can submit claims, see pending queue,
@@ -2040,11 +2605,10 @@ async function deletePaymentMethod(id, label) {
           '<span style="font-size:11px;color:var(--muted);flex:1;">Submitted ' + fmtDate(c.createdAt) +
             (c.submittedByName ? ' by ' + esc(c.submittedByName) : '') + '</span>' +
 
-          /* ---- P6: Receipt download (verified claims with a payment) ---- */
+          /* ---- P8: Receipt options (verified claims with a payment) ---- */
           (c.status === 'verified' && c.resultPaymentId
-            ? '<a href="/api/institution/finance/transactions/' +
-                esc(c.resultPaymentId._id || c.resultPaymentId) +
-                '/receipt" target="_blank" class="btn btn-green btn-sm">⬇ Receipt</a>'
+            ? '<button class="btn btn-green btn-sm" ' +
+                'onclick="openReceiptViewer(\'' + esc(c._id) + '\')">🧾 Receipt</button>'
             : '') +
 
           /* ---- P6: Payment result badge ---- */
@@ -2289,6 +2853,15 @@ function doLogout() {
   localStorage.removeItem('instToken');
   localStorage.removeItem('latlomp_token');
   window.location.replace('/institution/index.html');
+}
+/* Navigate to Student Progress section pre-selecting a student */
+function viewStudentProgress(studentId, studentName) {
+  showSection('progress');
+  if (studentId) {
+    var searchEl = document.getElementById('progressStudentSearch');
+    if (searchEl) searchEl.value = studentName;
+    loadStudentProgress(studentId, studentName);
+  }
 }
 </script>
 </body>

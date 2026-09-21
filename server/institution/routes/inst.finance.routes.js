@@ -21,6 +21,7 @@ const financeService  = require('../services/finance.service');
 const SchoolPaymentClaim = require('../models/SchoolPaymentClaim.model');
 const SchoolPaymentAllocation = require('../models/SchoolPaymentAllocation.model');
 const financePdf      = require('../services/finance.pdf.service');
+const { generateClaimReceiptPDF } = financePdf;
 const {
   instProtect, schoolAdminOnly,
   seniorStaffOrAdmin, canManageStudents, teacherOrAdmin
@@ -1468,6 +1469,150 @@ router.post('/claims/:id/request-correction', staffGuard, async function(req, re
 
   } catch(err) {
     console.error('[finance] POST /claims/:id/request-correction:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   P8 — RECEIPT ROUTES
+
+   GET /api/institution/finance/claims/:id/receipt
+   Rich PDF receipt for claim-verified payments.
+   Includes payer context, campaign info,
+   allocation breakdown — all the P6 provenance
+   that the existing /transactions/:id/receipt
+   does not include.
+
+   GET /api/institution/finance/receipts/search
+   Paginated receipt search across SchoolFeePayment
+   records. Supports receiptNumber, payer name,
+   date range, method, status filters.
+   Reuses getTransactions() from finance.service.js.
+============================================ */
+
+/* GET /api/institution/finance/claims/:id/receipt */
+router.get('/claims/:id/receipt', readGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid claim ID.' });
+    }
+
+    /* Step 1: Load and tenant-scope the claim */
+    var claim = await SchoolPaymentClaim.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId          /* TENANT SCOPE + IDOR */
+    }).lean();
+
+    if (!claim) {
+      return res.status(404).json({ success: false, message: 'Claim not found.' });
+    }
+    if (claim.status !== 'verified' || !claim.resultPaymentId) {
+      return res.status(400).json({
+        success:  false,
+        message:  'Receipt is only available for verified claims with a confirmed payment.'
+      });
+    }
+
+    /* Step 2: Load the authoritative payment with full P6 provenance */
+    var SchoolFeePaymentModel = require('../models/SchoolFeePayment.model');
+    var payment = await SchoolFeePaymentModel.findOne({
+      _id:      claim.resultPaymentId,
+      schoolId: req.schoolId          /* TENANT SCOPE */
+    })
+    .populate('verifiedBy',       'name')
+    .populate('paymentAccountId', 'accountLabel bankName accountName currency')
+    .lean();
+
+    if (!payment) {
+      return res.status(404).json({ success: false, message: 'Payment record not found.' });
+    }
+
+    /* Step 3: Load allocations for this payment */
+    var SchoolPaymentAllocation = require('../models/SchoolPaymentAllocation.model');
+    var allocations = await SchoolPaymentAllocation.find({
+      paymentId: payment._id,
+      schoolId:  req.schoolId         /* TENANT SCOPE */
+    })
+    .populate('studentId',      'name admissionNo class')
+    .populate('feeStructureId', 'name category')
+    .populate('campaignId',     'title category')
+    .lean();
+
+    /* Step 4: Load school branding */
+    var school = await School.findById(req.schoolId)
+      .select('name logo address phone email primaryColor').lean();
+
+    /* Step 5: Generate PDF */
+    var pdfBuffer;
+    try {
+      pdfBuffer = await generateClaimReceiptPDF(payment, allocations, school);
+    } catch(pdfErr) {
+      if (pdfErr.message && pdfErr.message.includes('pdfkit')) {
+        return res.status(503).json({
+          success: false,
+          message: 'PDF service unavailable. Run: npm install pdfkit'
+        });
+      }
+      throw pdfErr;
+    }
+
+    /* Step 6: Serve as downloadable PDF */
+    var filename = 'Receipt_' + (payment.receiptNumber || payment._id) +
+                   '_' + (payment.payerName || 'payer').replace(/[^a-zA-Z0-9]/g, '_') +
+                   '.pdf';
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"');
+    res.setHeader('Content-Length', pdfBuffer.length);
+    return res.end(pdfBuffer);
+
+  } catch(err) {
+    console.error('[finance] GET /claims/:id/receipt:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* GET /api/institution/finance/receipts/search
+   Dedicated receipt search.
+   Reuses financeService.getTransactions() with targeted filters.
+   Supports: receiptNumber (partial match), payerName,
+             dateFrom, dateTo, method, status.
+   All results include their receiptNumber for download.
+   TENANT SCOPED through financeService.
+*/
+router.get('/receipts/search', readGuard, async function(req, res) {
+  try {
+    var filters = {
+      status:      req.query.status      || 'confirmed',
+      method:      req.query.method      || '',
+      studentName: req.query.payerName   || '',  /* reuse studentName filter as payer search */
+      from:        req.query.from        || '',
+      to:          req.query.to          || '',
+      ref:         req.query.receiptNumber || req.query.ref || ''
+    };
+
+    /* Strip empties */
+    Object.keys(filters).forEach(function(k) {
+      if (!filters[k]) delete filters[k];
+    });
+
+    var result = await financeService.getTransactions(
+      req.schoolId,
+      filters,
+      req.query.page  || 1,
+      req.query.limit || 20
+    );
+
+    /* Add a pendingCount=0 so the badge logic doesn't break */
+    return res.json({
+      success:  true,
+      receipts: result.transactions || [],
+      total:    result.total        || 0,
+      page:     result.page         || 1,
+      pages:    result.pages        || 1
+    });
+  } catch(err) {
+    console.error('[finance] GET /receipts/search:', err.message);
     return res.status(500).json({ success: false, message: err.message });
   }
 });
