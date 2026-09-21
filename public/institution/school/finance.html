@@ -1908,10 +1908,21 @@ async function deletePaymentMethod(id, label) {
       loadClaimsSection();
       loadClaimsBadge();
 
-      /* If verify produced a payment result (P6 active), reload dashboard badge too */
-      if (_verifyAction === 'verify' && data.paymentResult) {
-        showToast('✅ Payment verified and transaction created (receipt: ' +
-          esc(data.paymentResult.receiptNumber) + ').');
+      /* P6: If verify produced a payment, show receipt info and reload finance data */
+      if (_verifyAction === 'verify') {
+        if (data.paymentResult && data.paymentResult.receiptNumber) {
+          /* Brief delay then show a second toast with the receipt number */
+          setTimeout(function() {
+            showToast('🧾 Receipt: ' + esc(data.paymentResult.receiptNumber) +
+              ' — Click ⬇ Receipt on the claim card to download.');
+          }, 1200);
+          /* Reload dashboard summary figures — a new payment now exists */
+          if (typeof loadDashboard === 'function') loadDashboard();
+        } else {
+          /* P6 engine was not triggered or returned null */
+          showToast('⚠️ Claim verified but transaction engine returned no result. ' +
+            'Record the payment manually in Fee & Payment if needed.');
+        }
       }
     } else {
       var msg = (data && data.message) || 'Action failed.';
@@ -2029,20 +2040,29 @@ async function deletePaymentMethod(id, label) {
           '<span style="font-size:11px;color:var(--muted);flex:1;">Submitted ' + fmtDate(c.createdAt) +
             (c.submittedByName ? ' by ' + esc(c.submittedByName) : '') + '</span>' +
 
+          /* ---- P6: Receipt download (verified claims with a payment) ---- */
+          (c.status === 'verified' && c.resultPaymentId
+            ? '<a href="/api/institution/finance/transactions/' +
+                esc(c.resultPaymentId._id || c.resultPaymentId) +
+                '/receipt" target="_blank" class="btn btn-green btn-sm">⬇ Receipt</a>'
+            : '') +
+
+          /* ---- P6: Payment result badge ---- */
+          (c.status === 'verified' && c.resultPaymentId && c.resultPaymentId.receiptNumber
+            ? '<span style="font-family:monospace;font-size:11px;color:#a78bfa;padding:3px 7px;background:rgba(108,99,255,0.1);border-radius:5px;">' +
+                esc(c.resultPaymentId.receiptNumber) + '</span>'
+            : '') +
+
           /* ---- P5: Verification actions ---- */
-          /* Verify: available for awaiting_verification and needs_correction */
           (c.status === 'awaiting_verification' || c.status === 'needs_correction'
             ? '<button class="btn btn-verify btn-sm" onclick="openVerifyModal(\'' + esc(c._id) + '\',\'verify\')">✅ Verify</button>'
             : '') +
-          /* Reject: same statuses as verify */
           (c.status === 'awaiting_verification' || c.status === 'needs_correction'
             ? '<button class="btn btn-danger btn-sm" onclick="openVerifyModal(\'' + esc(c._id) + '\',\'reject\')">❌ Reject</button>'
             : '') +
-          /* Request Correction: only from awaiting_verification */
           (c.status === 'awaiting_verification'
             ? '<button class="btn btn-orange btn-sm" onclick="openVerifyModal(\'' + esc(c._id) + '\',\'correction\')">🔧 Correction</button>'
             : '') +
-          /* Cancel: only for staff, unverified/uncorrected only */
           (c.status === 'awaiting_verification' || c.status === 'needs_correction'
             ? '<button class="btn btn-secondary btn-sm" onclick="cancelClaim(\'' + esc(c._id) + '\')">Cancel</button>'
             : '') +

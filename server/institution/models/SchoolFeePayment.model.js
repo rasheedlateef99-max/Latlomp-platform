@@ -18,9 +18,12 @@ const mongoose = require('mongoose');
 ============================================ */
 const schoolFeePaymentSchema = new mongoose.Schema({
   schoolId:       { type: mongoose.Schema.Types.ObjectId, ref: 'School',              required: true },
-  studentId:      { type: mongoose.Schema.Types.ObjectId, ref: 'SchoolStudent',       required: true },
-  assignmentId:   { type: mongoose.Schema.Types.ObjectId, ref: 'SchoolFeeAssignment', required: true },
-  feeStructureId: { type: mongoose.Schema.Types.ObjectId, ref: 'SchoolFeeStructure',  required: true },
+  /* P6: studentId, assignmentId, feeStructureId are optional for
+     campaign / donation payments where no student is involved.
+     Existing records already have valid values — this is a safe change. */
+  studentId:      { type: mongoose.Schema.Types.ObjectId, ref: 'SchoolStudent',       default: null },
+  assignmentId:   { type: mongoose.Schema.Types.ObjectId, ref: 'SchoolFeeAssignment', default: null },
+  feeStructureId: { type: mongoose.Schema.Types.ObjectId, ref: 'SchoolFeeStructure',  default: null },
   termId:         { type: mongoose.Schema.Types.ObjectId, ref: 'AcademicTerm',        default: null },
 
   /* ---- Amount ---- */
@@ -69,7 +72,36 @@ const schoolFeePaymentSchema = new mongoose.Schema({
 
   /* ---- Audit ---- */
   recordedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'SchoolUser', default: null },
-  recordedAt: { type: Date, default: Date.now }
+  recordedAt: { type: Date, default: Date.now },
+
+  /* ---- P6: Claim-based payment provenance ----
+     Set when this payment was created from a verified SchoolPaymentClaim.
+     Null for staff-direct payments (cash/bank recorded without a claim).
+     paymentAccountId: ObjectId reference only — bank details never copied. */
+  claimId: {
+    type:    mongoose.Schema.Types.ObjectId,
+    ref:     'SchoolPaymentClaim',
+    default: null
+  },
+  payerId: {
+    type:    mongoose.Schema.Types.ObjectId,
+    default: null
+    /* Flexible ref: SchoolParent._id | SchoolStudent._id |
+                     AlumniProfile._id | SchoolUser._id | null (external) */
+  },
+  payerType:        { type: String, default: '' },
+  payerName:        { type: String, default: '' },
+  paymentAccountId: {
+    type:    mongoose.Schema.Types.ObjectId,
+    ref:     'SchoolManualPaymentAccount',
+    default: null
+  },
+  verifiedBy: {
+    type:    mongoose.Schema.Types.ObjectId,
+    ref:     'SchoolUser',
+    default: null
+  },
+  verifiedAt: { type: Date, default: null }
 }, { timestamps: true });
 
 schoolFeePaymentSchema.index({ schoolId: 1 });

@@ -484,7 +484,25 @@ async function getTransactionById(schoolId, paymentId) {
       .lean();
   }
 
-  return Object.assign({}, payment, { refunds });
+  /* P6: Attach allocation(s) for this payment */
+  var allocations = [];
+  try {
+    var SchoolPaymentAllocation = require('../models/SchoolPaymentAllocation.model');
+    allocations = await SchoolPaymentAllocation.find({
+      paymentId: toObjectId(paymentId),
+      schoolId:  toObjectId(schoolId)    /* TENANT SCOPE */
+    })
+    .populate('assignmentId',   'amountDue amountPaid balance status')
+    .populate('studentId',      'name admissionNo class')
+    .populate('campaignId',     'title category')
+    .populate('feeStructureId', 'name category')
+    .lean();
+  } catch(e) {
+    /* Model not yet available in test environments — non-fatal */
+    console.warn('[finance.service] SchoolPaymentAllocation lookup skipped:', e.message);
+  }
+
+  return Object.assign({}, payment, { refunds, allocations });
 }
 
 /* ============================================

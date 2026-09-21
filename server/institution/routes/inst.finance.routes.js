@@ -19,6 +19,7 @@ const mongoose        = require('mongoose');
 const School          = require('../models/School.model');
 const financeService  = require('../services/finance.service');
 const SchoolPaymentClaim = require('../models/SchoolPaymentClaim.model');
+const SchoolPaymentAllocation = require('../models/SchoolPaymentAllocation.model');
 const financePdf      = require('../services/finance.pdf.service');
 const {
   instProtect, schoolAdminOnly,
@@ -30,6 +31,80 @@ var adminGuard  = [instProtect, schoolAdminOnly,    requireActiveSubscription];
 var seniorGuard = [instProtect, seniorStaffOrAdmin, requireActiveSubscription];
 var manageGuard = [instProtect, canManageStudents,  requireActiveSubscription];
 var readGuard   = [instProtect, teacherOrAdmin,     requireActiveSubscription];
+
+/* ============================================
+   P6 HELPERS
+   Defined at module level so triggerP6Processing
+   can call them. Not exported — used only here.
+============================================ */
+
+/* Atomic receipt number — mirrors the implementation in inst.fee.routes.js
+   Uses the same SchoolCounter keyed 'rcpt:<schoolId>' so both staff-direct
+   and claim-verified payments share a single sequence per school.          */
+async function generateReceiptNumberForClaim(schoolId) {
+  var SchoolCounter    = require('../models/SchoolCounter.model');
+  var SchoolFeePayment = require('../models/SchoolFeePayment.model');
+  var key = 'rcpt:' + schoolId.toString();
+
+  /* Seed on first use — same logic as inst.fee.routes.js */
+  var existing = await SchoolCounter.findOne({ _id: key }).lean();
+  if (!existing) {
+    var seed = await SchoolFeePayment.countDocuments({ schoolId: schoolId });
+    await SchoolCounter.findOneAndUpdate(
+      { _id: key },
+      { $setOnInsert: { seq: seed } },
+      { upsert: true }
+    );
+  }
+
+  var counter = await SchoolCounter.findOneAndUpdate(
+    { _id: key },
+    { $inc: { seq: 1 } },
+    { new: true }
+  );
+
+  var d    = new Date();
+  var date = d.getFullYear().toString() +
+             String(d.getMonth() + 1).padStart(2, '0') +
+             String(d.getDate()).padStart(2, '0');
+  return 'RCP-' + date + '-' + String(counter.seq).padStart(4, '0');
+}
+
+/* Recalculate a fee assignment's balance from all confirmed payments.
+   Mirrors syncAssignmentBalance() in inst.fee.routes.js — kept local
+   to avoid a cross-file dependency on a non-exported function.          */
+async function syncAssignmentBalanceLocal(assignmentId) {
+  try {
+    var SchoolFeeAssignment = require('../models/SchoolFeeAssignment.model');
+    var SchoolFeePayment    = require('../models/SchoolFeePayment.model');
+
+    var assignment = await SchoolFeeAssignment.findById(assignmentId);
+    if (!assignment) return;
+
+    var payments  = await SchoolFeePayment.find({
+      assignmentId: assignmentId,
+      status:       'confirmed'
+    });
+    var totalPaid = payments.reduce(function(s, p) { return s + (p.amount || 0); }, 0);
+    var netDue    = (assignment.amountDue || 0) - (assignment.discount || 0);
+    var balance   = Math.max(0, netDue - totalPaid);
+
+    var newStatus = assignment.status;
+    if (totalPaid <= 0)   newStatus = 'pending';
+    else if (balance > 0) newStatus = 'partial';
+    else                  newStatus = 'paid';
+
+    assignment.amountPaid = totalPaid;
+    assignment.balance    = balance;
+    assignment.status     = newStatus;
+    if (newStatus === 'paid' && !assignment.paidAt) {
+      assignment.paidAt = new Date();
+    }
+    await assignment.save();
+  } catch(err) {
+    console.error('[P6] syncAssignmentBalanceLocal failed:', err.message);
+  }
+}
 
 /* ---- Parse period from query params ---- */
 function parsePeriod(query) {
@@ -881,12 +956,13 @@ router.get('/claims', readGuard, async function(req, res) {
 
     var [claims, total, pendingCount] = await Promise.all([
       SchoolPaymentClaim.find(filter)
-        .populate('feeStructureId',  'name category')
-        .populate('campaignId',      'title category')
-        .populate('studentId',       'name admissionNo class passportPhotoUrl')
-        .populate('assignmentId',    'amountDue amountPaid balance status')
-        .populate('paymentAccountId','accountLabel bankName currency')
-        .populate('submittedBy',     'name email')
+        .populate('feeStructureId',   'name category')
+        .populate('campaignId',       'title category')
+        .populate('studentId',        'name admissionNo class passportPhotoUrl')
+        .populate('assignmentId',     'amountDue amountPaid balance status')
+        .populate('paymentAccountId', 'accountLabel bankName currency')
+        .populate('submittedBy',      'name email')
+        .populate('resultPaymentId',  'receiptNumber amount status verifiedAt') /* P6 */
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -988,21 +1064,129 @@ function notifyClaimDecision(type, claim, school) {
   }
 }
 
-/* ---- P6 hook stub ---- */
-/* P6 replaces this function body with:
-     1. Create SchoolFeePayment (authoritative transaction)
-     2. Create SchoolPaymentAllocation(s)
-     3. Call syncAssignmentBalance() per allocation
-     4. Update SchoolDonationCampaign.totalCollected if campaignId set
-     5. Set claim.resultPaymentId = newPayment._id
-   The function signature stays the same across P5 and P6.
-   The verify route calls it and awaits it — P6 makes it do real work.
-*/
-async function triggerP6Processing(claim, verifiedBy, verifiedByName, schoolId) {
-  /* P6 STUB — intentionally empty in P5.
-     Returns null until P6 implements the full engine.
-     The verify route does not fail if this returns null. */
-  return null;
+/* ============================================
+   P6 — AUTHORITATIVE TRANSACTION + ALLOCATION ENGINE
+
+   Called immediately after a claim is verified.
+   Creates one SchoolFeePayment (authoritative) and
+   one SchoolPaymentAllocation linking it to its purpose.
+
+   MULTI-STUDENT SPLITS (future P9):
+   The standard P6 flow is 1 claim → 1 allocation.
+   P9 will extend the finance UI to allow a finance officer
+   to split one payment across multiple student obligations.
+   The allocation model already supports this — P6 just
+   does not expose the split UI yet.
+
+   ERROR HANDLING:
+   Failures are logged and the function returns null.
+   The claim remains 'verified' — finance staff can
+   investigate and manually record the payment if needed.
+   The claim is never reverted to 'awaiting_verification'
+   by an engine failure.
+============================================ */
+async function triggerP6Processing(claim, verifiedById, verifiedByName, schoolId) {
+  try {
+    var SchoolFeePayment          = require('../models/SchoolFeePayment.model');
+    var SchoolPaymentAllocation   = require('../models/SchoolPaymentAllocation.model');
+    var SchoolFeeAssignment       = require('../models/SchoolFeeAssignment.model');
+    var SchoolDonationCampaign    = require('../models/SchoolDonationCampaign.model');
+
+    /* ---- 1. Generate atomic, concurrency-safe receipt number ---- */
+    var receiptNumber = await generateReceiptNumberForClaim(schoolId);
+
+    /* ---- 2. Resolve termId from assignment (if applicable) ---- */
+    var termId = null;
+    if (claim.assignmentId) {
+      var asgn = await SchoolFeeAssignment.findOne({
+        _id:      claim.assignmentId,
+        schoolId: schoolId              /* TENANT SCOPE */
+      }).select('termId').lean();
+      if (asgn) termId = asgn.termId || null;
+    }
+
+    /* ---- 3. Create the authoritative payment record ----
+       method: 'bank_transfer' — the payer made an external bank transfer.
+       amount: full claim amount — no platform fee on manual transfers.
+       Status is immediately 'confirmed' because the finance officer
+       has already verified receipt of funds before calling this.     */
+    var payment = await SchoolFeePayment.create({
+      schoolId:         schoolId,
+      studentId:        claim.studentId        || null,
+      assignmentId:     claim.assignmentId     || null,
+      feeStructureId:   claim.feeStructureId   || null,
+      termId:           termId,
+      amount:           claim.amount,
+      currency:         claim.currency         || 'NGN',
+      method:           'bank_transfer',
+      externalRef:      claim.reference        || '',
+      receiptNumber,
+      note:             claim.note             || '',
+      status:           'confirmed',
+      /* P6 provenance: who paid and how */
+      claimId:          claim._id,
+      payerId:          claim.payerId          || null,
+      payerType:        claim.payerType        || '',
+      payerName:        claim.payerName        || '',
+      paymentAccountId: claim.paymentAccountId || null,
+      /* P6 verification trail */
+      verifiedBy:       verifiedById,
+      verifiedAt:       new Date(),
+      recordedBy:       verifiedById,
+      recordedAt:       new Date()
+    });
+
+    /* ---- 4. Create allocation record(s) ---- */
+    var allocationBase = {
+      schoolId:  schoolId,
+      paymentId: payment._id,
+      claimId:   claim._id,
+      amount:    claim.amount,
+      currency:  claim.currency || 'NGN',
+      note:      ''
+    };
+
+    if (claim.assignmentId) {
+      /* ---- Fee assignment allocation ---- */
+      await SchoolPaymentAllocation.create(Object.assign({}, allocationBase, {
+        assignmentId:   claim.assignmentId,
+        studentId:      claim.studentId      || null,
+        feeStructureId: claim.feeStructureId || null,
+        campaignId:     null
+      }));
+
+      /* ---- 5a. Recalculate assignment balance ---- */
+      await syncAssignmentBalanceLocal(claim.assignmentId);
+
+    } else if (claim.campaignId) {
+      /* ---- Campaign contribution allocation ---- */
+      await SchoolPaymentAllocation.create(Object.assign({}, allocationBase, {
+        assignmentId:   null,
+        studentId:      claim.studentId || null,
+        feeStructureId: null,
+        campaignId:     claim.campaignId
+      }));
+
+      /* ---- 5b. Update campaign running totals (atomic $inc) ---- */
+      await SchoolDonationCampaign.findOneAndUpdate(
+        { _id: claim.campaignId, schoolId: schoolId }, /* TENANT SCOPE */
+        { $inc: { totalCollected: claim.amount, donationCount: 1 } }
+      );
+    }
+
+    /* ---- 6. Link payment back to claim (resultPaymentId) ---- */
+    await SchoolPaymentClaim.findByIdAndUpdate(claim._id, {
+      $set: { resultPaymentId: payment._id }
+    });
+
+    return payment;
+
+  } catch(err) {
+    /* Non-fatal: claim remains 'verified', payment creation failed.
+       Finance staff can record the payment manually as a fallback.  */
+    console.error('[P6] triggerP6Processing failed:', err.message);
+    return null;
+  }
 }
 
 /* ============================================

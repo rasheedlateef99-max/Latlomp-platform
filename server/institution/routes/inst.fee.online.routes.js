@@ -10,8 +10,9 @@ const SchoolFeeStructure   = require('../models/SchoolFeeStructure.model');
 const SchoolStudent        = require('../models/SchoolStudent.model');
 const PlatformConfig       = require('../models/PlatformConfig.model');
 const { getProvider }      = require('../providers/payment.provider');
-const SchoolManualPaymentAccount = require('../models/SchoolManualPaymentAccount.model');
-const { logAudit }               = require('../../middleware/audit.middleware');
+/* P6: Required for deletion protection checks */
+const SchoolPaymentClaimDel  = require('../models/SchoolPaymentClaim.model');
+const SchoolFeePaymentDel    = require('../models/SchoolFeePayment.model');
 const { getPlatformFeePercent } = require('../config/fee.config');
 const {
   instProtect, schoolAdminOnly,
@@ -736,18 +737,32 @@ router.delete('/manual-accounts/:id', adminGuard, async function(req, res) {
       return res.status(404).json({ success: false, message: 'Payment account not found.' });
     }
 
-    /* ---- P6 HOOK: Add reference check here ----
-       var claimCount = await SchoolPaymentClaim.countDocuments({
-         paymentAccountId: req.params.id, schoolId: req.schoolId
-       });
-       if (claimCount > 0) {
-         return res.status(400).json({
-           success: false,
-           message: claimCount + ' payment claim(s) reference this account. ' +
-                    'Deactivate it instead of deleting to preserve payment history.'
-         });
-       }
-    ---- End P6 hook ---- */
+    /* ---- P6: Deletion protection —
+       Block deletion if any claims or verified payments reference this account.
+       Deactivating (toggle) is always the safer alternative.             ---- */
+    var [claimCount, paymentCount] = await Promise.all([
+      SchoolPaymentClaimDel.countDocuments({
+        paymentAccountId: req.params.id,
+        schoolId:         req.schoolId,         /* TENANT SCOPE */
+        status:           { $in: ['awaiting_verification', 'verified', 'needs_correction'] }
+      }),
+      SchoolFeePaymentDel.countDocuments({
+        paymentAccountId: req.params.id,
+        schoolId:         req.schoolId,         /* TENANT SCOPE */
+        status:           'confirmed'
+      })
+    ]);
+
+    if (claimCount > 0 || paymentCount > 0) {
+      var detail = [];
+      if (claimCount  > 0) detail.push(claimCount  + ' active claim(s)');
+      if (paymentCount > 0) detail.push(paymentCount + ' verified payment(s)');
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete: ' + detail.join(' and ') + ' reference this account. ' +
+                 'Deactivate it instead — this hides it from payers while preserving payment history.'
+      });
+    }
 
     var deletedLabel    = account.accountLabel;
     var deletedCurrency = account.currency;
