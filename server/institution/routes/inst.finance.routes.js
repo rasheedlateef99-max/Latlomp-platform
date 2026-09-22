@@ -1401,7 +1401,7 @@ router.post('/claims/:id/reject', seniorGuard, async function(req, res) {
      awaiting_verification → needs_correction
    (cannot request correction on an already-correcting claim)
 ============================================ */
-router.post('/claims/:id/request-correction', staffGuard, async function(req, res) {
+router.post('/claims/:id/request-correction', readGuard, async function(req, res) {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({ success: false, message: 'Invalid claim ID.' });
