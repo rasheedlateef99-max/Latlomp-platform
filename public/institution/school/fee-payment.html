@@ -940,6 +940,64 @@
    user-supplied body data.
 ============================================================ */
 
+/* ============================================================
+   UTILITY HELPERS — fee-payment.html
+   These 6 functions are called throughout this file but were
+   never defined here or in inst.api.js (which uses different
+   naming: instToast, instFmtDate). Without them, every async
+   loading function throws a ReferenceError and aborts silently,
+   leaving every spinner running forever.
+============================================================ */
+
+/* HTML escape — prevents XSS in all innerHTML writes */
+function esc(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/* Currency formatter */
+function fmtCurrency(amount, currency) {
+  var symbols = { NGN:'₦', USD:'$', EUR:'€', GBP:'£', GHS:'₵', KES:'KSh', ZAR:'R' };
+  var cur = (currency || 'NGN').toString().toUpperCase().trim();
+  var sym = symbols[cur] !== undefined ? symbols[cur] : cur + '\u00a0';
+  return sym + Number(amount || 0).toLocaleString('en-NG', {
+    minimumFractionDigits: 2, maximumFractionDigits: 2
+  });
+}
+
+/* Date formatter — delegates to instFmtDate() from inst.api.js */
+function fmtDate(dateStr) {
+  return instFmtDate(dateStr);
+}
+
+/* Toast notification — delegates to instToast() from inst.api.js.
+   Detects type from the emoji prefix used in every call site. */
+function showToast(msg) {
+  var s = String(msg || '');
+  var type = s.indexOf('✅') !== -1 ? 'success'
+           : s.indexOf('❌') !== -1 ? 'error'
+           : s.indexOf('⚠️') !== -1 ? 'warning'
+           : 'info';
+  instToast(s, type);
+}
+
+/* Element text updater — safe shorthand for textContent writes */
+function setEl(id, val) {
+  var el = document.getElementById(id);
+  if (el) el.textContent = (val === null || val === undefined) ? '' : String(val);
+}
+
+/* Modal close — sets display:none on any modal by its element ID */
+function closeModal(id) {
+  var el = document.getElementById(id);
+  if (el) el.style.display = 'none';
+}
+
 /* ---- Global state ---- */
 var _feeStructures = [];
 var _campaigns     = [];

@@ -233,7 +233,11 @@
     .receipt-history-row { display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
     .receipt-history-row:last-child { border-bottom:none; }
     .receipt-rcpt-num { font-family:monospace; font-size:12px; color:#a78bfa; font-weight:700; }
-
+    /* ---- P4/P5: Modal overlays ---- */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:600; display:flex; align-items:center; justify-content:center; padding:20px; overflow-y:auto; }
+    .btn-danger { background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); }
+    .btn-orange { background:rgba(255,165,0,0.1);   border:1px solid rgba(255,165,0,0.3);   color:var(--orange); }
+    .badge-yellow { background:rgba(255,214,0,0.12); color:var(--yellow); }
   </style>
 </head>
 <body>
@@ -742,9 +746,8 @@
       </div>
     </div>
     <!-- END RECEIPT HISTORY -->
-  </div><!-- end main -->
 
-<!-- ============ CLAIMS (P4) ============ -->
+    <!-- ============ CLAIMS (P4) ============ -->
     <div class="section" id="sec-claims">
       <div class="panel">
         <div class="panel-head">
@@ -776,6 +779,7 @@
     </div>
     <!-- END CLAIMS -->
 
+  </div><!-- end main -->
 </div><!-- end layout -->
 
 <div id="toast"></div>
@@ -1667,6 +1671,11 @@ function setEl(id, val) {
   if (el) el.textContent = val;
 }
 
+function closeModal(id) {
+  var el = document.getElementById(id);
+  if (el) el.style.display = 'none';
+}
+
 function showToast(msg) {
   var el = document.getElementById('toast');
   if (!el) return;
@@ -1871,11 +1880,11 @@ async function deletePaymentMethod(id, label) {
   } else {
     showToast('❌ ' + ((data && data.message) || 'Delete failed.'));
   }
-
+} /* ← closes deletePaymentMethod — the missing brace that trapped all P4–P8 code inside this function */
 
 /* ============================================
-     P8: RECEIPT VIEWER + HISTORY
-  ============================================ */
+   P8: RECEIPT VIEWER + HISTORY
+============================================ */
   var _currentReceiptClaimId  = '';
   var _currentReceiptData     = null;
   var _receiptHistoryPage     = 1;
@@ -2318,7 +2327,7 @@ async function deletePaymentMethod(id, label) {
     var payload  = {};
 
     if (_verifyAction === 'verify') {
-      endpoint = '/finance/claims/' + _verifyClaimId + '/verify';
+      endpoint = '/claims/' + _verifyClaimId + '/verify';
       var note = ((document.getElementById('verifyNote') || {}).value || '').trim();
       if (note) payload.note = note;
 
@@ -2328,7 +2337,7 @@ async function deletePaymentMethod(id, label) {
         if (errEl) { errEl.textContent = 'A rejection reason is required.'; errEl.style.display = 'block'; }
         return;
       }
-      endpoint       = '/finance/claims/' + _verifyClaimId + '/reject';
+      endpoint       = '/claims/' + _verifyClaimId + '/reject';
       payload.reason = reason;
 
     } else {
@@ -2337,7 +2346,7 @@ async function deletePaymentMethod(id, label) {
         if (errEl) { errEl.textContent = 'A correction note is required.'; errEl.style.display = 'block'; }
         return;
       }
-      endpoint     = '/finance/claims/' + _verifyClaimId + '/request-correction';
+      endpoint     = '/claims/' + _verifyClaimId + '/request-correction';
       payload.note = corrNote;
     }
 
@@ -2845,7 +2854,7 @@ async function deletePaymentMethod(id, label) {
       showToast('❌ ' + msg);
     }
   }
-}
+
 function doLogout() {
   if (!confirm('Log out of Finance Portal?')) return;
   localStorage.removeItem('latlomp_inst_token');
