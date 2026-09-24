@@ -218,7 +218,8 @@
     <button class="nav-item"        data-sec="exams"        onclick="showSection('exams')">        <span class="nav-icon">📝</span> Exams</button>
     <button class="nav-item"        data-sec="results"      onclick="showSection('results')">      <span class="nav-icon">📊</span> Results</button>
     <button class="nav-item" onclick="window.location='/institution/school/analytics.html'">       <span class="nav-icon">📈</span> Analytics</button>
-    <a class="nav-item" href="/institution/school/promotions.html"><span class="nav-icon">🎓</span> Promotions</a>
+   <a class="nav-item" href="/institution/school/promotions.html"><span class="nav-icon">🎓</span> Promotions</a>
+    <div class="sb-sep">Finance &amp; Fees</div>
     <a class="nav-item" href="/institution/school/fee-payment.html">
       <span class="nav-icon">🏷️</span> Fee &amp; Payment
     </a>
@@ -231,11 +232,10 @@
     <a class="nav-item" href="/community/">
       <span class="nav-icon">🏘️</span> Community
     </a>
-    <button class="nav-item" data-sec="payments" onclick="showSection('payments')"><span class="nav-icon">💳</span> Fees & Payments</button>
-    <button class="nav-item" onclick="window.location='/institution/parent/dashboard.html'">👨‍👩‍👧 Parent Portal</button>
     <div class="sb-sep">Settings</div>
-    <button class="nav-item"        data-sec="subscription" onclick="showSection('subscription')"> <span class="nav-icon">💳</span> Subscription</button>
-    <button class="nav-item"        data-sec="settings"     onclick="showSection('settings')">     <span class="nav-icon">⚙️</span> School Settings</button>
+    <button class="nav-item" data-sec="subscription" onclick="showSection('subscription')"><span class="nav-icon">💳</span> Subscription</button>
+    <button class="nav-item" data-sec="payments"     onclick="showSection('payments')">    <span class="nav-icon">🏦</span> Online Payments</button>
+    <button class="nav-item" data-sec="settings"     onclick="showSection('settings')">    <span class="nav-icon">⚙️</span> School Settings</button>
     <!-- ✅ PHASE L.6: Score Config nav link -->
     <a class="nav-item" href="/institution/school/score-config.html"><span class="nav-icon">🎯</span> Score Config</a>
     <a class="nav-item" href="/institution/school/attendance-reports.html"><span class="nav-icon">📊</span> Attendance Reports</a>
@@ -524,8 +524,10 @@
 <!-- FEES & PAYMENTS -->
     <div class="section" id="sec-payments">
       <div class="page-header">
-        <div><h1>Fees &amp; Payments</h1><p>Payment account, online collection, and fee records</p></div>
-        <button class="btn btn-primary" onclick="showSection('fees-setup')" style="display:none;" id="goToFeeSetupBtn">Configure Fees →</button>
+        <div>
+          <h1>🏦 Online Payments</h1>
+          <p>Connect a bank account to accept online fee payments from parents via Paystack</p>
+        </div>
       </div>
 
       <!-- Payment Account Status Card -->
@@ -1040,7 +1042,7 @@ function showSection(name) {
   if (section) section.classList.add('active');
   var navItem = document.querySelector('[data-sec="' + name + '"]');
   if (navItem) navItem.classList.add('active');
-  var labels  = { overview:'Overview', teachers:'Teachers', structure:'Structure', exams:'Exams', results:'Results', subscription:'Subscription', settings:'Settings' };
+  var labels  = { overview:'Overview', teachers:'Teachers', structure:'Structure', exams:'Exams', results:'Results', subscription:'Subscription', settings:'Settings', payments:'Online Payments', parents:'Parent Portal' };
   var mobEl   = document.getElementById('mobileSectionLabel');
   if (mobEl) mobEl.textContent = labels[name] || name;
   if (window.innerWidth <= 960) closeSidebar();
