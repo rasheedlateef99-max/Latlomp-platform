@@ -35,6 +35,10 @@ const TimetableSlot       = require('../models/Timetable.model');
 const AttendanceRecord    = require('../models/Attendance.model');
 const AcademicTerm        = require('../models/AcademicTerm.model');
 const SchoolClass         = require('../models/Class.model');
+/* P9-B: Payment routes */
+const mongoose           = require('mongoose');
+const SchoolPaymentClaim = require('../models/SchoolPaymentClaim.model');
+const { resolvePaymentAccounts, validateClaimCurrency } = require('../services/payment.account.service');
 
 const {
   instProtect,
@@ -940,6 +944,370 @@ router.put('/portal/admin/students/:studentId/set-pin', manageGuard, async funct
     });
   } catch (err) {
     console.error('[student.portal] PUT /set-pin:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   P9-B — STUDENT PORTAL FEE + CLAIM ROUTES
+
+   All four routes use studentProtect (applied
+   per-route, same as every other portal endpoint).
+
+   schoolId and studentId come from req.schoolId
+   and req.studentId — set by studentProtect from
+   the student JWT. Never trusted from req.body.
+
+   payerType:    'student'        (hardcoded server-side)
+   submittedVia: 'student_portal' (hardcoded server-side)
+   currency:     from account record (client value validated
+                 then overwritten)
+============================================ */
+
+/* ============================================
+   GET /portal/fees
+   Allocation-based fee progress for this student.
+   Reuses getStudentFeeProgress() from finance.service.js (P7).
+   Each progressItem carries its own currency — no global
+   school currency assumed.
+============================================ */
+router.get('/portal/fees', studentProtect, async function (req, res) {
+  try {
+    if (!await subscriptionActive(req.schoolId)) {
+      return res.status(403).json({ success: false, message: 'School subscription is not active.' });
+    }
+    var financeService = require('../services/finance.service');
+    var result = await financeService.getStudentFeeProgress(req.schoolId, req.studentId);
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: 'No fee information found for this student.'
+      });
+    }
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('[student.portal] GET /portal/fees:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   GET /portal/fees/:assignmentId/payment-accounts
+   Trigger-based payment-account picker for one obligation.
+   Returns applicable SchoolManualPaymentAccount records.
+   Full account details (incl. accountNumber) returned —
+   the student needs them to make the bank transfer.
+   Access gated by studentProtect + assignment IDOR check.
+============================================ */
+router.get('/portal/fees/:assignmentId/payment-accounts', studentProtect, async function (req, res) {
+  try {
+    if (!await subscriptionActive(req.schoolId)) {
+      return res.status(403).json({ success: false, message: 'School subscription is not active.' });
+    }
+    if (!mongoose.isValidObjectId(req.params.assignmentId)) {
+      return res.status(400).json({ success: false, message: 'Invalid assignment ID.' });
+    }
+
+    var SchoolFeeAssignment = require('../models/SchoolFeeAssignment.model');
+    var assignment = await SchoolFeeAssignment.findOne({
+      _id:       req.params.assignmentId,
+      schoolId:  req.schoolId,      /* from JWT */
+      studentId: req.studentId      /* from JWT — IDOR */
+    }).select('feeStructureId status balance').lean();
+
+    if (!assignment) {
+      return res.status(404).json({ success: false, message: 'Fee assignment not found.' });
+    }
+    if (['paid', 'waived', 'cancelled'].includes(assignment.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'This fee is already ' + assignment.status + '. No payment is needed.'
+      });
+    }
+    if ((assignment.balance || 0) <= 0) {
+      return res.status(400).json({ success: false, message: 'This fee has no remaining balance.' });
+    }
+
+    var accounts = await resolvePaymentAccounts({
+      schoolId:       req.schoolId,
+      feeStructureId: assignment.feeStructureId || null,
+      campaignId:     null
+    });
+
+    if (!accounts.length) {
+      return res.json({
+        success:  true,
+        accounts: [],
+        message:  'No payment accounts currently configured. Contact the school for payment details.'
+      });
+    }
+
+    return res.json({
+      success:  true,
+      accounts: accounts.map(function (a) {
+        return {
+          _id:          a._id,
+          accountLabel: a.accountLabel,
+          accountType:  a.accountType  || '',
+          bankName:     a.bankName,
+          accountName:  a.accountName,
+          accountNumber:a.accountNumber,
+          currency:     a.currency,
+          country:      a.country      || '',
+          instructions: a.instructions || '',
+          displayOrder: a.displayOrder || 0
+        };
+      })
+    });
+  } catch (err) {
+    console.error('[student.portal] GET /portal/fees/:id/payment-accounts:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   POST /portal/claims
+   Student submits a bank-transfer payment claim.
+   Currency is validated against the selected account
+   and overwritten server-side — client value discarded.
+   All security fields set server-side.
+============================================ */
+router.post('/portal/claims', studentProtect, async function (req, res) {
+  try {
+    if (!await subscriptionActive(req.schoolId)) {
+      return res.status(403).json({ success: false, message: 'School subscription is not active.' });
+    }
+
+    var body = req.body || {};
+    var {
+      assignmentId, campaignId,
+      payerName, payerPhone,
+      amount, currency,
+      paymentAccountId,
+      reference, paymentDate, evidenceUrl, note
+    } = body;
+
+    var hasAssignment = assignmentId && mongoose.isValidObjectId(assignmentId);
+    var hasCampaign   = campaignId   && mongoose.isValidObjectId(campaignId);
+
+    if (!hasAssignment && !hasCampaign) {
+      return res.status(400).json({
+        success: false,
+        message: 'A fee assignment or campaign must be specified.'
+      });
+    }
+    if (!payerName || !payerName.trim()) {
+      return res.status(400).json({ success: false, message: 'Payer name is required.' });
+    }
+    var parsedAmount = parseFloat(amount);
+    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'A valid payment amount is required.' });
+    }
+    if (!paymentDate) {
+      return res.status(400).json({ success: false, message: 'Payment date is required.' });
+    }
+    if (!paymentAccountId || !mongoose.isValidObjectId(paymentAccountId)) {
+      return res.status(400).json({ success: false, message: 'A payment account must be selected.' });
+    }
+
+    var resolvedFeeStructureId = null;
+
+    if (hasAssignment) {
+      var SchoolFeeAssignment = require('../models/SchoolFeeAssignment.model');
+      var assignment = await SchoolFeeAssignment.findOne({
+        _id:       assignmentId,
+        schoolId:  req.schoolId,     /* from JWT */
+        studentId: req.studentId     /* from JWT — IDOR */
+      }).select('feeStructureId status balance').lean();
+
+      if (!assignment) {
+        return res.status(404).json({ success: false, message: 'Fee assignment not found.' });
+      }
+      if (['paid', 'waived', 'cancelled'].includes(assignment.status)) {
+        return res.status(400).json({
+          success: false,
+          message: 'This fee is already ' + assignment.status + '.'
+        });
+      }
+      if ((assignment.balance || 0) <= 0) {
+        return res.status(400).json({ success: false, message: 'This fee has no remaining balance.' });
+      }
+      resolvedFeeStructureId = assignment.feeStructureId || null;
+    }
+
+    if (hasCampaign) {
+      var SchoolDonationCampaign = require('../models/SchoolDonationCampaign.model');
+      var campaign = await SchoolDonationCampaign.findOne({
+        _id:      campaignId,
+        schoolId: req.schoolId,
+        status:   { $in: ['active', 'paused'] }
+      }).select('allowManualClaim minContribution title').lean();
+
+      if (!campaign) {
+        return res.status(404).json({ success: false, message: 'Campaign not found or closed.' });
+      }
+      if (!campaign.allowManualClaim) {
+        return res.status(400).json({
+          success: false,
+          message: '"' + campaign.title + '" does not accept bank-transfer claims.'
+        });
+      }
+      if (campaign.minContribution && parsedAmount < campaign.minContribution) {
+        return res.status(400).json({
+          success: false,
+          message: 'The minimum contribution for this campaign has not been met.'
+        });
+      }
+    }
+
+    /* Currency validated + overwritten from account — never from client */
+    var currencyCheck = await validateClaimCurrency(paymentAccountId, currency, req.schoolId);
+    if (!currencyCheck.valid) {
+      return res.status(400).json({ success: false, message: currencyCheck.message });
+    }
+    var authoritativeCurrency = currencyCheck.accountCurrency;
+
+    /* Duplicate reference warning (warn, do not block) */
+    var duplicateWarning = null;
+    if (reference && reference.trim()) {
+      var existingClaim = await SchoolPaymentClaim.findOne({
+        schoolId:         req.schoolId,
+        reference:        reference.trim(),
+        paymentAccountId: paymentAccountId,
+        status:           { $in: ['awaiting_verification', 'verified'] }
+      }).select('_id payerName').lean();
+      if (existingClaim) {
+        duplicateWarning = 'A claim with this reference already exists. Please verify it is not a duplicate.';
+      }
+    }
+
+    /* Student document for email (name already from payerName) */
+    var studentDoc = await SchoolStudent.findOne({
+      _id:      req.studentId,
+      schoolId: req.schoolId
+    }).select('name email').lean();
+
+    /* Create claim — security fields set server-side */
+    var claim = await SchoolPaymentClaim.create({
+      schoolId:          req.schoolId,             /* from JWT */
+      studentId:         req.studentId,            /* from JWT */
+      assignmentId:      hasAssignment ? assignmentId : null,
+      feeStructureId:    resolvedFeeStructureId,
+      campaignId:        hasCampaign   ? campaignId   : null,
+      payerId:           req.studentId,            /* server-set */
+      payerType:         'student',                /* server-set */
+      payerName:         payerName.trim(),
+      payerPhone:        (payerPhone   || '').trim(),
+      payerEmail:        (studentDoc && studentDoc.email) || '',
+      amount:            parsedAmount,
+      currency:          authoritativeCurrency,    /* server-authoritative */
+      paymentAccountId:  paymentAccountId,
+      reference:         (reference   || '').trim(),
+      paymentDate:       new Date(paymentDate),
+      evidenceUrl:       (evidenceUrl || '').trim(),
+      note:              (note        || '').trim().substring(0, 500),
+      status:            'awaiting_verification',  /* always */
+      submittedVia:      'student_portal',         /* server-set */
+      submittedBy:       null,
+      submittedByName:   (studentDoc && studentDoc.name) || ''
+    });
+
+    var response = {
+      success: true,
+      message: 'Claim submitted. The Finance team will verify your transfer and update you here.',
+      claim: {
+        _id:         claim._id,
+        status:      claim.status,
+        amount:      claim.amount,
+        currency:    claim.currency,
+        reference:   claim.reference,
+        paymentDate: claim.paymentDate,
+        createdAt:   claim.createdAt
+      }
+    };
+    if (duplicateWarning) { response.warning = duplicateWarning; }
+
+    return res.status(201).json(response);
+  } catch (err) {
+    console.error('[student.portal] POST /portal/claims:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   GET /portal/claims
+   Lists this student's own portal-submitted claims.
+   payerId filter ensures student only sees their own.
+============================================ */
+router.get('/portal/claims', studentProtect, async function (req, res) {
+  try {
+    if (!await subscriptionActive(req.schoolId)) {
+      return res.status(403).json({ success: false, message: 'School subscription is not active.' });
+    }
+
+    var filter = {
+      schoolId:     req.schoolId,      /* from JWT */
+      studentId:    req.studentId,     /* from JWT */
+      payerId:      req.studentId,     /* student sees only their own */
+      submittedVia: 'student_portal'
+    };
+
+    var VALID_STATUSES = [
+      'awaiting_verification', 'verified', 'rejected', 'needs_correction', 'cancelled'
+    ];
+    if (req.query.status && VALID_STATUSES.includes(req.query.status)) {
+      filter.status = req.query.status;
+    }
+
+    var claims = await SchoolPaymentClaim.find(filter)
+      .populate('feeStructureId',   'name category')
+      .populate('campaignId',        'title category')
+      .populate('paymentAccountId',  'accountLabel bankName currency')
+      .populate('resultPaymentId',   'receiptNumber amount currency status verifiedAt')
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+
+    return res.json({
+      success: true,
+      total:   claims.length,
+      claims:  claims.map(function (c) {
+        return {
+          _id:         c._id,
+          status:      c.status,
+          amount:      c.amount,
+          currency:    c.currency,
+          payerName:   c.payerName,
+          reference:   c.reference || '',
+          paymentDate: c.paymentDate,
+          evidenceUrl: c.evidenceUrl || '',
+          note:        c.note || '',
+          feeStructureId: c.feeStructureId
+            ? { name: c.feeStructureId.name, category: c.feeStructureId.category }
+            : null,
+          campaignId: c.campaignId
+            ? { title: c.campaignId.title }
+            : null,
+          paymentAccount: c.paymentAccountId ? {
+            accountLabel: c.paymentAccountId.accountLabel,
+            bankName:     c.paymentAccountId.bankName,
+            currency:     c.paymentAccountId.currency
+          } : null,
+          rejectionReason: c.rejectionReason || '',
+          correctionNote:  c.correctionNote  || '',
+          reviewedAt:      c.reviewedAt      || null,
+          receipt: c.resultPaymentId ? {
+            receiptNumber: c.resultPaymentId.receiptNumber,
+            amount:        c.resultPaymentId.amount,
+            currency:      c.resultPaymentId.currency,
+            verifiedAt:    c.resultPaymentId.verifiedAt
+          } : null,
+          createdAt: c.createdAt
+        };
+      })
+    });
+  } catch (err) {
+    console.error('[student.portal] GET /portal/claims:', err.message);
     return res.status(500).json({ success: false, message: err.message });
   }
 });

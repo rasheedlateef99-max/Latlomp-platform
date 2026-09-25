@@ -301,6 +301,31 @@
       flex-direction:column; gap:14px; z-index:999;
     }
     .loading-overlay p { font-size:13px; color:var(--muted); }
+
+/* ---- P9-D: Fees section + payment modals ---- */
+  .fee-card { background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:12px; }
+  .fee-bar  { background:rgba(255,255,255,0.06); border-radius:6px; height:7px; overflow:hidden; margin:8px 0 5px; }
+  .fee-fill { height:100%; border-radius:6px; transition:width 0.5s cubic-bezier(0.4,0,0.2,1); }
+  .fee-claim-item { border:1px solid var(--border); border-left-width:4px; border-radius:10px; padding:14px; margin-bottom:10px; }
+  /* Bottom-sheet modal overlay */
+  .fee-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:500; display:none; align-items:flex-end; justify-content:center; }
+  .fee-overlay.open { display:flex; }
+  .fee-sheet { background:var(--dark-2); border:1px solid var(--border); border-radius:20px 20px 0 0; width:100%; max-width:600px; max-height:92vh; overflow-y:auto; padding:24px 20px; padding-bottom:calc(24px + env(safe-area-inset-bottom, 0px)); }
+  .fee-sheet h3 { font-size:16px; font-weight:800; color:#fff; margin:0 0 6px; }
+  .fee-sheet p  { font-size:13px; color:var(--secondary); margin:0 0 16px; line-height:1.6; }
+  .fee-field { margin-bottom:13px; }
+  .fee-field label { display:block; font-size:11px; font-weight:700; color:var(--secondary); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:5px; }
+  .fee-field input, .fee-field textarea { width:100%; padding:10px 12px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; color:#fff; font-size:13px; font-family:inherit; outline:none; }
+  .fee-field input:focus { border-color:var(--primary); }
+  .fee-field textarea { resize:vertical; min-height:55px; }
+  .fee-err { background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); border-radius:8px; padding:10px 12px; font-size:13px; color:var(--red); margin-bottom:12px; display:none; }
+  .fee-acct-box { background:rgba(108,99,255,0.08); border:1px solid rgba(108,99,255,0.2); border-radius:12px; padding:14px; margin-bottom:14px; }
+  .fee-btn { width:100%; padding:13px; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; border:none; margin-bottom:8px; }
+  .fee-btn-primary   { background:linear-gradient(135deg,var(--primary),var(--pd)); color:#fff; }
+  .fee-btn-secondary { background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--secondary); }
+  .fee-select-card   { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:16px; margin-bottom:10px; }
+  .fee-select-btn    { width:100%; padding:10px; border-radius:8px; background:linear-gradient(135deg,var(--green),#38f9d7); border:none; color:#0f0f1a; font-size:13px; font-weight:800; cursor:pointer; font-family:inherit; margin-top:8px; }
+
   </style>
 </head>
 <body>
@@ -414,6 +439,30 @@
     </div>
   </div>
 
+<!-- ============ P9-D: FEES SECTION ============ -->
+  <div class="section" id="secFees">
+
+    <div class="card">
+      <div class="card-head">
+        <h3>💳 My Fees</h3>
+        <button class="btn-logout" style="background:rgba(108,99,255,0.08);border-color:rgba(108,99,255,0.25);color:#a78bfa;font-size:12px;" onclick="loadStudentFees()">↺ Refresh</button>
+      </div>
+      <div id="feeProgressWrap">
+        <div class="card-body"><span class="spinner spinner-lg"></span></div>
+      </div>
+    </div>
+
+    <div class="card" id="feeClaimsCard" style="display:none;">
+      <div class="card-head">
+        <h3>📨 My Claims</h3>
+        <span id="feeClaimsCount" style="font-size:12px;color:var(--muted);"></span>
+      </div>
+      <div id="feeClaimsWrap" style="padding:4px 0;"></div>
+    </div>
+
+  </div>
+  <!-- END FEES SECTION -->
+
 </div><!-- /content -->
 
 <!-- BOTTOM NAV -->
@@ -432,6 +481,9 @@
   </button>
   <button class="nav-btn" id="navAttendance" onclick="switchSection('secAttendance', 'navAttendance')">
     <span class="nav-icon">📌</span>Attendance
+  </button>
+  <button class="nav-btn" id="navFees" onclick="switchSection('secFees', 'navFees')">
+    <span class="nav-icon">💳</span>Fees
   </button>
 </nav>
 
@@ -633,6 +685,7 @@ function switchSection(sectionId, navId) {
     if (sectionId === 'secReport')     { loadReportCard(); }
     if (sectionId === 'secTimetable')  { loadTimetable();  }
     if (sectionId === 'secAttendance') { loadAttendance(); }
+    if (sectionId === 'secFees')       { loadStudentFees(); }
   }
 
   /* Scroll to top */
@@ -990,6 +1043,375 @@ function safeJson(str) {
 function esc(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+/* ============================================
+   P9-D — STUDENT PORTAL FEES + CLAIMS
+   Uses sApi() which returns { ok, status, data }.
+   schoolId + studentId come from the student JWT —
+   set by studentProtect in the backend.
+============================================ */
+
+/* Currency-aware formatter — no NGN assumed */
+function fmtMoney(amount, currency) {
+  var num  = Number(amount || 0).toLocaleString('en', { minimumFractionDigits:2, maximumFractionDigits:2 });
+  if (!currency) { return num; }
+  var cur  = currency.toUpperCase().trim();
+  var syms = { NGN:'₦', USD:'$', GBP:'£', EUR:'€', GHS:'₵', KES:'KSh', ZAR:'R', XOF:'CFA ' };
+  var sym  = syms[cur];
+  return sym ? (sym + num) : (num + ' ' + cur);
+}
+
+/* ---- Fee Progress ---- */
+async function loadStudentFees() {
+  var wrap = document.getElementById('feeProgressWrap');
+  if (!wrap) { return; }
+  wrap.innerHTML = '<div class="card-body"><span class="spinner spinner-lg"></span></div>';
+
+  var res = await sApi('/portal/fees');
+  if (!res.ok || !res.data.success) {
+    wrap.innerHTML = renderEmpty('⚠️', 'Could not load fees', esc(res.data.message || ''));
+    return;
+  }
+
+  var summary = res.data.summary || {};
+  var items   = res.data.progressItems || [];
+
+  if (!items.length) {
+    wrap.innerHTML = '<div class="card-body">' + renderEmpty('✅', 'No fees assigned yet', 'Your school has not assigned any fees to your account.') + '</div>';
+    /* Load claims anyway */
+    loadStudentClaims();
+    return;
+  }
+
+  var html = '';
+
+  /* Overall summary bar */
+  if (summary.currency) {
+    var overallPct   = summary.overallPercentage || 0;
+    var overallColor = overallPct >= 100 ? 'var(--green)' : overallPct > 0 ? 'var(--orange)' : 'var(--red)';
+    html +=
+      '<div style="padding:16px 18px 0;">' +
+        '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--secondary);margin-bottom:6px;">' +
+          '<span>Overall: <strong style="color:' + overallColor + ';">' + overallPct + '%</strong></span>' +
+          '<span>Remaining: <strong style="color:var(--red);">' + fmtMoney(summary.totalRemaining, summary.currency) + '</strong></span>' +
+        '</div>' +
+        '<div class="fee-bar"><div class="fee-fill" style="width:' + overallPct + '%;background:' + overallColor + ';"></div></div>' +
+      '</div>';
+  }
+
+  html += '<div style="padding:12px 18px;">';
+
+  html += items.map(function (item) {
+    var p   = item.progress || {};
+    var fs  = item.feeStructureId || {};
+    var tm  = item.termId || {};
+    var pct = p.percentage || 0;
+    var barColor = p.status === 'paid' ? 'var(--green)' : p.status === 'partial' ? 'var(--orange)' : 'var(--red)';
+    var statusLabel = {
+      not_paid: '❌ Not Paid', partial: '⏳ Partial', paid: '✅ Paid', overpaid: '⚠️ Overpaid'
+    }[p.status] || p.status;
+
+    var canPay = (p.remaining || 0) > 0 && p.status !== 'paid';
+
+    return '<div class="fee-card">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">' +
+        '<div>' +
+          '<div style="font-size:14px;font-weight:700;color:#fff;">' + esc(fs.name || 'Fee') + '</div>' +
+          (tm.name ? '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' + esc(tm.name) + (tm.session ? ' · ' + esc(tm.session) : '') + '</div>' : '') +
+        '</div>' +
+        '<span class="badge ' + (p.status === 'paid' ? 'badge-green' : p.status === 'partial' ? 'badge-orange' : 'badge-red') + '">' + esc(statusLabel) + '</span>' +
+      '</div>' +
+      '<div class="fee-bar"><div class="fee-fill" style="width:' + pct + '%;background:' + barColor + ';"></div></div>' +
+      '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--secondary);margin-bottom:' + (canPay ? '10' : '0') + 'px;">' +
+        '<span style="color:' + barColor + ';font-weight:700;">' + pct + '%</span>' +
+        '<span>' + fmtMoney(p.totalAllocated || 0, p.currency) + ' / ' + fmtMoney(p.netObligation || 0, p.currency) + '</span>' +
+      '</div>' +
+      (canPay ?
+        '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">' +
+          '<div style="font-size:13px;color:var(--secondary);">Remaining: <strong style="color:var(--red);">' + fmtMoney(p.remaining, p.currency) + '</strong></div>' +
+          '<button onclick="openFeePickerOverlay(\'' + esc(item._id) + '\',' + (p.remaining || 0) + ',\'' + esc(p.currency || '') + '\')" ' +
+            'style="padding:8px 14px;border-radius:8px;background:linear-gradient(135deg,var(--primary),var(--pd));border:none;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">' +
+            '🏦 Pay by Bank Transfer</button>' +
+        '</div>' : '') +
+    '</div>';
+  }).join('');
+
+  html += '</div>';
+  wrap.innerHTML = html;
+
+  /* Also load claims */
+  loadStudentClaims();
+}
+
+/* ---- Student Claims ---- */
+async function loadStudentClaims() {
+  var card  = document.getElementById('feeClaimsCard');
+  var wrap  = document.getElementById('feeClaimsWrap');
+  var count = document.getElementById('feeClaimsCount');
+  if (!card || !wrap) { return; }
+
+  var res = await sApi('/portal/claims');
+  if (!res.ok || !res.data.success || !(res.data.claims || []).length) {
+    card.style.display = 'none';
+    return;
+  }
+
+  var claims = res.data.claims || [];
+  card.style.display = 'block';
+  if (count) { count.textContent = claims.length + ' claim' + (claims.length !== 1 ? 's' : ''); }
+
+  var cfgMap = {
+    awaiting_verification: { icon:'⏳', label:'Awaiting Verification', borderColor:'var(--orange)' },
+    verified:              { icon:'✅', label:'Verified',               borderColor:'var(--green)'  },
+    rejected:              { icon:'❌', label:'Rejected',               borderColor:'var(--red)'    },
+    needs_correction:      { icon:'🔧', label:'Needs Correction',       borderColor:'#ffd600'       },
+    cancelled:             { icon:'🚫', label:'Cancelled',              borderColor:'#444'          }
+  };
+
+  wrap.innerHTML = '<div style="padding:4px 18px 12px;">' +
+    claims.map(function (c) {
+      var cfg    = cfgMap[c.status] || { icon:'?', label:c.status, borderColor:'#444' };
+      var fsName = c.feeStructureId ? c.feeStructureId.name : (c.campaignId ? c.campaignId.title : 'General');
+      var acct   = c.paymentAccount ? (c.paymentAccount.bankName + ' — ' + c.paymentAccount.accountLabel) : '';
+      var dateStr= c.paymentDate
+        ? new Date(c.paymentDate).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' })
+        : '';
+
+      return '<div class="fee-claim-item" style="border-left-color:' + cfg.borderColor + ';">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px;">' +
+          '<div style="font-size:14px;font-weight:800;color:#fff;">' + cfg.icon + ' ' + fmtMoney(c.amount, c.currency) + '</div>' +
+          '<span style="font-size:11px;font-weight:700;color:' + cfg.borderColor + ';">' + esc(cfg.label) + '</span>' +
+        '</div>' +
+        '<div style="font-size:12px;color:var(--secondary);line-height:1.8;">' +
+          'Fee: <strong>' + esc(fsName) + '</strong><br/>' +
+          (acct   ? 'Account: ' + esc(acct) + '<br/>' : '') +
+          (c.reference ? 'Ref: <span style="font-family:monospace;color:#a78bfa;">' + esc(c.reference) + '</span><br/>' : '') +
+          'Date: ' + dateStr +
+        '</div>' +
+        (c.rejectionReason ? '<div style="font-size:12px;color:var(--red);margin-top:7px;">❌ ' + esc(c.rejectionReason) + '</div>' : '') +
+        (c.correctionNote  ? '<div style="font-size:12px;color:#ffd600;margin-top:7px;">🔧 ' + esc(c.correctionNote)  + '</div>' : '') +
+        (c.receipt ? '<div style="font-size:12px;color:var(--green);margin-top:7px;">🧾 Receipt: <span style="font-family:monospace;">' + esc(c.receipt.receiptNumber || '') + '</span></div>' : '') +
+      '</div>';
+    }).join('') +
+  '</div>';
+}
+
+/* ---- Payment Account Picker ---- */
+var _feePickerAccountsList = [];
+var _feePickerAssignmentId = null;
+var _feePickerBalance      = 0;
+var _feePickerCurrency     = '';
+var _feeSelectedAccount    = null;
+
+async function openFeePickerOverlay(assignmentId, balance, currency) {
+  _feePickerAssignmentId = assignmentId;
+  _feePickerBalance      = balance;
+  _feePickerCurrency     = currency;
+  _feePickerAccountsList = [];
+
+  var overlay = document.getElementById('feePickerOverlay');
+  var acctEl  = document.getElementById('feePickerAccounts');
+  if (!overlay || !acctEl) { return; }
+
+  acctEl.innerHTML = '<div class="card-body"><span class="spinner"></span> Loading…</div>';
+  overlay.classList.add('open');
+
+  var res = await sApi('/portal/fees/' + assignmentId + '/payment-accounts');
+
+  if (!res.ok || !res.data.success || !(res.data.accounts || []).length) {
+    acctEl.innerHTML =
+      '<div style="text-align:center;padding:16px;color:var(--secondary);font-size:13px;">' +
+      esc((res.data && res.data.message) || 'No payment accounts available. Contact the school.') + '</div>';
+    return;
+  }
+
+  _feePickerAccountsList = res.data.accounts;
+
+  acctEl.innerHTML = res.data.accounts.map(function (a, idx) {
+    return '<div class="fee-select-card">' +
+      '<div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:5px;">' +
+        '🏦 ' + esc(a.bankName) +
+        (a.accountLabel ? ' <span style="font-size:12px;color:#a78bfa;">— ' + esc(a.accountLabel) + '</span>' : '') +
+      '</div>' +
+      '<div style="font-size:13px;color:var(--secondary);line-height:1.8;margin-bottom:5px;">' +
+        'Account Name: <strong style="color:#fff;">' + esc(a.accountName) + '</strong><br/>' +
+        'Account Number: <strong style="color:#fff;font-family:monospace;letter-spacing:1px;">' + esc(a.accountNumber) + '</strong><br/>' +
+        '<span style="background:rgba(108,99,255,0.12);color:#a78bfa;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;">' + esc(a.currency) + '</span>' +
+      '</div>' +
+      (a.instructions ? '<div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:9px 12px;font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:5px;">📋 ' + esc(a.instructions) + '</div>' : '') +
+      '<button class="fee-select-btn" onclick="feeSelectAccount(' + idx + ')">I\'ll transfer to this account →</button>' +
+    '</div>';
+  }).join('');
+}
+
+function closeFeePickerOverlay() {
+  var overlay = document.getElementById('feePickerOverlay');
+  if (overlay) { overlay.classList.remove('open'); }
+}
+
+function feeSelectAccount(idx) {
+  _feeSelectedAccount = _feePickerAccountsList[idx] || null;
+  if (!_feeSelectedAccount) { return; }
+  closeFeePickerOverlay();
+  openFeeClaimOverlay();
+}
+
+/* ---- Claim Form ---- */
+function openFeeClaimOverlay() {
+  if (!_feeSelectedAccount || !_feePickerAssignmentId) { return; }
+
+  var overlay  = document.getElementById('feeClaimOverlay');
+  var errEl    = document.getElementById('feeClaimErr');
+  var acctDisp = document.getElementById('feeClaimAcctDisplay');
+  if (!overlay) { return; }
+
+  if (errEl) { errEl.style.display = 'none'; }
+
+  /* Pre-fill */
+  var nameEl = document.getElementById('feeClaimPayerName');
+  var amtEl  = document.getElementById('feeClaimAmount');
+  var dateEl = document.getElementById('feeClaimDate');
+  if (nameEl) { nameEl.value = (_student && _student.name) ? _student.name : ''; }
+  if (amtEl)  { amtEl.value  = _feePickerBalance || ''; }
+  if (dateEl) { dateEl.value  = new Date().toISOString().split('T')[0]; }
+  ['feeClaimReference','feeClaimNote'].forEach(function (id) {
+    var el = document.getElementById(id); if (el) { el.value = ''; }
+  });
+
+  if (acctDisp) {
+    acctDisp.innerHTML =
+      '<div class="fee-acct-box">' +
+        '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Transferring to</div>' +
+        '<div style="font-size:15px;font-weight:800;color:#fff;">🏦 ' + esc(_feeSelectedAccount.bankName) + '</div>' +
+        '<div style="font-size:13px;color:var(--secondary);margin-top:4px;">' +
+          esc(_feeSelectedAccount.accountName) +
+          ' · <span style="font-family:monospace;font-weight:700;">' + esc(_feeSelectedAccount.accountNumber) + '</span>' +
+        '</div>' +
+        '<div style="margin-top:5px;">' +
+          '<span style="background:rgba(108,99,255,0.12);color:#a78bfa;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;">' +
+          esc(_feeSelectedAccount.currency) + '</span>' +
+        '</div>' +
+      '</div>';
+  }
+
+  overlay.classList.add('open');
+}
+
+function closeFeeClaimOverlay() {
+  var overlay = document.getElementById('feeClaimOverlay');
+  if (overlay) { overlay.classList.remove('open'); }
+}
+
+async function submitStudentClaim() {
+  var btn   = document.getElementById('feeClaimSubmitBtn');
+  var errEl = document.getElementById('feeClaimErr');
+  if (errEl) { errEl.style.display = 'none'; }
+
+  if (!_feeSelectedAccount || !_feePickerAssignmentId) {
+    if (errEl) { errEl.textContent = 'Missing payment context. Please start again.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  var payerName = ((document.getElementById('feeClaimPayerName')  || {}).value || '').trim();
+  var amount    = parseFloat((document.getElementById('feeClaimAmount')    || {}).value) || 0;
+  var payDate   = (document.getElementById('feeClaimDate')         || {}).value || '';
+  var reference = ((document.getElementById('feeClaimReference')  || {}).value || '').trim();
+  var note      = ((document.getElementById('feeClaimNote')        || {}).value || '').trim();
+
+  if (!payerName) { if (errEl) { errEl.textContent = 'Your name is required.'; errEl.style.display = 'block'; } return; }
+  if (!amount || amount <= 0) { if (errEl) { errEl.textContent = 'A valid amount is required.'; errEl.style.display = 'block'; } return; }
+  if (!payDate)  { if (errEl) { errEl.textContent = 'Transfer date is required.'; errEl.style.display = 'block'; } return; }
+
+  if (btn) { btn.textContent = 'Submitting…'; btn.disabled = true; }
+
+  var res = await sApi('/portal/claims', 'POST', {
+    assignmentId:     _feePickerAssignmentId,
+    payerName:        payerName,
+    amount:           amount,
+    currency:         _feeSelectedAccount.currency, /* server validates + sets authoritatively */
+    paymentAccountId: _feeSelectedAccount._id,
+    reference:        reference,
+    paymentDate:      payDate,
+    note:             note
+  });
+
+  if (btn) { btn.textContent = 'Submit Claim →'; btn.disabled = false; }
+
+  if (res.ok && res.data.success) {
+    closeFeeClaimOverlay();
+    /* Show success notice inline */
+    var wrap = document.getElementById('feeProgressWrap');
+    if (wrap) {
+      var notice = document.createElement('div');
+      notice.className = 'notice notice-green';
+      notice.style.margin = '0 18px 12px';
+      notice.innerHTML = '✅ Claim submitted. Finance will verify your transfer. <button onclick="this.parentElement.remove();loadStudentFees();" style="background:none;border:none;color:var(--green);font-weight:700;cursor:pointer;font-family:inherit;font-size:13px;margin-left:8px;">↺ Refresh</button>';
+      wrap.prepend(notice);
+    }
+    if (res.data.warning) {
+      setTimeout(function () {
+        var w = document.createElement('div');
+        w.className = 'notice notice-orange';
+        w.style.margin = '0 18px 12px';
+        w.innerHTML = '⚠️ ' + esc(res.data.warning);
+        if (wrap) { wrap.prepend(w); }
+      }, 1200);
+    }
+    /* Refresh claims */
+    _loaded['secFees'] = false;
+    loadStudentClaims();
+  } else {
+    var msg = (res.data && res.data.message) || 'Failed to submit claim.';
+    if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+  }
+}
+
 </script>
+
+<!-- ===== P9-D: PAYMENT ACCOUNT PICKER ===== -->
+<div class="fee-overlay" id="feePickerOverlay">
+  <div class="fee-sheet">
+    <h3>🏦 Choose Payment Account</h3>
+    <p>Select the school bank account you will send the money to. Make the transfer first, then come back to submit a claim.</p>
+    <div id="feePickerAccounts"></div>
+    <button class="fee-btn fee-btn-secondary" onclick="closeFeePickerOverlay()">Cancel</button>
+  </div>
+</div>
+
+<!-- ===== P9-D: CLAIM SUBMISSION FORM ===== -->
+<div class="fee-overlay" id="feeClaimOverlay">
+  <div class="fee-sheet">
+    <h3>📋 Submit Payment Claim</h3>
+    <p>Already made the transfer? Tell Finance so they can confirm it.</p>
+    <div class="fee-err" id="feeClaimErr"></div>
+    <div id="feeClaimAcctDisplay"></div>
+
+    <div class="fee-field">
+      <label>Your Name / Sender Name *</label>
+      <input type="text" id="feeClaimPayerName" placeholder="Name as used on bank transfer" />
+    </div>
+    <div class="fee-field">
+      <label>Amount Transferred *</label>
+      <input type="number" id="feeClaimAmount" placeholder="e.g. 50000" min="1" step="0.01" />
+    </div>
+    <div class="fee-field">
+      <label>Bank Reference / Teller No. <span style="font-weight:400;color:var(--muted);">(recommended)</span></label>
+      <input type="text" id="feeClaimReference" placeholder="From your bank app or receipt" />
+    </div>
+    <div class="fee-field">
+      <label>Date of Transfer *</label>
+      <input type="date" id="feeClaimDate" />
+    </div>
+    <div class="fee-field">
+      <label>Note to Finance <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
+      <textarea id="feeClaimNote" placeholder="Any additional information…"></textarea>
+    </div>
+
+    <button class="fee-btn fee-btn-primary" id="feeClaimSubmitBtn" onclick="submitStudentClaim()">Submit Claim →</button>
+    <button class="fee-btn fee-btn-secondary" onclick="closeFeeClaimOverlay()">← Back</button>
+  </div>
+</div>
+<!-- END P9-D MODALS -->
+
 </body>
 </html>

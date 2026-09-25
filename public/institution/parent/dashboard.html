@@ -98,6 +98,14 @@
     .btn-cancel { width:100%; padding:11px; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:10px; color:var(--text-secondary); font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; margin-top:8px; }
     .modal-err { background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); border-radius:8px; padding:9px 13px; font-size:13px; color:var(--error); margin-bottom:14px; display:none; }
     .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--dark-3); border:1px solid var(--border); border-radius:30px; padding:12px 24px; font-size:13px; font-weight:700; z-index:9999; display:none; white-space:nowrap; }
+    /* ---- P9-C: Fee progress + payment flow ---- */
+  .fee-progress-wrap { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:16px; margin-bottom:12px; }
+  .fee-progress-bar  { background:rgba(255,255,255,0.06); border-radius:6px; height:8px; overflow:hidden; margin:8px 0 6px; }
+  .fee-progress-fill { height:100%; border-radius:6px; transition:width 0.5s cubic-bezier(0.4,0,0.2,1); }
+  .fee-claim-item    { border:1px solid rgba(255,255,255,0.08); border-left-width:4px; border-radius:10px; padding:14px; margin-bottom:10px; }
+  .fee-acct-select-card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:16px; margin-bottom:10px; }
+  .fee-acct-select-btn  { width:100%; padding:10px; border-radius:8px; background:linear-gradient(135deg,#43e97b,#38f9d7); border:none; color:#0f0f1a; font-size:13px; font-weight:800; cursor:pointer; font-family:inherit; margin-top:8px; }
+  .fee-acct-highlight   { background:rgba(108,99,255,0.08); border:1px solid rgba(108,99,255,0.2); border-radius:10px; padding:12px 14px; margin-bottom:14px; }
   </style>
 </head>
 <body>
@@ -273,6 +281,64 @@
     <button class="btn-cancel"  onclick="closeLinkModal()">Cancel</button>
   </div>
 </div>
+
+<!-- ===== P9-C: PAYMENT ACCOUNT PICKER ===== -->
+<div class="overlay" id="payPickerOverlay">
+  <div class="modal" style="max-width:440px; max-height:82vh; overflow-y:auto;">
+    <div class="modal-title">🏦 Choose Payment Account</div>
+    <div class="modal-sub">
+      Select the school bank account you will transfer the money into.
+      Make your transfer first, then come back to submit a claim.
+    </div>
+    <div id="payPickerAccounts"></div>
+    <button class="btn-cancel" onclick="closePaymentPicker()">Cancel</button>
+  </div>
+</div>
+
+<!-- ===== P9-C: CLAIM SUBMISSION FORM ===== -->
+<div class="overlay" id="claimOverlay">
+  <div class="modal" style="max-width:440px; max-height:88vh; overflow-y:auto;">
+    <div class="modal-title">📋 Submit Payment Claim</div>
+    <div class="modal-sub">
+      Already transferred the money? Tell Finance so they can verify it.
+    </div>
+    <div class="modal-err" id="claimModalErr"></div>
+    <div id="claimSelectedAccount"></div>
+
+    <div class="form-group">
+      <label>Your Name / Sender Name <span style="color:var(--error);">*</span></label>
+      <input type="text" id="claimPayerName" placeholder="Name as used for the bank transfer" />
+    </div>
+    <div class="form-group">
+      <label>Amount Transferred <span style="color:var(--error);">*</span></label>
+      <input type="number" id="claimAmount" placeholder="e.g. 50000" min="1" step="0.01" />
+    </div>
+    <div class="form-group">
+      <label>Bank Reference / Teller Number <span style="font-weight:400;color:var(--text-muted);">(recommended)</span></label>
+      <input type="text" id="claimReference" placeholder="From your bank app or receipt" />
+    </div>
+    <div class="form-group">
+      <label>Date of Transfer <span style="color:var(--error);">*</span></label>
+      <input type="date" id="claimPaymentDate" />
+    </div>
+    <div class="form-group">
+      <label>Your Phone Number <span style="font-weight:400;color:var(--text-muted);">(optional)</span></label>
+      <input type="tel" id="claimPhone" placeholder="For Finance to reach you if needed" />
+    </div>
+    <div class="form-group">
+      <label>Note to Finance <span style="font-weight:400;color:var(--text-muted);">(optional)</span></label>
+      <textarea id="claimNote" rows="2" placeholder="Any additional information…" style="resize:vertical; min-height:55px;"></textarea>
+    </div>
+    <div class="form-group">
+      <label>Evidence Link <span style="font-weight:400;color:var(--text-muted);">(optional — screenshot, photo)</span></label>
+      <input type="url" id="claimEvidenceUrl" placeholder="Google Drive, cloud link, etc." />
+    </div>
+
+    <button class="btn-primary" id="claimSubmitBtn" onclick="submitParentClaim()">Submit Claim →</button>
+    <button class="btn-cancel"  onclick="closeClaimModal()" style="margin-top:8px;">← Back</button>
+  </div>
+</div>
+<!-- END P9-C MODALS -->
 
 <div class="toast" id="toastEl"></div>
 
@@ -471,210 +537,379 @@ function renderResults(results) {
 }
 
 /* ============================================
-   FEES — View outstanding + Pay online
+   P9-C: FEES — Bank Transfer + Claim Workflow
+   Replaces the previous Paystack online payment flow.
+   All school fee payments now go through:
+   Bank Transfer → Claim Submission → Finance Verification.
 ============================================ */
-var _feeBreakdown = null;
 
+/* Module-level state for the payment picker + claim form */
+var _pickerAssignmentId  = null;
+var _pickerBalance       = 0;
+var _pickerCurrency      = '';
+var _pickerAccountsList  = [];
+var _selectedAccount     = null;
+var _claimStudentId      = null;
+
+/* Currency-aware formatter.
+   No NGN assumed — currency must come from the record.
+   If currency is missing, the number is shown without a symbol. */
+function fmtMoney(amount, currency) {
+  var num = Number(amount || 0).toLocaleString('en', {
+    minimumFractionDigits: 2, maximumFractionDigits: 2
+  });
+  if (!currency) { return num; }
+  var cur  = currency.toUpperCase().trim();
+  var syms = { NGN:'₦', USD:'$', GBP:'£', EUR:'€', GHS:'₵', KES:'KSh', ZAR:'R', XOF:'CFA ' };
+  var sym  = syms[cur];
+  return sym ? (sym + num) : (num + ' ' + cur);
+}
+
+/* Main entry point — called by showTab('fees') */
 async function loadFees() {
   if (!_activeChild) { return; }
-  var secEl = document.getElementById('sec-fees');
-  if (!secEl) {
-    /* Build the section dynamically if missing */
-    buildFeeSection();
-  }
-  var contentEl = document.getElementById('feeContent');
-  if (contentEl) contentEl.innerHTML = loadingHTML();
 
-  var cacheKey = _activeChild._id + '_fees';
-  var res = await api('/children/' + _activeChild._id + '/fees');
-  if (!res.success) {
-    if (contentEl) contentEl.innerHTML =
-      '<div class="empty"><div class="empty-icon">💳</div>' +
-      '<div class="empty-text">' + esc(res.message || 'Could not load fees.') + '</div></div>';
-    return;
-  }
+  /* Build the section container if it doesn't exist yet */
+  if (!document.getElementById('sec-fees')) { buildFeeSection(); }
 
-  _cache[cacheKey] = res;
-  renderFees(res);
+  var progressEl = document.getElementById('feeProgressContent');
+  var claimsEl   = document.getElementById('feeClaimsContent');
+  if (progressEl) { progressEl.innerHTML = loadingHTML(); }
+  if (claimsEl)   { claimsEl.innerHTML   = loadingHTML(); }
+
+  _claimStudentId = _activeChild._id;
+
+  /* Load progress and claims in parallel */
+  var results = await Promise.all([
+    api('/children/' + _activeChild._id + '/fee-progress'),
+    api('/children/' + _activeChild._id + '/claims')
+  ]);
+  renderFeeProgress(results[0]);
+  renderParentClaims(results[1]);
 }
 
 function buildFeeSection() {
-  var existing = document.getElementById('sec-fees');
-  if (existing) return;
-  var div = document.createElement('div');
-  div.className = 'section';
-  div.id = 'sec-fees';
-  div.innerHTML =
+  if (document.getElementById('sec-fees')) { return; }
+  var div        = document.createElement('div');
+  div.className  = 'section';
+  div.id         = 'sec-fees';
+  div.innerHTML  =
     '<div class="card">' +
       '<div class="card-head">' +
-        '<div class="card-title">💳 Fee Summary</div>' +
-        '<div id="feeSummaryBadges" style="display:flex;gap:8px;flex-wrap:wrap;"></div>' +
+        '<div class="card-title">💳 Fee Progress</div>' +
+        '<div id="feeSummaryLine" style="font-size:12px;color:var(--text-secondary);"></div>' +
       '</div>' +
-      '<div id="feeContent"></div>' +
+      '<div id="feeProgressContent" style="padding:16px;"></div>' +
     '</div>' +
-    '<div class="card" id="feePayHistoryCard" style="display:none;">' +
-      '<div class="card-head"><div class="card-title">📜 Payment History</div></div>' +
-      '<div id="feePayHistoryContent"></div>' +
+    '<div class="card" style="margin-top:16px;">' +
+      '<div class="card-head">' +
+        '<div class="card-title">📨 My Payment Claims</div>' +
+        '<button onclick="loadFees()" style="padding:5px 12px;border-radius:8px;border:1px solid #333;' +
+          'background:rgba(255,255,255,0.04);color:#a0a0c0;font-size:12px;cursor:pointer;font-family:inherit;">↺</button>' +
+      '</div>' +
+      '<div id="feeClaimsContent" style="padding:16px;"></div>' +
     '</div>';
-  var mainContent = document.getElementById('mainContent');
-  if (mainContent) mainContent.appendChild(div);
+  var mc = document.getElementById('mainContent');
+  if (mc) { mc.appendChild(div); }
 }
 
-function renderFees(data) {
-  buildFeeSection();
-  var s       = data.summary || {};
-  var content = document.getElementById('feeContent');
-  var badges  = document.getElementById('feeSummaryBadges');
-  var cur     = _activeChild && _activeChild.school && _activeChild.school.currency || 'NGN';
+function renderFeeProgress(data) {
+  var el        = document.getElementById('feeProgressContent');
+  var summaryEl = document.getElementById('feeSummaryLine');
+  if (!el) { return; }
 
-  if (badges) {
-    badges.innerHTML =
-      '<span style="font-size:12px;font-weight:700;color:var(--error);">Outstanding: ' + cur + ' ' + Number(s.totalOutstanding || 0).toLocaleString() + '</span>' +
-      ' · <span style="font-size:12px;color:var(--success);">Paid: ' + cur + ' ' + Number(s.totalPaid || 0).toLocaleString() + '</span>';
-  }
-
-  var assignments = data.assignments || [];
-  var outstanding  = assignments.filter(function (a) { return ['pending','partial'].includes(a.status); });
-  var paid         = assignments.filter(function (a) { return a.status === 'paid'; });
-
-  if (!assignments.length) {
-    if (content) content.innerHTML =
-      '<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">No fees assigned yet.</div></div>';
+  if (!data || !data.success) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div>' +
+      '<div class="empty-text">' + esc((data && data.message) || 'Could not load fee information.') + '</div></div>';
     return;
   }
 
-  var html = '<div style="display:flex;flex-direction:column;gap:12px;padding:16px;">';
+  var summary = data.summary || {};
+  var items   = data.progressItems || [];
 
-  if (outstanding.length) {
-    html += '<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px;">Outstanding</div>';
-    outstanding.forEach(function (a) {
-      var fee     = a.feeStructureId || {};
-      var term    = a.termId || {};
-      var balance = a.balance || 0;
-      html +=
-        '<div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:16px;">' +
-          '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">' +
-            '<div>' +
-              '<div style="font-size:15px;font-weight:700;color:#fff;">' + esc(fee.name || 'Fee') + '</div>' +
-              '<div style="font-size:12px;color:var(--muted);margin-top:3px;">' +
-                (term.name ? esc(term.name) + ' · ' : '') +
-                'Balance: <strong style="color:var(--error);">' + cur + ' ' + Number(balance).toLocaleString() + '</strong>' +
-                (a.dueDate ? ' · Due: ' + new Date(a.dueDate).toLocaleDateString('en-NG') : '') +
-              '</div>' +
-            '</div>' +
-            '<button class="btn btn-primary btn-sm" onclick="initiateFeePay(\'' + a._id + '\',' + balance + ',\'' + cur + '\')">💳 Pay Now</button>' +
+  if (summaryEl && summary.currency) {
+    summaryEl.innerHTML =
+      '<span style="color:var(--error);font-weight:700;">Owed: ' + fmtMoney(summary.totalRemaining, summary.currency) + '</span>' +
+      ' &nbsp;·&nbsp; <span style="color:var(--success);">Paid: ' + fmtMoney(summary.totalAllocated, summary.currency) + '</span>';
+  }
+
+  if (!items.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">✅</div>' +
+      '<div class="empty-text">No fee obligations assigned yet.</div></div>';
+    return;
+  }
+
+  el.innerHTML = items.map(function (item) {
+    var p   = item.progress || {};
+    var fs  = item.feeStructureId || {};
+    var tm  = item.termId || {};
+    var pct = p.percentage || 0;
+    var barColor = p.status === 'paid'    ? 'var(--success)'
+                 : p.status === 'partial' ? 'var(--warn)'
+                 :                          'var(--error)';
+    var statusLabel = {
+      not_paid: '❌ Not Paid', partial: '⏳ Partial',
+      paid: '✅ Paid', overpaid: '⚠️ Overpaid'
+    }[p.status] || p.status;
+
+    var canPay = (p.remaining || 0) > 0 && p.status !== 'paid';
+
+    return '<div class="fee-progress-wrap">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">' +
+        '<div>' +
+          '<div style="font-size:15px;font-weight:700;color:#fff;">' + esc(fs.name || 'Fee') + '</div>' +
+          '<div style="font-size:12px;color:var(--text-muted);margin-top:2px;">' +
+            esc(tm.name || '') + (tm.session ? ' · ' + esc(tm.session) : '') +
           '</div>' +
-        '</div>';
-    });
-  }
-
-  if (paid.length) {
-    html += '<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin:8px 0 4px;">Settled</div>';
-    paid.forEach(function (a) {
-      var fee = a.feeStructureId || {};
-      html +=
-        '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.04);">' +
-          '<div style="font-size:14px;color:var(--secondary);">' + esc(fee.name || 'Fee') + '</div>' +
-          '<span class="badge badge-green">Paid</span>' +
-        '</div>';
-    });
-  }
-
-  html += '</div>';
-  if (content) content.innerHTML = html;
-
-  /* Payment history */
-  var payments = data.payments || [];
-  var histCard  = document.getElementById('feePayHistoryCard');
-  var histCont  = document.getElementById('feePayHistoryContent');
-  if (histCard && histCont) {
-    if (payments.length) {
-      histCard.style.display = 'block';
-      histCont.innerHTML = payments.map(function (p) {
-        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.04);">' +
-          '<div>' +
-            '<div style="font-size:13px;font-weight:700;color:#fff;">' + cur + ' ' + Number(p.amount).toLocaleString() + '</div>' +
-            '<div style="font-size:11px;color:var(--muted);">' + esc(p.method) + ' · ' + new Date(p.recordedAt || p.createdAt).toLocaleDateString('en-NG') + '</div>' +
+        '</div>' +
+        '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;' +
+          'background:' + (p.status === 'paid' ? 'rgba(67,233,123,0.12)' : p.status === 'partial' ? 'rgba(255,165,0,0.12)' : 'rgba(255,101,132,0.12)') + ';' +
+          'color:' + barColor + ';">' + esc(statusLabel) + '</span>' +
+      '</div>' +
+      '<div class="fee-progress-bar">' +
+        '<div class="fee-progress-fill" style="width:' + pct + '%;background:' + barColor + ';"></div>' +
+      '</div>' +
+      '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:10px;">' +
+        '<span style="color:' + barColor + ';font-weight:700;">' + pct + '%</span>' +
+        '<span>' + fmtMoney(p.totalAllocated || 0, p.currency) + ' / ' + fmtMoney(p.netObligation || 0, p.currency) + '</span>' +
+      '</div>' +
+      (canPay ?
+        '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">' +
+          '<div style="font-size:13px;color:var(--text-secondary);">' +
+            'Remaining: <strong style="color:var(--error);">' + fmtMoney(p.remaining, p.currency) + '</strong>' +
           '</div>' +
-          '<span style="font-size:12px;font-family:monospace;color:#a78bfa;">' + esc(p.receiptNumber || '') + '</span>' +
-        '</div>';
-      }).join('');
-    } else {
-      histCard.style.display = 'none';
-    }
-  }
+          '<button onclick="openPaymentPicker(\'' + esc(item._id) + '\',' + (p.remaining || 0) + ',\'' + esc(p.currency || '') + '\')" ' +
+            'style="padding:8px 16px;border-radius:8px;background:linear-gradient(135deg,#6c63ff,#574fd6);' +
+            'border:none;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">' +
+            '🏦 Pay by Bank Transfer</button>' +
+        '</div>' : '') +
+    '</div>';
+  }).join('');
 }
 
-/* ---- Initiate Paystack inline payment ---- */
-async function initiateFeePay(assignmentId, balance, currency) {
-  /* Step 1: get breakdown from server */
-  var breakdownRes = await api('/children/' + _activeChild._id + '/fees/breakdown?assignmentId=' + assignmentId);
-  if (!breakdownRes.success) {
-    showToast('❌ ' + (breakdownRes.message || 'Could not load fee details.'), 'var(--error)');
-    if (!breakdownRes.onlineAvailable) {
-      showToast('Online payments not available. Please pay at the school.', 'var(--warn)');
-    }
+/* ---- Payment Account Picker ---- */
+async function openPaymentPicker(assignmentId, balance, currency) {
+  _pickerAssignmentId = assignmentId;
+  _pickerBalance      = balance;
+  _pickerCurrency     = currency;
+  _pickerAccountsList = [];
+
+  var overlay   = document.getElementById('payPickerOverlay');
+  var acctEl    = document.getElementById('payPickerAccounts');
+  if (!overlay || !acctEl) { return; }
+
+  acctEl.innerHTML = loadingHTML();
+  overlay.classList.add('active');
+
+  var res = await api('/children/' + _claimStudentId +
+    '/payment-accounts?assignmentId=' + assignmentId);
+
+  if (!res || !res.success || !res.accounts || !res.accounts.length) {
+    acctEl.innerHTML =
+      '<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:13px;">' +
+      esc((res && res.message) || 'No payment accounts available. Contact the school.') + '</div>';
     return;
   }
 
-  _feeBreakdown = breakdownRes.breakdown;
-  var bd = _feeBreakdown;
+  _pickerAccountsList = res.accounts;
 
-  /* Show confirmation before opening Paystack */
-  var confirmMsg =
-    'Fee: ' + esc(bd.feeName) + '\n' +
-    'School fee: ' + bd.currency + ' ' + bd.schoolFeeAmount.toLocaleString() + '\n' +
-    'LatLomp service fee: ' + bd.currency + ' ' + bd.platformFeeAmount.toLocaleString() + ' (' + bd.platformFeePercent + '%)\n' +
-    'Total you will pay: ' + bd.currency + ' ' + bd.totalCharged.toLocaleString();
-
-  if (!confirm(confirmMsg + '\n\nProceed to payment?')) { return; }
-
-  /* Step 2: initialize payment on server */
-  var initRes = await api('/children/' + _activeChild._id + '/fees/pay/initialize', 'POST', { assignmentId });
-  if (!initRes.success) {
-    showToast('❌ ' + (initRes.message || 'Payment initialization failed.'), 'var(--error)');
-    return;
-  }
-
-  /* Step 3: open Paystack inline */
-  if (typeof PaystackPop === 'undefined') {
-    /* Load Paystack JS if not already loaded */
-    var script = document.createElement('script');
-    script.src = 'https://js.paystack.co/v1/inline.js';
-    script.onload = function () { openPaystackPopup(initRes, _activeChild._id, assignmentId); };
-    document.head.appendChild(script);
-  } else {
-    openPaystackPopup(initRes, _activeChild._id, assignmentId);
-  }
+  acctEl.innerHTML = res.accounts.map(function (a, idx) {
+    return '<div class="fee-acct-select-card">' +
+      '<div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:6px;">' +
+        '🏦 ' + esc(a.bankName) +
+        (a.accountLabel ? ' <span style="font-size:12px;color:#a78bfa;font-weight:600;">— ' + esc(a.accountLabel) + '</span>' : '') +
+      '</div>' +
+      '<div style="font-size:13px;color:var(--text-secondary);line-height:1.8;margin-bottom:8px;">' +
+        'Name: <strong style="color:#fff;">' + esc(a.accountName) + '</strong><br/>' +
+        'Number: <strong style="color:#fff;font-family:monospace;letter-spacing:1px;">' + esc(a.accountNumber) + '</strong><br/>' +
+        '<span style="background:rgba(108,99,255,0.12);color:#a78bfa;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;">' + esc(a.currency) + '</span>' +
+      '</div>' +
+      (a.instructions ?
+        '<div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:9px 12px;font-size:12px;color:var(--text-muted);line-height:1.6;margin-bottom:8px;">📋 ' + esc(a.instructions) + '</div>'
+        : '') +
+      '<button class="fee-acct-select-btn" onclick="selectPaymentAccount(' + idx + ')">I\'ll transfer to this account →</button>' +
+    '</div>';
+  }).join('');
 }
 
-function openPaystackPopup(initRes, studentId, assignmentId) {
-  /* Get parent Paystack public key from payment account currency */
-  var handler = PaystackPop.setup({
-    key:       initRes.publicKey || '',  /* populated from server in a real deployment */
-    email:     localStorage.getItem('parentUser') ? JSON.parse(localStorage.getItem('parentUser')).email : '',
-    amount:    Math.round((_feeBreakdown.totalCharged) * 100),
-    currency:  _feeBreakdown.currency || 'NGN',
-    ref:       initRes.reference,
-    onClose:   function () { showToast('Payment cancelled.', 'var(--warn)'); },
-    callback:  function (response) {
-      showToast('✅ Payment completed. Verifying...', 'var(--success)');
-      verifyFeePay(studentId, response.reference);
-    }
+function closePaymentPicker() {
+  var overlay = document.getElementById('payPickerOverlay');
+  if (overlay) { overlay.classList.remove('active'); }
+}
+
+function selectPaymentAccount(idx) {
+  _selectedAccount = _pickerAccountsList[idx] || null;
+  if (!_selectedAccount) { return; }
+  closePaymentPicker();
+  openClaimModal();
+}
+
+/* ---- Claim Submission Form ---- */
+function openClaimModal() {
+  if (!_selectedAccount || !_pickerAssignmentId) { return; }
+
+  var overlay  = document.getElementById('claimOverlay');
+  var errEl    = document.getElementById('claimModalErr');
+  var acctDisp = document.getElementById('claimSelectedAccount');
+  if (!overlay) { return; }
+
+  if (errEl) { errEl.style.display = 'none'; }
+
+  /* Pre-fill fields */
+  var nameEl = document.getElementById('claimPayerName');
+  var amtEl  = document.getElementById('claimAmount');
+  var dateEl = document.getElementById('claimPaymentDate');
+  if (nameEl) { nameEl.value = (_parent && _parent.name) ? _parent.name : ''; }
+  if (amtEl)  { amtEl.value  = _pickerBalance || ''; }
+  if (dateEl) { dateEl.value  = new Date().toISOString().split('T')[0]; }
+  ['claimReference','claimPhone','claimNote','claimEvidenceUrl'].forEach(function (id) {
+    var el = document.getElementById(id); if (el) { el.value = ''; }
   });
-  handler.openIframe();
+
+  if (acctDisp) {
+    acctDisp.innerHTML =
+      '<div class="fee-acct-highlight">' +
+        '<div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;">Sending to</div>' +
+        '<div style="font-size:15px;font-weight:800;color:#fff;">🏦 ' + esc(_selectedAccount.bankName) + '</div>' +
+        '<div style="font-size:13px;color:var(--text-secondary);margin-top:4px;">' +
+          esc(_selectedAccount.accountName) +
+          ' &nbsp;·&nbsp; <span style="font-family:monospace;font-weight:700;">' + esc(_selectedAccount.accountNumber) + '</span>' +
+        '</div>' +
+        '<div style="margin-top:5px;">' +
+          '<span style="background:rgba(108,99,255,0.12);color:#a78bfa;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;">' +
+          esc(_selectedAccount.currency) + '</span>' +
+        '</div>' +
+      '</div>';
+  }
+
+  overlay.classList.add('active');
 }
 
-async function verifyFeePay(studentId, reference) {
-  var res = await api('/children/' + studentId + '/fees/pay/verify', 'POST', { reference });
-  if (res.success) {
-    showToast('✅ Payment recorded! Receipt: ' + res.receiptNumber, 'var(--success)');
-    /* Refresh fees tab */
+function closeClaimModal() {
+  var overlay = document.getElementById('claimOverlay');
+  if (overlay) { overlay.classList.remove('active'); }
+}
+
+async function submitParentClaim() {
+  var btn   = document.getElementById('claimSubmitBtn');
+  var errEl = document.getElementById('claimModalErr');
+  if (errEl) { errEl.style.display = 'none'; }
+
+  if (!_selectedAccount || !_pickerAssignmentId || !_claimStudentId) {
+    if (errEl) { errEl.textContent = 'Missing payment context. Please start again.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  var payerName = ((document.getElementById('claimPayerName')    || {}).value || '').trim();
+  var amount    = parseFloat((document.getElementById('claimAmount')     || {}).value) || 0;
+  var payDate   = (document.getElementById('claimPaymentDate')   || {}).value || '';
+  var reference = ((document.getElementById('claimReference')    || {}).value || '').trim();
+  var phone     = ((document.getElementById('claimPhone')        || {}).value || '').trim();
+  var note      = ((document.getElementById('claimNote')         || {}).value || '').trim();
+  var evidence  = ((document.getElementById('claimEvidenceUrl')  || {}).value || '').trim();
+
+  if (!payerName) {
+    if (errEl) { errEl.textContent = 'Your name is required.'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (!amount || amount <= 0) {
+    if (errEl) { errEl.textContent = 'A valid amount is required.'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (!payDate) {
+    if (errEl) { errEl.textContent = 'Transfer date is required.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  if (btn) { btn.textContent = 'Submitting…'; btn.disabled = true; }
+
+  var res = await api('/children/' + _claimStudentId + '/claims', 'POST', {
+    assignmentId:     _pickerAssignmentId,
+    payerName:        payerName,
+    payerPhone:       phone,
+    amount:           amount,
+    currency:         _selectedAccount.currency, /* server will validate + set authoritatively */
+    paymentAccountId: _selectedAccount._id,
+    reference:        reference,
+    paymentDate:      payDate,
+    evidenceUrl:      evidence,
+    note:             note
+  });
+
+  if (btn) { btn.textContent = 'Submit Claim →'; btn.disabled = false; }
+
+  if (res && res.success) {
+    closeClaimModal();
+    showToast('✅ Claim submitted. Finance will verify your transfer.', 'var(--success)');
+    if (res.warning) {
+      setTimeout(function () { showToast('⚠️ ' + res.warning, 'var(--warn)'); }, 1600);
+    }
     _cache = {};
     loadFees();
   } else {
-    showToast('⚠️ ' + (res.message || 'Verification pending. Your payment will be confirmed shortly.'), 'var(--warn)');
+    var msg = (res && res.message) || 'Failed to submit claim.';
+    if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+    showToast('❌ ' + msg, 'var(--error)');
   }
+}
+
+/* ---- Claims History ---- */
+function renderParentClaims(data) {
+  var el = document.getElementById('feeClaimsContent');
+  if (!el) { return; }
+
+  if (!data || !data.success) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📨</div>' +
+      '<div class="empty-text">Could not load claims.</div></div>';
+    return;
+  }
+
+  var claims = data.claims || [];
+  if (!claims.length) {
+    el.innerHTML =
+      '<div class="empty">' +
+        '<div class="empty-icon">📨</div>' +
+        '<div class="empty-text">No payment claims yet.</div>' +
+        '<div class="empty-text" style="font-size:12px;margin-top:6px;line-height:1.6;">' +
+          'After making a bank transfer, tap <strong>Pay by Bank Transfer</strong> ' +
+          'on any outstanding fee to notify Finance.' +
+        '</div>' +
+      '</div>';
+    return;
+  }
+
+  var cfgMap = {
+    awaiting_verification: { icon:'⏳', label:'Awaiting Verification',  borderColor:'var(--warn)',    bg:'rgba(255,165,0,0.07)'    },
+    verified:              { icon:'✅', label:'Verified',                borderColor:'var(--success)', bg:'rgba(67,233,123,0.07)'   },
+    rejected:              { icon:'❌', label:'Rejected',                borderColor:'var(--error)',   bg:'rgba(255,101,132,0.07)'  },
+    needs_correction:      { icon:'🔧', label:'Needs Correction',        borderColor:'#ffd600',        bg:'rgba(255,214,0,0.07)'    },
+    cancelled:             { icon:'🚫', label:'Cancelled',               borderColor:'#444',           bg:'rgba(255,255,255,0.03)'  }
+  };
+
+  el.innerHTML = claims.map(function (c) {
+    var cfg     = cfgMap[c.status] || { icon:'?', label:c.status, borderColor:'#444', bg:'rgba(255,255,255,0.03)' };
+    var fsName  = c.feeStructureId ? c.feeStructureId.name : (c.campaignId ? c.campaignId.title : 'General');
+    var acctStr = c.paymentAccount ? (c.paymentAccount.bankName + ' — ' + c.paymentAccount.accountLabel) : '';
+    var dateStr = c.paymentDate
+      ? new Date(c.paymentDate).toLocaleDateString('en-NG', { day:'numeric', month:'short', year:'numeric' })
+      : '';
+
+    return '<div class="fee-claim-item" style="border-left-color:' + cfg.borderColor + ';background:' + cfg.bg + ';">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">' +
+        '<div style="font-size:15px;font-weight:800;color:#fff;">' + cfg.icon + ' ' + fmtMoney(c.amount, c.currency) + '</div>' +
+        '<span style="font-size:11px;font-weight:700;color:' + cfg.borderColor + ';">' + esc(cfg.label) + '</span>' +
+      '</div>' +
+      '<div style="font-size:12px;color:var(--text-secondary);line-height:1.8;">' +
+        'Fee: <strong>' + esc(fsName) + '</strong><br/>' +
+        (acctStr ? 'Account: ' + esc(acctStr) + '<br/>' : '') +
+        (c.reference ? 'Reference: <span style="font-family:monospace;color:#a78bfa;">' + esc(c.reference) + '</span><br/>' : '') +
+        'Transfer date: ' + dateStr +
+      '</div>' +
+      (c.rejectionReason ? '<div style="font-size:12px;color:var(--error);margin-top:8px;line-height:1.5;">❌ ' + esc(c.rejectionReason) + '</div>' : '') +
+      (c.correctionNote  ? '<div style="font-size:12px;color:#ffd600;margin-top:8px;line-height:1.5;">🔧 ' + esc(c.correctionNote)  + '</div>' : '') +
+      (c.receipt ? '<div style="font-size:12px;color:var(--success);margin-top:8px;">🧾 Receipt: <span style="font-family:monospace;font-weight:700;">' + esc(c.receipt.receiptNumber || '') + '</span></div>' : '') +
+    '</div>';
+  }).join('');
 }
 
 /* ============================================
