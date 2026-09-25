@@ -13,6 +13,12 @@ const {
   getEffectiveRoles,
   canManageStudents
 } = require('../middleware/inst.auth');
+/* P9-A: Payment account resolution + claim submission */
+const SchoolPaymentClaim = require('../models/SchoolPaymentClaim.model');
+const {
+  resolvePaymentAccounts,
+  validateClaimCurrency
+} = require('../services/payment.account.service');
 
 /* ============================================
    RBAC HELPER
@@ -1282,6 +1288,524 @@ router.post('/events/:eventId/register', async function(req, res) {
     });
   } catch(err) {
     console.error('[Parent] POST /events/register:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   P9-A — PARENT PORTAL PAYMENT ROUTES
+
+   All four routes require parentProtect (applied
+   via router.use(parentProtect) higher in this file).
+   schoolId is ALWAYS resolved from the parent's
+   linkedStudents array — never trusted from req.body.
+   IDOR is enforced on every route via isLinkedTo().
+
+   ARCHITECTURE:
+   Business logic lives in payment.account.service.js
+   (shared with student portal, future alumni, website).
+   These routes handle auth, IDOR, and context extraction.
+============================================ */
+
+/* ============================================
+   GET /api/institution/parent/children/:studentId/fee-progress
+
+   Allocation-based fee progress for a linked child.
+   Returns verified payment progress only — pending
+   claims do not appear here until Finance verifies them.
+   Each progressItem carries its own currency field.
+
+   REUSES: getStudentFeeProgress() from finance.service.js (P7)
+   No new progress calculation logic.
+============================================ */
+router.get('/children/:studentId/fee-progress', async function (req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.studentId)) {
+      return res.status(400).json({ success: false, message: 'Invalid student ID.' });
+    }
+    if (!isLinkedTo(req.parent, req.params.studentId)) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    var link = req.parent.linkedStudents.find(function (ls) {
+      return ls.studentId.toString() === req.params.studentId;
+    });
+    if (!link) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    /* Reuse the existing allocation-based progress service (P7) */
+    var financeService = require('../services/finance.service');
+    var result = await financeService.getStudentFeeProgress(
+      link.schoolId,           /* authoritative tenant — from JWT chain */
+      req.params.studentId     /* IDOR-verified student */
+    );
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: 'No fee progress data found for this student.'
+      });
+    }
+
+    return res.json({ success: true, ...result });
+
+  } catch (err) {
+    console.error('[Parent] GET /children/:studentId/fee-progress:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   GET /api/institution/parent/children/:studentId/payment-accounts
+
+   Trigger-based payment-account picker.
+   Returns applicable SchoolManualPaymentAccount records
+   for the given payment context (assignment or campaign).
+   Called when parent taps "Pay by Bank Transfer".
+
+   Full account details (including accountNumber) are
+   returned here — the parent needs them to make the
+   bank transfer. Access is gated behind parentProtect +
+   IDOR check. The school configured these details
+   precisely so payers can see and use them.
+
+   QUERY PARAMS (optional — for context-aware resolution):
+     ?assignmentId=xxx   Resolves the fee structure from assignment
+     ?campaignId=xxx     Resolves the campaign's configured account
+
+   If no context provided: all active school accounts returned.
+   If context specifies a particular account: only that account.
+============================================ */
+router.get('/children/:studentId/payment-accounts', async function (req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.studentId)) {
+      return res.status(400).json({ success: false, message: 'Invalid student ID.' });
+    }
+    if (!isLinkedTo(req.parent, req.params.studentId)) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    var link = req.parent.linkedStudents.find(function (ls) {
+      return ls.studentId.toString() === req.params.studentId;
+    });
+    if (!link) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    var context = {
+      schoolId:       link.schoolId,      /* authoritative tenant, from JWT chain */
+      feeStructureId: null,
+      campaignId:     req.query.campaignId || null
+    };
+
+    /* If assignmentId provided, resolve fee structure from the assignment.
+       This enables the context-aware account picker. */
+    if (req.query.assignmentId) {
+      if (!mongoose.isValidObjectId(req.query.assignmentId)) {
+        return res.status(400).json({ success: false, message: 'Invalid assignment ID.' });
+      }
+
+      var SchoolFeeAssignment = require('../models/SchoolFeeAssignment.model');
+      var assignment = await SchoolFeeAssignment.findOne({
+        _id:       req.query.assignmentId,
+        schoolId:  link.schoolId,          /* tenant scope */
+        studentId: req.params.studentId    /* IDOR: must belong to this child */
+      }).select('feeStructureId status').lean();
+
+      if (!assignment) {
+        return res.status(404).json({
+          success: false,
+          message: 'Fee assignment not found.'
+        });
+      }
+      if (['paid', 'waived', 'cancelled'].includes(assignment.status)) {
+        return res.status(400).json({
+          success: false,
+          message: 'This fee obligation is already ' + assignment.status + '. No payment is needed.'
+        });
+      }
+
+      context.feeStructureId = assignment.feeStructureId || null;
+    }
+
+    /* Context-aware resolution via shared service */
+    var accounts = await resolvePaymentAccounts(context);
+
+    if (!accounts.length) {
+      return res.json({
+        success:  true,
+        accounts: [],
+        message:  'No active payment accounts are currently configured for this school. ' +
+                  'Please contact the school directly for payment details.'
+      });
+    }
+
+    /* Return full account details — parent needs accountNumber to make the transfer.
+       Access is gated: parentProtect + IDOR (isLinkedTo) already enforced above. */
+    return res.json({
+      success:  true,
+      accounts: accounts.map(function (a) {
+        return {
+          _id:          a._id,
+          accountLabel: a.accountLabel,
+          accountType:  a.accountType  || '',
+          bankName:     a.bankName,
+          accountName:  a.accountName,
+          accountNumber:a.accountNumber, /* required so parent can make the transfer */
+          currency:     a.currency,
+          country:      a.country       || '',
+          instructions: a.instructions  || '',
+          displayOrder: a.displayOrder  || 0
+        };
+      })
+    });
+
+  } catch (err) {
+    console.error('[Parent] GET /children/:studentId/payment-accounts:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   POST /api/institution/parent/children/:studentId/claims
+
+   Parent submits a bank-transfer payment claim.
+   This is a notification to Finance that the parent
+   has made a bank transfer. It does NOT create a
+   verified transaction.
+
+   Status starts at: awaiting_verification
+   Finance team must verify and confirm the transfer
+   before a SchoolFeePayment is created (P5/P6).
+
+   CURRENCY RULE:
+   The client may supply a currency hint but the server
+   always uses the payment account's authoritative currency.
+   Currency is validated and overwritten server-side.
+
+   FIELDS SET SERVER-SIDE (never from body):
+     schoolId, studentId, payerId, payerType,
+     payerEmail, submittedVia, status, currency
+============================================ */
+router.post('/children/:studentId/claims', async function (req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.studentId)) {
+      return res.status(400).json({ success: false, message: 'Invalid student ID.' });
+    }
+    if (!isLinkedTo(req.parent, req.params.studentId)) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    var link = req.parent.linkedStudents.find(function (ls) {
+      return ls.studentId.toString() === req.params.studentId;
+    });
+    if (!link) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    var body = req.body || {};
+    var {
+      assignmentId, campaignId,
+      payerName, payerPhone,
+      amount, currency,
+      paymentAccountId,
+      reference, paymentDate, evidenceUrl, note
+    } = body;
+
+    /* ---- Validate: at least one payment purpose required ---- */
+    var hasAssignment = assignmentId && mongoose.isValidObjectId(assignmentId);
+    var hasCampaign   = campaignId   && mongoose.isValidObjectId(campaignId);
+    if (!hasAssignment && !hasCampaign) {
+      return res.status(400).json({
+        success: false,
+        message: 'Either a fee assignment or a campaign must be specified.'
+      });
+    }
+
+    /* ---- Required field validation ---- */
+    if (!payerName || !payerName.trim()) {
+      return res.status(400).json({ success: false, message: 'Payer name is required.' });
+    }
+    var parsedAmount = parseFloat(amount);
+    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'A valid payment amount is required.' });
+    }
+    if (!paymentDate) {
+      return res.status(400).json({ success: false, message: 'Payment date is required.' });
+    }
+    if (!paymentAccountId || !mongoose.isValidObjectId(paymentAccountId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'A valid payment account must be selected. Use the account picker to choose where you transferred the money.'
+      });
+    }
+
+    /* ---- Validate assignment context ---- */
+    var resolvedFeeStructureId = null;
+
+    if (hasAssignment) {
+      var SchoolFeeAssignment = require('../models/SchoolFeeAssignment.model');
+      var assignment = await SchoolFeeAssignment.findOne({
+        _id:       assignmentId,
+        schoolId:  link.schoolId,           /* tenant scope */
+        studentId: req.params.studentId     /* IDOR: must belong to this child */
+      }).select('feeStructureId status balance').lean();
+
+      if (!assignment) {
+        return res.status(404).json({
+          success: false,
+          message: 'Fee assignment not found.'
+        });
+      }
+      if (['paid', 'waived', 'cancelled'].includes(assignment.status)) {
+        return res.status(400).json({
+          success: false,
+          message: 'This fee obligation is already ' + assignment.status + '. No claim is needed.'
+        });
+      }
+      if ((assignment.balance || 0) <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'This fee obligation has no remaining balance.'
+        });
+      }
+
+      resolvedFeeStructureId = assignment.feeStructureId || null;
+    }
+
+    /* ---- Validate campaign context ---- */
+    if (hasCampaign) {
+      var SchoolDonationCampaign = require('../models/SchoolDonationCampaign.model');
+      var campaign = await SchoolDonationCampaign.findOne({
+        _id:      campaignId,
+        schoolId: link.schoolId,            /* tenant scope */
+        status:   { $in: ['active', 'paused'] }
+      }).select('allowManualClaim minContribution title').lean();
+
+      if (!campaign) {
+        return res.status(404).json({
+          success: false,
+          message: 'Campaign not found or is no longer accepting contributions.'
+        });
+      }
+      if (!campaign.allowManualClaim) {
+        return res.status(400).json({
+          success: false,
+          message: '"' + campaign.title + '" does not accept manual bank-transfer claims.'
+        });
+      }
+      if (campaign.minContribution && parsedAmount < campaign.minContribution) {
+        return res.status(400).json({
+          success: false,
+          message: 'The minimum contribution for this campaign has not been met.'
+        });
+      }
+    }
+
+    /* ---- Validate payment account + resolve authoritative currency ----
+       The client may supply a currency but the server always overwrites it
+       with the payment account's authoritative currency field.
+       This prevents currency spoofing and ensures financial record integrity. */
+    var currencyCheck = await validateClaimCurrency(
+      paymentAccountId,
+      currency,         /* client hint — validated then discarded */
+      link.schoolId     /* IDOR: account must belong to this school */
+    );
+    if (!currencyCheck.valid) {
+      return res.status(400).json({ success: false, message: currencyCheck.message });
+    }
+
+    /* Server-authoritative currency — always from the account, never the client */
+    var authoritativeCurrency = currencyCheck.accountCurrency;
+
+    /* ---- Duplicate reference warning (warn, do not block) ----
+       Same reference + same account = possible duplicate.
+       Parent may legitimately resubmit a corrected claim with
+       the same reference, so we warn but proceed. */
+    var duplicateWarning = null;
+    if (reference && reference.trim()) {
+      var existingClaim = await SchoolPaymentClaim.findOne({
+        schoolId:         link.schoolId,
+        reference:        reference.trim(),
+        paymentAccountId: paymentAccountId,
+        status:           { $in: ['awaiting_verification', 'verified'] }
+      }).select('_id payerName').lean();
+
+      if (existingClaim) {
+        duplicateWarning =
+          'A claim with this reference already exists (from ' +
+          (existingClaim.payerName || 'another payer') + '). ' +
+          'Please verify this is not a duplicate before the Finance team reviews it.';
+      }
+    }
+
+    /* ---- Create the claim ----
+       All security-sensitive fields are set server-side.
+       Client body is never trusted for: schoolId, studentId,
+       payerId, payerType, payerEmail, submittedVia, status, currency. */
+    var claim = await SchoolPaymentClaim.create({
+      schoolId:          link.schoolId,                    /* from JWT chain */
+      studentId:         req.params.studentId,             /* IDOR-verified */
+      assignmentId:      hasAssignment ? assignmentId : null,
+      feeStructureId:    resolvedFeeStructureId,
+      campaignId:        hasCampaign   ? campaignId   : null,
+      payerId:           req.parent._id,                   /* server-set */
+      payerType:         'parent',                         /* server-set */
+      payerName:         payerName.trim(),
+      payerPhone:        (payerPhone || '').trim(),
+      payerEmail:        req.parent.email || '',           /* from authenticated session */
+      amount:            parsedAmount,
+      currency:          authoritativeCurrency,            /* server-set from account */
+      paymentAccountId:  paymentAccountId,
+      reference:         (reference   || '').trim(),
+      paymentDate:       new Date(paymentDate),
+      evidenceUrl:       (evidenceUrl || '').trim(),
+      note:              (note        || '').trim().substring(0, 500),
+      status:            'awaiting_verification',          /* always starts here */
+      submittedVia:      'parent_portal',                  /* server-set */
+      submittedBy:       null,                             /* no staff actor for portal claims */
+      submittedByName:   req.parent.name || ''
+    });
+
+    var response = {
+      success: true,
+      message: 'Payment claim submitted successfully. ' +
+               'The school Finance team will verify your bank transfer and confirm it. ' +
+               'You can check the status of your claim in the Claims section.',
+      claim: {
+        _id:         claim._id,
+        status:      claim.status,
+        amount:      claim.amount,
+        currency:    claim.currency,
+        reference:   claim.reference,
+        paymentDate: claim.paymentDate,
+        createdAt:   claim.createdAt
+      }
+    };
+
+    if (duplicateWarning) {
+      response.warning = duplicateWarning;
+    }
+
+    return res.status(201).json(response);
+
+  } catch (err) {
+    console.error('[Parent] POST /children/:studentId/claims:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   GET /api/institution/parent/children/:studentId/claims
+
+   Lists a parent's submitted bank-transfer claims
+   for a specific linked child. Shows current status
+   of each claim and receipt info if verified.
+
+   SECURITY:
+   Filter includes payerId = req.parent._id so a parent
+   can only see claims THEY submitted. submittedVia is
+   also filtered to 'parent_portal' so staff-submitted
+   claims are not mixed into this view.
+
+   Note: Account number is NOT returned in list view.
+   Only the account label and bank name are shown.
+   The full account number is only returned in the
+   picker (GET /payment-accounts) before the transfer.
+============================================ */
+router.get('/children/:studentId/claims', async function (req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.studentId)) {
+      return res.status(400).json({ success: false, message: 'Invalid student ID.' });
+    }
+    if (!isLinkedTo(req.parent, req.params.studentId)) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    var link = req.parent.linkedStudents.find(function (ls) {
+      return ls.studentId.toString() === req.params.studentId;
+    });
+    if (!link) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    /* Build filter — all four fields must match */
+    var filter = {
+      schoolId:     link.schoolId,          /* authoritative tenant */
+      studentId:    req.params.studentId,   /* IDOR-verified */
+      payerId:      req.parent._id,         /* parent sees only their own claims */
+      submittedVia: 'parent_portal'         /* portal-submitted only */
+    };
+
+    /* Optional status filter */
+    var VALID_STATUSES = [
+      'awaiting_verification', 'verified', 'rejected',
+      'needs_correction', 'cancelled'
+    ];
+    if (req.query.status && VALID_STATUSES.includes(req.query.status)) {
+      filter.status = req.query.status;
+    }
+
+    var claims = await SchoolPaymentClaim.find(filter)
+      .populate('feeStructureId',  'name category')
+      .populate('campaignId',       'title category')
+      .populate('paymentAccountId', 'accountLabel bankName currency')
+      .populate('resultPaymentId',  'receiptNumber amount currency status verifiedAt')
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+
+    return res.json({
+      success: true,
+      total:   claims.length,
+      claims:  claims.map(function (c) {
+        return {
+          _id:         c._id,
+          status:      c.status,
+          amount:      c.amount,
+          currency:    c.currency,
+          payerName:   c.payerName,
+          reference:   c.reference   || '',
+          paymentDate: c.paymentDate,
+          evidenceUrl: c.evidenceUrl || '',
+          note:        c.note        || '',
+
+          /* What was being paid for */
+          feeStructureId: c.feeStructureId
+            ? { name: c.feeStructureId.name, category: c.feeStructureId.category }
+            : null,
+          campaignId: c.campaignId
+            ? { title: c.campaignId.title, category: c.campaignId.category }
+            : null,
+
+          /* Safe subset of payment account — no account number in list view */
+          paymentAccount: c.paymentAccountId ? {
+            accountLabel: c.paymentAccountId.accountLabel,
+            bankName:     c.paymentAccountId.bankName,
+            currency:     c.paymentAccountId.currency
+          } : null,
+
+          /* Finance decision */
+          rejectionReason: c.rejectionReason || '',
+          correctionNote:  c.correctionNote  || '',
+          reviewedAt:      c.reviewedAt      || null,
+
+          /* Verified payment result — only populated after Finance verification */
+          receipt: c.resultPaymentId ? {
+            receiptNumber: c.resultPaymentId.receiptNumber,
+            amount:        c.resultPaymentId.amount,
+            currency:      c.resultPaymentId.currency,
+            verifiedAt:    c.resultPaymentId.verifiedAt
+          } : null,
+
+          createdAt: c.createdAt
+        };
+      })
+    });
+
+  } catch (err) {
+    console.error('[Parent] GET /children/:studentId/claims:', err.message);
     return res.status(500).json({ success: false, message: err.message });
   }
 });
