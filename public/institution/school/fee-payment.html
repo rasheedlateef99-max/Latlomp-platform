@@ -976,18 +976,34 @@ function fmtCurrency(amount, currency) {
 
 /* Date formatter — delegates to instFmtDate() from inst.api.js */
 function fmtDate(dateStr) {
-  return instFmtDate(dateStr);
+  if (!dateStr) { return '—'; }
+  if (typeof instFmtDate === 'function') { return instFmtDate(dateStr); }
+  /* Safe fallback: instFmtDate not yet available or inst.api.js not loaded */
+  try {
+    return new Date(dateStr).toLocaleDateString('en-NG', {
+      day: 'numeric', month: 'short', year: 'numeric'
+    });
+  } catch (e) { return String(dateStr).split('T')[0] || '—'; }
 }
 
 /* Toast notification — delegates to instToast() from inst.api.js.
    Detects type from the emoji prefix used in every call site. */
 function showToast(msg) {
-  var s = String(msg || '');
+  var s    = String(msg || '');
   var type = s.indexOf('✅') !== -1 ? 'success'
            : s.indexOf('❌') !== -1 ? 'error'
            : s.indexOf('⚠️') !== -1 ? 'warning'
            : 'info';
-  instToast(s, type);
+  if (typeof instToast === 'function') { instToast(s, type); return; }
+  /* Fallback: drive the built-in #toast element directly */
+  var t = document.getElementById('toast');
+  if (!t) { return; }
+  t.textContent   = s;
+  t.style.color   = type === 'success' ? '#43e97b'
+                  : type === 'error'   ? '#ff6584'
+                  : type === 'warning' ? '#ffa500' : '#fff';
+  t.style.display = 'block';
+  setTimeout(function () { t.style.display = 'none'; }, 3500);
 }
 
 /* Element text updater — safe shorthand for textContent writes */
@@ -1020,8 +1036,35 @@ var _selectedStudentForRecord = null;
    INIT
 ============================================================ */
 document.addEventListener('DOMContentLoaded', async function() {
-  if (!instRequireAuth('school_admin')) return;
-  await initPage();
+  try {
+    if (typeof instRequireAuth !== 'function') {
+      /* inst.api.js did not load — show a permanent error, not an infinite spinner */
+      console.error('[Fee-Payment] inst.api.js helpers unavailable.');
+      var rw = document.getElementById('recentPaymentsWrap');
+      if (rw) {
+        rw.innerHTML =
+          '<div class="empty"><div class="empty-icon">⚠️</div>' +
+          '<div class="empty-title">Page scripts could not load.</div>' +
+          '<div class="empty-sub">Hard-refresh the page (Ctrl + Shift + R on desktop, ' +
+          'or pull-to-refresh on mobile). If this keeps happening, please contact support.</div></div>';
+      }
+      ['statStructuresSub','statOutstandingCount','statCampaignsSub'].forEach(function (id) { setEl(id, '—'); });
+      return;
+    }
+    if (!instRequireAuth('school_admin')) { return; }
+    await initPage();
+  } catch (err) {
+    console.error('[Fee-Payment] Initialization failed:', err.message, err);
+    var rw2 = document.getElementById('recentPaymentsWrap');
+    if (rw2) {
+      rw2.innerHTML =
+        '<div class="empty"><div class="empty-icon">⚠️</div>' +
+        '<div class="empty-title">Page could not initialize.</div>' +
+        '<div class="empty-sub">Refresh the page and try again.' +
+        '<br/><small style="opacity:0.6;">' + esc(String(err.message || '')) + '</small></div></div>';
+    }
+    ['statStructuresSub','statOutstandingCount','statCampaignsSub'].forEach(function (id) { setEl(id, '—'); });
+  }
 });
 
 async function initPage() {
@@ -1056,18 +1099,33 @@ async function loadSchoolInfo() {
 }
 
 async function loadClasses() {
-  var res = await instApi('/structure/classes');
-  _classes = (res.ok && res.data && res.data.classes) ? res.data.classes : [];
+  try {
+    var res = await instApi('/structure/classes');
+    _classes = (res.ok && res.data && res.data.classes) ? res.data.classes : [];
+  } catch (e) {
+    console.error('[loadClasses] error:', e.message);
+    _classes = [];
+  }
 }
 
 async function loadTerms() {
-  var res = await instApi('/structure/terms');
-  _terms = (res.ok && res.data && res.data.terms) ? res.data.terms : [];
+  try {
+    var res = await instApi('/structure/terms');
+    _terms = (res.ok && res.data && res.data.terms) ? res.data.terms : [];
+  } catch (e) {
+    console.error('[loadTerms] error:', e.message);
+    _terms = [];
+  }
 }
 
 async function loadActiveAccounts() {
-  var res = await instApi('/fee/manual-accounts/active');
-  _activeAccounts = (res.ok && res.data && res.data.accounts) ? res.data.accounts : [];
+  try {
+    var res = await instApi('/fee/manual-accounts/active');
+    _activeAccounts = (res.ok && res.data && res.data.accounts) ? res.data.accounts : [];
+  } catch (e) {
+    console.error('[loadActiveAccounts] error:', e.message);
+    _activeAccounts = [];
+  }
 }
 
 /* Populate shared selectors in forms and filters */
@@ -1141,45 +1199,76 @@ window.addEventListener('resize', function() { if (window.innerWidth > 960) clos
    OVERVIEW
 ============================================================ */
 async function loadOverview() {
-  /* Stats in parallel */
-  var [summaryRes, campaignRes, recentRes] = await Promise.all([
-    instApi('/fee/reports/summary'),
-    instApi('/finance/donations/campaigns?status=active'),
-    instApi('/fee/payments?limit=8&status=confirmed')
-  ]);
-
-  if (summaryRes.ok && summaryRes.data && summaryRes.data.report) {
-    var r = summaryRes.data.report.summary;
-    setEl('statStructures',      r ? (r.totalStudentsAssigned || 0) + ' students assigned' : '—');
-    setEl('statStructuresSub',   '');
-    setEl('statOutstanding',     r ? fmtCurrency(r.totalCharged - r.totalCollected) : '—');
-    setEl('statOutstandingCount','');
-    setEl('statCollected',       r ? fmtCurrency(r.totalCollected) : '—');
-  }
-
-  /* Count fee structures */
-  var fsRes = await instApi('/fee/structures?active=true');
-  if (fsRes.ok && fsRes.data) {
-    _feeStructures = fsRes.data.structures || [];
-    setEl('statStructures', _feeStructures.length);
-    setEl('statStructuresSub', _feeStructures.filter(function(s) { return s.isActive; }).length + ' active');
-  }
-
-  if (campaignRes.ok && campaignRes.data) {
-    var camps = campaignRes.data.campaigns || [];
-    setEl('statCampaigns',    camps.length);
-    setEl('statCampaignsSub', camps.length ? camps.map(function(c) { return c.title; }).join(', ').substring(0, 50) : 'No active campaigns');
-  }
-
   var recentWrap = document.getElementById('recentPaymentsWrap');
-  if (recentWrap) {
-    if (recentRes.ok && recentRes.data && recentRes.data.payments && recentRes.data.payments.length) {
-      recentWrap.innerHTML = buildPaymentsTable(recentRes.data.payments);
+  try {
+    /* Stats in parallel */
+    var [summaryRes, campaignRes, recentRes] = await Promise.all([
+      instApi('/fee/reports/summary'),
+      instApi('/finance/donations/campaigns?status=active'),
+      instApi('/fee/payments?limit=8&status=confirmed')
+    ]);
+
+    if (summaryRes.ok && summaryRes.data && summaryRes.data.report) {
+      var r = summaryRes.data.report.summary;
+      setEl('statStructures',      r ? (r.totalStudentsAssigned || 0) + ' students assigned' : '—');
+      setEl('statStructuresSub',   '');
+      setEl('statOutstanding',     r ? fmtCurrency(r.totalCharged - r.totalCollected) : '—');
+      setEl('statOutstandingCount','');
+      setEl('statCollected',       r ? fmtCurrency(r.totalCollected) : '—');
     } else {
-      recentWrap.innerHTML = '<div class="empty"><div class="empty-icon">💵</div>' +
-        '<div class="empty-title">No payments recorded yet.</div>' +
-        '<div class="empty-sub">Use "Record Payment" when you receive money at the school.</div></div>';
+      setEl('statOutstanding',     '—');
+      setEl('statOutstandingCount','');
+      setEl('statCollected',       '—');
     }
+
+    /* Fee structure count */
+    var fsRes = await instApi('/fee/structures?active=true');
+    if (fsRes.ok && fsRes.data) {
+      _feeStructures = fsRes.data.structures || [];
+      setEl('statStructures',    _feeStructures.length);
+      setEl('statStructuresSub', _feeStructures.filter(function(s) { return s.isActive; }).length + ' active');
+    } else {
+      setEl('statStructures',    '0');
+      setEl('statStructuresSub', 'Could not load');
+    }
+
+    if (campaignRes.ok && campaignRes.data) {
+      var camps = campaignRes.data.campaigns || [];
+      setEl('statCampaigns',    camps.length);
+      setEl('statCampaignsSub', camps.length
+        ? camps.map(function(c) { return c.title; }).join(', ').substring(0, 50)
+        : 'No active campaigns');
+    } else {
+      setEl('statCampaigns',    '0');
+      setEl('statCampaignsSub', 'No active campaigns');
+    }
+
+    if (recentWrap) {
+      if (recentRes.ok && recentRes.data && recentRes.data.payments && recentRes.data.payments.length) {
+        recentWrap.innerHTML = buildPaymentsTable(recentRes.data.payments);
+      } else {
+        recentWrap.innerHTML =
+          '<div class="empty"><div class="empty-icon">💵</div>' +
+          '<div class="empty-title">No payments recorded yet.</div>' +
+          '<div class="empty-sub">Use "Record Payment" when you receive money at the school.</div></div>';
+      }
+    }
+  } catch (err) {
+    console.error('[Fee-Payment] loadOverview error:', err.message, err);
+    /* Guarantee that no spinner is left running — show a clear error state */
+    if (recentWrap) {
+      recentWrap.innerHTML =
+        '<div class="empty"><div class="empty-icon">⚠️</div>' +
+        '<div class="empty-title">Could not load payment overview.</div>' +
+        '<div class="empty-sub">Refresh the page and try again.' +
+        '<br/><small style="opacity:0.6;">' + esc(String(err.message || '')) + '</small></div></div>';
+    }
+    ['statOutstanding','statCollected','statStructures','statCampaigns'].forEach(function (id) {
+      setEl(id, '—');
+    });
+    ['statStructuresSub','statOutstandingCount','statCampaignsSub'].forEach(function (id) {
+      setEl(id, '—');
+    });
   }
 }
 
@@ -1242,8 +1331,22 @@ async function loadFeeStructures() {
   var wrap = document.getElementById('feeStructuresWrap');
   if (!wrap) return;
   wrap.innerHTML = '<div style="text-align:center;padding:24px;"><span class="spinner"></span></div>';
-  var res = await instApi('/fee/structures');
-  if (!res.ok) { wrap.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Could not load fee structures.</div></div>'; return; }
+  var res;
+  try {
+    res = await instApi('/fee/structures');
+  } catch (err) {
+    console.error('[loadFeeStructures] error:', err.message);
+    wrap.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div>' +
+      '<div class="empty-title">Could not load fee structures.</div>' +
+      '<div class="empty-sub">Refresh the page.</div></div>';
+    return;
+  }
+  if (!res.ok) {
+    wrap.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div>' +
+      '<div class="empty-title">Could not load fee structures.</div>' +
+      '<div class="empty-sub">' + esc((res.data && res.data.message) || 'Refresh the page.') + '</div></div>';
+    return;
+  }
   _feeStructures = res.data.structures || [];
   renderFeeTable();
 }
@@ -1963,8 +2066,11 @@ async function saveCampaign() {
 async function loadAccountsPreview() {
   var wrap = document.getElementById('accountsPreviewWrap');
   if (!wrap) return;
-  /* Reload to get fresh data */
-  await loadActiveAccounts();
+  /* Reload to get fresh data — catch any throw so the spinner always clears */
+  try { await loadActiveAccounts(); } catch (e) {
+    console.error('[loadAccountsPreview] error:', e.message);
+    _activeAccounts = [];
+  }
   if (!_activeAccounts.length) {
     wrap.innerHTML = '<div class="empty"><div class="empty-icon">🏦</div>' +
       '<div class="empty-title">No active payment accounts.</div>' +
@@ -2261,7 +2367,7 @@ async function loadOutstanding(page) {
   var total       = res.data.total       || 0;
 
   if (totalEl) {
-    totalEl.textContent = 'Total outstanding: ' + fmtCurrency(summary.totalOutstanding || 0, 'NGN');
+    totalEl.textContent = 'Total outstanding: ' + fmtCurrency(summary.totalOutstanding || 0, summary.currency);
   }
 
   if (!assignments.length) {
