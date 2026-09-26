@@ -961,13 +961,17 @@ function esc(str) {
 }
 
 /* Currency formatter */
+/* Currency-aware formatter. No NGN assumption.
+   Uses passed currency, falls back to _schoolCurrency,
+   then shows bare number if neither is configured. */
 function fmtCurrency(amount, currency) {
-  var symbols = { NGN:'₦', USD:'$', EUR:'€', GBP:'£', GHS:'₵', KES:'KSh', ZAR:'R' };
-  var cur = (currency || 'NGN').toString().toUpperCase().trim();
-  var sym = symbols[cur] !== undefined ? symbols[cur] : cur + '\u00a0';
-  return sym + Number(amount || 0).toLocaleString('en-NG', {
+  var cur = ((currency || _schoolCurrency) || '').toString().toUpperCase().trim();
+  var num = Number(amount || 0).toLocaleString('en', {
     minimumFractionDigits: 2, maximumFractionDigits: 2
   });
+  if (!cur) { return num; }
+  var syms = { NGN:'₦', USD:'$', GBP:'£', EUR:'€', GHS:'₵', KES:'KSh', ZAR:'R', XOF:'CFA ' };
+  return (syms[cur] !== undefined ? syms[cur] : (cur + '\u00a0')) + num;
 }
 
 /* Date formatter — delegates to instFmtDate() from inst.api.js */
@@ -999,6 +1003,8 @@ function closeModal(id) {
 }
 
 /* ---- Global state ---- */
+var _schoolCurrency = ''; /* Loaded from school record. Used as default by fmtCurrency().
+                             No NGN assumption. Blank = display without currency symbol. */
 var _feeStructures = [];
 var _campaigns     = [];
 var _classes       = [];
@@ -1037,6 +1043,7 @@ async function loadSchoolInfo() {
       _school = res.data.school || res.data;
       var nameEl = document.getElementById('sbSchoolName');
       if (nameEl) nameEl.textContent = _school.name || 'My School';
+      if (_school.currency) { _schoolCurrency = _school.currency.toUpperCase().trim(); }
       var logoEl = document.getElementById('sbLogo');
       if (logoEl && _school.logo) {
         logoEl.innerHTML = '<img src="' + esc(_school.logo) + '" alt="logo" />';
@@ -1145,9 +1152,9 @@ async function loadOverview() {
     var r = summaryRes.data.report.summary;
     setEl('statStructures',      r ? (r.totalStudentsAssigned || 0) + ' students assigned' : '—');
     setEl('statStructuresSub',   '');
-    setEl('statOutstanding',     r ? fmtCurrency(r.totalCharged - r.totalCollected, 'NGN') : '—');
+    setEl('statOutstanding',     r ? fmtCurrency(r.totalCharged - r.totalCollected) : '—');
     setEl('statOutstandingCount','');
-    setEl('statCollected',       r ? fmtCurrency(r.totalCollected, 'NGN') : '—');
+    setEl('statCollected',       r ? fmtCurrency(r.totalCollected) : '—');
   }
 
   /* Count fee structures */
@@ -1269,8 +1276,8 @@ function renderFeeTable() {
     filtered.map(function(s) {
       var amtDisplay = s.isFlexible
         ? '<span style="font-size:11px;color:#a78bfa;">Flexible</span><br/>' +
-          (s.minAmount ? 'min ' + fmtCurrency(s.minAmount, s.currency || 'NGN') : 'Any amount')
-        : fmtCurrency(s.amount, s.currency || 'NGN');
+          (s.minAmount ? 'min ' + fmtCurrency(s.minAmount, s.currency) : 'Any amount')
+        : fmtCurrency(s.amount, s.currency);
 
       var acctDisplay = s.paymentAccountId
         ? '<span style="font-size:11px;color:var(--green);">✅ Linked</span>'
@@ -1733,7 +1740,7 @@ async function selectStudentForPayment(studentId, studentName) {
 function selectAssignmentForPayment(assignmentId, currency) {
   document.getElementById('recordAssignmentId').value = assignmentId;
   document.getElementById('recordStudentId').value    = _selectedStudentForRecord ? _selectedStudentForRecord._id : '';
-  document.getElementById('recordCurrency').value     = currency || 'NGN';
+  document.getElementById('recordCurrency').value     = currency || _schoolCurrency || '';
   document.getElementById('recordPaymentDetailsSection').style.display = 'block';
   document.getElementById('recordPaymentResult').innerHTML = '';
 }
@@ -1767,7 +1774,7 @@ async function submitRecordPayment() {
       resultEl.innerHTML = '<div style="background:rgba(67,233,123,0.1);border:1px solid rgba(67,233,123,0.3);border-radius:10px;padding:16px;">' +
         '<div style="font-size:14px;font-weight:800;color:var(--green);margin-bottom:8px;">✅ Payment Recorded Successfully</div>' +
         '<div style="font-size:13px;color:var(--secondary);line-height:1.8;">' +
-          'Amount: <strong style="color:#fff;">' + fmtCurrency(amount, (document.getElementById('recordCurrency') || {}).value || 'NGN') + '</strong><br/>' +
+          'Amount: <strong style="color:#fff;">' + fmtCurrency(amount, (document.getElementById('recordCurrency') || {}).value) + '</strong><br/>' +
           'Receipt: <strong style="color:#a78bfa;font-family:monospace;">' + esc(res.data.receiptNumber || '—') + '</strong><br/>' +
           'Balance: <strong>' + fmtCurrency(res.data.balance || 0, '') + '</strong><br/>' +
           'Status: <span class="badge ' + (res.data.assignmentStatus === 'paid' ? 'badge-green' : 'badge-orange') + '">' +

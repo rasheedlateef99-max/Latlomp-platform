@@ -23,6 +23,17 @@ if (process.env.SENDGRID_API_KEY) {
 var FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || 'noreply@latlomp.com';
 var APP_URL    = process.env.APP_URL             || 'https://latlompsystem.up.railway.app';
 var EMAIL_ON   = process.env.EMAIL_ENABLED === 'true';
+/* Currency-aware amount formatter for email templates.
+   No NGN assumption — if currency missing, shows bare number.
+   Format: "150,000.00 NGN" — code-before-number avoids
+   symbol encoding issues across email clients. */
+function fmtEmailAmount(amount, currency) {
+  var num = Number(amount || 0).toLocaleString('en', {
+    minimumFractionDigits: 2, maximumFractionDigits: 2
+  });
+  if (!currency) { return num; }
+  return num + '\u00a0' + currency.toUpperCase().trim();
+}
 
 /* ============================================
    CORE SEND WRAPPER
@@ -321,9 +332,9 @@ async function sendFeePaymentConfirmed({
   schoolName, amount, currency, totalCharged,
   platformFeeAmount, receiptNumber, paidAt
 }) {
-  var amountStr   = (currency || 'NGN') + ' ' + Number(amount).toLocaleString();
-  var totalStr    = (currency || 'NGN') + ' ' + Number(totalCharged).toLocaleString();
-  var platformStr = (currency || 'NGN') + ' ' + Number(platformFeeAmount || 0).toLocaleString();
+  var amountStr   = fmtEmailAmount(amount,                   currency);
+  var totalStr    = fmtEmailAmount(totalCharged,             currency);
+  var platformStr = fmtEmailAmount(platformFeeAmount || 0,   currency);
   var dateStr     = paidAt
     ? new Date(paidAt).toLocaleDateString('en-NG', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })
     : new Date().toLocaleDateString('en-NG');
@@ -354,6 +365,283 @@ async function sendFeePaymentConfirmed({
   );
 }
 
+/* ============================================
+   P10-A: PAYMENT CLAIM NOTIFICATION FUNCTIONS
+
+   All four are called as fire-and-forget in
+   inst.fee.routes.js (P4) and inst.finance.routes.js
+   (P5) with try/catch wrappers. They never throw
+   errors that reach the request handler.
+
+   Currency uses fmtEmailAmount() — no NGN assumption.
+   Payer portal link adapts to payerType where provided.
+============================================ */
+
+/* ============================================
+   7. PAYMENT CLAIM RECEIVED (to Finance staff)
+   Triggered: POST /fee/claims (P4)
+   Recipient: school.financeEmail || school.email
+   Purpose:   Finance team is notified a new claim
+              is waiting for their verification.
+============================================ */
+async function sendPaymentClaimReceived({
+  toEmail,
+  schoolName,
+  payerName,
+  payerType,
+  amount,
+  currency,
+  reference,
+  claimId
+}) {
+  if (!toEmail) { return { sent: false, reason: 'NO_RECIPIENT' }; }
+
+  var amountStr  = fmtEmailAmount(amount, currency);
+  var payerLabel = {
+    parent:       'Parent / Guardian',
+    student:      'Student',
+    alumni:       'Alumni',
+    staff:        'Staff',
+    external:     'External Payer',
+    organisation: 'Organisation'
+  }[payerType] || (payerType || 'Payer');
+
+  var financeUrl = APP_URL + '/institution/school/finance.html';
+
+  var content = `
+    <h2>New Payment Claim — Action Required 📨</h2>
+    <p>A new payment claim has been submitted at <strong>${schoolName}</strong> and is awaiting Finance verification.</p>
+
+    <div class="info-box">
+      <strong>Payer:</strong> ${payerName || '—'}<br/>
+      <strong>Payer Type:</strong> ${payerLabel}<br/>
+      <strong>Amount Claimed:</strong> <strong style="color:#6c63ff;">${amountStr}</strong><br/>
+      ${reference ? '<strong>Reference:</strong> ' + reference + '<br/>' : ''}
+      <strong>Status:</strong> Awaiting Verification
+    </div>
+
+    <p>Please log in to Finance and verify whether this transfer appears in the school's bank records before confirming or rejecting the claim.</p>
+    <a href="${financeUrl}" class="btn">Review in Finance →</a>
+
+    <hr class="divider" />
+    <p style="font-size:13px;color:#999;">
+      Do not confirm a payment claim unless you have independently verified
+      it in the school's actual bank records. A confirmed claim creates an
+      authoritative financial transaction.
+    </p>
+  `;
+
+  return sendEmail(
+    toEmail,
+    'New payment claim awaiting verification — ' + schoolName,
+    baseTemplate(
+      content,
+      'Finance notification from ' + schoolName + ' via LatLomp Schools.'
+    )
+  );
+}
+
+/* ============================================
+   8. CLAIM VERIFIED (to payer)
+   Triggered: POST /finance/claims/:id/verify (P5)
+   Recipient: claim.payerEmail
+   Purpose:   Payer is told their transfer was confirmed
+              by Finance and an official receipt is available.
+============================================ */
+async function sendClaimVerified({
+  toEmail,
+  payerName,
+  payerType,
+  amount,
+  currency,
+  reference,
+  receiptNumber,
+  schoolName
+}) {
+  if (!toEmail) { return { sent: false, reason: 'NO_RECIPIENT' }; }
+
+  var amountStr = fmtEmailAmount(amount, currency);
+
+  /* Resolve portal link by payer type */
+  var portalLinks = {
+    parent:   APP_URL + '/institution/parent/dashboard.html',
+    student:  APP_URL + '/institution/student/portal.html',
+    alumni:   APP_URL + '/institution/alumni/portal.html'
+  };
+  var portalUrl   = portalLinks[payerType] || portalLinks.parent;
+  var portalLabel = payerType === 'student' ? 'Student Portal'
+                  : payerType === 'alumni'  ? 'Alumni Portal'
+                  :                            'Parent Portal';
+
+  var content = `
+    <h2>Payment Confirmed ✅</h2>
+    <p>Hi ${payerName || 'there'},</p>
+    <p>Your bank transfer to <strong>${schoolName}</strong> has been verified by the Finance team. Your payment is now confirmed.</p>
+
+    <div class="info-box success">
+      <strong>School:</strong> ${schoolName}<br/>
+      <strong>Amount Verified:</strong> <strong style="color:#43e97b;">${amountStr}</strong><br/>
+      ${reference     ? '<strong>Bank Reference:</strong> ' + reference     + '<br/>' : ''}
+      ${receiptNumber ? '<strong>Receipt Number:</strong> <span style="font-family:monospace;font-weight:700;">' + receiptNumber + '</span><br/>' : ''}
+      <strong>Status:</strong> ✅ Verified & Confirmed
+    </div>
+
+    <p>Your fee balance has been updated. You can view your progress and download your official receipt from the portal.</p>
+    <a href="${portalUrl}" class="btn btn-green">View ${portalLabel} →</a>
+
+    <hr class="divider" />
+    <p style="font-size:13px;color:#999;">
+      Please keep your receipt number for your records.
+      If you believe this confirmation is incorrect, contact ${schoolName} directly.
+    </p>
+  `;
+
+  return sendEmail(
+    toEmail,
+    'Payment confirmed — ' + (receiptNumber || amountStr) + ' | ' + schoolName,
+    baseTemplate(
+      content,
+      'Payment confirmation from ' + schoolName + ' via LatLomp Schools.'
+    )
+  );
+}
+
+/* ============================================
+   9. CLAIM REJECTED (to payer)
+   Triggered: POST /finance/claims/:id/reject (P5)
+   Recipient: claim.payerEmail
+   Purpose:   Payer is told their claim was rejected
+              and why, so they can investigate.
+============================================ */
+async function sendClaimRejected({
+  toEmail,
+  payerName,
+  payerType,
+  amount,
+  currency,
+  reference,
+  rejectionReason,
+  schoolName
+}) {
+  if (!toEmail) { return { sent: false, reason: 'NO_RECIPIENT' }; }
+
+  var amountStr = fmtEmailAmount(amount, currency);
+
+  var portalLinks = {
+    parent:  APP_URL + '/institution/parent/dashboard.html',
+    student: APP_URL + '/institution/student/portal.html',
+    alumni:  APP_URL + '/institution/alumni/portal.html'
+  };
+  var portalUrl = portalLinks[payerType] || portalLinks.parent;
+
+  var content = `
+    <h2>Payment Claim Not Confirmed ❌</h2>
+    <p>Hi ${payerName || 'there'},</p>
+    <p>The Finance team at <strong>${schoolName}</strong> was unable to confirm your payment claim.</p>
+
+    <div class="info-box danger">
+      <strong>Claimed Amount:</strong> ${amountStr}<br/>
+      ${reference ? '<strong>Reference:</strong> ' + reference + '<br/>' : ''}
+      <strong>Status:</strong> ❌ Rejected<br/><br/>
+      <strong>Reason from Finance:</strong><br/>
+      ${rejectionReason || 'No reason provided. Please contact the school directly.'}
+    </div>
+
+    <p>
+      If you believe your transfer was made correctly, please check your bank
+      records and contact <strong>${schoolName}</strong> directly with your
+      proof of payment.
+    </p>
+    <p>
+      If you have not yet made the transfer, please disregard this notification.
+    </p>
+    <a href="${portalUrl}" class="btn">View Your Claims →</a>
+
+    <hr class="divider" />
+    <p style="font-size:13px;color:#999;">
+      A rejected claim does not mean your money has been taken.
+      It means the school Finance team could not match a transfer to your claim.
+      Please verify directly with your bank and with ${schoolName}.
+    </p>
+  `;
+
+  return sendEmail(
+    toEmail,
+    'Payment claim not confirmed — action required | ' + schoolName,
+    baseTemplate(
+      content,
+      'Finance notification from ' + schoolName + ' via LatLomp Schools.'
+    )
+  );
+}
+
+/* ============================================
+   10. CLAIM NEEDS CORRECTION (to payer)
+   Triggered: POST /finance/claims/:id/request-correction (P5)
+   Recipient: claim.payerEmail
+   Purpose:   Finance found an issue with the claim
+              details and needs the payer to correct
+              and resubmit.
+============================================ */
+async function sendClaimNeedsCorrection({
+  toEmail,
+  payerName,
+  payerType,
+  amount,
+  currency,
+  correctionNote,
+  schoolName
+}) {
+  if (!toEmail) { return { sent: false, reason: 'NO_RECIPIENT' }; }
+
+  var amountStr = fmtEmailAmount(amount, currency);
+
+  var portalLinks = {
+    parent:  APP_URL + '/institution/parent/dashboard.html',
+    student: APP_URL + '/institution/student/portal.html',
+    alumni:  APP_URL + '/institution/alumni/portal.html'
+  };
+  var portalUrl   = portalLinks[payerType] || portalLinks.parent;
+  var portalLabel = payerType === 'student' ? 'Student Portal'
+                  : payerType === 'alumni'  ? 'Alumni Portal'
+                  :                            'Parent Portal';
+
+  var content = `
+    <h2>Update Required on Your Payment Claim 🔧</h2>
+    <p>Hi ${payerName || 'there'},</p>
+    <p>The Finance team at <strong>${schoolName}</strong> has reviewed your payment claim and needs you to update some details before they can verify it.</p>
+
+    <div class="info-box warning">
+      <strong>Claimed Amount:</strong> ${amountStr}<br/>
+      <strong>Status:</strong> 🔧 Needs Correction<br/><br/>
+      <strong>What Finance needs you to fix:</strong><br/>
+      ${correctionNote || 'Please contact the school Finance team for details.'}
+    </div>
+
+    <p>
+      Please log in to the portal, find this claim in your
+      <strong>My Claims</strong> section, update the details
+      as requested, and resubmit.
+    </p>
+    <a href="${portalUrl}" class="btn">Update Your Claim →</a>
+
+    <hr class="divider" />
+    <p style="font-size:13px;color:#999;">
+      Updating your claim does not create a new payment.
+      Once you have corrected the information, Finance will review it again.
+      Contact ${schoolName} directly if you need help.
+    </p>
+  `;
+
+  return sendEmail(
+    toEmail,
+    'Action required: update your payment claim | ' + schoolName,
+    baseTemplate(
+      content,
+      'Finance notification from ' + schoolName + ' via LatLomp Schools.'
+    )
+  );
+}
 module.exports = {
   sendTeacherInvite,
   sendSchoolWelcome,
@@ -361,5 +649,9 @@ module.exports = {
   sendExpiryWarning,
   sendSubscriptionExpired,
   sendResultsReleased,
-  sendFeePaymentConfirmed
+  sendFeePaymentConfirmed,     /* existing — NGN fallback fixed */
+  sendPaymentClaimReceived,    /* P10-A: Finance notified of new claim */
+  sendClaimVerified,           /* P10-A: Payer notified of verification */
+  sendClaimRejected,           /* P10-A: Payer notified of rejection */
+  sendClaimNeedsCorrection     /* P10-A: Payer notified of required correction */
 };

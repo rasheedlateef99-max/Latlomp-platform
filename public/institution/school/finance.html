@@ -307,7 +307,7 @@
       <!-- Banking balance card -->
       <div class="balance-card" id="balanceCard">
         <div class="balance-label">💰 Total Collected (Verified Payments)</div>
-        <div class="balance-amount" id="balanceAmount">₦0.00</div>
+        <div class="balance-amount" id="balanceAmount">—</div>
         <div class="balance-period" id="balancePeriod">This Month · Managed via payment provider</div>
         <div class="balance-row">
           <div class="balance-item">
@@ -316,15 +316,15 @@
           </div>
           <div class="balance-item">
             <div class="balance-item-label">Outstanding</div>
-            <div class="balance-item-value" id="balanceOutstanding">₦0.00</div>
+            <div class="balance-item-value" id="balanceOutstanding">—</div>
           </div>
           <div class="balance-item">
             <div class="balance-item-label">Refunds</div>
-            <div class="balance-item-value" id="balanceRefunded">₦0.00</div>
+            <div class="balance-item-value" id="balanceRefunded">—</div>
           </div>
           <div class="balance-item">
             <div class="balance-item-label">Donations</div>
-            <div class="balance-item-value" id="balanceDonations">₦0.00</div>
+            <div class="balance-item-value" id="balanceDonations">—</div>
           </div>
         </div>
       </div>
@@ -333,17 +333,17 @@
       <div class="cards" id="summaryCards">
         <div class="card" style="--accent:#ff6584;">
           <div class="card-label">⚠️ Outstanding</div>
-          <div class="card-value" id="statOutstanding">₦0</div>
+          <div class="card-value" id="statOutstanding">—</div>
           <div class="card-sub" id="statOutstandingCount">0 balances</div>
         </div>
         <div class="card" style="--accent:#43e97b;">
           <div class="card-label">✅ Net Collected</div>
-          <div class="card-value" id="statNet">₦0</div>
+          <div class="card-value" id="statNet">—</div>
           <div class="card-sub">After refunds</div>
         </div>
         <div class="card" style="--accent:#ffd600;">
           <div class="card-label">📊 Avg Transaction</div>
-          <div class="card-value" id="statAvg">₦0</div>
+          <div class="card-value" id="statAvg">—</div>
           <div class="card-sub" id="statMinMax">Min ₦0 / Max ₦0</div>
         </div>
         <div class="card" style="--accent:#ffa500;">
@@ -1001,6 +1001,9 @@
    FINANCE DASHBOARD SCRIPT (E7B)
 ============================================ */
 var _period    = 'month';
+var _schoolCurrency = ''; /* Set from school record on load. Used as default by fmt().
+                             Individual records always pass their own currency field.
+                             No NGN assumption — blank means display without symbol. */
 /* ✅ FIX: Primary key confirmed from dashboard.html logout = 'latlomp_inst_token' */
 var _token = '';
 var _charts    = {};
@@ -1054,11 +1057,12 @@ async function loadSchoolInfo() {
     var res  = await fetch('/api/institution/school', opts);
     if (res.ok) {
       var data = await res.json();
-      var name = (data.school && data.school.name)
-              || (data.name)
-              || '';
+      var name     = (data.school && data.school.name)     || (data.name)     || '';
+      var currency = (data.school && data.school.currency) || (data.currency) || '';
       var el = document.getElementById('topbarSchool');
       if (el && name) { el.textContent = name; }
+      /* Set school default currency. Per-record amounts override this in fmt(). */
+      if (currency) { _schoolCurrency = currency.toUpperCase().trim(); }
     }
   } catch(e) {
     /* Non-fatal — topbar school name stays blank */
@@ -1186,7 +1190,7 @@ function buildTxnTable(txns) {
         '<td style="font-weight:700;color:#fff;">' + esc(st.name || '—') +
           '<br/><span style="font-size:11px;color:var(--muted);">' + esc(st.admissionNo || '') + '</span></td>' +
         '<td style="font-size:12px;">' + esc(fs.name || '—') + '</td>' +
-        '<td style="font-weight:700;color:var(--green);">' + fmt(t.amount) + '</td>' +
+        '<td style="font-weight:700;color:var(--green);">' + fmt(t.amount, t.currency) + '</td>' +
         '<td style="font-size:12px;">' + esc(t.method || '—') + '</td>' +
         '<td><span class="badge ' + status + '">' + esc(t.status || '—') + '</span></td>' +
         '<td><a href="/api/institution/finance/transactions/' + t._id + '/receipt" target="_blank" class="btn btn-secondary btn-sm">⬇ Receipt</a></td>' +
@@ -1276,10 +1280,10 @@ async function loadOutstanding(page) {
         '</td>' +
           '<td style="font-size:12px;">' + esc(st.class || '—') + '</td>' +
           '<td style="font-size:12px;">' + esc(fs.name || '—') + '<br/><span style="font-size:10px;color:var(--muted);">' + esc(tm.name || '') + '</span></td>' +
-          '<td style="color:#fff;">' + fmt(a.amountDue) + '</td>' +
-          '<td style="color:var(--green);">' + fmt(a.amountPaid) + '</td>' +
+          '<td style="color:#fff;">' + fmt(a.amountDue, a.currency) + '</td>' +
+          '<td style="color:var(--green);">' + fmt(a.amountPaid, a.currency) + '</td>' +
           '<td>' +
-            '<div style="font-weight:700;color:var(--red);">' + fmt(a.balance) + '</div>' +
+            '<div style="font-weight:700;color:var(--red);">' + fmt(a.balance, a.currency) + '</div>' +
             (a.amountDue > 0
               ? '<div class="fin-mini-bar-track"><div class="fin-mini-bar-fill" style="width:' +
                   Math.min(100, Math.round(((a.amountPaid || 0) / a.amountDue) * 100)) + '%;' +
@@ -1386,10 +1390,10 @@ async function loadReconciliation(page) {
         return '<tr>' +
           '<td style="font-weight:700;color:#fff;">' + esc(st.name || '—') + '</td>' +
           '<td style="font-size:12px;">' + esc(fs.name || '—') + '</td>' +
-          '<td style="color:#fff;">' + fmt(a.amountDue) + '</td>' +
+          '<td style="color:#fff;">' + fmt(a.amountDue, a.currency) + '</td>' +
           '<td><span class="badge ' + sc + '">' + esc(a.status) + '</span></td>' +
           '<td style="font-size:12px;">' + (payments.length ? payments.map(function(p) {
-            return '<span style="color:var(--green);">' + fmt(p.amount) + '</span> (' + esc(p.method || '?') + ')';
+            return '<span style="color:var(--green);">' + fmt(p.amount, p.currency) + '</span> (' + esc(p.method || '?') + ')';
           }).join(', ') : '—') + '</td>' +
           '<td style="font-weight:700;">' + reconciled + '</td>' +
         '</tr>';
@@ -1426,8 +1430,8 @@ async function loadCampaigns() {
         return '<tr>' +
           '<td style="font-weight:700;color:#fff;">' + esc(c.title) + '<br/><span style="font-size:11px;color:var(--muted);">' + esc(c.description || '') + '</span></td>' +
           '<td style="text-transform:capitalize;">' + esc(c.category || '—') + '</td>' +
-          '<td>' + (c.targetAmount ? fmt(c.targetAmount) : '—') + '</td>' +
-          '<td style="color:var(--green);font-weight:700;">' + fmt(c.totalCollected) + '</td>' +
+          '<td>' + (c.targetAmount ? fmt(c.targetAmount, c.currency) : '—') + '</td>' +
+          '<td style="color:var(--green);font-weight:700;">' + fmt(c.totalCollected, c.currency) + '</td>' +
           '<td>' + (c.donationCount || 0) + '</td>' +
           '<td><span class="badge ' + sc + '">' + esc(c.status) + '</span></td>' +
         '</tr>';
@@ -1451,7 +1455,7 @@ async function loadDonations() {
         return '<tr>' +
           '<td style="font-weight:700;color:#fff;">' + (d.isAnonymous ? '🕵️ Anonymous' : esc(d.donorName || '—')) + '</td>' +
           '<td style="text-transform:capitalize;">' + esc(d.donorType || '—') + '</td>' +
-          '<td style="color:var(--green);font-weight:700;">' + fmt(d.amount) + '</td>' +
+          '<td style="color:var(--green);font-weight:700;">' + fmt(d.amount, d.currency) + '</td>' +
           '<td><span class="badge ' + sc + '">' + esc(d.paymentStatus || '—') + '</span></td>' +
           '<td style="font-size:12px;">' + fmtDate(d.createdAt) + '</td>' +
         '</tr>';
@@ -1529,7 +1533,7 @@ async function loadRefunds() {
           : '';
         return '<tr>' +
           '<td style="font-weight:700;color:#fff;">' + esc(st.name || '—') + '</td>' +
-          '<td style="color:var(--orange);font-weight:700;">' + fmt(r.amount) + '</td>' +
+          '<td style="color:var(--orange);font-weight:700;">' + fmt(r.amount, r.currency) + '</td>' +
           '<td style="font-size:12px;">' + esc(r.reason || '—') + '</td>' +
           '<td><span class="badge ' + sc + '">' + esc(r.status) + '</span></td>' +
           '<td style="font-size:12px;">' + fmtDate(r.requestedAt) + '</td>' +
@@ -1652,8 +1656,17 @@ function renderPagination(containerId, current, total, callback) {
 }
 
 /* ---- Utilities ---- */
-function fmt(amount) {
-  return '₦' + Number(amount || 0).toLocaleString('en-NG', { minimumFractionDigits:2, maximumFractionDigits:2 });
+/* Currency-aware formatter.
+   Priority: passed currency → _schoolCurrency → bare number (no symbol).
+   Never assumes NGN. Schools in any country get their configured symbol. */
+function fmt(amount, currency) {
+  var cur = ((currency || _schoolCurrency) || '').toUpperCase().trim();
+  var num = Number(amount || 0).toLocaleString('en', {
+    minimumFractionDigits: 2, maximumFractionDigits: 2
+  });
+  if (!cur) { return num; }
+  var syms = { NGN:'₦', USD:'$', GBP:'£', EUR:'€', GHS:'₵', KES:'KSh', ZAR:'R', XOF:'CFA ' };
+  return (syms[cur] !== undefined ? syms[cur] : (cur + '\u00a0')) + num;
 }
 
 function fmtDate(d) {
@@ -2194,7 +2207,7 @@ async function deletePaymentMethod(id, label) {
               esc(fs.name || t.note || '') + '</div>' +
           '</div>' +
           '<div style="text-align:right;flex-shrink:0;">' +
-            '<div style="font-weight:700;color:var(--green);">' + fmt(t.amount) + '</div>' +
+            '<div style="font-weight:700;color:var(--green);">' + fmt(t.amount, t.currency) + '</div>' +
             '<div style="font-size:11px;color:var(--muted);">' + fmtDate(t.recordedAt) + '</div>' +
           '</div>' +
           '<div style="flex-shrink:0;min-width:90px;text-align:right;">' +
@@ -2465,15 +2478,15 @@ async function deletePaymentMethod(id, label) {
         '</div>' +
         '<div style="display:flex;gap:16px;flex-wrap:wrap;">' +
           '<div style="text-align:center;">' +
-            '<div style="font-size:14px;font-weight:800;color:var(--green);">' + fmt(summary.totalAllocated || 0) + '</div>' +
+            '<div style="font-size:14px;font-weight:800;color:var(--green);">' + fmt(summary.totalAllocated || 0, summary.currency) + '</div>' +
             '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Verified Paid</div>' +
           '</div>' +
           '<div style="text-align:center;">' +
-            '<div style="font-size:14px;font-weight:800;color:var(--red);">' + fmt(summary.totalRemaining || 0) + '</div>' +
+            '<div style="font-size:14px;font-weight:800;color:var(--red);">' + fmt(summary.totalRemaining || 0, summary.currency) + '</div>' +
             '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Remaining</div>' +
           '</div>' +
           '<div style="text-align:center;">' +
-            '<div style="font-size:14px;font-weight:800;color:#fff;">' + fmt(summary.totalRequired || 0) + '</div>' +
+            '<div style="font-size:14px;font-weight:800;color:#fff;">' + fmt(summary.totalRequired || 0, summary.currency) + '</div>' +
             '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Required</div>' +
           '</div>' +
         '</div>' +
@@ -2494,7 +2507,7 @@ async function deletePaymentMethod(id, label) {
         '<div class="fin-progress-bar-track"><div class="fin-progress-bar-fill" style="width:' + pct + '%;background:' + barBg + ';"></div></div>' +
         '<div class="fin-progress-row">' +
           '<span style="color:' + barBg + ';font-weight:700;">' + pct + '%</span>' +
-          '<span>' + fmt(p.totalAllocated || 0) + ' / ' + fmt(p.netObligation || 0) + '</span>' +
+          '<span>' + fmt(p.totalAllocated || 0, p.currency) + ' / ' + fmt(p.netObligation || 0, p.currency) + '</span>' +
           '<span class="badge ' + (p.status === 'paid' ? 'badge-green' : p.status === 'partial' ? 'badge-orange' : 'badge-red') + '" style="font-size:10px;">' +
             esc(p.status === 'not_paid' ? 'Not Paid' : p.status === 'partial' ? 'Partial' : p.status === 'paid' ? 'Paid' : esc(p.status)) + '</span>' +
         '</div>' +
@@ -2592,7 +2605,7 @@ async function deletePaymentMethod(id, label) {
         '</div>' +
 
         '<div class="claim-card-meta">' +
-          '<span class="claim-card-amount">' + fmt(c.amount) + '</span>' +
+          '<span class="claim-card-amount">' + fmt(c.amount, c.currency) + '</span>' +
           (c.reference ? '<span class="claim-card-ref">Ref: ' + esc(c.reference) + '</span>' : '') +
           '<span style="font-size:11px;color:var(--muted);">' + fmtDate(c.paymentDate) + '</span>' +
         '</div>' +
