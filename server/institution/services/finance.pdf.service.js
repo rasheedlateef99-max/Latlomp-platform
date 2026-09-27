@@ -644,9 +644,294 @@ async function generateClaimReceiptPDF(payment, allocations, school) {
   });
 }
 
+/* ============================================
+   generateManualReceiptPDF(receipt, school) → Buffer
+   
+   Professional receipt for payments received manually
+   by school staff outside the LatLomp Finance workflow.
+
+   receipt: SchoolManualReceipt document
+   school:  School document
+
+   DOES NOT represent a verified Finance transaction.
+   Footer carries an explicit disclaimer to this effect.
+   Uses same A5 size and pdfkit pattern as other receipts.
+   Existing receipt functions are UNCHANGED.
+============================================ */
+async function generateManualReceiptPDF(receipt, school) {
+  var PDFDocument = getPDFDocument();
+  var primary     = (school && school.primaryColor) || '#6c63ff';
+
+  var logoBuffer = null;
+  try { logoBuffer = await fetchImageBuffer(school && school.logo); } catch(e) {}
+
+  /* ── Currency formatter: no NGN assumption ── */
+  function fmtAmt(amount, currency) {
+    var cur = ((currency || '') + '').toUpperCase().trim();
+    var num = Number(amount || 0).toLocaleString('en', {
+      minimumFractionDigits: 2, maximumFractionDigits: 2
+    });
+    var syms = { NGN:'₦', USD:'$', GBP:'£', EUR:'€', GHS:'₵',
+                 KES:'KSh ', ZAR:'R ', XOF:'CFA ' };
+    return (syms[cur] !== undefined ? syms[cur] : cur + ' ') + num;
+  }
+
+  /* ── Method label ── */
+  var METHOD_LABELS = {
+    cash:          'Cash',
+    bank_transfer: 'Bank Transfer',
+    cheque:        'Cheque',
+    pos:           'POS Terminal',
+    mobile_money:  'Mobile Money',
+    ussd:          'USSD Transfer',
+    other:         'Other'
+  };
+
+  return new Promise(function(resolve, reject) {
+    try {
+      var doc    = new PDFDocument({ size: [420, 595], margin: 0 });
+      var chunks = [];
+      doc.on('data', function(c) { chunks.push(c); });
+      doc.on('end',  function()  { resolve(Buffer.concat(chunks)); });
+      doc.on('error', reject);
+
+      var W      = doc.page.width;   /* 420 */
+      var margin = 28;
+      var usable = W - (margin * 2); /* 364 */
+
+      /* ════════════════════════════════════════
+         HEADER BAND
+      ════════════════════════════════════════ */
+      doc.fillColor(primary).rect(0, 0, W, 76).fill();
+
+      /* Logo */
+      var logoLoaded = false;
+      if (logoBuffer) {
+        try {
+          doc.image(logoBuffer, margin, 12, { width: 52, height: 52 });
+          logoLoaded = true;
+        } catch(e) {}
+      }
+      /* Initials placeholder if no logo */
+      if (!logoLoaded && school && school.name) {
+        doc.fillColor('rgba(255,255,255,0.25)').rect(margin, 14, 46, 46).fill();
+        doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(22)
+           .text((school.name || 'S').charAt(0).toUpperCase(),
+                 margin + 13, 27, { lineBreak: false });
+      }
+
+      var textX = margin + 58;
+      doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(13)
+         .text((school && school.name || 'School').toUpperCase(),
+               textX, 14, { width: usable - 58, lineBreak: false });
+      doc.font('Helvetica').fontSize(8).fillColor('rgba(255,255,255,0.75)')
+         .text('PAYMENT RECEIPT', textX, 31, { lineBreak: false });
+      var contactLine = [(school && school.address), (school && school.phone)]
+        .filter(Boolean).join(' · ');
+      if (contactLine) {
+        doc.fontSize(7).fillColor('rgba(255,255,255,0.55)')
+           .text(contactLine, textX, 44, { width: usable - 58, lineBreak: false });
+      }
+
+      var y = 86;
+
+      /* ════════════════════════════════════════
+         RECEIPT NUMBER + DATE BAR
+      ════════════════════════════════════════ */
+      doc.fillColor(primary).fillOpacity(0.07).rect(margin, y, usable, 30).fill();
+      doc.fillOpacity(1);
+
+      doc.fillColor('#555555').font('Helvetica').fontSize(7)
+         .text('RECEIPT NO.', margin + 8, y + 6, { lineBreak: false });
+      doc.fillColor('#1a1a2e').font('Helvetica-Bold').fontSize(11)
+         .text(receipt.receiptNumber || '—', margin + 8, y + 16, { lineBreak: false });
+
+      var dateStr = fmtDate(receipt.paymentDate || receipt.issuedAt);
+      doc.fillColor('#555555').font('Helvetica').fontSize(7)
+         .text('DATE', W - margin - 90, y + 6, { lineBreak: false });
+      doc.fillColor('#1a1a2e').font('Helvetica-Bold').fontSize(9)
+         .text(dateStr, W - margin - 90, y + 16, { lineBreak: false });
+
+      y += 40;
+
+      /* ════════════════════════════════════════
+         AMOUNT
+      ════════════════════════════════════════ */
+      doc.fillColor('#888888').font('Helvetica').fontSize(7.5)
+         .text('AMOUNT RECEIVED', margin, y, { lineBreak: false });
+      y += 13;
+      doc.fillColor('#1a1a2e').font('Helvetica-Bold').fontSize(28)
+         .text(fmtAmt(receipt.amount, receipt.currency), margin, y, { lineBreak: false });
+
+      /* Method badge inline */
+      var methodLabel = METHOD_LABELS[receipt.paymentMethod] || (receipt.paymentMethod || 'Cash');
+      doc.fillColor(primary).fillOpacity(0.1)
+         .roundedRect(W - margin - 80, y + 4, 80, 18, 4).fill();
+      doc.fillOpacity(1).fillColor(primary).font('Helvetica-Bold').fontSize(7.5)
+         .text(methodLabel.toUpperCase(), W - margin - 76, y + 9, { lineBreak: false });
+
+      y += 36;
+
+      /* ════════════════════════════════════════
+         DIVIDER
+      ════════════════════════════════════════ */
+      doc.strokeColor('#e0e0e0').lineWidth(0.5)
+         .moveTo(margin, y).lineTo(margin + usable, y).stroke();
+      y += 10;
+
+      /* ════════════════════════════════════════
+         TWO-COLUMN INFO: PAYER LEFT / PAYMENT RIGHT
+      ════════════════════════════════════════ */
+      var colLeft  = margin;
+      var colRight = margin + 195;
+      var colW     = 168;
+      var yStart   = y;
+
+      function labelVal(x, yPos, label, value, color) {
+        doc.fillColor('#888888').font('Helvetica').fontSize(7)
+           .text(label, x, yPos, { lineBreak: false });
+        doc.fillColor(color || '#1a1a2e').font('Helvetica').fontSize(8.5)
+           .text(String(value || '—'), x, yPos + 11,
+                 { width: colW, lineBreak: false, ellipsis: true });
+        return yPos + 26;
+      }
+
+      /* Left column: payer + student */
+      var yL = yStart;
+      doc.fillColor(primary).font('Helvetica-Bold').fontSize(7)
+         .text('PAYER DETAILS', colLeft, yL, { lineBreak: false });
+      yL += 12;
+      yL = labelVal(colLeft, yL, 'Name', receipt.payerName);
+      if (receipt.payerPhone) {
+        yL = labelVal(colLeft, yL, 'Phone', receipt.payerPhone);
+      }
+      if (receipt.payerEmail) {
+        yL = labelVal(colLeft, yL, 'Email', receipt.payerEmail);
+      }
+
+      /* Student sub-section */
+      if (receipt.studentName) {
+        yL += 4;
+        doc.strokeColor('#e8e8e8').lineWidth(0.3)
+           .moveTo(colLeft, yL).lineTo(colLeft + colW, yL).stroke();
+        yL += 6;
+        doc.fillColor(primary).font('Helvetica-Bold').fontSize(7)
+           .text('STUDENT', colLeft, yL, { lineBreak: false });
+        yL += 12;
+        yL = labelVal(colLeft, yL, 'Student Name', receipt.studentName);
+        if (receipt.studentClass) {
+          yL = labelVal(colLeft, yL, 'Class / Level', receipt.studentClass);
+        }
+        if (receipt.admissionNo) {
+          yL = labelVal(colLeft, yL, 'Admission No.', receipt.admissionNo);
+        }
+      }
+
+      /* Right column: payment details */
+      var yR = yStart;
+      doc.fillColor(primary).font('Helvetica-Bold').fontSize(7)
+         .text('PAYMENT DETAILS', colRight, yR, { lineBreak: false });
+      yR += 12;
+      yR = labelVal(colRight, yR, 'Payment Method', methodLabel);
+      yR = labelVal(colRight, yR, 'Payment Date',   fmtDate(receipt.paymentDate));
+      if (receipt.reference) {
+        yR = labelVal(colRight, yR, 'Reference / Teller', receipt.reference, primary);
+      }
+
+      y = Math.max(yL, yR) + 12;
+
+      /* ════════════════════════════════════════
+         DIVIDER
+      ════════════════════════════════════════ */
+      doc.strokeColor('#e0e0e0').lineWidth(0.5)
+         .moveTo(margin, y).lineTo(margin + usable, y).stroke();
+      y += 10;
+
+      /* ════════════════════════════════════════
+         DESCRIPTION / PURPOSE
+      ════════════════════════════════════════ */
+      doc.fillColor(primary).fillOpacity(0.05)
+         .rect(margin, y, usable, 12).fill();
+      doc.fillOpacity(1).fillColor(primary).font('Helvetica-Bold').fontSize(7)
+         .text('PAYMENT DESCRIPTION / PURPOSE', margin + 6, y + 3, { lineBreak: false });
+      y += 16;
+
+      doc.fillColor('#1a1a2e').font('Helvetica').fontSize(9)
+         .text(receipt.description || '—', margin + 6, y,
+               { width: usable - 12, lineGap: 3 });
+      /* Measure how tall the description rendered */
+      var descHeight = doc.heightOfString(receipt.description || '—',
+                         { width: usable - 12 });
+      y += descHeight + 12;
+
+      /* Notes */
+      if (receipt.notes) {
+        doc.fillColor('#888888').font('Helvetica').fontSize(7.5)
+           .text('Notes: ' + receipt.notes, margin, y,
+                 { width: usable, lineGap: 2, oblique: true });
+        y += doc.heightOfString('Notes: ' + receipt.notes, { width: usable }) + 10;
+      }
+
+      /* ════════════════════════════════════════
+         ISSUED BY + SIGNATURE LINE
+      ════════════════════════════════════════ */
+      var signY = Math.min(y + 8, doc.page.height - 100);
+
+      doc.strokeColor('#e0e0e0').lineWidth(0.5)
+         .moveTo(margin, signY).lineTo(margin + usable, signY).stroke();
+      signY += 10;
+
+      /* Signature line */
+      doc.strokeColor('#1a1a2e').lineWidth(0.5)
+         .moveTo(margin, signY + 22).lineTo(margin + 150, signY + 22).stroke();
+      doc.fillColor('#888888').font('Helvetica').fontSize(7)
+         .text('Authorized by', margin, signY + 26, { lineBreak: false });
+      if (receipt.issuedByName) {
+        doc.fillColor('#1a1a2e').font('Helvetica-Bold').fontSize(8)
+           .text(receipt.issuedByName, margin, signY + 10, { lineBreak: false });
+      }
+
+      /* Issued timestamp on right */
+      doc.fillColor('#888888').font('Helvetica').fontSize(7)
+         .text('Issued: ' + fmtDateTime(receipt.issuedAt),
+               W - margin - 140, signY + 10,
+               { width: 140, align: 'right', lineBreak: false });
+
+      /* ════════════════════════════════════════
+         FOOTER — DISCLAIMER
+      ════════════════════════════════════════ */
+      var footerY = doc.page.height - 44;
+      doc.fillColor('#f5f5f5').rect(0, footerY, W, 44).fill();
+      doc.strokeColor('#e0e0e0').lineWidth(0.3)
+         .moveTo(0, footerY).lineTo(W, footerY).stroke();
+
+      doc.fillColor('#888888').font('Helvetica').fontSize(6.5)
+         .text(
+           'This receipt was manually issued by ' +
+           (school && school.name ? school.name : 'the school') +
+           ' and is NOT a record of a transaction processed through LatLomp Finance.',
+           margin, footerY + 8, { width: usable, align: 'center' }
+         );
+      doc.fontSize(6)
+         .text(
+           'Receipt No: ' + (receipt.receiptNumber || '—') +
+           '   |   Generated: ' + fmtDateTime(new Date()),
+           margin, footerY + 22, { width: usable, align: 'center' }
+         );
+      doc.text(
+        'LatLomp Education Platform  ·  latlompsystem.up.railway.app',
+        margin, footerY + 33, { width: usable, align: 'center' }
+      );
+
+      doc.end();
+    } catch(err) { reject(err); }
+  });
+}
+
 module.exports = {
   generateReceiptPDF,
   generateClaimReceiptPDF,          /* P8 */
+  generateManualReceiptPDF,         /* Track 2 — manual receipt generator */
   generateStatementPDF,
   generateStatementExcel,
   fmtAmount,

@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Manual Receipt Generator — LatLomp Schools</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary:#6c63ff; --pd:#574fd6;
+      --green:#43e97b;   --red:#ff6584;
+      --orange:#ffa500;  --yellow:#ffd600;
+      --dark:#0f0f1a;    --dark-2:#1a1a2e;
+      --border:rgba(255,255,255,0.08);
+      --muted:#6b6b8a;   --secondary:#a0a0c0;
+    }
+    html, body { background:var(--dark); color:#fff; font-family:'Inter',sans-serif; }
+    @keyframes spin   { to { transform:rotate(360deg); } }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);} }
+
+    /* ── SIDEBAR ── */
+    .sidebar { width:240px; flex-shrink:0; background:var(--dark-2); border-right:1px solid var(--border); display:flex; flex-direction:column; position:fixed; top:0; left:0; bottom:0; z-index:400; overflow-y:auto; transition:transform 0.3s cubic-bezier(0.4,0,0.2,1); }
+    @media(max-width:960px){ .sidebar{transform:translateX(-100%);} .sidebar.open{transform:translateX(0);box-shadow:8px 0 48px rgba(0,0,0,0.6);} }
+    .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:399; }
+    .sidebar-overlay.visible { display:block; }
+    .sb-head { padding:16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+    .sb-logo { width:38px; height:38px; border-radius:8px; background:linear-gradient(135deg,var(--primary),var(--pd)); display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:800; overflow:hidden; flex-shrink:0; }
+    .sb-logo img { width:100%; height:100%; object-fit:cover; }
+    .sb-school-name { font-size:13px; font-weight:800; color:#fff; }
+    .sb-school-sub  { font-size:10px; color:var(--green); font-weight:700; text-transform:uppercase; }
+    .sb-nav  { flex:1; padding:8px 10px; }
+    .sb-sep  { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.6px; padding:12px 10px 5px; }
+    .nav-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; font-size:13px; font-weight:500; color:var(--secondary); cursor:pointer; transition:all 0.15s; margin-bottom:2px; width:100%; border:none; background:none; font-family:inherit; text-align:left; text-decoration:none; }
+    .nav-item:hover  { background:rgba(255,255,255,0.06); color:#fff; }
+    .nav-item.active { background:rgba(108,99,255,0.15); color:var(--primary); font-weight:700; }
+    .nav-icon { font-size:15px; width:20px; text-align:center; flex-shrink:0; }
+    .sb-footer { padding:10px; border-top:1px solid var(--border); }
+
+    /* ── MOBILE BAR ── */
+    .mobile-bar { display:none; align-items:center; justify-content:space-between; padding:0 16px; height:56px; background:var(--dark-2); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:300; }
+    @media(max-width:960px){ .mobile-bar{display:flex!important;} }
+    .ham-btn { background:none; border:none; color:#fff; font-size:22px; cursor:pointer; padding:6px; }
+
+    /* ── MAIN ── */
+    .main { margin-left:240px; min-height:100vh; }
+    @media(max-width:960px){ .main{margin-left:0!important;} }
+    .page-content { padding:24px; }
+    @media(max-width:960px){ .page-content{padding:16px;} }
+
+    .section { display:none; animation:fadeUp 0.25s ease; }
+    .section.active { display:block; }
+
+    /* ── TWO-COLUMN LAYOUT ── */
+    .two-col { display:grid; grid-template-columns:1fr 400px; gap:20px; align-items:start; }
+    @media(max-width:1200px){ .two-col{grid-template-columns:1fr 360px;} }
+    @media(max-width:900px){ .two-col{grid-template-columns:1fr;} }
+
+    /* ── PANEL ── */
+    .panel { background:var(--dark-2); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:18px; }
+    .panel-head { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:8px; }
+    .panel-head h3 { font-size:14px; font-weight:700; color:#fff; margin:0; }
+    .panel-body { padding:18px; }
+    .form-section { margin-bottom:22px; padding-bottom:22px; border-bottom:1px solid var(--border); }
+    .form-section:last-child { border-bottom:none; margin-bottom:0; padding-bottom:0; }
+    .form-section-title { font-size:11px; font-weight:700; color:#a78bfa; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px; }
+
+    /* ── FORM FIELDS ── */
+    .field { margin-bottom:13px; }
+    .field label { display:block; font-size:11px; font-weight:700; color:var(--secondary); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:5px; }
+    .field label .req { color:var(--red); }
+    .inp { padding:10px 12px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; color:#fff; font-size:13px; font-family:inherit; outline:none; width:100%; transition:border-color 0.15s; }
+    .inp:focus { border-color:var(--primary); }
+    .inp::placeholder { color:var(--muted); }
+    .sel { padding:10px 12px; background:var(--dark-2); border:1px solid var(--border); border-radius:8px; color:#fff; font-size:13px; font-family:inherit; outline:none; width:100%; }
+    .sel:focus { border-color:var(--primary); }
+    .sel option { background:var(--dark-2); }
+    textarea.inp { resize:vertical; min-height:70px; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    @media(max-width:600px){ .form-row{grid-template-columns:1fr;} }
+
+    /* ── BUTTONS ── */
+    .btn { display:inline-flex; align-items:center; gap:6px; padding:9px 18px; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; border:none; transition:all 0.15s; white-space:nowrap; }
+    .btn-primary  { background:linear-gradient(135deg,var(--primary),var(--pd)); color:#fff; }
+    .btn-green    { background:linear-gradient(135deg,var(--green),#38f9d7); color:#0f0f1a; }
+    .btn-secondary{ background:rgba(255,255,255,0.06); border:1px solid var(--border); color:var(--secondary); }
+    .btn-secondary:hover { background:rgba(255,255,255,0.1); color:#fff; }
+    .btn-danger   { background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); }
+    .btn-orange   { background:rgba(255,165,0,0.1); border:1px solid rgba(255,165,0,0.3); color:var(--orange); }
+    .btn-sm { padding:5px 10px; font-size:12px; border-radius:6px; }
+    .btn:disabled { opacity:0.5; cursor:not-allowed; }
+
+    /* ── BADGES ── */
+    .badge { display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700; }
+    .badge-green  { background:rgba(67,233,123,0.12);  color:var(--green); }
+    .badge-red    { background:rgba(255,101,132,0.12); color:var(--red); }
+    .badge-muted  { background:rgba(255,255,255,0.06); color:var(--secondary); }
+
+    /* ── TABLE ── */
+    .tbl-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; min-width:520px; font-size:13px; }
+    th { padding:9px 12px; text-align:left; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; color:var(--muted); background:rgba(255,255,255,0.02); border-bottom:1px solid var(--border); white-space:nowrap; }
+    td { padding:10px 12px; color:var(--secondary); border-bottom:1px solid var(--border); vertical-align:middle; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:rgba(255,255,255,0.01); }
+
+    /* ── SPINNER + EMPTY ── */
+    .spinner { display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,0.2); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; }
+    .empty { text-align:center; padding:40px 20px; color:var(--muted); }
+    .empty-icon { font-size:40px; margin-bottom:10px; }
+    .empty-title { font-size:14px; font-weight:700; color:var(--secondary); }
+
+    /* ── SUCCESS / ERROR ── */
+    .alert { border-radius:10px; padding:12px 16px; font-size:13px; margin-bottom:14px; line-height:1.5; display:none; }
+    .alert-success { background:rgba(67,233,123,0.1); border:1px solid rgba(67,233,123,0.3); color:var(--green); }
+    .alert-error   { background:rgba(255,101,132,0.1); border:1px solid rgba(255,101,132,0.3); color:var(--red); }
+
+    /* ══════════════════════════════════════════
+       RECEIPT PREVIEW — styled as a physical receipt
+       White card, school-branded
+    ══════════════════════════════════════════ */
+    .receipt-preview-outer {
+      position:sticky; top:80px;
+      background:transparent;
+    }
+    .receipt-card {
+      background:#fff;
+      border-radius:12px;
+      box-shadow:0 8px 32px rgba(0,0,0,0.4);
+      overflow:hidden;
+      font-family:'Inter',sans-serif;
+      color:#1a1a2e;
+      font-size:11px;
+    }
+    .rc-header {
+      padding:14px 16px 12px;
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+    .rc-logo {
+      width:44px; height:44px; border-radius:8px; flex-shrink:0;
+      display:flex; align-items:center; justify-content:center;
+      font-size:18px; font-weight:800; color:#fff; overflow:hidden;
+    }
+    .rc-logo img { width:100%; height:100%; object-fit:cover; border-radius:8px; }
+    .rc-school-name { font-size:12px; font-weight:800; text-transform:uppercase; color:#fff; line-height:1.3; }
+    .rc-school-type { font-size:9px; font-weight:600; opacity:0.75; color:#fff; }
+    .rc-school-contact { font-size:9px; opacity:0.6; color:#fff; margin-top:2px; }
+    .rc-meta {
+      display:flex; justify-content:space-between; align-items:center;
+      padding:8px 16px; background:rgba(0,0,0,0.04);
+      border-bottom:1px solid #eee;
+    }
+    .rc-meta-label { font-size:9px; color:#888; font-weight:700; text-transform:uppercase; }
+    .rc-meta-value { font-size:12px; font-weight:800; color:#1a1a2e; margin-top:1px; }
+    .rc-amount-section { padding:12px 16px 10px; }
+    .rc-amount-label { font-size:9px; color:#888; font-weight:700; text-transform:uppercase; }
+    .rc-amount-value { font-size:24px; font-weight:900; color:#1a1a2e; line-height:1.1; margin-top:2px; }
+    .rc-divider { height:1px; background:#eee; margin:0 16px; }
+    .rc-info-section { padding:10px 16px; }
+    .rc-info-title { font-size:9px; font-weight:700; text-transform:uppercase; margin-bottom:8px; }
+    .rc-info-row { display:flex; justify-content:space-between; margin-bottom:5px; }
+    .rc-info-key { font-size:10px; color:#888; flex-shrink:0; width:110px; }
+    .rc-info-val { font-size:10px; font-weight:600; color:#1a1a2e; text-align:right; flex:1; word-break:break-word; }
+    .rc-desc-section { padding:10px 16px; background:#f9f9ff; }
+    .rc-desc-label { font-size:9px; font-weight:700; text-transform:uppercase; color:#888; margin-bottom:4px; }
+    .rc-desc-text { font-size:11px; color:#1a1a2e; line-height:1.5; }
+    .rc-footer {
+      padding:10px 16px;
+      background:#f5f5f5;
+      border-top:1px solid #eee;
+      font-size:8px;
+      color:#888;
+      line-height:1.5;
+      text-align:center;
+    }
+    .rc-footer strong { color:#555; }
+    .rc-void-overlay {
+      position:absolute; inset:0; border-radius:12px;
+      background:rgba(255,101,132,0.08);
+      border:3px dashed rgba(255,101,132,0.5);
+      display:flex; align-items:center; justify-content:center;
+      font-size:32px; font-weight:900; color:rgba(255,101,132,0.6);
+      letter-spacing:4px; transform:rotate(-15deg);
+      pointer-events:none;
+    }
+    .receipt-preview-outer .preview-label {
+      font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase;
+      letter-spacing:0.5px; margin-bottom:10px; text-align:center;
+    }
+    .preview-actions {
+      display:flex; gap:8px; flex-wrap:wrap;
+      margin-top:12px; justify-content:center;
+    }
+
+    /* ── PAGINATION ── */
+    .pagination { display:flex; gap:6px; justify-content:center; margin-top:14px; flex-wrap:wrap; }
+    .page-btn { padding:5px 12px; border-radius:7px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; border:1px solid var(--border); background:rgba(255,255,255,0.04); color:var(--secondary); }
+    .page-btn.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+
+    @media print {
+      body { background:#fff; color:#000; }
+      .sidebar, .mobile-bar, .preview-actions, .btn, .page-content > *:not(#receiptPrintArea) { display:none!important; }
+      .main { margin:0; }
+      #receiptPrintArea { display:block!important; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sb-head">
+    <div class="sb-logo" id="sbLogo">🏫</div>
+    <div>
+      <div class="sb-school-name" id="sbSchoolName">Loading…</div>
+      <div class="sb-school-sub">Receipt Generator</div>
+    </div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-sep">Receipt Generator</div>
+    <button class="nav-item active" data-sec="issue"   onclick="showSection('issue')">  <span class="nav-icon">🧾</span> Issue Receipt</button>
+    <button class="nav-item"        data-sec="history" onclick="showSection('history')"><span class="nav-icon">📋</span> Receipt History</button>
+    <div class="sb-sep">Links</div>
+    <a class="nav-item" href="/institution/school/finance.html">    <span class="nav-icon">💰</span> Finance</a>
+    <a class="nav-item" href="/institution/school/fee-payment.html"><span class="nav-icon">🏷️</span> Fee &amp; Payment</a>
+    <a class="nav-item" href="/institution/school/dashboard.html">  <span class="nav-icon">🏠</span> Dashboard</a>
+  </nav>
+  <div class="sb-footer">
+    <button class="nav-item" style="color:var(--red);" onclick="doLogout()"><span class="nav-icon">🚪</span> Logout</button>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="mobile-bar">
+    <button class="ham-btn" onclick="openSidebar()">☰</button>
+    <span style="font-size:14px;font-weight:800;">🧾 Receipt Generator</span>
+    <span style="font-size:12px;color:var(--muted);" id="mobileSectionLabel">Issue Receipt</span>
+  </div>
+
+  <div class="page-content">
+
+    <!-- ══════════════ ISSUE RECEIPT ══════════════ -->
+    <div class="section active" id="sec-issue">
+      <div style="margin-bottom:18px;">
+        <h1 style="font-size:20px;font-weight:800;margin-bottom:4px;">🧾 Issue Payment Receipt</h1>
+        <p style="font-size:13px;color:var(--muted);">Issue a professional receipt for a payment already received by your school.</p>
+        <div style="margin-top:10px;background:rgba(255,165,0,0.07);border:1px solid rgba(255,165,0,0.25);border-radius:10px;padding:12px 16px;font-size:12px;color:var(--orange);line-height:1.7;">
+          ⚠️ <strong>Manual receipts do not create Finance transactions.</strong>
+          They are documents only. Use Finance → Record Payment to log payments in the fee system.
+        </div>
+      </div>
+
+      <div class="two-col">
+
+        <!-- LEFT: FORM -->
+        <div>
+          <div class="alert alert-success" id="issueSuccess"></div>
+          <div class="alert alert-error"   id="issueError"></div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <h3>Receipt Details</h3>
+              <button class="btn btn-secondary btn-sm" onclick="resetForm()">↺ Clear</button>
+            </div>
+            <div class="panel-body">
+
+              <!-- Payer Info -->
+              <div class="form-section">
+                <div class="form-section-title">👤 Payer Information</div>
+                <div class="field">
+                  <label>Payer / Customer Name <span class="req">*</span></label>
+                  <input type="text" class="inp" id="fPayerName" placeholder="e.g. Mrs. Ngozi Okafor" oninput="updatePreview()" />
+                </div>
+                <div class="form-row">
+                  <div class="field">
+                    <label>Phone Number</label>
+                    <input type="tel" class="inp" id="fPayerPhone" placeholder="e.g. 08012345678" oninput="updatePreview()" />
+                  </div>
+                  <div class="field">
+                    <label>Email Address</label>
+                    <input type="email" class="inp" id="fPayerEmail" placeholder="e.g. parent@email.com" oninput="updatePreview()" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Student Info (optional) -->
+              <div class="form-section">
+                <div class="form-section-title">🧑‍🎓 Student Information <span style="font-weight:400;color:var(--muted);text-transform:none;">(optional)</span></div>
+                <div class="form-row">
+                  <div class="field">
+                    <label>Student Name</label>
+                    <input type="text" class="inp" id="fStudentName" placeholder="e.g. Chidi Okafor" oninput="updatePreview()" />
+                  </div>
+                  <div class="field">
+                    <label>Class / Programme</label>
+                    <input type="text" class="inp" id="fStudentClass" placeholder="e.g. SS2A or Year 3" oninput="updatePreview()" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Admission Number</label>
+                  <input type="text" class="inp" id="fAdmissionNo" placeholder="e.g. SCH-2025-0001" oninput="updatePreview()" />
+                </div>
+              </div>
+
+              <!-- Payment Details -->
+              <div class="form-section">
+                <div class="form-section-title">💵 Payment Details</div>
+                <div class="field">
+                  <label>Description / Purpose of Payment <span class="req">*</span></label>
+                  <textarea class="inp" id="fDescription" rows="3"
+                    placeholder="e.g. First Term School Fees — 2026/2027 Academic Session"
+                    oninput="updatePreview()"></textarea>
+                </div>
+                <div class="form-row">
+                  <div class="field">
+                    <label>Amount <span class="req">*</span></label>
+                    <input type="number" class="inp" id="fAmount" placeholder="e.g. 50000" min="0.01" step="0.01" oninput="updatePreview()" />
+                  </div>
+                  <div class="field">
+                    <label>Currency <span class="req">*</span></label>
+                    <select class="sel" id="fCurrency" onchange="updatePreview()">
+                      <option value="NGN">NGN — Nigerian Naira</option>
+                      <option value="USD">USD — US Dollar</option>
+                      <option value="GBP">GBP — British Pound</option>
+                      <option value="EUR">EUR — Euro</option>
+                      <option value="GHS">GHS — Ghanaian Cedi</option>
+                      <option value="KES">KES — Kenyan Shilling</option>
+                      <option value="ZAR">ZAR — South African Rand</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="field">
+                    <label>Payment Method <span class="req">*</span></label>
+                    <select class="sel" id="fPaymentMethod" onchange="updatePreview()">
+                      <option value="cash">Cash</option>
+                      <option value="bank_transfer">Bank Transfer</option>
+                      <option value="cheque">Cheque</option>
+                      <option value="pos">POS Terminal</option>
+                      <option value="mobile_money">Mobile Money</option>
+                      <option value="ussd">USSD Transfer</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label>Date Payment Received <span class="req">*</span></label>
+                    <input type="date" class="inp" id="fPaymentDate" oninput="updatePreview()" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Reference / Teller Number <span style="font-weight:400;color:var(--muted);text-transform:none;">(optional)</span></label>
+                  <input type="text" class="inp" id="fReference" placeholder="Bank teller, transfer ref, cheque no…" oninput="updatePreview()" />
+                </div>
+              </div>
+
+              <!-- Extra -->
+              <div class="form-section">
+                <div class="form-section-title">📝 Additional</div>
+                <div class="field">
+                  <label>Notes <span style="font-weight:400;color:var(--muted);text-transform:none;">(optional)</span></label>
+                  <textarea class="inp" id="fNotes" rows="2" placeholder="Any additional information…" oninput="updatePreview()"></textarea>
+                </div>
+                <div class="field">
+                  <label>Issued By / Received By</label>
+                  <input type="text" class="inp" id="fIssuedByName" placeholder="Staff name or cashier name" oninput="updatePreview()" />
+                </div>
+              </div>
+
+              <!-- Submit -->
+              <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
+                <button class="btn btn-green" id="issueBtn" onclick="issueReceipt()">
+                  🧾 Issue Receipt &amp; Download PDF
+                </button>
+                <button class="btn btn-secondary" onclick="printPreview()">🖨️ Print Preview</button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: LIVE PREVIEW -->
+        <div class="receipt-preview-outer" id="previewOuter">
+          <div class="preview-label">Receipt Preview</div>
+          <div style="position:relative;">
+            <div class="receipt-card" id="receiptPreviewCard">
+              <!-- Populated by updatePreview() -->
+            </div>
+          </div>
+          <div class="preview-actions">
+            <span style="font-size:11px;color:var(--muted);">
+              Preview updates as you type. Issue to get the PDF.
+            </span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══════════════ HISTORY ══════════════ -->
+    <div class="section" id="sec-history">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+        <div>
+          <h1 style="font-size:20px;font-weight:800;margin-bottom:4px;">📋 Receipt History</h1>
+          <p style="font-size:13px;color:var(--muted);">All manually issued receipts for your school.</p>
+        </div>
+        <button class="btn btn-primary" onclick="showSection('issue')">+ Issue New Receipt</button>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Issued Receipts</h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <input type="text" class="inp" id="histSearch" placeholder="Search…" style="width:160px;"
+              onkeydown="if(event.key==='Enter')loadHistory(1)" />
+            <select class="sel" id="histStatus" onchange="loadHistory(1)" style="width:120px;">
+              <option value="">All</option>
+              <option value="issued">Issued</option>
+              <option value="voided">Voided</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="loadHistory(1)">Search</button>
+          </div>
+        </div>
+        <div class="panel-body" style="padding:0;">
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr>
+                <th>Receipt No.</th><th>Date</th><th>Payer</th>
+                <th>Student</th><th>Amount</th><th>Method</th>
+                <th>Status</th><th>Actions</th>
+              </tr></thead>
+              <tbody id="historyBody">
+                <tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted);">
+                  <span class="spinner"></span>
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="histPagination" class="pagination" style="padding-bottom:12px;"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- VOID MODAL -->
+<div id="voidOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:600;display:none;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--dark-2);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:400px;width:100%;">
+    <div style="font-size:16px;font-weight:800;margin-bottom:6px;">Void Receipt</div>
+    <div style="font-size:13px;color:var(--secondary);margin-bottom:16px;line-height:1.6;">
+      A voided receipt cannot be downloaded and is marked as cancelled.
+      This action is permanent. A reason is required.
+    </div>
+    <div class="field">
+      <label>Reason for voiding <span class="req">*</span></label>
+      <textarea class="inp" id="voidReason" rows="3" placeholder="e.g. Entered incorrect amount — replaced by MR-…"></textarea>
+    </div>
+    <div id="voidErr" style="color:var(--red);font-size:12px;margin-bottom:12px;display:none;"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn btn-secondary" onclick="closeVoidModal()">Cancel</button>
+      <button class="btn btn-danger" id="voidConfirmBtn" onclick="confirmVoid()">Void Receipt</button>
+    </div>
+  </div>
+</div>
+
+<script src="/institution/js/inst.api.js"></script>
+<script>
+/* ════════════════════════════════════════════
+   MANUAL RECEIPT GENERATOR
+   API base: /api/institution/manual-receipts
+   Auth:     instRequireAuth via instApi
+════════════════════════════════════════════ */
+
+var _school         = null;
+var _histPage       = 1;
+var _voidTargetId   = null;
+var _schoolCurrency = 'NGN';
+
+var CURRENCY_SYMBOLS = { NGN:'₦', USD:'$', GBP:'£', EUR:'€', GHS:'₵', KES:'KSh ', ZAR:'R ' };
+var METHOD_LABELS    = {
+  cash:'Cash', bank_transfer:'Bank Transfer', cheque:'Cheque',
+  pos:'POS Terminal', mobile_money:'Mobile Money', ussd:'USSD Transfer', other:'Other'
+};
+
+/* ── Helpers ── */
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtAmt(amount, currency) {
+  var cur = ((currency || _schoolCurrency) + '').toUpperCase().trim();
+  var num = Number(amount || 0).toLocaleString('en', {
+    minimumFractionDigits:2, maximumFractionDigits:2
+  });
+  var sym = CURRENCY_SYMBOLS[cur];
+  return sym !== undefined ? sym + num : num + '\u00a0' + cur;
+}
+function fmtDateDisplay(d) {
+  if (!d) return '—';
+  try {
+    return new Date(d).toLocaleDateString('en-GB', {
+      day:'numeric', month:'long', year:'numeric'
+    });
+  } catch(e) { return d; }
+}
+function v(id) { return (document.getElementById(id) || {}).value || ''; }
+
+/* ── Nav ── */
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(function(s){ s.classList.remove('active'); });
+  document.querySelectorAll('.nav-item[data-sec]').forEach(function(n){ n.classList.remove('active'); });
+  var s = document.getElementById('sec-' + name);
+  var n = document.querySelector('[data-sec="' + name + '"]');
+  if (s) s.classList.add('active');
+  if (n) n.classList.add('active');
+  var labels = { issue:'Issue Receipt', history:'Receipt History' };
+  var ml = document.getElementById('mobileSectionLabel');
+  if (ml) ml.textContent = labels[name] || name;
+  if (window.innerWidth <= 960) closeSidebar();
+  if (name === 'history') loadHistory(1);
+}
+function openSidebar()  { document.getElementById('sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('visible'); }
+function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('visible'); }
+window.addEventListener('resize', function(){ if(window.innerWidth>960) closeSidebar(); });
+function doLogout() {
+  localStorage.removeItem('latlomp_inst_token'); localStorage.removeItem('latlomp_inst_user');
+  window.location.replace('/institution/index.html');
+}
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', async function() {
+  if (!instRequireAuth('school_admin')) return;
+
+  /* Load school info */
+  var res = await instApi('/school');
+  if (res.ok && res.data) {
+    _school = res.data.school || res.data;
+    var nameEl  = document.getElementById('sbSchoolName');
+    var logoEl  = document.getElementById('sbLogo');
+    if (nameEl)  nameEl.textContent = _school.name || 'My School';
+    if (logoEl) {
+      if (_school.logo) {
+        logoEl.innerHTML = '<img src="' + esc(_school.logo) + '" alt="logo" />';
+      } else if (_school.name) {
+        logoEl.textContent = _school.name.charAt(0).toUpperCase();
+        if (_school.primaryColor) logoEl.style.background =
+          'linear-gradient(135deg,' + _school.primaryColor + ',' +
+          (_school.secondaryColor || _school.primaryColor) + ')';
+      }
+    }
+    if (_school.currency) { _schoolCurrency = _school.currency.toUpperCase(); }
+  }
+
+  /* Pre-fill form defaults */
+  var today = new Date().toISOString().split('T')[0];
+  document.getElementById('fPaymentDate').value = today;
+
+  /* Pre-set currency from school default */
+  var currencyEl = document.getElementById('fCurrency');
+  if (currencyEl && _schoolCurrency) { currencyEl.value = _schoolCurrency; }
+
+  /* Pre-fill issued by from logged-in user */
+  var user = typeof instGetUser === 'function' ? instGetUser() : null;
+  if (user && user.name) {
+    document.getElementById('fIssuedByName').value = user.name;
+  }
+
+  updatePreview();
+});
+
+/* ════════════════════════════════════════════
+   LIVE PREVIEW
+════════════════════════════════════════════ */
+function updatePreview() {
+  var card = document.getElementById('receiptPreviewCard');
+  if (!card) return;
+
+  var primaryColor = (_school && _school.primaryColor) || '#6c63ff';
+  var schoolName   = (_school && _school.name)  || v('sbSchoolName') || 'School Name';
+  var schoolAddr   = (_school && _school.address) || '';
+  var schoolPhone  = (_school && _school.phone)   || '';
+  var schoolLogo   = _school && _school.logo;
+
+  var payerName    = v('fPayerName')    || '—';
+  var payerPhone   = v('fPayerPhone');
+  var payerEmail   = v('fPayerEmail');
+  var studentName  = v('fStudentName');
+  var studentClass = v('fStudentClass');
+  var admNo        = v('fAdmissionNo');
+  var description  = v('fDescription') || '—';
+  var amount       = parseFloat(v('fAmount')) || 0;
+  var currency     = v('fCurrency')   || 'NGN';
+  var method       = v('fPaymentMethod') || 'cash';
+  var payDate      = v('fPaymentDate');
+  var reference    = v('fReference');
+  var issuedByName = v('fIssuedByName');
+  var notes        = v('fNotes');
+
+  var logoHtml = schoolLogo
+    ? '<img src="' + esc(schoolLogo) + '" alt="logo" />'
+    : '<span>' + esc(schoolName.charAt(0)) + '</span>';
+  var contactLine = [schoolAddr, schoolPhone].filter(Boolean).join(' · ');
+
+  /* Receipt number placeholder (shows after issue) */
+  var rcptNum = _lastReceiptNumber || 'MR-' + new Date().toISOString().slice(0,10).replace(/-/g,'') + '-XXXX';
+
+  card.innerHTML =
+    '<div class="rc-header" style="background:' + esc(primaryColor) + ';">' +
+      '<div class="rc-logo" style="background:rgba(255,255,255,0.2);">' + logoHtml + '</div>' +
+      '<div>' +
+        '<div class="rc-school-name">' + esc(schoolName) + '</div>' +
+        '<div class="rc-school-type">Payment Receipt</div>' +
+        (contactLine ? '<div class="rc-school-contact">' + esc(contactLine) + '</div>' : '') +
+      '</div>' +
+    '</div>' +
+
+    '<div class="rc-meta">' +
+      '<div><div class="rc-meta-label">Receipt No.</div><div class="rc-meta-value">' + esc(rcptNum) + '</div></div>' +
+      '<div style="text-align:right;"><div class="rc-meta-label">Date</div><div class="rc-meta-value">' +
+        esc(payDate ? fmtDateDisplay(payDate) : fmtDateDisplay(new Date().toISOString())) +
+      '</div></div>' +
+    '</div>' +
+
+    '<div class="rc-amount-section">' +
+      '<div class="rc-amount-label">Amount Received</div>' +
+      '<div class="rc-amount-value" style="color:' + esc(primaryColor) + ';">' +
+        esc(fmtAmt(amount, currency)) +
+      '</div>' +
+    '</div>' +
+
+    '<div class="rc-divider"></div>' +
+
+    '<div class="rc-info-section">' +
+      '<div class="rc-info-title" style="color:' + esc(primaryColor) + ';">Payer Information</div>' +
+      infoRow('Name',   payerName) +
+      (payerPhone ? infoRow('Phone', payerPhone) : '') +
+      (payerEmail ? infoRow('Email', payerEmail) : '') +
+      (studentName ? '<div class="rc-divider" style="margin:8px 0;"></div>' +
+        '<div class="rc-info-title" style="color:' + esc(primaryColor) + ';">Student</div>' +
+        infoRow('Name', studentName) +
+        (studentClass ? infoRow('Class', studentClass) : '') +
+        (admNo        ? infoRow('Adm No.', admNo)      : '') : '') +
+    '</div>' +
+
+    '<div class="rc-divider"></div>' +
+
+    '<div class="rc-info-section">' +
+      '<div class="rc-info-title" style="color:' + esc(primaryColor) + ';">Payment Details</div>' +
+      infoRow('Method', METHOD_LABELS[method] || method) +
+      infoRow('Date Paid', payDate ? fmtDateDisplay(payDate) : '—') +
+      (reference ? infoRow('Reference', reference) : '') +
+    '</div>' +
+
+    '<div class="rc-desc-section">' +
+      '<div class="rc-desc-label">Description / Purpose</div>' +
+      '<div class="rc-desc-text">' + esc(description) + '</div>' +
+      (notes ? '<div style="margin-top:6px;font-size:10px;color:#888;">Notes: ' + esc(notes) + '</div>' : '') +
+    '</div>' +
+
+    (issuedByName ?
+      '<div class="rc-info-section" style="padding-top:8px;">' +
+        '<div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:6px;">Issued By</div>' +
+        '<div style="border-bottom:1px solid #ccc;width:100px;margin-bottom:3px;"></div>' +
+        '<div style="font-size:10px;font-weight:600;color:#1a1a2e;">' + esc(issuedByName) + '</div>' +
+      '</div>'
+      : '') +
+
+    '<div class="rc-footer">' +
+      '<strong>Manually issued receipt</strong> · Not a LatLomp Finance transaction record.<br/>' +
+      'Issued by ' + esc(schoolName) + ' · LatLomp Education Platform' +
+    '</div>';
+}
+
+function infoRow(key, value) {
+  return '<div class="rc-info-row">' +
+    '<div class="rc-info-key">' + esc(key) + '</div>' +
+    '<div class="rc-info-val">' + esc(value || '—') + '</div>' +
+  '</div>';
+}
+
+/* ════════════════════════════════════════════
+   ISSUE RECEIPT
+════════════════════════════════════════════ */
+var _lastReceiptNumber = null;
+var _lastReceiptId     = null;
+
+async function issueReceipt() {
+  var btn      = document.getElementById('issueBtn');
+  var successEl= document.getElementById('issueSuccess');
+  var errorEl  = document.getElementById('issueError');
+  if (successEl) successEl.style.display = 'none';
+  if (errorEl)   errorEl.style.display   = 'none';
+
+  /* Validate */
+  var payerName   = v('fPayerName').trim();
+  var description = v('fDescription').trim();
+  var amount      = parseFloat(v('fAmount'));
+  var currency    = v('fCurrency').trim();
+  var paymentDate = v('fPaymentDate');
+
+  if (!payerName)   { showError('Payer name is required.');                     return; }
+  if (!description) { showError('Payment description is required.');            return; }
+  if (!amount || amount <= 0) { showError('Enter a valid amount greater than 0.'); return; }
+  if (!currency)    { showError('Currency is required.');                        return; }
+  if (!paymentDate) { showError('Payment date is required.');                    return; }
+
+  if (btn) { btn.innerHTML = '<span class="spinner"></span> Issuing…'; btn.disabled = true; }
+
+  var res = await instApi('/manual-receipts', 'POST', {
+    payerName,
+    payerPhone:    v('fPayerPhone'),
+    payerEmail:    v('fPayerEmail'),
+    studentName:   v('fStudentName'),
+    studentClass:  v('fStudentClass'),
+    admissionNo:   v('fAdmissionNo'),
+    description,
+    amount,
+    currency,
+    paymentMethod: v('fPaymentMethod') || 'cash',
+    paymentDate,
+    reference:     v('fReference'),
+    notes:         v('fNotes'),
+    issuedByName:  v('fIssuedByName')
+  });
+
+  if (btn) { btn.innerHTML = '🧾 Issue Receipt & Download PDF'; btn.disabled = false; }
+
+  if (res.ok && res.data && res.data.success) {
+    _lastReceiptNumber = res.data.receiptNumber;
+    _lastReceiptId     = res.data.receiptId;
+
+    if (successEl) {
+      successEl.innerHTML =
+        '✅ <strong>' + esc(res.data.receiptNumber) + '</strong> issued successfully! ' +
+        '<button onclick="downloadPDF(\'' + res.data.receiptId + '\')" ' +
+          'style="margin-left:8px;padding:4px 10px;border-radius:6px;border:1px solid rgba(67,233,123,0.4);' +
+          'background:rgba(67,233,123,0.1);color:var(--green);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">' +
+          '⬇ Download PDF</button>';
+      successEl.style.display = 'block';
+    }
+
+    updatePreview(); /* Show actual receipt number in preview */
+
+    /* Auto-download PDF */
+    setTimeout(function() { downloadPDF(res.data.receiptId); }, 400);
+
+  } else {
+    showError((res.data && res.data.message) || 'Failed to issue receipt.');
+  }
+}
+
+function showError(msg) {
+  var el = document.getElementById('issueError');
+  if (el) { el.textContent = '❌ ' + msg; el.style.display = 'block'; }
+}
+
+function downloadPDF(receiptId) {
+  window.open('/api/institution/manual-receipts/' + receiptId + '/pdf', '_blank');
+}
+
+function printPreview() {
+  /* Open a print-friendly popup with the receipt card HTML */
+  var card = document.getElementById('receiptPreviewCard');
+  if (!card) return;
+  var win = window.open('', '_blank', 'width=500,height=700');
+  win.document.write(
+    '<!DOCTYPE html><html><head><title>Receipt Preview</title>' +
+    '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"/>' +
+    '<style>' +
+    'body{margin:24px;background:#fff;font-family:Inter,sans-serif;}' +
+    '.receipt-card{box-shadow:none;border:1px solid #ddd;border-radius:12px;overflow:hidden;}' +
+    '.rc-header{padding:14px 16px 12px;display:flex;align-items:center;gap:12px;}' +
+    '.rc-logo{width:44px;height:44px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;overflow:hidden;}' +
+    '.rc-logo img{width:100%;height:100%;object-fit:cover;border-radius:8px;}' +
+    '.rc-school-name{font-size:12px;font-weight:800;text-transform:uppercase;color:#fff;line-height:1.3;}' +
+    '.rc-school-type{font-size:9px;font-weight:600;opacity:0.75;color:#fff;}' +
+    '.rc-school-contact{font-size:9px;opacity:0.6;color:#fff;margin-top:2px;}' +
+    '.rc-meta{display:flex;justify-content:space-between;padding:8px 16px;background:rgba(0,0,0,0.04);border-bottom:1px solid #eee;font-size:11px;color:#1a1a2e;}' +
+    '.rc-meta-label{font-size:9px;color:#888;font-weight:700;text-transform:uppercase;}' +
+    '.rc-meta-value{font-size:12px;font-weight:800;color:#1a1a2e;margin-top:1px;}' +
+    '.rc-amount-section{padding:12px 16px;}' +
+    '.rc-amount-label{font-size:9px;color:#888;font-weight:700;text-transform:uppercase;}' +
+    '.rc-amount-value{font-size:24px;font-weight:900;line-height:1.1;margin-top:2px;}' +
+    '.rc-divider{height:1px;background:#eee;margin:0 16px;}' +
+    '.rc-info-section{padding:10px 16px;}' +
+    '.rc-info-title{font-size:9px;font-weight:700;text-transform:uppercase;margin-bottom:8px;}' +
+    '.rc-info-row{display:flex;justify-content:space-between;margin-bottom:5px;}' +
+    '.rc-info-key{font-size:10px;color:#888;flex-shrink:0;width:110px;}' +
+    '.rc-info-val{font-size:10px;font-weight:600;color:#1a1a2e;text-align:right;flex:1;}' +
+    '.rc-desc-section{padding:10px 16px;background:#f9f9ff;}' +
+    '.rc-desc-label{font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:4px;}' +
+    '.rc-desc-text{font-size:11px;color:#1a1a2e;line-height:1.5;}' +
+    '.rc-footer{padding:10px 16px;background:#f5f5f5;border-top:1px solid #eee;font-size:8px;color:#888;line-height:1.5;text-align:center;}' +
+    '@media print{body{margin:0;} @page{size:A5;margin:12mm;}}' +
+    '</style></head><body>' +
+    '<div class="receipt-card">' + card.innerHTML + '</div>' +
+    '<script>setTimeout(function(){window.print();},400);<\/script>' +
+    '</body></html>'
+  );
+  win.document.close();
+}
+
+function resetForm() {
+  ['fPayerName','fPayerPhone','fPayerEmail','fStudentName','fStudentClass',
+   'fAdmissionNo','fDescription','fAmount','fReference','fNotes'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  var today = new Date().toISOString().split('T')[0];
+  document.getElementById('fPaymentDate').value = today;
+  document.getElementById('fCurrency').value    = _schoolCurrency || 'NGN';
+  document.getElementById('fPaymentMethod').value = 'cash';
+  _lastReceiptNumber = null;
+  _lastReceiptId     = null;
+  document.getElementById('issueSuccess').style.display = 'none';
+  document.getElementById('issueError').style.display   = 'none';
+  updatePreview();
+}
+
+/* ════════════════════════════════════════════
+   HISTORY
+════════════════════════════════════════════ */
+async function loadHistory(page) {
+  _histPage = page || 1;
+  var tbody = document.getElementById('historyBody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;"><span class="spinner"></span></td></tr>';
+
+  var search = ((document.getElementById('histSearch') || {}).value || '').trim();
+  var status = (document.getElementById('histStatus') || {}).value || '';
+  var query  = '?page=' + _histPage + '&limit=25';
+  if (status) query += '&status=' + status;
+  if (search) query += '&search=' + encodeURIComponent(search);
+
+  var res = await instApi('/manual-receipts' + query);
+  if (!res.ok || !res.data || !res.data.success) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted);">Could not load receipts.</td></tr>';
+    return;
+  }
+
+  var receipts = res.data.receipts || [];
+  if (!receipts.length) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty"><div class="empty-icon">🧾</div>' +
+      '<div class="empty-title">No receipts yet.</div></div></td></tr>';
+    document.getElementById('histPagination').innerHTML = '';
+    return;
+  }
+
+  tbody.innerHTML = receipts.map(function(r) {
+    var statusBadge = r.status === 'voided'
+      ? '<span class="badge badge-red">Voided</span>'
+      : '<span class="badge badge-green">Issued</span>';
+    var methodLabel = METHOD_LABELS[r.paymentMethod] || r.paymentMethod || '—';
+    var dateStr = r.paymentDate
+      ? new Date(r.paymentDate).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})
+      : '—';
+    return '<tr>' +
+      '<td style="font-family:monospace;font-size:12px;font-weight:700;color:#a78bfa;">' + esc(r.receiptNumber) + '</td>' +
+      '<td style="font-size:12px;">' + dateStr + '</td>' +
+      '<td style="font-weight:700;color:#fff;">' + esc(r.payerName || '—') + '</td>' +
+      '<td style="font-size:12px;">' + esc(r.studentName || '—') + (r.studentClass ? '<br/><span style="font-size:11px;color:var(--muted);">' + esc(r.studentClass) + '</span>' : '') + '</td>' +
+      '<td style="font-weight:700;color:var(--green);">' + esc(fmtAmt(r.amount, r.currency)) + '</td>' +
+      '<td><span class="badge badge-muted" style="font-size:10px;">' + esc(methodLabel) + '</span></td>' +
+      '<td>' + statusBadge + '</td>' +
+      '<td style="white-space:nowrap;">' +
+        (r.status === 'issued'
+          ? '<button class="btn btn-secondary btn-sm" onclick="downloadPDF(\'' + r._id + '\')">⬇ PDF</button> ' +
+            '<button class="btn btn-danger btn-sm" onclick="openVoidModal(\'' + r._id + '\',\'' + esc(r.receiptNumber) + '\')">Void</button>'
+          : '<span style="font-size:11px;color:var(--muted);">Voided: ' + esc(r.voidReason || '') + '</span>') +
+      '</td>' +
+    '</tr>';
+  }).join('');
+
+  /* Pagination */
+  var pages   = res.data.pages || 1;
+  var pagEl   = document.getElementById('histPagination');
+  if (pagEl) {
+    var ph = '';
+    if (_histPage > 1) ph += '<button class="page-btn" onclick="loadHistory(' + (_histPage-1) + ')">←</button>';
+    for (var i = Math.max(1,_histPage-2); i <= Math.min(pages,_histPage+2); i++) {
+      ph += '<button class="page-btn' + (i===_histPage?' active':'') + '" onclick="loadHistory(' + i + ')">' + i + '</button>';
+    }
+    if (_histPage < pages) ph += '<button class="page-btn" onclick="loadHistory(' + (_histPage+1) + ')">→</button>';
+    pagEl.innerHTML = ph;
+  }
+}
+
+/* ════════════════════════════════════════════
+   VOID
+════════════════════════════════════════════ */
+function openVoidModal(receiptId, receiptNumber) {
+  _voidTargetId = receiptId;
+  document.getElementById('voidReason').value = '';
+  document.getElementById('voidErr').style.display = 'none';
+  var ov = document.getElementById('voidOverlay');
+  if (ov) ov.style.display = 'flex';
+}
+function closeVoidModal() {
+  var ov = document.getElementById('voidOverlay');
+  if (ov) ov.style.display = 'none';
+  _voidTargetId = null;
+}
+async function confirmVoid() {
+  var reason = (document.getElementById('voidReason').value || '').trim();
+  var errEl  = document.getElementById('voidErr');
+  if (!reason) { if (errEl) { errEl.textContent = 'A reason is required.'; errEl.style.display = 'block'; } return; }
+  if (!_voidTargetId) { closeVoidModal(); return; }
+
+  var btn = document.getElementById('voidConfirmBtn');
+  if (btn) { btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true; }
+
+  var res = await instApi('/manual-receipts/' + _voidTargetId + '/void', 'PUT', { reason });
+
+  if (btn) { btn.innerHTML = 'Void Receipt'; btn.disabled = false; }
+
+  if (res.ok && res.data && res.data.success) {
+    closeVoidModal();
+    instToast('Receipt voided.', 'success');
+    loadHistory(_histPage);
+  } else {
+    var msg = (res.data && res.data.message) || 'Could not void receipt.';
+    if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+  }
+}
+
+/* Initial preview render */
+updatePreview();
+</script>
+</body>
+</html>
