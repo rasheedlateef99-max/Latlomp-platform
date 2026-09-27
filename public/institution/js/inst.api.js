@@ -112,33 +112,52 @@ async function instApi(endpoint, method, body) {
 
   var headers = { 'Content-Type': 'application/json' };
   var token   = instGetToken();
-  if (token) headers['Authorization'] = 'Bearer ' + token;
+  if (token) { headers['Authorization'] = 'Bearer ' + token; }
 
   var options = { method: method.toUpperCase(), headers: headers };
   if (body && method.toUpperCase() !== 'GET') {
     options.body = JSON.stringify(body);
   }
 
+  /* ── Timeout via AbortController ─────────────────────────
+     fetch() has no built-in timeout. On Railway (and any
+     cloud host) the server can accept a TCP connection but
+     stall before sending a response — causing fetch() to
+     hang indefinitely. This 15-second abort prevents every
+     institution page from getting stuck on a loading spinner.
+     AbortController is supported in all modern browsers. ── */
+  var controller = null;
+  var tid        = null;
+  if (typeof AbortController !== 'undefined') {
+    controller        = new AbortController();
+    options.signal    = controller.signal;
+    tid = setTimeout(function() {
+      controller.abort();
+    }, 15000);
+  }
+
   try {
-    var res  = await fetch('/api/institution' + endpoint, options);
+    var res = await fetch('/api/institution' + endpoint, options);
+    /* Clear timeout once headers arrive — body read won't hang */
+    if (tid) { clearTimeout(tid); tid = null; }
+
     var data = await res.json();
 
-    /* ✅ Subscription expiry detection */
+    /* ── Subscription expiry detection ── */
     if (res.status === 403 && data && data.code === 'SUBSCRIPTION_EXPIRED') {
       var currentPath = window.location.pathname;
-      var isOnSubCenter = currentPath.indexOf('subscription-center') !== -1;
-      if (!isOnSubCenter) {
+      if (currentPath.indexOf('subscription-center') === -1) {
         window.location.href = '/institution/school/subscription-center.html';
         return { ok: false, status: 403, data: data };
       }
     }
 
-    /* ✅ Token expired or invalid — redirect to login */
+    /* ── Token expired or invalid ── */
     if (res.status === 401) {
       var currentPath2 = window.location.pathname;
-      var isOnLogin = currentPath2.indexOf('index.html') !== -1 ||
-                      currentPath2 === '/institution/' ||
-                      currentPath2 === '/institution';
+      var isOnLogin    = currentPath2.indexOf('index.html') !== -1 ||
+                         currentPath2 === '/institution/'            ||
+                         currentPath2 === '/institution';
       if (!isOnLogin) {
         localStorage.removeItem(INST_TOKEN_KEY);
         localStorage.removeItem(INST_USER_KEY);
@@ -148,8 +167,19 @@ async function instApi(endpoint, method, body) {
     }
 
     return { ok: res.ok, status: res.status, data: data };
+
   } catch (err) {
-    console.error('instApi error:', err.message);
+    if (tid) { clearTimeout(tid); }
+    /* AbortError = our own 15-second timeout fired */
+    if (err.name === 'AbortError') {
+      console.warn('[instApi] Timed out after 15s —', endpoint);
+      return {
+        ok:     false,
+        status: 0,
+        data:   { message: 'The server took too long to respond. Please refresh the page.' }
+      };
+    }
+    console.error('[instApi] error:', err.message, '—', endpoint);
     return { ok: false, status: 0, data: { message: 'Network error. Check your connection.' } };
   }
 }

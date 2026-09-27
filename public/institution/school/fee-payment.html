@@ -1033,37 +1033,119 @@ var _outPage       = 1;
 var _selectedStudentForRecord = null;
 
 /* ============================================================
+   SAFE API WRAPPER + PAGE TIMER
+   safeApi() races instApi() against a 12-second timeout.
+   A hanging request returns {ok:false} instead of waiting
+   forever. try/catch alone cannot stop a hanging Promise.
+   _startPageTimer() is the final safety net: any spinner
+   still running after 20 seconds is replaced with a clear
+   error so the user knows to refresh.
+============================================================ */
+function safeApi(path, method, body) {
+  return new Promise(function(resolve) {
+    var done = false;
+    var tid  = setTimeout(function() {
+      if (done) { return; }
+      done = true;
+      console.warn('[safeApi] Timed out after 12s:', path);
+      resolve({
+        ok: false, status: 0,
+        data: { message: 'Request timed out. The server is not responding. Please refresh.' }
+      });
+    }, 12000);
+    try {
+      Promise.resolve(instApi(path, method, body))
+        .then(function(r) {
+          if (!done) { done = true; clearTimeout(tid); resolve(r); }
+        })
+        .catch(function(e) {
+          if (!done) {
+            done = true; clearTimeout(tid);
+            resolve({ ok: false, status: 0, data: { message: (e && e.message) || 'Network error.' } });
+          }
+        });
+    } catch(e) {
+      if (!done) {
+        done = true; clearTimeout(tid);
+        resolve({ ok: false, status: 0, data: { message: (e && e.message) || 'Unexpected error.' } });
+      }
+    }
+  });
+}
+
+var _pgTimer = null;
+
+function _startPageTimer() {
+  _pgTimer = setTimeout(function() {
+    /* Any spinner still running after 20s = server unreachable */
+    var rw = document.getElementById('recentPaymentsWrap');
+    if (rw && rw.querySelector('.spinner')) {
+      rw.innerHTML =
+        '<div class="empty"><div class="empty-icon">⚠️</div>' +
+        '<div class="empty-title">Server is not responding.</div>' +
+        '<div class="empty-sub">' +
+          '<a href="" onclick="location.reload();return false;" style="color:#a78bfa;font-weight:700;">Click here to refresh the page.</a><br/>' +
+          'If this keeps happening, the server may be temporarily unavailable.' +
+        '</div></div>';
+    }
+    /* Clear any "Loading…" text that never resolved */
+    ['statStructuresSub','statOutstandingCount','statCampaignsSub'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el && el.textContent.indexOf('Loading') !== -1) { el.textContent = '—'; }
+    });
+    ['statStructures','statOutstanding','statCollected','statCampaigns'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el && el.textContent === '—') { /* already showing dash — fine */ }
+    });
+    var nm = document.getElementById('sbSchoolName');
+    if (nm && nm.textContent.indexOf('Loading') !== -1) { nm.textContent = 'My School'; }
+    /* Clear section-level spinners */
+    ['feeStructuresWrap','assignmentsWrap','campaignsWrap',
+     'accountsPreviewWrap','outstandingWrap'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el && el.querySelector && el.querySelector('.spinner')) {
+        el.innerHTML =
+          '<div class="empty"><div class="empty-icon">⚠️</div>' +
+          '<div class="empty-title">Could not load.</div>' +
+          '<div class="empty-sub">Refresh the page to retry.</div></div>';
+      }
+    });
+  }, 20000);
+}
+
+function _stopPageTimer() {
+  if (_pgTimer) { clearTimeout(_pgTimer); _pgTimer = null; }
+}
+
+/* ============================================================
    INIT
 ============================================================ */
 document.addEventListener('DOMContentLoaded', async function() {
+  _startPageTimer();
   try {
     if (typeof instRequireAuth !== 'function') {
-      /* inst.api.js did not load — show a permanent error, not an infinite spinner */
-      console.error('[Fee-Payment] inst.api.js helpers unavailable.');
+      console.error('[FeePayment] inst.api.js did not load.');
       var rw = document.getElementById('recentPaymentsWrap');
-      if (rw) {
-        rw.innerHTML =
-          '<div class="empty"><div class="empty-icon">⚠️</div>' +
-          '<div class="empty-title">Page scripts could not load.</div>' +
-          '<div class="empty-sub">Hard-refresh the page (Ctrl + Shift + R on desktop, ' +
-          'or pull-to-refresh on mobile). If this keeps happening, please contact support.</div></div>';
-      }
-      ['statStructuresSub','statOutstandingCount','statCampaignsSub'].forEach(function (id) { setEl(id, '—'); });
-      return;
-    }
-    if (!instRequireAuth('school_admin')) { return; }
-    await initPage();
-  } catch (err) {
-    console.error('[Fee-Payment] Initialization failed:', err.message, err);
-    var rw2 = document.getElementById('recentPaymentsWrap');
-    if (rw2) {
-      rw2.innerHTML =
+      if (rw) rw.innerHTML =
         '<div class="empty"><div class="empty-icon">⚠️</div>' +
-        '<div class="empty-title">Page could not initialize.</div>' +
-        '<div class="empty-sub">Refresh the page and try again.' +
-        '<br/><small style="opacity:0.6;">' + esc(String(err.message || '')) + '</small></div></div>';
+        '<div class="empty-title">Page scripts could not load.</div>' +
+        '<div class="empty-sub">Hard-refresh: Ctrl + Shift + R (desktop) or pull-to-refresh (mobile).</div></div>';
+      ['statStructuresSub','statOutstandingCount','statCampaignsSub'].forEach(function(id){ setEl(id,'—'); });
+      _stopPageTimer(); return;
     }
-    ['statStructuresSub','statOutstandingCount','statCampaignsSub'].forEach(function (id) { setEl(id, '—'); });
+    if (!instRequireAuth('school_admin')) { _stopPageTimer(); return; }
+    await initPage();
+    _stopPageTimer();
+  } catch(err) {
+    console.error('[FeePayment] init failed:', err.message, err);
+    var rw2 = document.getElementById('recentPaymentsWrap');
+    if (rw2) rw2.innerHTML =
+      '<div class="empty"><div class="empty-icon">⚠️</div>' +
+      '<div class="empty-title">Page could not initialize.</div>' +
+      '<div class="empty-sub">Refresh and try again.<br/>' +
+      '<small style="opacity:0.5;">' + esc(String(err.message || '')) + '</small></div></div>';
+    ['statStructuresSub','statOutstandingCount','statCampaignsSub'].forEach(function(id){ setEl(id,'—'); });
+    _stopPageTimer();
   }
 });
 
@@ -1081,51 +1163,53 @@ async function initPage() {
 
 async function loadSchoolInfo() {
   try {
-    var res = await instApi('/school');
-    if (res.ok && res.data && (res.data.school || res.data)) {
+    var res = await safeApi('/school');  /* safeApi: times out in 12s */
+    if (res.ok && res.data && (res.data.school || res.data.name)) {
       _school = res.data.school || res.data;
       var nameEl = document.getElementById('sbSchoolName');
-      if (nameEl) nameEl.textContent = _school.name || 'My School';
+      if (nameEl) { nameEl.textContent = _school.name || 'My School'; }
       if (_school.currency) { _schoolCurrency = _school.currency.toUpperCase().trim(); }
       var logoEl = document.getElementById('sbLogo');
       if (logoEl && _school.logo) {
         logoEl.innerHTML = '<img src="' + esc(_school.logo) + '" alt="logo" />';
       } else if (logoEl && _school.name) {
         logoEl.textContent = _school.name.charAt(0).toUpperCase();
-        if (_school.primaryColor) logoEl.style.background = 'linear-gradient(135deg,' + _school.primaryColor + ',' + (_school.secondaryColor || _school.primaryColor) + ')';
+        if (_school.primaryColor) {
+          logoEl.style.background = 'linear-gradient(135deg,' + _school.primaryColor + ',' +
+            (_school.secondaryColor || _school.primaryColor) + ')';
+        }
       }
+    } else {
+      /* Timed out or API error — clear "Loading..." so user isn't misled */
+      var nm = document.getElementById('sbSchoolName');
+      if (nm && nm.textContent.indexOf('Loading') !== -1) { nm.textContent = 'My School'; }
     }
-  } catch(e) { /* Non-fatal */ }
+  } catch(e) {
+    console.error('[loadSchoolInfo]', e.message);
+    var nm2 = document.getElementById('sbSchoolName');
+    if (nm2 && nm2.textContent.indexOf('Loading') !== -1) { nm2.textContent = 'My School'; }
+  }
 }
 
 async function loadClasses() {
   try {
-    var res = await instApi('/structure/classes');
+    var res = await safeApi('/structure/classes');
     _classes = (res.ok && res.data && res.data.classes) ? res.data.classes : [];
-  } catch (e) {
-    console.error('[loadClasses] error:', e.message);
-    _classes = [];
-  }
+  } catch(e) { console.error('[loadClasses]', e.message); _classes = []; }
 }
 
 async function loadTerms() {
   try {
-    var res = await instApi('/structure/terms');
+    var res = await safeApi('/structure/terms');
     _terms = (res.ok && res.data && res.data.terms) ? res.data.terms : [];
-  } catch (e) {
-    console.error('[loadTerms] error:', e.message);
-    _terms = [];
-  }
+  } catch(e) { console.error('[loadTerms]', e.message); _terms = []; }
 }
 
 async function loadActiveAccounts() {
   try {
-    var res = await instApi('/fee/manual-accounts/active');
+    var res = await safeApi('/fee/manual-accounts/active');
     _activeAccounts = (res.ok && res.data && res.data.accounts) ? res.data.accounts : [];
-  } catch (e) {
-    console.error('[loadActiveAccounts] error:', e.message);
-    _activeAccounts = [];
-  }
+  } catch(e) { console.error('[loadActiveAccounts]', e.message); _activeAccounts = []; }
 }
 
 /* Populate shared selectors in forms and filters */
@@ -1201,101 +1285,88 @@ window.addEventListener('resize', function() { if (window.innerWidth > 960) clos
 async function loadOverview() {
   var recentWrap = document.getElementById('recentPaymentsWrap');
   try {
-    /* Stats in parallel */
-    var [summaryRes, campaignRes, recentRes] = await Promise.all([
-      instApi('/fee/reports/summary'),
-      instApi('/finance/donations/campaigns?status=active'),
-      instApi('/fee/payments?limit=8&status=confirmed')
+    /* All three requests run in parallel, each with a 12s timeout */
+    var results = await Promise.all([
+      safeApi('/fee/reports/summary'),
+      safeApi('/finance/donations/campaigns?status=active'),
+      safeApi('/fee/payments?limit=8&status=confirmed')
     ]);
+    var summaryRes  = results[0];
+    var campaignRes = results[1];
+    var recentRes   = results[2];
 
+    /* Summary stats */
     if (summaryRes.ok && summaryRes.data && summaryRes.data.report) {
-      var r = summaryRes.data.report.summary;
-      setEl('statStructures',      r ? (r.totalStudentsAssigned || 0) + ' students assigned' : '—');
-      setEl('statStructuresSub',   '');
-      setEl('statOutstanding',     r ? fmtCurrency(r.totalCharged - r.totalCollected) : '—');
+      var r = summaryRes.data.report.summary || summaryRes.data.report;
+      setEl('statOutstanding',     r ? fmtCurrency((r.totalCharged || 0) - (r.totalCollected || 0)) : '—');
       setEl('statOutstandingCount','');
-      setEl('statCollected',       r ? fmtCurrency(r.totalCollected) : '—');
+      setEl('statCollected',       r ? fmtCurrency(r.totalCollected || 0) : '—');
     } else {
       setEl('statOutstanding',     '—');
       setEl('statOutstandingCount','');
       setEl('statCollected',       '—');
     }
 
-    /* Fee structure count */
-    var fsRes = await instApi('/fee/structures?active=true');
+    /* Fee structure count (separate request for accuracy) */
+    var fsRes = await safeApi('/fee/structures?active=true');
     if (fsRes.ok && fsRes.data) {
       _feeStructures = fsRes.data.structures || [];
       setEl('statStructures',    _feeStructures.length);
-      setEl('statStructuresSub', _feeStructures.filter(function(s) { return s.isActive; }).length + ' active');
+      setEl('statStructuresSub', _feeStructures.filter(function(s){ return s.isActive; }).length + ' active');
     } else {
-      setEl('statStructures',    '0');
-      setEl('statStructuresSub', 'Could not load');
+      setEl('statStructures',    '—');
+      setEl('statStructuresSub', '—');
     }
 
+    /* Campaigns */
     if (campaignRes.ok && campaignRes.data) {
       var camps = campaignRes.data.campaigns || [];
       setEl('statCampaigns',    camps.length);
       setEl('statCampaignsSub', camps.length
-        ? camps.map(function(c) { return c.title; }).join(', ').substring(0, 50)
+        ? camps.map(function(c){ return c.title; }).join(', ').substring(0, 50)
         : 'No active campaigns');
     } else {
       setEl('statCampaigns',    '0');
       setEl('statCampaignsSub', 'No active campaigns');
     }
 
+    /* Recent payments */
     if (recentWrap) {
-      if (recentRes.ok && recentRes.data && recentRes.data.payments && recentRes.data.payments.length) {
-        recentWrap.innerHTML = buildPaymentsTable(recentRes.data.payments);
+      if (recentRes.ok && recentRes.data && recentRes.data.payments &&
+          recentRes.data.payments.length) {
+        try {
+          recentWrap.innerHTML = buildPaymentsTable(recentRes.data.payments);
+        } catch(tableErr) {
+          console.error('[buildPaymentsTable]', tableErr.message);
+          recentWrap.innerHTML =
+            '<div class="empty"><div class="empty-icon">⚠️</div>' +
+            '<div class="empty-title">Could not render payments.</div>' +
+            '<div class="empty-sub">' + esc(tableErr.message || '') + '</div></div>';
+        }
       } else {
         recentWrap.innerHTML =
           '<div class="empty"><div class="empty-icon">💵</div>' +
           '<div class="empty-title">No payments recorded yet.</div>' +
-          '<div class="empty-sub">Use "Record Payment" when you receive money at the school.</div></div>';
+          '<div class="empty-sub">Use "Record Payment" when you receive money at the school.' +
+          (recentRes.data && recentRes.data.message
+            ? '<br/><small style="opacity:0.5;">' + esc(recentRes.data.message) + '</small>' : '') +
+          '</div></div>';
       }
     }
-  } catch (err) {
-    console.error('[Fee-Payment] loadOverview error:', err.message, err);
-    /* Guarantee that no spinner is left running — show a clear error state */
+
+  } catch(err) {
+    /* This catches synchronous errors only — hangs are caught by safeApi timeout */
+    console.error('[loadOverview] unexpected error:', err.message, err);
     if (recentWrap) {
       recentWrap.innerHTML =
         '<div class="empty"><div class="empty-icon">⚠️</div>' +
-        '<div class="empty-title">Could not load payment overview.</div>' +
-        '<div class="empty-sub">Refresh the page and try again.' +
-        '<br/><small style="opacity:0.6;">' + esc(String(err.message || '')) + '</small></div></div>';
+        '<div class="empty-title">Could not load overview.</div>' +
+        '<div class="empty-sub">Refresh the page to try again.<br/>' +
+        '<small style="opacity:0.5;">' + esc(String(err.message || '')) + '</small></div></div>';
     }
-    ['statOutstanding','statCollected','statStructures','statCampaigns'].forEach(function (id) {
-      setEl(id, '—');
-    });
-    ['statStructuresSub','statOutstandingCount','statCampaignsSub'].forEach(function (id) {
-      setEl(id, '—');
-    });
+    ['statOutstanding','statCollected','statStructures','statCampaigns'].forEach(function(id){ setEl(id,'—'); });
+    ['statStructuresSub','statOutstandingCount','statCampaignsSub'].forEach(function(id){ setEl(id,'—'); });
   }
-}
-
-function buildPaymentsTable(payments) {
-  return '<div class="tbl-wrap"><table><thead><tr>' +
-    '<th>Date</th><th>Receipt</th><th>Student</th><th>Fee</th>' +
-    '<th>Amount</th><th>Method</th><th>Status</th>' +
-    '</tr></thead><tbody>' +
-    payments.map(function(p) {
-      var st  = p.studentId    || {};
-      var fs  = p.feeStructureId || {};
-      var stBadge = p.status === 'confirmed' ? 'badge-green' : p.status === 'reversed' ? 'badge-red' : 'badge-orange';
-      return '<tr>' +
-        '<td>' + fmtDate(p.recordedAt || p.createdAt) + '</td>' +
-        '<td style="font-family:monospace;font-size:11px;color:#a78bfa;">' + esc(p.receiptNumber || '—') + '</td>' +
-        '<td style="font-weight:700;color:#fff;">' +
-          '<a href="#" style="color:#fff;text-decoration:none;" ' +
-            'onclick="event.preventDefault();viewStudentProgress(\'' + esc(st._id || '') + '\',\'' + esc(st.name || '') + '\')">' +
-            esc(st.name || '—') + '</a>' +
-          '<br/><span style="font-size:11px;color:var(--muted);">' + esc(st.admissionNo || '') + '</span>' +
-        '</td>' +
-        '<td>' + esc(fs.name || '—') + '</td>' +
-        '<td style="font-weight:700;color:var(--green);">' + fmtCurrency(p.amount, p.currency) + '</td>' +
-        '<td><span class="badge badge-muted">' + esc(p.method || '—') + '</span></td>' +
-        '<td><span class="badge ' + stBadge + '">' + esc(p.status) + '</span></td>' +
-      '</tr>';
-    }).join('') + '</tbody></table></div>';
 }
 
 /* ============================================================
