@@ -711,7 +711,10 @@
               </span>
             </div>
 
-          </div>
+          </div><!-- closes bankStep1 -->
+
+        </div><!-- closes .card-body of connectBankCard -->
+      </div><!-- closes .card#connectBankCard -->
 
       <!-- Recent Payments (shown when connected) -->
       <div class="card" id="recentFeePaymentsCard" style="display:none;">
@@ -1814,11 +1817,7 @@ async function confirmRelease() {
 /* ============================================
    FEES & PAYMENTS SECTION
 ============================================ */
-var _payAccountData   = null;
-var _bankList         = [];
-var _verifiedBankData = null;
-
-async function loadPaymentSection() {
+async function showConnectBankForm() {
   await Promise.all([loadPayAccountStatus(), loadPlatformFee(), loadRecentFeePayments()]);
 }
 
@@ -2135,70 +2134,6 @@ function checkCanVerify() {
     } else {
       hintEl.textContent = 'Step 3: Enter your account number (8–10 digits).';
       hintEl.style.color = 'var(--muted)';
-    }
-  }
-}
-
-/* ✅ FIX: Called when currency selector changes */
-function onCurrencyChange() {
-  /* Reset verification state */
-  _verifiedBankData = null;
-  _bankList         = [];
-  var verifiedBox   = document.getElementById('bankVerifiedBox');
-  var statusEl      = document.getElementById('bankVerifyStatus');
-  var acctEl        = document.getElementById('payAccountNumber');
-  if (verifiedBox) verifiedBox.style.display = 'none';
-  if (statusEl)    statusEl.textContent = '';
-  if (acctEl)      acctEl.value = '';
-  checkCanVerify();
-
-  var currencyEl = document.getElementById('payAccountCurrency');
-  var currency   = currencyEl ? currencyEl.value : 'NGN';
-  loadBankListForCurrency(currency);
-}
-
-function onBankChange() { _verifiedBankData = null; document.getElementById('bankVerifiedBox').style.display='none'; checkCanVerify(); }
-function onAccountNumberInput() { _verifiedBankData = null; document.getElementById('bankVerifiedBox').style.display='none'; checkCanVerify(); }
-
-function checkCanVerify() {
-  var bankCode   = (document.getElementById('payAccountBank')   || {}).value || '';
-  var acctNum    = ((document.getElementById('payAccountNumber') || {}).value || '').trim();
-  var bizName    = ((document.getElementById('payAccountBizName')|| {}).value || '').trim();
-  var verifyBtn  = document.getElementById('verifyBankBtn');
-  var connectBtn = document.getElementById('connectBankBtn');
-  var hintEl     = document.getElementById('connectBtnHint');
-
-  /* ✅ FIX: Verify enabled when bank selected AND 10-digit account number entered */
-  var canVerify  = !!(bankCode && acctNum.length >= 10);
-  if (verifyBtn) {
-    verifyBtn.disabled = !canVerify;
-    verifyBtn.title    = canVerify
-      ? 'Click to verify your bank account details'
-      : 'Enter a valid 10-digit account number and select your bank first';
-  }
-
-  /* Connect enabled only after successful verification AND business name filled */
-  var canConnect = !!(
-    _verifiedBankData &&
-    bizName.length >= 2
-  );
-  if (connectBtn) {
-    connectBtn.disabled = !canConnect;
-    connectBtn.title    = canConnect
-      ? 'Click to connect this verified account'
-      : !_verifiedBankData ? 'Verify your account first' : 'Enter a business name';
-  }
-
-  /* Update hint text */
-  if (hintEl) {
-    if (_verifiedBankData && !bizName) {
-      hintEl.textContent = 'Enter a business name to enable the Connect button.';
-    } else if (_verifiedBankData && bizName) {
-      hintEl.textContent = '';
-    } else if (canVerify) {
-      hintEl.textContent = 'Ready to verify — click "Verify Account".';
-    } else {
-      hintEl.textContent = 'Enter your 10-digit account number and select your bank first.';
     }
   }
 }
