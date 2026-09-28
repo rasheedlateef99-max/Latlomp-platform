@@ -33,6 +33,17 @@ var seniorGuard = [instProtect, seniorStaffOrAdmin, requireActiveSubscription];
 var manageGuard = [instProtect, canManageStudents,  requireActiveSubscription];
 var readGuard   = [instProtect, teacherOrAdmin,     requireActiveSubscription];
 
+/* Audit logging — required by verify/reject/correction routes */
+var logAudit;
+try {
+  logAudit = require('../../middleware/audit.middleware').logAudit;
+} catch(e) {
+  /* Graceful fallback if audit middleware unavailable */
+  logAudit = function(opts) {
+    console.log('[audit]', opts.action, opts.message || '');
+  };
+}
+
 /* ============================================
    P6 HELPERS
    Defined at module level so triggerP6Processing
@@ -1615,6 +1626,313 @@ router.get('/receipts/search', readGuard, async function(req, res) {
     console.error('[finance] GET /receipts/search:', err.message);
     return res.status(500).json({ success: false, message: err.message });
   }
+});
+
+/* ============================================
+   PAYMENT ACCOUNT MANAGEMENT
+   School bank accounts for receiving payments.
+   Finance is the authoritative manager of accounts.
+   Fee structures and campaigns link to these accounts.
+   Portal pickers read from these accounts.
+
+   GET    /finance/payment-accounts         → list all
+   GET    /finance/payment-accounts/active  → active only (for pickers + fee-payment.html)
+   POST   /finance/payment-accounts         → create
+   PUT    /finance/payment-accounts/:id     → edit
+   PUT    /finance/payment-accounts/:id/toggle → activate/deactivate
+   DELETE /finance/payment-accounts/:id     → delete (blocked if in use)
+
+   schoolId ALWAYS from req.schoolId (JWT) — never from body.
+   Guard: adminGuard for create/edit/delete, readGuard for list.
+============================================ */
+var SchoolManualPaymentAccount = require('../models/SchoolManualPaymentAccount.model');
+
+/* GET /finance/payment-accounts */
+router.get('/payment-accounts', readGuard, async function(req, res) {
+  try {
+    var filter = { schoolId: req.schoolId };
+    if (req.query.active !== undefined) {
+      filter.isActive = req.query.active !== 'false';
+    }
+    var accounts = await SchoolManualPaymentAccount.find(filter)
+      .sort({ displayOrder: 1, createdAt: 1 })
+      .lean();
+    return res.json({ success: true, accounts, count: accounts.length });
+  } catch(err) {
+    console.error('[finance] GET /payment-accounts:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* GET /finance/payment-accounts/active — picker endpoint */
+router.get('/payment-accounts/active', readGuard, async function(req, res) {
+  try {
+    var accounts = await SchoolManualPaymentAccount.find({
+      schoolId: req.schoolId,
+      isActive: true
+    })
+    .sort({ displayOrder: 1, createdAt: 1 })
+    .lean();
+    return res.json({ success: true, accounts, count: accounts.length });
+  } catch(err) {
+    console.error('[finance] GET /payment-accounts/active:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* POST /finance/payment-accounts */
+router.post('/payment-accounts', adminGuard, async function(req, res) {
+  try {
+    var {
+      accountLabel, accountType, bankName, accountName, accountNumber,
+      currency, country, instructions, displayOrder
+    } = req.body;
+
+    if (!accountLabel || !accountLabel.trim()) {
+      return res.status(400).json({ success: false, message: 'Account label is required.' });
+    }
+    if (!bankName || !bankName.trim()) {
+      return res.status(400).json({ success: false, message: 'Bank name is required.' });
+    }
+    if (!accountName || !accountName.trim()) {
+      return res.status(400).json({ success: false, message: 'Account name is required.' });
+    }
+    if (!accountNumber || !accountNumber.trim()) {
+      return res.status(400).json({ success: false, message: 'Account number is required.' });
+    }
+    if (!currency || !currency.trim()) {
+      return res.status(400).json({ success: false, message: 'Currency is required.' });
+    }
+
+    var account = await SchoolManualPaymentAccount.create({
+      schoolId:      req.schoolId,                    /* JWT — never body */
+      accountLabel:  accountLabel.trim(),
+      accountType:   accountType   || 'main',
+      bankName:      bankName.trim(),
+      accountName:   accountName.trim(),
+      accountNumber: accountNumber.trim(),
+      currency:      currency.trim().toUpperCase(),
+      country:       (country      || '').trim(),
+      instructions:  (instructions || '').trim(),
+      displayOrder:  parseInt(displayOrder) || 0,
+      isActive:      true,
+      createdBy:     req.schoolUser._id
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: '"' + account.accountLabel + '" created.',
+      account
+    });
+  } catch(err) {
+    console.error('[finance] POST /payment-accounts:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* PUT /finance/payment-accounts/:id */
+router.put('/payment-accounts/:id', adminGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid account ID.' });
+    }
+    var ALLOWED = [
+      'accountLabel','accountType','bankName','accountName',
+      'accountNumber','currency','country','instructions','displayOrder','isActive'
+    ];
+    var updates = {};
+    ALLOWED.forEach(function(f) {
+      if (req.body[f] !== undefined) { updates[f] = req.body[f]; }
+    });
+    if (updates.currency) {
+      updates.currency = updates.currency.toUpperCase().trim();
+    }
+
+    var account = await SchoolManualPaymentAccount.findOneAndUpdate(
+      { _id: req.params.id, schoolId: req.schoolId },
+      { $set: updates },
+      { new: true }
+    );
+    if (!account) {
+      return res.status(404).json({ success: false, message: 'Payment account not found.' });
+    }
+    return res.json({ success: true, message: 'Account updated.', account });
+  } catch(err) {
+    console.error('[finance] PUT /payment-accounts/:id:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* PUT /finance/payment-accounts/:id/toggle — activate/deactivate */
+router.put('/payment-accounts/:id/toggle', adminGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid account ID.' });
+    }
+    var account = await SchoolManualPaymentAccount.findOne({
+      _id: req.params.id, schoolId: req.schoolId
+    });
+    if (!account) {
+      return res.status(404).json({ success: false, message: 'Payment account not found.' });
+    }
+    account.isActive = !account.isActive;
+    await account.save();
+    return res.json({
+      success:  true,
+      message:  account.accountLabel + ' is now ' + (account.isActive ? 'active' : 'inactive') + '.',
+      isActive: account.isActive
+    });
+  } catch(err) {
+    console.error('[finance] PUT /payment-accounts/:id/toggle:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* DELETE /finance/payment-accounts/:id */
+router.delete('/payment-accounts/:id', adminGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid account ID.' });
+    }
+    /* Block deletion if any fee structure or campaign references this account */
+    var SchoolFeeStructure = require('../models/SchoolFeeStructure.model');
+    var SchoolDonationCampaign = require('../models/SchoolDonationCampaign.model');
+    var [fsCount, campCount] = await Promise.all([
+      SchoolFeeStructure.countDocuments({
+        paymentAccountId: req.params.id, schoolId: req.schoolId
+      }),
+      SchoolDonationCampaign.countDocuments({
+        paymentAccountId: req.params.id, schoolId: req.schoolId
+      })
+    ]);
+    if (fsCount > 0 || campCount > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete: ' + fsCount + ' fee structure(s) and ' + campCount +
+                 ' campaign(s) reference this account. Deactivate it instead.'
+      });
+    }
+    var account = await SchoolManualPaymentAccount.findOneAndDelete({
+      _id: req.params.id, schoolId: req.schoolId
+    });
+    if (!account) {
+      return res.status(404).json({ success: false, message: 'Payment account not found.' });
+    }
+    return res.json({ success: true, message: '"' + account.accountLabel + '" deleted.' });
+  } catch(err) {
+    console.error('[finance] DELETE /payment-accounts/:id:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   PAYMENT ACCOUNT MANAGEMENT
+   Routes: GET /finance/payment-accounts
+           GET /finance/payment-accounts/active
+           POST /finance/payment-accounts
+           PUT  /finance/payment-accounts/:id
+           PUT  /finance/payment-accounts/:id/toggle
+           DELETE /finance/payment-accounts/:id
+   schoolId ALWAYS from JWT. adminGuard for mutations.
+============================================ */
+var SchoolManualPaymentAccount = require('../models/SchoolManualPaymentAccount.model');
+
+/* GET all */
+router.get('/payment-accounts', readGuard, async function(req, res) {
+  try {
+    var filter = { schoolId: req.schoolId };
+    if (req.query.active !== undefined) filter.isActive = req.query.active !== 'false';
+    var accounts = await SchoolManualPaymentAccount.find(filter)
+      .sort({ displayOrder: 1, createdAt: 1 }).lean();
+    return res.json({ success: true, accounts, count: accounts.length });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* GET active only — used by fee pickers, portals */
+router.get('/payment-accounts/active', readGuard, async function(req, res) {
+  try {
+    var accounts = await SchoolManualPaymentAccount.find({
+      schoolId: req.schoolId, isActive: true
+    }).sort({ displayOrder: 1, createdAt: 1 }).lean();
+    return res.json({ success: true, accounts, count: accounts.length });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* POST create */
+router.post('/payment-accounts', adminGuard, async function(req, res) {
+  try {
+    var { accountLabel, bankName, accountName, accountNumber, currency, country, instructions, displayOrder } = req.body;
+    if (!accountLabel || !accountLabel.trim()) return res.status(400).json({ success: false, message: 'Account label is required.' });
+    if (!bankName     || !bankName.trim())     return res.status(400).json({ success: false, message: 'Bank name is required.' });
+    if (!accountName  || !accountName.trim())  return res.status(400).json({ success: false, message: 'Account name is required.' });
+    if (!accountNumber|| !accountNumber.trim())return res.status(400).json({ success: false, message: 'Account number is required.' });
+    if (!currency     || !currency.trim())     return res.status(400).json({ success: false, message: 'Currency is required.' });
+    var account = await SchoolManualPaymentAccount.create({
+      schoolId: req.schoolId,
+      accountLabel:  accountLabel.trim(),
+      bankName:      bankName.trim(),
+      accountName:   accountName.trim(),
+      accountNumber: accountNumber.trim(),
+      currency:      currency.trim().toUpperCase(),
+      country:       (country      || '').trim(),
+      instructions:  (instructions || '').trim(),
+      displayOrder:  parseInt(displayOrder) || 0,
+      isActive:      true,
+      createdBy:     req.schoolUser._id
+    });
+    return res.status(201).json({ success: true, message: '"' + account.accountLabel + '" created.', account });
+  } catch(err) { return res.status(500).json({ success: false, message: err.message }); }
+});
+
+/* PUT update */
+router.put('/payment-accounts/:id', adminGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, message: 'Invalid ID.' });
+    var ALLOWED = ['accountLabel','bankName','accountName','accountNumber','currency','country','instructions','displayOrder','isActive'];
+    var updates = {};
+    ALLOWED.forEach(function(f) { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
+    if (updates.currency) updates.currency = updates.currency.toUpperCase().trim();
+    var account = await SchoolManualPaymentAccount.findOneAndUpdate(
+      { _id: req.params.id, schoolId: req.schoolId }, { $set: updates }, { new: true });
+    if (!account) return res.status(404).json({ success: false, message: 'Account not found.' });
+    return res.json({ success: true, message: 'Account updated.', account });
+  } catch(err) { return res.status(500).json({ success: false, message: err.message }); }
+});
+
+/* PUT toggle active/inactive */
+router.put('/payment-accounts/:id/toggle', adminGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, message: 'Invalid ID.' });
+    var account = await SchoolManualPaymentAccount.findOne({ _id: req.params.id, schoolId: req.schoolId });
+    if (!account) return res.status(404).json({ success: false, message: 'Account not found.' });
+    account.isActive = !account.isActive;
+    await account.save();
+    return res.json({ success: true, message: account.accountLabel + ' is now ' + (account.isActive ? 'active' : 'inactive') + '.', isActive: account.isActive });
+  } catch(err) { return res.status(500).json({ success: false, message: err.message }); }
+});
+
+/* DELETE */
+router.delete('/payment-accounts/:id', adminGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, message: 'Invalid ID.' });
+    var SchoolFeeStructure     = require('../models/SchoolFeeStructure.model');
+    var SchoolDonationCampaign = require('../models/SchoolDonationCampaign.model');
+    var [fsCount, campCount] = await Promise.all([
+      SchoolFeeStructure.countDocuments({ paymentAccountId: req.params.id, schoolId: req.schoolId }),
+      SchoolDonationCampaign.countDocuments({ paymentAccountId: req.params.id, schoolId: req.schoolId })
+    ]);
+    if (fsCount > 0 || campCount > 0) {
+      return res.status(400).json({ success: false,
+        message: 'Cannot delete: ' + fsCount + ' fee structure(s) and ' + campCount + ' campaign(s) reference this account. Deactivate it instead.' });
+    }
+    var account = await SchoolManualPaymentAccount.findOneAndDelete({ _id: req.params.id, schoolId: req.schoolId });
+    if (!account) return res.status(404).json({ success: false, message: 'Account not found.' });
+    return res.json({ success: true, message: '"' + account.accountLabel + '" deleted.' });
+  } catch(err) { return res.status(500).json({ success: false, message: err.message }); }
 });
 
 module.exports = router;

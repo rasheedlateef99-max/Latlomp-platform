@@ -121,7 +121,11 @@ app.use("/api/portal",             portalRoutes.publicRouter);
 app.use("/api/institution/fee", require("./institution/routes/inst.fee.online.routes"));
 /* ✅ PHASE Q: Parent Portal */
 app.use("/api/institution/parent/auth", require("./institution/routes/parent.auth.routes"));
+/* ✅ Track 2: Manual Receipt Generator */
+app.use("/api/institution/manual-receipts", require("./institution/routes/inst.manual.receipt.routes"));
 app.use("/api/institution/parent",      require("./institution/routes/parent.routes"));
+/* ✅ Track 2: Manual Receipt Generator */
+app.use("/api/institution/manual-receipts", require("./institution/routes/inst.manual.receipt.routes"));
 /* ============================================
    PLATFORM ADMINISTRATION ROUTES
    Separate from all existing route namespaces.
