@@ -224,7 +224,7 @@ router.get('/:id/pdf', guard, async function(req, res) {
     }
 
     var school = await School.findById(req.schoolId)
-      .select('name logo primaryColor address phone').lean();
+      .select('name logo primaryColor address phone receiptName receiptColor receiptLogoBase64').lean();
 
     var { generateManualReceiptPDF } = require('../services/finance.pdf.service');
     var pdfBuffer = await generateManualReceiptPDF(receipt, school);

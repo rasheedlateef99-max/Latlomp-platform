@@ -621,4 +621,59 @@ router.put('/profile', instProtect, schoolAdminOnly, async (req, res) => {
   } catch (err) { return res.status(500).json({ success: false, message: err.message }); }
 });
 
+/* ============================================
+   PATCH /api/institution/school/receipt-branding
+   Save receipt-specific branding for this school.
+   Accepts: receiptName, receiptColor, receiptLogoBase64.
+   schoolId ALWAYS from JWT (req.schoolId) — never from body.
+   Guard: adminGuard or equivalent (schoolAdminOnly).
+============================================ */
+router.patch('/receipt-branding', [instProtect, schoolAdminOnly, requireActiveSubscription], async function(req, res) {
+  try {
+    var updates = {};
+
+    /* Organization name on receipts */
+    if (req.body.receiptName !== undefined) {
+      updates.receiptName = (req.body.receiptName || '').trim().substring(0, 120);
+    }
+
+    /* Accent color — must be a valid hex or empty */
+    if (req.body.receiptColor !== undefined) {
+      var col = (req.body.receiptColor || '').trim();
+      if (col && !/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(col)) {
+        return res.status(400).json({ success: false, message: 'Invalid color. Use a hex value like #6c63ff.' });
+      }
+      updates.receiptColor = col;
+    }
+
+    /* Logo — must be a data URI image or empty (to remove) */
+    if (req.body.receiptLogoBase64 !== undefined) {
+      var logo = (req.body.receiptLogoBase64 || '').trim();
+      if (logo && !logo.startsWith('data:image/')) {
+        return res.status(400).json({ success: false, message: 'Logo must be a valid image (PNG or JPG).' });
+      }
+      /* Rough size guard: base64 of a 200 KB image is roughly 270 KB of string */
+      if (logo.length > 290000) {
+        return res.status(400).json({ success: false, message: 'Logo is too large. Please compress or resize the image to under 200 KB and try again.' });
+      }
+      updates.receiptLogoBase64 = logo;
+    }
+
+    if (!Object.keys(updates).length) {
+      return res.status(400).json({ success: false, message: 'No branding fields provided.' });
+    }
+
+    await School.findByIdAndUpdate(
+      req.schoolId,   /* TENANT SCOPE — from JWT, never from body */
+      { $set: updates },
+      { runValidators: true }
+    );
+
+    return res.json({ success: true, message: 'Receipt branding saved.' });
+  } catch(err) {
+    console.error('[school] PATCH /receipt-branding:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

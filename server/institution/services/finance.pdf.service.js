@@ -67,10 +67,18 @@ function hexToRgb(hex) {
 ============================================ */
 async function generateReceiptPDF(payment, school) {
   var PDFDocument = getPDFDocument();
-  var primary     = (school && school.primaryColor) || '#6c63ff';
+  var primary     = (school && (school.receiptColor || school.primaryColor)) || '#6c63ff';
 
+  /* Use the receipt-specific base64 logo if set; otherwise fetch the school logo URL */
   var logoBuffer = null;
-  try { logoBuffer = await fetchImageBuffer(school && school.logo); } catch(e) {}
+  if (school && school.receiptLogoBase64 && school.receiptLogoBase64.startsWith('data:image/')) {
+    try {
+      var b64Data = school.receiptLogoBase64.split(',')[1];
+      if (b64Data) { logoBuffer = Buffer.from(b64Data, 'base64'); }
+    } catch(e) {}
+  } else {
+    try { logoBuffer = await fetchImageBuffer(school && school.logo); } catch(e) {}
+  }
 
   return new Promise(function(resolve, reject) {
     try {
@@ -94,7 +102,7 @@ async function generateReceiptPDF(payment, school) {
       }
 
       doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(13)
-         .text((school && school.name || 'School').toUpperCase(), margin + 60, 18,
+         .text((school && (school.receiptName || school.name) || 'School').toUpperCase(), margin + 60, 18,
                { width: usable - 60, lineBreak: false });
       doc.font('Helvetica').fontSize(8).fillColor('rgba(255,255,255,0.8)')
          .text('OFFICIAL PAYMENT RECEIPT', margin + 60, 36, { lineBreak: false });

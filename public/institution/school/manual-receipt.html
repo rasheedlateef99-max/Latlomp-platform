@@ -171,6 +171,10 @@ tr:hover td{background:rgba(255,255,255,.01);}
 .rc-desc-text     {font-size:10.5px;color:#1a1a2e;line-height:1.5;}
 .rc-sign-section  {padding:9px 16px;}
 .rc-sign-line     {border-bottom:1px solid #ccc;width:110px;margin-bottom:3px;}
+/* Settings section responsive */
+@media(max-width:880px){
+  #sec-settings > div:last-child { grid-template-columns: 1fr !important; }
+}
 .rc-footer{padding:8px 16px;background:#f5f5f5;border-top:1px solid #eee;
   font-size:7.5px;color:#888;line-height:1.5;text-align:center;}
 .rc-voided-overlay{display:none;position:absolute;inset:0;border-radius:12px;
@@ -202,6 +206,7 @@ tr:hover td{background:rgba(255,255,255,.01);}
     <div class="sb-sep">Receipt Generator</div>
     <button class="nav-item active" data-sec="issue"   onclick="showSection('issue')">  <span class="nav-icon">🧾</span> Issue Receipt</button>
     <button class="nav-item"        data-sec="history" onclick="showSection('history')"><span class="nav-icon">📋</span> Receipt History</button>
+    <button class="nav-item" data-sec="settings" onclick="showSection('settings')"><span class="nav-icon">⚙️</span> Receipt Branding</button>
     <div class="sb-sep">Links</div>
     <a class="nav-item" href="/institution/school/fee-payment.html">  <span class="nav-icon">🏷️</span> Fee &amp; Payment</a>
     <a class="nav-item" href="/institution/school/finance.html">      <span class="nav-icon">💰</span> Finance</a>
@@ -433,6 +438,120 @@ tr:hover td{background:rgba(255,255,255,.01);}
       </div>
     </div>
 
+    <!-- ══ RECEIPT BRANDING / SETTINGS ══ -->
+    <div class="section" id="sec-settings">
+      <div style="margin-bottom:16px;">
+        <h1 style="font-size:19px;font-weight:800;margin-bottom:3px;">⚙️ Receipt Branding</h1>
+        <p style="font-size:12px;color:var(--muted);">
+          Set the name, logo, and accent color that appear on every receipt your school issues.
+        </p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 360px;gap:18px;align-items:start;">
+        <!-- Left: settings form -->
+        <div class="panel">
+          <div class="ph"><h3>Branding Settings</h3></div>
+          <div class="pb">
+            <div id="brandOk"  class="alert a-ok"  style="margin-bottom:12px;"></div>
+            <div id="brandErr" class="alert a-err" style="margin-bottom:12px;"></div>
+
+            <!-- Name -->
+            <div class="form-sec">
+              <div class="form-sec-title">🏫 Organization Name</div>
+              <div class="field">
+                <label>Name shown on receipts</label>
+                <input type="text" class="inp" id="bName" maxlength="120"
+                  placeholder="e.g. St Mary's Catholic Secondary School"
+                  oninput="_brandName=this.value.trim();syncSettingsPreview()"/>
+                <div style="font-size:10px;color:var(--muted);margin-top:3px;">
+                  Leave blank to use your school's registered name.
+                </div>
+              </div>
+            </div>
+
+            <!-- Color -->
+            <div class="form-sec">
+              <div class="form-sec-title">🎨 Accent Color</div>
+              <div class="field">
+                <label>Receipt header &amp; accent color</label>
+                <div style="display:flex;align-items:center;gap:10px;margin-top:4px;flex-wrap:wrap;">
+                  <input type="color" id="bColor" value="#6c63ff"
+                    style="width:46px;height:36px;border:1px solid var(--border);border-radius:7px;
+                      cursor:pointer;padding:2px;background:none;"
+                    oninput="onColorChange(this.value)"/>
+                  <span id="bColorHex" style="font-family:monospace;font-size:13px;color:#fff;
+                    background:rgba(255,255,255,.06);padding:4px 10px;border-radius:6px;
+                    border:1px solid var(--border);">#6c63ff</span>
+                  <div id="bColorSwatch" style="width:32px;height:32px;border-radius:6px;
+                    border:1px solid var(--border);background:#6c63ff;"></div>
+                  <button class="btn btn-sec btn-sm" onclick="onColorChange('#6c63ff')">Reset</button>
+                </div>
+                <div style="font-size:10px;color:var(--muted);margin-top:5px;">
+                  Choose a dark or vivid color for best readability on the receipt header.
+                </div>
+              </div>
+            </div>
+
+            <!-- Logo -->
+            <div class="form-sec">
+              <div class="form-sec-title">🖼️ Logo</div>
+              <div class="field">
+                <label>PNG or JPG, max 200 KB</label>
+                <!-- Hidden file input -->
+                <input type="file" id="bLogoFile" accept="image/png,image/jpeg,image/jpg"
+                  style="display:none;" onchange="handleLogoUpload(this)"/>
+
+                <!-- Logo preview -->
+                <div id="bLogoPreviewWrap" style="display:none;margin-bottom:10px;
+                  background:rgba(255,255,255,.03);border:1px solid var(--border);
+                  border-radius:10px;padding:12px;">
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <div id="bLogoPreview" style="width:64px;height:64px;border-radius:9px;
+                      overflow:hidden;border:1px solid var(--border);
+                      display:flex;align-items:center;justify-content:center;"></div>
+                    <div>
+                      <div style="font-size:12px;font-weight:600;color:#fff;" id="bLogoFileName">logo.png</div>
+                      <div style="font-size:11px;color:var(--muted);" id="bLogoFileSize"></div>
+                      <button class="btn btn-danger btn-sm" style="margin-top:7px;"
+                        onclick="removeBrandLogo()">Remove Logo</button>
+                    </div>
+                  </div>
+                </div>
+
+                <button class="btn btn-sec" onclick="document.getElementById('bLogoFile').click()">
+                  📁 Choose Logo Image
+                </button>
+                <div style="font-size:10px;color:var(--muted);margin-top:4px;">
+                  Your logo appears on the receipt header, PDF, and image exports.
+                  If no logo is uploaded, the first letter of your organization name is used.
+                </div>
+              </div>
+            </div>
+
+            <div class="btn-group" style="margin-top:6px;">
+              <button class="btn btn-green" id="saveBrandBtn" onclick="saveBranding()">
+                💾 Save Branding
+              </button>
+              <button class="btn btn-sec" onclick="resetBrandingToDefaults()">
+                ↺ Reset to Defaults
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: live preview -->
+        <div>
+          <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;
+            letter-spacing:.5px;margin-bottom:8px;text-align:center;">Receipt Preview</div>
+          <div class="rc-card" id="settingsPreviewCard" style="pointer-events:none;"></div>
+          <p style="font-size:10px;color:var(--muted);text-align:center;margin-top:8px;line-height:1.6;">
+            Preview updates as you change settings above.<br/>
+            Save to apply to all future receipts.
+          </p>
+        </div>
+      </div>
+    </div>
+
   </div><!-- .page -->
 </div><!-- .main -->
 
@@ -471,7 +590,10 @@ tr:hover td{background:rgba(255,255,255,.01);}
      5. Receipt recording: POST /manual-receipts creates SchoolManualReceipt
      6. No duplicate branding system — uses school profile data only
 ═════════════════════════════════════════════════════════ */
-
+/* ── Receipt branding (loaded from school.receiptName/Color/LogoBase64) ── */
+var _brandName  = '';   /* custom receipt name   — overrides _school.name */
+var _brandColor = '';   /* custom accent color   — overrides _school.primaryColor */
+var _brandLogo  = '';   /* base64 data URI logo  — overrides _school.logo */
 /* ── STATE ── */
 var _school           = null;
 var _schoolCurrency   = 'NGN';
@@ -544,8 +666,10 @@ function showSection(name) {
   var n = document.querySelector('[data-sec="'+name+'"]');
   if (s) s.classList.add('active');
   if (n) n.classList.add('active');
-  var msl = document.getElementById('mobileSecLabel');
-  if (msl) msl.textContent = name==='issue' ? 'Issue Receipt' : 'Receipt History';
+  var msl    = document.getElementById('mobileSecLabel');
+  var titles = { issue:'Issue Receipt', history:'Receipt History', settings:'⚙️ Receipt Branding' };
+  if (msl) msl.textContent = titles[name] || name;
+  if (name === 'settings') syncSettingsPreview();
   if (window.innerWidth<=960) closeSidebar();
   if (name==='history') loadHistory(1);
 }
@@ -608,6 +732,17 @@ async function loadSchoolBranding() {
     _school = s;
     if (s.currency) _schoolCurrency = s.currency.toUpperCase().trim();
 
+    /* Apply receipt-specific overrides if the school has configured them */
+    _brandName  = s.receiptName        || '';
+    _brandColor = s.receiptColor       || '';
+    _brandLogo  = s.receiptLogoBase64  || '';
+
+    /* Populate the settings form */
+    var bNameEl = document.getElementById('bName');
+    if (bNameEl) bNameEl.value = _brandName || s.name || '';
+    onColorChange(_brandColor || s.primaryColor || '#6c63ff');
+    if (_brandLogo) showBrandLogoPreview(_brandLogo, 'Saved logo', '');
+
     /* Update sidebar */
     var nm3 = document.getElementById('sbSchoolName');
     if (nm3) nm3.textContent = s.name || 'My School';
@@ -648,11 +783,11 @@ function updatePreview() {
   var card = document.getElementById('receiptPreviewCard');
   if (!card) return;
 
-  var primaryColor = (_school && _school.primaryColor) || '#6c63ff';
-  var schoolName   = (_school && _school.name)    || 'School Name';
+var primaryColor = _brandColor || (_school && _school.primaryColor) || '#6c63ff';
+  var schoolName   = _brandName  || (_school && _school.name)         || 'School Name';
   var schoolAddr   = (_school && _school.address) || '';
   var schoolPhone  = (_school && _school.phone)   || '';
-  var schoolLogo   = _school  && _school.logo;
+  var logoSrc      = _brandLogo  || (_school && _school.logo)         || '';
 
   var payerName    = gv('fPayerName')    || '—';
   var payerPhone   = gv('fPayerPhone');
@@ -672,8 +807,8 @@ function updatePreview() {
   var rcptNum = _lastReceiptNumber
     || 'MR-' + new Date().toISOString().slice(0,10).replace(/-/g,'') + '-XXXX';
 
-  var logoHtml = schoolLogo
-    ? '<img src="'+esc(schoolLogo)+'" alt="logo" style="width:100%;height:100%;object-fit:cover;border-radius:7px;"/>'
+  var logoHtml = logoSrc
+    ? '<img src="'+esc(logoSrc)+'" alt="logo" style="width:100%;height:100%;object-fit:cover;border-radius:7px;"/>'
     : '<span style="font-size:18px;font-weight:800;">'+esc(schoolName.charAt(0).toUpperCase())+'</span>';
 
   var contactLine = [schoolAddr, schoolPhone].filter(Boolean).join(' · ');
@@ -744,11 +879,17 @@ function updatePreview() {
         +'</div>'
       : '')
 
+
+      
     /* Footer */
     +'<div class="rc-footer">'
       +'<strong>Manually issued receipt</strong> — not a Finance transaction record.<br/>'
       +'Issued by '+esc(schoolName)+' · LatLomp Education Platform'
     +'</div>';
+
+  /* Also render into the settings preview card if it exists */
+  var settingsCard = document.getElementById('settingsPreviewCard');
+  if (settingsCard && card !== settingsCard) settingsCard.innerHTML = card.innerHTML;
 }
 
 function infoRow(key, value) {
@@ -1125,6 +1266,136 @@ async function confirmVoid() {
     if(ve){ve.textContent=msg;ve.style.display='block';}
   }
 }
+
+/* ═════════════════════════════════════════════════════════
+   RECEIPT BRANDING — Settings functions
+   Saves receiptName, receiptColor, receiptLogoBase64 to
+   the School document via PATCH /school/receipt-branding.
+   schoolId enforced server-side from JWT.
+═════════════════════════════════════════════════════════ */
+
+/* Called whenever color picker changes */
+function onColorChange(hex) {
+  _brandColor = hex || '';
+  sv('bColor', hex || '#6c63ff');
+  var hexEl    = document.getElementById('bColorHex');
+  var swatchEl = document.getElementById('bColorSwatch');
+  if (hexEl)    hexEl.textContent  = hex || '#6c63ff';
+  if (swatchEl) swatchEl.style.background = hex || '#6c63ff';
+  syncSettingsPreview();
+}
+
+/* Sync the settings preview card */
+function syncSettingsPreview() {
+  /* updatePreview() already syncs to settingsPreviewCard — just call it */
+  updatePreview();
+}
+
+/* Handle logo file selection */
+function handleLogoUpload(input) {
+  var file = input && input.files && input.files[0];
+  if (!file) return;
+  /* Validate type */
+  if (!['image/png','image/jpeg','image/jpg'].includes(file.type)) {
+    toast('Please choose a PNG or JPG image.', 'error');
+    input.value = '';
+    return;
+  }
+  /* Validate size — warn above 200 KB */
+  if (file.size > 200 * 1024) {
+    toast('Image is ' + Math.round(file.size/1024) + ' KB — please compress it to under 200 KB for best results.', 'warning');
+    if (file.size > 400 * 1024) {
+      /* Hard block above 400 KB to prevent oversized base64 strings */
+      toast('Image is too large (max 400 KB). Please resize before uploading.', 'error');
+      input.value = '';
+      return;
+    }
+  }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    _brandLogo = e.target.result;   /* data URI */
+    showBrandLogoPreview(_brandLogo, file.name, Math.round(file.size/1024) + ' KB');
+    updatePreview();
+  };
+  reader.onerror = function() { toast('Could not read the file. Please try again.', 'error'); };
+  reader.readAsDataURL(file);
+}
+
+/* Show logo preview in the settings form */
+function showBrandLogoPreview(src, name, size) {
+  var wrap    = document.getElementById('bLogoPreviewWrap');
+  var preview = document.getElementById('bLogoPreview');
+  var nameEl  = document.getElementById('bLogoFileName');
+  var sizeEl  = document.getElementById('bLogoFileSize');
+  if (preview) preview.innerHTML = '<img src="'+esc(src)+'" style="width:100%;height:100%;object-fit:cover;" alt="logo"/>';
+  if (nameEl)  nameEl.textContent = name || 'logo';
+  if (sizeEl)  sizeEl.textContent = size || '';
+  if (wrap)    wrap.style.display = 'block';
+}
+
+/* Remove the uploaded logo */
+function removeBrandLogo() {
+  _brandLogo = '';
+  var wrap  = document.getElementById('bLogoPreviewWrap');
+  var input = document.getElementById('bLogoFile');
+  if (wrap)  wrap.style.display = 'none';
+  if (input) input.value = '';
+  updatePreview();
+}
+
+/* Save branding to the server */
+async function saveBranding() {
+  var btn = document.getElementById('saveBrandBtn');
+  if (btn) { btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Saving…'; }
+
+  var body = {
+    receiptName:       gv('bName').trim(),
+    receiptColor:      _brandColor || '',
+    receiptLogoBase64: _brandLogo  || ''
+  };
+
+  var res = await safeApi('/school/receipt-branding', 'PATCH', body);
+
+  if (btn) { btn.disabled=false; btn.innerHTML='💾 Save Branding'; }
+
+  if (res.ok && res.data && res.data.success) {
+    /* Update local state to reflect saved values */
+    _brandName  = body.receiptName;
+    _brandColor = body.receiptColor;
+    _brandLogo  = body.receiptLogoBase64;
+    /* Refresh issue section preview */
+    updatePreview();
+    var okEl = document.getElementById('brandOk');
+    if (okEl) { okEl.textContent = '✅ Branding saved. All future receipts will use these settings.'; okEl.classList.add('show'); }
+    var errEl = document.getElementById('brandErr');
+    if (errEl) errEl.classList.remove('show');
+    setTimeout(function(){ var el=document.getElementById('brandOk'); if(el) el.classList.remove('show'); }, 5000);
+  } else {
+    var errEl2 = document.getElementById('brandErr');
+    var msg    = (res.data && res.data.message) || 'Save failed. Please try again.';
+    if (errEl2) { errEl2.textContent = '❌ ' + msg; errEl2.classList.add('show'); }
+  }
+}
+
+/* Reset branding to school defaults (clears the three custom fields) */
+async function resetBrandingToDefaults() {
+  if (!confirm('Remove custom branding and go back to your school\'s default name and color?')) return;
+  var res = await safeApi('/school/receipt-branding', 'PATCH', {
+    receiptName: '', receiptColor: '', receiptLogoBase64: ''
+  });
+  if (res.ok && res.data && res.data.success) {
+    _brandName=''; _brandColor=''; _brandLogo='';
+    /* Repopulate form with school defaults */
+    sv('bName', (_school && _school.name) || '');
+    onColorChange((_school && _school.primaryColor) || '#6c63ff');
+    removeBrandLogo();
+    updatePreview();
+    toast('Branding reset to school defaults.', 'success');
+  } else {
+    toast((res.data && res.data.message) || 'Reset failed.', 'error');
+  }
+}
+
 /* Close on outside click */
 document.addEventListener('click', function(e) {
   if (e.target.id==='voidOverlay') closeVoidModal();

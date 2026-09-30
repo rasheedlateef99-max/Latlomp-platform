@@ -21,6 +21,10 @@ const schoolSchema = new mongoose.Schema(
     logo:           { type: String, default: '' },
     primaryColor:   { type: String, default: '#6c63ff' },
     secondaryColor: { type: String, default: '#574fd6' },
+    /* ── Receipt branding overrides (optional — fall back to name/logo/primaryColor) ── */
+    receiptName:       { type: String, default: '', trim: true, maxlength: 120 },
+    receiptColor:      { type: String, default: '', trim: true, maxlength: 20  },
+    receiptLogoBase64: { type: String, default: '' },   /* base64 data URI, stored ≤ ~200 KB */
 
     /* ---- Institution type ---- */
     type: {
