@@ -295,4 +295,55 @@ router.put('/:id/void', guard, async function(req, res) {
   }
 });
 
+/* ============================================
+   DELETE /api/institution/manual-receipts/:id
+   Permanently removes a voided receipt record.
+   ONLY voided receipts can be deleted.
+   Issued receipts cannot be deleted — void first.
+   Restricted to the same roles that can void.
+============================================ */
+router.delete('/:id', guard, async function(req, res) {
+  try {
+    /* Role check — same roles as void */
+    if (!canVoid(req.schoolUser)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only a Bursar, Principal, Vice Principal, or School Admin can delete receipts.'
+      });
+    }
+
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid receipt ID.' });
+    }
+
+    var receipt = await SchoolManualReceipt.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId          /* TENANT ISOLATION */
+    });
+
+    if (!receipt) {
+      return res.status(404).json({ success: false, message: 'Receipt not found.' });
+    }
+
+    /* Block deletion of issued receipts — must be voided first */
+    if (receipt.status !== 'voided') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only voided receipts can be deleted. Void the receipt first, then delete it.'
+      });
+    }
+
+    await SchoolManualReceipt.findByIdAndDelete(receipt._id);
+
+    return res.json({
+      success: true,
+      message: 'Receipt ' + receipt.receiptNumber + ' permanently deleted.'
+    });
+
+  } catch(err) {
+    console.error('[ManualReceipt] DELETE /:id:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;
