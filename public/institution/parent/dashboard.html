@@ -1630,13 +1630,7 @@ async function notifDelete(id) {
   }, 220);
 }
 
-
-     document.addEventListener('DOMContentLoaded', async function() {
-       if (!instRequireAuth('school_admin')) return;
        loadNotifCount();        
-       await initPage();
-     });
-
 
 /* Auto-refresh count every 60 seconds */
 (function() {
