@@ -1324,8 +1324,8 @@ try {
   _notifSvcStudent = require('../services/inst.notification.service');
 } catch(e) { console.warn('[P10-A] notification service not loaded for student routes'); }
 
-/* Replace studentPortalGuard with the guard variable used in this file */
-router.get('/notifications', studentPortalGuard, async function(req, res) {
+/* Replace studentProtect with the guard variable used in this file */
+router.get('/notifications', studentProtect, async function(req, res) {
   try {
     if (!_notifSvcStudent) {
       return res.json({ success: true, notifications: [], unreadCount: 0, total: 0, pages: 0 });
@@ -1340,7 +1340,7 @@ router.get('/notifications', studentPortalGuard, async function(req, res) {
   }
 });
 
-router.get('/notifications/count', studentPortalGuard, async function(req, res) {
+router.get('/notifications/count', studentProtect, async function(req, res) {
   try {
     var count = _notifSvcStudent
       ? await _notifSvcStudent.getUnreadCount(req.student.schoolId, 'student', req.student._id)
@@ -1351,7 +1351,7 @@ router.get('/notifications/count', studentPortalGuard, async function(req, res) 
   }
 });
 
-router.put('/notifications/read-all', studentPortalGuard, async function(req, res) {
+router.put('/notifications/read-all', studentProtect, async function(req, res) {
   try {
     if (_notifSvcStudent) {
       await _notifSvcStudent.markAllRead(req.student.schoolId, 'student', req.student._id);
@@ -1362,7 +1362,7 @@ router.put('/notifications/read-all', studentPortalGuard, async function(req, re
   }
 });
 
-router.put('/notifications/:id/read', studentPortalGuard, async function(req, res) {
+router.put('/notifications/:id/read', studentProtect, async function(req, res) {
   try {
     var isValid = require('mongoose').isValidObjectId;
     if (_notifSvcStudent && isValid(req.params.id)) {
@@ -1374,7 +1374,7 @@ router.put('/notifications/:id/read', studentPortalGuard, async function(req, re
   }
 });
 
-router.delete('/notifications/:id', studentPortalGuard, async function(req, res) {
+router.delete('/notifications/:id', studentProtect, async function(req, res) {
   try {
     var isValid = require('mongoose').isValidObjectId;
     if (_notifSvcStudent && isValid(req.params.id)) {
