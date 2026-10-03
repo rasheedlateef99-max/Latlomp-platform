@@ -1822,8 +1822,8 @@ try {
   _notifSvcParent = require('../services/inst.notification.service');
 } catch(e) { console.warn('[P10-A] notification service not loaded for parent routes'); }
 
-/* Replace parentAuth below with the guard variable used in this file */
-router.get('/notifications', parentAuth, async function(req, res) {
+/* Replace parentProtect below with the guard variable used in this file */
+router.get('/notifications', parentProtect, async function(req, res) {
   try {
     if (!_notifSvcParent) {
       return res.json({ success: true, notifications: [], unreadCount: 0, total: 0, pages: 0 });
@@ -1839,7 +1839,7 @@ router.get('/notifications', parentAuth, async function(req, res) {
 });
 
 /* MUST be before /:id — prevents 'count' being matched as an ObjectId */
-router.get('/notifications/count', parentAuth, async function(req, res) {
+router.get('/notifications/count', parentProtect, async function(req, res) {
   try {
     var count = _notifSvcParent
       ? await _notifSvcParent.getUnreadCount(req.parent.schoolId, 'parent', req.parent._id)
@@ -1851,7 +1851,7 @@ router.get('/notifications/count', parentAuth, async function(req, res) {
 });
 
 /* MUST be before /:id/read — prevents 'read-all' being matched as an ObjectId */
-router.put('/notifications/read-all', parentAuth, async function(req, res) {
+router.put('/notifications/read-all', parentProtect, async function(req, res) {
   try {
     if (_notifSvcParent) {
       await _notifSvcParent.markAllRead(req.parent.schoolId, 'parent', req.parent._id);
@@ -1862,7 +1862,7 @@ router.put('/notifications/read-all', parentAuth, async function(req, res) {
   }
 });
 
-router.put('/notifications/:id/read', parentAuth, async function(req, res) {
+router.put('/notifications/:id/read', parentProtect, async function(req, res) {
   try {
     var isValid = require('mongoose').isValidObjectId;
     if (_notifSvcParent && isValid(req.params.id)) {
@@ -1874,7 +1874,7 @@ router.put('/notifications/:id/read', parentAuth, async function(req, res) {
   }
 });
 
-router.delete('/notifications/:id', parentAuth, async function(req, res) {
+router.delete('/notifications/:id', parentProtect, async function(req, res) {
   try {
     var isValid = require('mongoose').isValidObjectId;
     if (_notifSvcParent && isValid(req.params.id)) {
