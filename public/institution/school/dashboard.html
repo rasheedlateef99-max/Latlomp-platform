@@ -206,6 +206,26 @@
     </div>
     <button class="btn btn-sm btn-green" onclick="showSection('subscription')" style="margin-left:auto;">Manage</button>
   </div>
+
+<!-- ── P10-A: Notification bell ── -->
+<div style="padding:4px 10px;border-bottom:1px solid rgba(255,255,255,.08);
+  display:flex;justify-content:flex-end;">
+  <button onclick="toggleNotifPanel()" title="Notifications"
+    style="position:relative;background:none;border:none;cursor:pointer;
+      padding:6px 8px;font-size:20px;line-height:1;
+      color:#a0a0c0;transition:color .15s;border-radius:8px;"
+    onmouseover="this.style.color='#fff';this.style.background='rgba(255,255,255,.06)'"
+    onmouseout="this.style.color='#a0a0c0';this.style.background='none'">
+    🔔
+    <span id="notifBellBadge"
+      style="display:none;position:absolute;top:2px;right:2px;
+        background:#ff6584;color:#fff;border-radius:50%;
+        min-width:16px;height:16px;font-size:9px;font-weight:800;
+        padding:0 3px;text-align:center;line-height:16px;
+        font-family:Inter,sans-serif;pointer-events:none;"></span>
+  </button>
+</div>
+
   <nav class="sb-nav">
     <div class="sb-sep">Main</div>
     <button class="nav-item active" data-sec="overview"     onclick="showSection('overview')">     <span class="nav-icon">📊</span> Overview</button>
@@ -2416,6 +2436,289 @@ function closeModal(id)   {var el=document.getElementById(id); if(el)el.style.di
 function closeAllModals() {document.querySelectorAll('.modal-overlay').forEach(function(m){m.style.display='none';});}
 document.addEventListener('click', function(e) {if(e.target.classList.contains('modal-overlay'))closeAllModals();});
 
+/* ═══════════════════════════════════════════════════════
+   P10-A — NOTIFICATION PANEL JAVASCRIPT
+   Change _notifConfig.basePath and _notifConfig.getHeader
+   to match each portal. Everything else is identical.
+═══════════════════════════════════════════════════════ */
+
+/* ── PORTAL CONFIG — change these two lines per portal ──
+   finance.html:
+     basePath:  '/api/institution/notifications'
+     token key: 'latlomp_inst_token'
+   parent/dashboard.html:
+     basePath:  '/api/institution/parent/notifications'
+     token key: 'parentToken'
+   student/portal.html:
+     basePath:  '/api/institution/student-portal/notifications'
+     token key: 'latlomp_student_token'
+── */
+var _notifConfig = {
+  basePath: '/api/institution/notifications',
+  tokenKey: 'latlomp_inst_token'
+};
+/* ── State ── */
+var _notifOpen   = false;
+var _notifUnread = 0;
+var _notifPage   = 1;
+
+/* ── Authenticated fetch wrapper ── */
+async function _notifFetch(path, method, body) {
+  try {
+    var token   = localStorage.getItem(_notifConfig.tokenKey) || '';
+    var options = {
+      method:  method || 'GET',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': 'Bearer ' + token
+      }
+    };
+    if (body) options.body = JSON.stringify(body);
+    var response = await fetch(_notifConfig.basePath + path, options);
+    return await response.json();
+  } catch(e) { return { success: false }; }
+}
+
+/* ── Load unread count and update bell badge ── */
+async function loadNotifCount() {
+  var data = await _notifFetch('/count');
+  _notifUnread = (data && data.success && data.count) ? data.count : 0;
+  _updateNotifBell(_notifUnread);
+}
+
+function _updateNotifBell(count) {
+  var badge = document.getElementById('notifBellBadge');
+  if (!badge) return;
+  if (count > 0) {
+    badge.textContent   = count > 99 ? '99+' : String(count);
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+/* ── Open / close panel ── */
+async function toggleNotifPanel() {
+  _notifOpen = !_notifOpen;
+  var panel = document.getElementById('notifPanel');
+  var bd    = document.getElementById('notifBackdrop');
+  if (panel) panel.style.transform = _notifOpen ? 'translateX(0)' : 'translateX(100%)';
+  if (bd)    bd.style.display      = _notifOpen ? 'block' : 'none';
+  if (_notifOpen) { _notifPage = 1; await loadNotifItems(); }
+}
+
+function closeNotifPanel() {
+  _notifOpen = false;
+  var panel = document.getElementById('notifPanel');
+  var bd    = document.getElementById('notifBackdrop');
+  if (panel) panel.style.transform = 'translateX(100%)';
+  if (bd)    bd.style.display      = 'none';
+}
+
+/* ── Load and render notifications ── */
+async function loadNotifItems(page) {
+  _notifPage   = page || 1;
+  var list = document.getElementById('notifList');
+  if (!list) return;
+  list.innerHTML = '<div style="text-align:center;padding:28px;color:#666;">'
+    + '<span style="display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.15);'
+    + 'border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;"></span></div>';
+
+  var data = await _notifFetch('?page=' + _notifPage + '&limit=20');
+  if (!data || !data.success) {
+    list.innerHTML = '<div style="text-align:center;padding:28px;color:#666;font-size:13px;">'
+      + 'Could not load notifications. Tap the bell to retry.</div>';
+    return;
+  }
+
+  var items = data.notifications || [];
+  _notifUnread = data.unreadCount || 0;
+  _updateNotifBell(_notifUnread);
+
+  /* Update unread count in header */
+  var uc = document.getElementById('notifUnreadCount');
+  if (uc) uc.textContent = _notifUnread > 0 ? ' · ' + _notifUnread + ' unread' : '';
+
+  if (!items.length) {
+    list.innerHTML = '<div style="text-align:center;padding:44px 20px;">'
+      + '<div style="font-size:40px;margin-bottom:12px;">🔔</div>'
+      + '<div style="font-size:14px;font-weight:700;color:#ccc;margin-bottom:4px;">No notifications</div>'
+      + '<div style="font-size:12px;color:#555;">You\'re all caught up.</div></div>';
+    return;
+  }
+
+  var html = items.map(function(n) { return _buildNotifItem(n); }).join('');
+
+  /* Pagination */
+  var pages = data.pages || 1;
+  if (pages > 1) {
+    html += '<div style="display:flex;gap:5px;justify-content:center;padding:10px 0 14px;">';
+    if (_notifPage > 1) html += _pgBtn('loadNotifItems(' + (_notifPage - 1) + ')', '←', false);
+    for (var i = Math.max(1, _notifPage - 1); i <= Math.min(pages, _notifPage + 1); i++) {
+      html += _pgBtn('loadNotifItems(' + i + ')', String(i), i === _notifPage);
+    }
+    if (_notifPage < pages) html += _pgBtn('loadNotifItems(' + (_notifPage + 1) + ')', '→', false);
+    html += '</div>';
+  }
+  list.innerHTML = html;
+}
+
+function _pgBtn(onclick, label, active) {
+  return '<button onclick="' + onclick + '" style="padding:4px 10px;border-radius:6px;font-size:11px;'
+    + 'font-weight:700;cursor:pointer;font-family:inherit;border:1px solid rgba(255,255,255,.1);'
+    + 'background:' + (active ? '#6c63ff' : 'rgba(255,255,255,.05)') + ';color:#fff;">'
+    + label + '</button>';
+}
+
+/* ── Build one notification item ── */
+var _NOTIF_ICONS = {
+  claim_submitted:        '💰',
+  claim_verified:         '✅',
+  claim_rejected:         '❌',
+  claim_needs_correction: '⚠️',
+  payment_recorded:       '💳',
+  general:                'ℹ️'
+};
+
+function _buildNotifItem(n) {
+  var icon   = _NOTIF_ICONS[n.type] || '🔔';
+  var unread = !n.isRead;
+  var time   = _notifTimeAgo(n.createdAt);
+  var esc    = function(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+  return '<div id="nItem_' + n._id + '" onclick="notifMarkRead(\'' + n._id + '\')" '
+    + 'style="display:flex;gap:10px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.04);'
+    + 'cursor:pointer;background:' + (unread ? 'rgba(108,99,255,.07)' : 'transparent') + ';'
+    + 'position:relative;transition:background .15s;">'
+    /* Unread indicator dot */
+    + (unread ? '<div style="position:absolute;top:15px;left:4px;width:5px;height:5px;'
+      + 'border-radius:50%;background:#6c63ff;pointer-events:none;"></div>' : '')
+    /* Icon */
+    + '<div style="font-size:22px;flex-shrink:0;width:30px;text-align:center;padding-top:1px;">'
+      + icon + '</div>'
+    /* Content */
+    + '<div style="flex:1;min-width:0;">'
+      + '<div style="font-size:12.5px;font-weight:' + (unread ? '700' : '500') + ';color:#fff;'
+        + 'margin-bottom:2px;line-height:1.35;">' + esc(n.title) + '</div>'
+      + '<div style="font-size:11.5px;color:#888;line-height:1.5;">' + esc(n.body) + '</div>'
+      + (n.metadata && n.metadata.receiptNumber
+        ? '<div style="font-size:10px;color:#6c63ff;margin-top:3px;font-family:monospace;">'
+          + esc(n.metadata.receiptNumber) + '</div>' : '')
+      + '<div style="font-size:10px;color:#444;margin-top:5px;">' + time + '</div>'
+    + '</div>'
+    /* Delete (✕) button */
+    + '<button onclick="event.stopPropagation();notifDelete(\'' + n._id + '\');" '
+      + 'title="Remove from history" '
+      + 'style="flex-shrink:0;background:none;border:none;color:#444;cursor:pointer;'
+        + 'font-size:15px;padding:2px 5px;border-radius:4px;align-self:flex-start;'
+        + 'transition:color .15s;" '
+      + 'onmouseover="this.style.color=\'#ff6584\'" onmouseout="this.style.color=\'#444\'">'
+      + '✕</button>'
+    + '</div>';
+}
+
+function _notifTimeAgo(d) {
+  if (!d) return '';
+  var s = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
+  if (s < 60)    return 'Just now';
+  if (s < 3600)  return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+/* ── Mark one as read (called on click) ── */
+async function notifMarkRead(id) {
+  var el = document.getElementById('nItem_' + id);
+  if (el) {
+    /* Immediate visual feedback */
+    el.style.background = 'transparent';
+    var dot = el.querySelector('div[style*="border-radius:50%"]');
+    if (dot) dot.remove();
+    var title = el.querySelector('div[style*="font-weight:700"]');
+    if (title) title.style.fontWeight = '500';
+  }
+  await _notifFetch('/' + id + '/read', 'PUT');
+  if (_notifUnread > 0) { _notifUnread--; _updateNotifBell(_notifUnread); }
+  var uc = document.getElementById('notifUnreadCount');
+  if (uc) uc.textContent = _notifUnread > 0 ? ' · ' + _notifUnread + ' unread' : '';
+}
+
+/* ── Mark all as read ── */
+async function notifMarkAllRead() {
+  await _notifFetch('/read-all', 'PUT');
+  _notifUnread = 0;
+  _updateNotifBell(0);
+  var uc = document.getElementById('notifUnreadCount');
+  if (uc) uc.textContent = '';
+  await loadNotifItems(_notifPage);
+}
+
+/* ── Delete a notification (any state — read or unread) ── */
+async function notifDelete(id) {
+  var el = document.getElementById('nItem_' + id);
+  if (el) {
+    el.style.opacity   = '0';
+    el.style.transform = 'translateX(30px)';
+    el.style.transition = 'opacity .2s,transform .2s';
+  }
+  await _notifFetch('/' + id, 'DELETE');
+  setTimeout(function() {
+    if (el && el.parentNode) { el.parentNode.removeChild(el); }
+  }, 220);
+}
+
+
+     document.addEventListener('DOMContentLoaded', async function() {
+       if (!instRequireAuth('school_admin')) return;
+       loadNotifCount(); 
+       await initPage();
+     });
+
+/* Auto-refresh count every 60 seconds */
+(function() {
+  setInterval(function() {
+    /* Only poll when panel is closed to avoid interfering with open list */
+    if (!_notifOpen) { loadNotifCount(); }
+  }, 60000);
+})();
+
 </script>
+
+<!-- ── P10-A: Notification backdrop ── -->
+<div id="notifBackdrop" onclick="closeNotifPanel()"
+  style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:498;"></div>
+
+<!-- ── P10-A: Notification slide-in panel ── -->
+<div id="notifPanel"
+  style="position:fixed;top:0;right:0;bottom:0;width:360px;max-width:100vw;
+    background:#1a1a2e;border-left:1px solid rgba(255,255,255,.08);
+    z-index:499;box-shadow:-8px 0 40px rgba(0,0,0,.6);
+    display:flex;flex-direction:column;overflow:hidden;
+    transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);">
+  <!-- Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;
+    padding:16px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;
+    background:#1a1a2e;position:sticky;top:0;z-index:1;">
+    <div>
+      <span style="font-size:15px;font-weight:800;color:#fff;">🔔 Notifications</span>
+      <span id="notifUnreadCount"
+        style="font-size:11px;color:#a78bfa;font-weight:600;margin-left:4px;"></span>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <button onclick="notifMarkAllRead()"
+        style="font-size:11px;font-weight:700;color:#6c63ff;
+          background:rgba(108,99,255,.1);border:1px solid rgba(108,99,255,.25);
+          border-radius:6px;padding:4px 9px;cursor:pointer;font-family:inherit;">
+        Mark all read
+      </button>
+      <button onclick="closeNotifPanel()"
+        style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+          border-radius:6px;color:#888;font-size:16px;cursor:pointer;
+          padding:2px 9px;font-family:inherit;line-height:1.5;">✕</button>
+    </div>
+  </div>
+  <!-- List -->
+  <div id="notifList" style="flex:1;overflow-y:auto;"></div>
+</div>
+
 </body>
 </html>

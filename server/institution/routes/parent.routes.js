@@ -1810,4 +1810,80 @@ router.get('/children/:studentId/claims', async function (req, res) {
   }
 });
 
+/* ============================================
+   P10-A — PARENT NOTIFICATION ENDPOINTS
+   Base: /api/institution/parent/notifications
+   Auth: same guard used throughout this file
+   recipientId = req.parent._id
+   schoolId    = req.parent.schoolId
+============================================ */
+var _notifSvcParent;
+try {
+  _notifSvcParent = require('../services/inst.notification.service');
+} catch(e) { console.warn('[P10-A] notification service not loaded for parent routes'); }
+
+/* Replace parentAuth below with the guard variable used in this file */
+router.get('/notifications', parentAuth, async function(req, res) {
+  try {
+    if (!_notifSvcParent) {
+      return res.json({ success: true, notifications: [], unreadCount: 0, total: 0, pages: 0 });
+    }
+    var result = await _notifSvcParent.getNotifications(
+      req.parent.schoolId, 'parent', req.parent._id,
+      { page: req.query.page || 1, limit: req.query.limit || 20 }
+    );
+    return res.json({ success: true, ...result });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* MUST be before /:id — prevents 'count' being matched as an ObjectId */
+router.get('/notifications/count', parentAuth, async function(req, res) {
+  try {
+    var count = _notifSvcParent
+      ? await _notifSvcParent.getUnreadCount(req.parent.schoolId, 'parent', req.parent._id)
+      : 0;
+    return res.json({ success: true, count });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* MUST be before /:id/read — prevents 'read-all' being matched as an ObjectId */
+router.put('/notifications/read-all', parentAuth, async function(req, res) {
+  try {
+    if (_notifSvcParent) {
+      await _notifSvcParent.markAllRead(req.parent.schoolId, 'parent', req.parent._id);
+    }
+    return res.json({ success: true });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.put('/notifications/:id/read', parentAuth, async function(req, res) {
+  try {
+    var isValid = require('mongoose').isValidObjectId;
+    if (_notifSvcParent && isValid(req.params.id)) {
+      await _notifSvcParent.markRead(req.params.id, req.parent.schoolId, req.parent._id);
+    }
+    return res.json({ success: true });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.delete('/notifications/:id', parentAuth, async function(req, res) {
+  try {
+    var isValid = require('mongoose').isValidObjectId;
+    if (_notifSvcParent && isValid(req.params.id)) {
+      await _notifSvcParent.deleteNotification(req.params.id, req.parent.schoolId, req.parent._id);
+    }
+    return res.json({ success: true, message: 'Notification removed.' });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

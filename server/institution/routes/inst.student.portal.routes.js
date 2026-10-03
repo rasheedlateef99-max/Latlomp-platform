@@ -1312,4 +1312,78 @@ router.get('/portal/claims', studentProtect, async function (req, res) {
   }
 });
 
+/* ============================================
+   P10-A — STUDENT NOTIFICATION ENDPOINTS
+   Base: /api/institution/student-portal/notifications
+   Auth: same guard used throughout this file
+   recipientId = req.student._id
+   schoolId    = req.student.schoolId
+============================================ */
+var _notifSvcStudent;
+try {
+  _notifSvcStudent = require('../services/inst.notification.service');
+} catch(e) { console.warn('[P10-A] notification service not loaded for student routes'); }
+
+/* Replace studentPortalGuard with the guard variable used in this file */
+router.get('/notifications', studentPortalGuard, async function(req, res) {
+  try {
+    if (!_notifSvcStudent) {
+      return res.json({ success: true, notifications: [], unreadCount: 0, total: 0, pages: 0 });
+    }
+    var result = await _notifSvcStudent.getNotifications(
+      req.student.schoolId, 'student', req.student._id,
+      { page: req.query.page || 1, limit: req.query.limit || 20 }
+    );
+    return res.json({ success: true, ...result });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.get('/notifications/count', studentPortalGuard, async function(req, res) {
+  try {
+    var count = _notifSvcStudent
+      ? await _notifSvcStudent.getUnreadCount(req.student.schoolId, 'student', req.student._id)
+      : 0;
+    return res.json({ success: true, count });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.put('/notifications/read-all', studentPortalGuard, async function(req, res) {
+  try {
+    if (_notifSvcStudent) {
+      await _notifSvcStudent.markAllRead(req.student.schoolId, 'student', req.student._id);
+    }
+    return res.json({ success: true });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.put('/notifications/:id/read', studentPortalGuard, async function(req, res) {
+  try {
+    var isValid = require('mongoose').isValidObjectId;
+    if (_notifSvcStudent && isValid(req.params.id)) {
+      await _notifSvcStudent.markRead(req.params.id, req.student.schoolId, req.student._id);
+    }
+    return res.json({ success: true });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.delete('/notifications/:id', studentPortalGuard, async function(req, res) {
+  try {
+    var isValid = require('mongoose').isValidObjectId;
+    if (_notifSvcStudent && isValid(req.params.id)) {
+      await _notifSvcStudent.deleteNotification(req.params.id, req.student.schoolId, req.student._id);
+    }
+    return res.json({ success: true, message: 'Notification removed.' });
+  } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

@@ -1290,6 +1290,29 @@ router.post('/claims/:id/verify', seniorGuard, async function(req, res) {
       .select('name email').lean();
     if (schoolDocV) notifyClaimDecision('verified', claim, schoolDocV);
 
+    /* ── P10-A: in-app to payer portal ── */
+    try {
+      var _nSvcV  = require('../services/inst.notification.service');
+      var _amtV   = (claim.currency||'NGN') + ' ' +
+                    Number(claim.amount||0).toLocaleString();
+      _nSvcV.notifyClaimPayer(req.schoolId, claim, {
+        type:       'claim_verified',
+        title:      'Payment Confirmed ✅',
+        body:       'Your payment of ' + _amtV + ' has been verified and confirmed.' +
+                    (paymentResult
+                      ? ' Receipt number: ' + paymentResult.receiptNumber + '.'
+                      : ''),
+        entityType: 'SchoolPaymentClaim',
+        entityId:   claim._id,
+        metadata: {
+          amount:        claim.amount,
+          currency:      claim.currency,
+          payerName:     claim.payerName,
+          receiptNumber: paymentResult ? paymentResult.receiptNumber : ''
+        }
+      }).catch(function(e) { console.warn('[P10-A verify notify]', e.message); });
+    } catch(e) { console.warn('[P10-A verify notify] service unavailable:', e.message); }
+
     return res.json({
       success: true,
       message: 'Payment claim verified.' +
@@ -1386,6 +1409,24 @@ router.post('/claims/:id/reject', seniorGuard, async function(req, res) {
       .select('name email').lean();
     if (schoolDocR) notifyClaimDecision('rejected', claim, schoolDocR);
 
+    /* ── P10-A: in-app to payer portal ── */
+    try {
+      var _nSvcR = require('../services/inst.notification.service');
+      _nSvcR.notifyClaimPayer(req.schoolId, claim, {
+        type:       'claim_rejected',
+        title:      'Payment Claim Not Confirmed',
+        body:       'Your payment claim was rejected. Reason: ' + rejectionReason,
+        entityType: 'SchoolPaymentClaim',
+        entityId:   claim._id,
+        metadata: {
+          amount:          claim.amount,
+          currency:        claim.currency,
+          payerName:       claim.payerName,
+          rejectionReason: rejectionReason
+        }
+      }).catch(function(e) { console.warn('[P10-A reject notify]', e.message); });
+    } catch(e) { console.warn('[P10-A reject notify] service unavailable:', e.message); }
+
     return res.json({
       success: true,
       message: 'Claim rejected. The payer has been notified.',
@@ -1471,6 +1512,24 @@ router.post('/claims/:id/request-correction', readGuard, async function(req, res
     var schoolDocC = await School.findById(req.schoolId)
       .select('name email').lean();
     if (schoolDocC) notifyClaimDecision('needs_correction', claim, schoolDocC);
+
+    /* ── P10-A: in-app to payer portal ── */
+    try {
+      var _nSvcC = require('../services/inst.notification.service');
+      _nSvcC.notifyClaimPayer(req.schoolId, claim, {
+        type:       'claim_needs_correction',
+        title:      'Action Required: Update Your Claim',
+        body:       'Finance has requested a correction. Note: ' + correctionNote,
+        entityType: 'SchoolPaymentClaim',
+        entityId:   claim._id,
+        metadata: {
+          amount:         claim.amount,
+          currency:       claim.currency,
+          payerName:      claim.payerName,
+          correctionNote: correctionNote
+        }
+      }).catch(function(e) { console.warn('[P10-A correction notify]', e.message); });
+    } catch(e) { console.warn('[P10-A correction notify] service unavailable:', e.message); }
 
     return res.json({
       success: true,

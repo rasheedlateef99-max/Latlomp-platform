@@ -1374,6 +1374,30 @@ router.post('/claims', staffGuard, async function(req, res) {
     var schoolDoc = await School.findById(req.schoolId).select('name email financeEmail').lean();
     if (schoolDoc) notifyFinanceOfNewClaim(claim, schoolDoc);
 
+/* ── P10-A: in-app notification to finance staff ── */
+    try {
+      var _notifSvc = require('../services/inst.notification.service');
+      var _amtStr   = (claim.currency || 'NGN') + ' ' +
+                      Number(claim.amount || 0).toLocaleString();
+      _notifSvc.notifyFinanceStaff(req.schoolId, {
+        type:       'claim_submitted',
+        title:      'New Payment Claim',
+        body:       (claim.payerName || 'A payer') + ' submitted a claim for ' + _amtStr + '.' +
+                    (claim.reference ? ' Ref: ' + claim.reference + '.' : ''),
+        entityType: 'SchoolPaymentClaim',
+        entityId:   claim._id,
+        metadata: {
+          amount:    claim.amount,
+          currency:  claim.currency,
+          payerName: claim.payerName
+        }
+      }).catch(function(e) {
+        console.warn('[P10-A claim notify] non-fatal:', e.message);
+      });
+    } catch(e) {
+      console.warn('[P10-A claim notify] service unavailable:', e.message);
+    }
+
     var response = {
       success: true,
       message: 'Payment claim submitted. Awaiting finance verification.',
