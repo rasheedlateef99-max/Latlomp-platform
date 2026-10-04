@@ -1205,6 +1205,12 @@ async function loadStudentClaims() {
         (c.rejectionReason ? '<div style="font-size:12px;color:var(--red);margin-top:7px;">❌ ' + esc(c.rejectionReason) + '</div>' : '') +
         (c.correctionNote  ? '<div style="font-size:12px;color:#ffd600;margin-top:7px;">🔧 ' + esc(c.correctionNote)  + '</div>' : '') +
         (c.receipt ? '<div style="font-size:12px;color:var(--green);margin-top:7px;">🧾 Receipt: <span style="font-family:monospace;">' + esc(c.receipt.receiptNumber || '') + '</span></div>' : '') +
+      '<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06);">' +
+        '<button onclick="openConvSt(\'' + c._id + '\')" ' +
+          'style="padding:6px 12px;border-radius:8px;background:rgba(255,255,255,0.04);' +
+          'border:1px solid rgba(255,255,255,0.1);color:var(--secondary);font-size:12px;' +
+          'font-weight:600;cursor:pointer;font-family:inherit;">💬 Messages</button>' +
+      '</div>' +
       '</div>';
     }).join('') +
   '</div>';
@@ -1624,6 +1630,132 @@ async function notifDelete(id) {
   }, 60000);
 })();
 
+/* ============================================
+   P10-A3 — CLAIM CONVERSATION (STUDENT PORTAL)
+============================================ */
+var _convClaimIdSt = null;
+
+async function openConvSt(claimId) {
+  _convClaimIdSt = claimId;
+
+  var infoEl = document.getElementById('convInfoSt');
+  if (infoEl) infoEl.textContent = 'Claim #' + claimId.slice(-6).toUpperCase();
+
+  var threadEl = document.getElementById('convThreadSt');
+  if (threadEl) threadEl.innerHTML =
+    '<div style="text-align:center;padding:20px;color:var(--muted);">' +
+    '<span class="spinner"></span></div>';
+
+  var errEl = document.getElementById('convErrSt');
+  if (errEl) errEl.style.display = 'none';
+
+  var inputEl = document.getElementById('convInputSt');
+  if (inputEl) inputEl.value = '';
+
+  var overlay = document.getElementById('convOverlaySt');
+  if (overlay) overlay.classList.add('open');
+
+  await loadConvSt();
+}
+
+function closeConvSt() {
+  var overlay = document.getElementById('convOverlaySt');
+  if (overlay) overlay.classList.remove('open');
+  _convClaimIdSt = null;
+}
+
+async function loadConvSt() {
+  if (!_convClaimIdSt) return;
+  var res = await sApi('/portal/claims/' + _convClaimIdSt + '/conversation');
+  renderConvSt(res.data || {});
+}
+
+function renderConvSt(data) {
+  var el = document.getElementById('convThreadSt');
+  if (!el) return;
+
+  if (!data || !data.success) {
+    el.innerHTML =
+      '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">' +
+      'Could not load messages.</div>';
+    return;
+  }
+
+  var thread = (data.conversation && data.conversation.thread) || [];
+
+  if (!thread.length) {
+    el.innerHTML =
+      '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">' +
+        '💬 No messages yet.<br/>' +
+        '<span style="font-size:12px;display:block;margin-top:6px;line-height:1.6;">' +
+          'Finance may message you here about your claim.' +
+        '</span>' +
+      '</div>';
+    return;
+  }
+
+  el.innerHTML = thread.map(function(m) {
+    var isMe    = (m.senderType === 'student');
+    var timeStr = new Date(m.sentAt).toLocaleString('en', {
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+    return (
+      '<div style="display:flex;flex-direction:column;' +
+        'align-items:' + (isMe ? 'flex-end' : 'flex-start') + ';">' +
+        '<div style="max-width:88%;padding:10px 12px;' +
+          'background:' + (isMe ? 'rgba(108,99,255,0.14)' : 'rgba(255,255,255,0.05)') + ';' +
+          'border:1px solid ' + (isMe ? 'rgba(108,99,255,0.3)' : 'rgba(255,255,255,0.08)') + ';' +
+          'border-radius:' + (isMe ? '12px 2px 12px 12px' : '2px 12px 12px 12px') + ';">' +
+          '<div style="font-size:11px;font-weight:700;margin-bottom:4px;' +
+            'color:' + (isMe ? '#a78bfa' : 'var(--secondary)') + ';">' +
+            esc(m.senderName || (isMe ? 'You' : 'Finance')) +
+          '</div>' +
+          '<div style="font-size:13px;color:#fff;line-height:1.5;white-space:pre-wrap;word-break:break-word;">' +
+            esc(m.body) +
+          '</div>' +
+          '<div style="font-size:10px;color:var(--muted);margin-top:5px;text-align:right;">' +
+            timeStr +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    );
+  }).join('');
+
+  el.scrollTop = el.scrollHeight;
+}
+
+async function sendConvSt() {
+  var errEl   = document.getElementById('convErrSt');
+  var btn     = document.getElementById('convBtnSt');
+  var inputEl = document.getElementById('convInputSt');
+  if (errEl) errEl.style.display = 'none';
+
+  var bodyText = ((inputEl && inputEl.value) || '').trim();
+  if (!bodyText) {
+    if (errEl) { errEl.textContent = 'Please type a message first.'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (!_convClaimIdSt) return;
+
+  if (btn) { btn.textContent = '…'; btn.disabled = true; }
+
+  var res = await sApi(
+    '/portal/claims/' + _convClaimIdSt + '/conversation',
+    'POST',
+    { body: bodyText }
+  );
+
+  if (btn) { btn.textContent = 'Send'; btn.disabled = false; }
+
+  if (res.ok && res.data && res.data.success) {
+    if (inputEl) inputEl.value = '';
+    renderConvSt(res.data);
+  } else {
+    var msg = (res.data && res.data.message) || 'Failed to send message.';
+    if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+  }
+}
+
 </script>
 
 <!-- ===== P9-D: PAYMENT ACCOUNT PICKER ===== -->
@@ -1707,6 +1839,40 @@ async function notifDelete(id) {
   <!-- List -->
   <div id="notifList" style="flex:1;overflow-y:auto;"></div>
 </div>
+
+<!-- ===== P10-A3: CLAIM CONVERSATION ===== -->
+<div class="fee-overlay" id="convOverlaySt">
+  <div class="fee-sheet" style="display:flex;flex-direction:column;
+    padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;">
+      <div>
+        <h3 style="margin:0;">💬 Claim Messages</h3>
+        <p id="convInfoSt" style="margin:4px 0 0;font-size:12px;color:var(--muted);"></p>
+      </div>
+      <button onclick="closeConvSt()"
+        style="background:none;border:none;color:var(--secondary);
+        cursor:pointer;font-size:20px;padding:2px;line-height:1;flex-shrink:0;">✕</button>
+    </div>
+    <div id="convThreadSt"
+      style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;
+      min-height:120px;max-height:42vh;padding:4px 0 8px;"></div>
+    <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px;">
+      <div id="convErrSt" style="font-size:12px;color:var(--red);margin-bottom:6px;display:none;"></div>
+      <div style="display:flex;gap:8px;align-items:flex-end;">
+        <textarea id="convInputSt" placeholder="Type a message…" rows="2"
+          style="flex:1;background:rgba(255,255,255,0.05);border:1px solid var(--border);
+          border-radius:8px;color:#fff;font-size:13px;font-family:inherit;padding:9px 11px;
+          resize:none;outline:none;line-height:1.5;"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendConvSt();}">
+        </textarea>
+        <button onclick="sendConvSt()" id="convBtnSt"
+          class="fee-btn fee-btn-primary"
+          style="width:auto;padding:10px 16px;margin:0;flex-shrink:0;">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- END P10-A3 -->
 
 </body>
 </html>

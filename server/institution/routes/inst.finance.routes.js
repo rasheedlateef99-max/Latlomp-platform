@@ -22,6 +22,9 @@ const SchoolPaymentClaim = require('../models/SchoolPaymentClaim.model');
 const SchoolPaymentAllocation = require('../models/SchoolPaymentAllocation.model');
 const financePdf      = require('../services/finance.pdf.service');
 const { generateClaimReceiptPDF } = financePdf;
+/* P10-A3: Claim conversation */
+const SchoolConversation = require('../models/SchoolConversation.model');
+const notifSvc = require('../services/inst.notification.service');
 const {
   instProtect, schoolAdminOnly,
   seniorStaffOrAdmin, canManageStudents, teacherOrAdmin
@@ -1992,6 +1995,123 @@ router.delete('/payment-accounts/:id', adminGuard, async function(req, res) {
     if (!account) return res.status(404).json({ success: false, message: 'Account not found.' });
     return res.json({ success: true, message: '"' + account.accountLabel + '" deleted.' });
   } catch(err) { return res.status(500).json({ success: false, message: err.message }); }
+});
+
+/* ============================================
+   P10-A3 — CLAIM CONVERSATION (FINANCE SIDE)
+
+   One conversation per claim.
+   schoolId: req.schoolId (from instProtect JWT — never body)
+   Auth: readGuard (any authorised staff)
+============================================ */
+
+/* GET /api/institution/finance/claims/:id/conversation
+   Returns the thread or null if none exists yet — not a 404. */
+router.get('/claims/:id/conversation', readGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid claim ID.' });
+    }
+
+    /* Tenant isolation — claim must belong to this school */
+    var claim = await SchoolPaymentClaim.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId
+    }).select('_id status payerId payerType').lean();
+
+    if (!claim) {
+      return res.status(404).json({ success: false, message: 'Claim not found.' });
+    }
+
+    var conversation = await SchoolConversation.findOne({
+      schoolId:    req.schoolId,
+      contextType: 'payment_claim',
+      contextId:   claim._id
+    }).lean();
+
+    return res.json({ success: true, conversation: conversation || null });
+  } catch(err) {
+    console.error('[finance] GET /claims/:id/conversation:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* POST /api/institution/finance/claims/:id/conversation
+   Finance sends a message. Creates conversation if none exists.
+   Body: { body: string (required, max 2000) } */
+router.post('/claims/:id/conversation', readGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid claim ID.' });
+    }
+
+    var messageBody = ((req.body && req.body.body) || '').trim();
+    if (!messageBody) {
+      return res.status(400).json({ success: false, message: 'Message body is required.' });
+    }
+    if (messageBody.length > 2000) {
+      return res.status(400).json({ success: false, message: 'Message must be 2000 characters or fewer.' });
+    }
+
+    var claim = await SchoolPaymentClaim.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId
+    }).select('_id status payerId payerType').lean();
+
+    if (!claim) {
+      return res.status(404).json({ success: false, message: 'Claim not found.' });
+    }
+    if (claim.status === 'cancelled') {
+      return res.status(400).json({ success: false, message: 'Cannot message on a cancelled claim.' });
+    }
+
+    var now        = new Date();
+    var senderName = (req.schoolUser && req.schoolUser.name) || 'Finance';
+
+    /* Find or atomically create the conversation */
+    var conversation = await SchoolConversation.findOneAndUpdate(
+      { schoolId: req.schoolId, contextType: 'payment_claim', contextId: claim._id },
+      {
+        $setOnInsert: {
+          schoolId:        req.schoolId,
+          contextType:     'payment_claim',
+          contextId:       claim._id,
+          subject:         'Payment Claim #' + claim._id.toString().slice(-6).toUpperCase(),
+          status:          'open',
+          initiatedBy:     req.schoolUser._id,
+          initiatedByType: 'staff'
+        }
+      },
+      { upsert: true, new: true }
+    );
+
+    conversation.thread.push({
+      senderId:   req.schoolUser._id,
+      senderType: 'staff',
+      senderName: senderName,
+      body:       messageBody,
+      sentAt:     now
+    });
+    conversation.lastMessageAt = now;
+    conversation.lastMessageBy = 'staff';
+    conversation.status        = 'open';
+    await conversation.save();
+
+    /* Notify payer — fire and forget */
+    notifSvc.notifyClaimPayer(req.schoolId, claim, {
+      type:       'general',
+      title:      'New message from Finance',
+      body:       'Finance sent a message about your payment claim.',
+      entityType: 'payment_claim',
+      entityId:   claim._id,
+      metadata:   { claimId: claim._id.toString() }
+    });
+
+    return res.json({ success: true, conversation });
+  } catch(err) {
+    console.error('[finance] POST /claims/:id/conversation:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 module.exports = router;

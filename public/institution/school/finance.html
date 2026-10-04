@@ -2640,6 +2640,10 @@ async function deletePaymentMethod(id, label) {
         '<div class="claim-card-actions">' +
           '<span style="font-size:11px;color:var(--muted);flex:1;">Submitted ' + fmtDate(c.createdAt) +
             (c.submittedByName ? ' by ' + esc(c.submittedByName) : '') + '</span>' +
+          /* ---- P10-A3: Claim conversation ---- */
+          (c.status !== 'cancelled'
+            ? '<button class="btn btn-secondary btn-sm" onclick="openFinanceConv(\'' + esc(c._id) + '\',\'' + esc(c.payerName) + '\')">💬 Messages</button>'
+            : '') +
 
           /* ---- P8: Receipt options (verified claims with a payment) ---- */
           (c.status === 'verified' && c.resultPaymentId
@@ -3139,7 +3143,203 @@ async function notifDelete(id) {
     if (!_notifOpen) { loadNotifCount(); }
   }, 60000);
 })();
+
+/* ============================================
+   P10-A3 — CLAIM CONVERSATION (FINANCE SIDE)
+   api() is already available in this file.
+   schoolId + auth come from the inst JWT via api().
+============================================ */
+var _finConvClaimId = null;
+
+async function openFinanceConv(claimId, payerName) {
+  _finConvClaimId = claimId;
+
+  var infoEl = document.getElementById('finConvInfo');
+  if (infoEl) {
+    infoEl.textContent = 'Claim #' + claimId.slice(-6).toUpperCase() +
+      (payerName ? ' · ' + payerName : '');
+  }
+
+  var threadEl = document.getElementById('finConvThread');
+  if (threadEl) {
+    threadEl.innerHTML =
+      '<div style="text-align:center;padding:28px;color:var(--muted);">' +
+      '<span class="spinner"></span></div>';
+  }
+
+  var errEl = document.getElementById('finConvErr');
+  if (errEl) errEl.style.display = 'none';
+
+  var inputEl = document.getElementById('finConvInput');
+  if (inputEl) inputEl.value = '';
+
+  document.getElementById('finConvPanel').style.transform    = 'translateX(0)';
+  document.getElementById('finConvBackdrop').style.display   = 'block';
+
+  await loadFinanceConvThread();
+}
+
+function closeFinanceConv() {
+  document.getElementById('finConvPanel').style.transform  = 'translateX(100%)';
+  document.getElementById('finConvBackdrop').style.display = 'none';
+  _finConvClaimId = null;
+}
+
+async function loadFinanceConvThread() {
+  if (!_finConvClaimId) return;
+  var res = await api('/claims/' + _finConvClaimId + '/conversation');
+  renderFinanceConvThread(res);
+}
+
+function renderFinanceConvThread(data) {
+  var el = document.getElementById('finConvThread');
+  if (!el) return;
+
+  if (!data || !data.success) {
+    el.innerHTML =
+      '<div style="text-align:center;padding:28px;color:var(--muted);font-size:13px;">' +
+      'Could not load messages.</div>';
+    return;
+  }
+
+  var thread = (data.conversation && data.conversation.thread) || [];
+
+  if (!thread.length) {
+    el.innerHTML =
+      '<div style="text-align:center;padding:32px 20px;">' +
+        '<div style="font-size:36px;margin-bottom:12px;">💬</div>' +
+        '<div style="font-size:13px;font-weight:700;color:var(--secondary);margin-bottom:6px;">' +
+          'No messages yet' +
+        '</div>' +
+        '<div style="font-size:12px;color:var(--muted);line-height:1.7;">' +
+          'Send a message to the payer about this claim.<br/>' +
+          'They will receive an in-app notification.' +
+        '</div>' +
+      '</div>';
+    return;
+  }
+
+  el.innerHTML = thread.map(function(m) {
+    var isMe    = (m.senderType === 'staff');
+    var timeStr = new Date(m.sentAt).toLocaleString('en', {
+      month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+    return (
+      '<div style="display:flex;flex-direction:column;' +
+        'align-items:' + (isMe ? 'flex-end' : 'flex-start') + ';">' +
+        '<div style="max-width:88%;padding:10px 12px;' +
+          'background:' + (isMe ? 'rgba(108,99,255,0.14)' : 'rgba(255,255,255,0.05)') + ';' +
+          'border:1px solid ' + (isMe ? 'rgba(108,99,255,0.3)' : 'rgba(255,255,255,0.08)') + ';' +
+          'border-radius:' + (isMe ? '12px 2px 12px 12px' : '2px 12px 12px 12px') + ';">' +
+          '<div style="font-size:11px;font-weight:700;margin-bottom:4px;' +
+            'color:' + (isMe ? '#a78bfa' : 'var(--secondary)') + ';">' +
+            esc(m.senderName || (isMe ? 'Finance' : 'Payer')) +
+          '</div>' +
+          '<div style="font-size:13px;color:#fff;line-height:1.5;' +
+            'white-space:pre-wrap;word-break:break-word;">' +
+            esc(m.body) +
+          '</div>' +
+          '<div style="font-size:10px;color:var(--muted);margin-top:5px;text-align:right;">' +
+            timeStr +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    );
+  }).join('');
+
+  el.scrollTop = el.scrollHeight;
+}
+
+async function sendFinanceConv() {
+  var errEl   = document.getElementById('finConvErr');
+  var btn     = document.getElementById('finConvBtn');
+  var inputEl = document.getElementById('finConvInput');
+  if (errEl) errEl.style.display = 'none';
+
+  var bodyText = ((inputEl && inputEl.value) || '').trim();
+  if (!bodyText) {
+    if (errEl) {
+      errEl.textContent  = 'Please type a message first.';
+      errEl.style.display = 'block';
+    }
+    return;
+  }
+  if (!_finConvClaimId) return;
+
+  if (btn) { btn.textContent = '…'; btn.disabled = true; }
+
+  var res = await api(
+    '/claims/' + _finConvClaimId + '/conversation',
+    'POST',
+    { body: bodyText }
+  );
+
+  if (btn) { btn.textContent = 'Send'; btn.disabled = false; }
+
+  if (res && res.success) {
+    if (inputEl) inputEl.value = '';
+    renderFinanceConvThread(res);
+  } else {
+    var msg = (res && res.message) || 'Failed to send message.';
+    if (errEl) {
+      errEl.textContent   = msg;
+      errEl.style.display = 'block';
+    }
+  }
+}
+
 </script>
+
+<!-- ===== P10-A3: CLAIM CONVERSATION PANEL (FINANCE) ===== -->
+<div id="finConvBackdrop" onclick="closeFinanceConv()"
+  style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:496;"></div>
+
+<div id="finConvPanel"
+  style="position:fixed;top:0;right:0;bottom:0;width:380px;max-width:100vw;
+    background:#1a1a2e;border-left:1px solid rgba(255,255,255,.08);
+    z-index:497;box-shadow:-8px 0 40px rgba(0,0,0,.6);
+    display:flex;flex-direction:column;overflow:hidden;
+    transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);">
+  <!-- Header -->
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;
+    padding:16px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;">
+    <div>
+      <div style="font-size:14px;font-weight:800;color:#fff;">💬 Claim Messages</div>
+      <div id="finConvInfo" style="font-size:11px;color:var(--muted);margin-top:2px;"></div>
+    </div>
+    <button onclick="closeFinanceConv()"
+      style="background:none;border:none;color:#a0a0c0;cursor:pointer;
+      font-size:18px;padding:4px;line-height:1;flex-shrink:0;">✕</button>
+  </div>
+  <!-- Thread -->
+  <div id="finConvThread"
+    style="flex:1;overflow-y:auto;padding:14px;
+    display:flex;flex-direction:column;gap:10px;"></div>
+  <!-- Input -->
+  <div style="padding:12px 14px;border-top:1px solid rgba(255,255,255,.08);flex-shrink:0;">
+    <div id="finConvErr"
+      style="font-size:12px;color:var(--red);margin-bottom:6px;display:none;"></div>
+    <div style="display:flex;gap:8px;align-items:flex-end;">
+      <textarea id="finConvInput" placeholder="Type a message… (Enter to send)" rows="2"
+        style="flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
+        border-radius:8px;color:#fff;font-size:13px;font-family:inherit;
+        padding:9px 11px;resize:none;outline:none;line-height:1.5;"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendFinanceConv();}">
+      </textarea>
+      <button onclick="sendFinanceConv()" id="finConvBtn"
+        style="padding:10px 16px;border-radius:8px;
+        background:linear-gradient(135deg,#6c63ff,#574fd6);
+        border:none;color:#fff;font-size:13px;font-weight:700;
+        cursor:pointer;font-family:inherit;flex-shrink:0;">Send</button>
+    </div>
+    <div style="font-size:10px;color:var(--muted);margin-top:4px;">
+      Shift+Enter for new line
+    </div>
+  </div>
+</div>
+<!-- END P10-A3 CONVERSATION PANEL -->
+
 <!-- ── P10-A: Notification backdrop ── -->
 <div id="notifBackdrop" onclick="closeNotifPanel()"
   style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:498;"></div>

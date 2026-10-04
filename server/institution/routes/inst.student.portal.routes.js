@@ -39,7 +39,9 @@ const SchoolClass         = require('../models/Class.model');
 const mongoose           = require('mongoose');
 const SchoolPaymentClaim = require('../models/SchoolPaymentClaim.model');
 const { resolvePaymentAccounts, validateClaimCurrency } = require('../services/payment.account.service');
-
+/* P10-A3: Claim conversation */
+const SchoolConversation = require('../models/SchoolConversation.model');
+const notifSvc           = require('../services/inst.notification.service');
 const {
   instProtect,
   schoolAdminOnly,
@@ -1382,6 +1384,132 @@ router.delete('/notifications/:id', studentProtect, async function(req, res) {
     }
     return res.json({ success: true, message: 'Notification removed.' });
   } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   P10-A3 — CLAIM CONVERSATION (STUDENT SIDE)
+
+   IDOR: claim.studentId === req.studentId AND payerType === 'student'
+   schoolId: req.schoolId (from studentProtect JWT)
+============================================ */
+
+/* GET /portal/claims/:id/conversation */
+router.get('/portal/claims/:id/conversation', studentProtect, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid claim ID.' });
+    }
+    if (!await subscriptionActive(req.schoolId)) {
+      return res.status(403).json({ success: false, message: 'School subscription is not active.' });
+    }
+
+    /* IDOR: claim must belong to this student */
+    var claim = await SchoolPaymentClaim.findOne({
+      _id:       req.params.id,
+      schoolId:  req.schoolId,
+      studentId: req.studentId,
+      payerType: 'student'
+    }).select('_id status').lean();
+
+    if (!claim) {
+      return res.status(404).json({ success: false, message: 'Claim not found.' });
+    }
+
+    var conversation = await SchoolConversation.findOne({
+      schoolId:    req.schoolId,
+      contextType: 'payment_claim',
+      contextId:   claim._id
+    }).lean();
+
+    return res.json({ success: true, conversation: conversation || null });
+  } catch(err) {
+    console.error('[student.portal] GET /portal/claims/:id/conversation:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* POST /portal/claims/:id/conversation
+   Body: { body: string (required) } */
+router.post('/portal/claims/:id/conversation', studentProtect, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid claim ID.' });
+    }
+    if (!await subscriptionActive(req.schoolId)) {
+      return res.status(403).json({ success: false, message: 'School subscription is not active.' });
+    }
+
+    var messageBody = ((req.body && req.body.body) || '').trim();
+    if (!messageBody) {
+      return res.status(400).json({ success: false, message: 'Message body is required.' });
+    }
+    if (messageBody.length > 2000) {
+      return res.status(400).json({ success: false, message: 'Message must be 2000 characters or fewer.' });
+    }
+
+    var claim = await SchoolPaymentClaim.findOne({
+      _id:       req.params.id,
+      schoolId:  req.schoolId,
+      studentId: req.studentId,
+      payerType: 'student'
+    }).select('_id status').lean();
+
+    if (!claim) {
+      return res.status(404).json({ success: false, message: 'Claim not found.' });
+    }
+    if (claim.status === 'cancelled') {
+      return res.status(400).json({ success: false, message: 'Cannot message on a cancelled claim.' });
+    }
+
+    var now     = new Date();
+    var student = await SchoolStudent.findOne({
+      _id: req.studentId, schoolId: req.schoolId
+    }).select('name').lean();
+    var senderName = (student && student.name) || 'Student';
+
+    var conversation = await SchoolConversation.findOneAndUpdate(
+      { schoolId: req.schoolId, contextType: 'payment_claim', contextId: claim._id },
+      {
+        $setOnInsert: {
+          schoolId:        req.schoolId,
+          contextType:     'payment_claim',
+          contextId:       claim._id,
+          subject:         'Payment Claim #' + claim._id.toString().slice(-6).toUpperCase(),
+          status:          'open',
+          initiatedBy:     req.studentId,
+          initiatedByType: 'student'
+        }
+      },
+      { upsert: true, new: true }
+    );
+
+    conversation.thread.push({
+      senderId:   req.studentId,
+      senderType: 'student',
+      senderName: senderName,
+      body:       messageBody,
+      sentAt:     now
+    });
+    conversation.lastMessageAt = now;
+    conversation.lastMessageBy = 'student';
+    conversation.status        = 'open';
+    await conversation.save();
+
+    /* Notify finance staff — fire and forget */
+    notifSvc.notifyFinanceStaff(req.schoolId, {
+      type:       'general',
+      title:      'New message on payment claim',
+      body:       senderName + ' sent a message on a payment claim.',
+      entityType: 'payment_claim',
+      entityId:   claim._id,
+      metadata:   { claimId: claim._id.toString() }
+    });
+
+    return res.json({ success: true, conversation });
+  } catch(err) {
+    console.error('[student.portal] POST /portal/claims/:id/conversation:', err.message);
     return res.status(500).json({ success: false, message: err.message });
   }
 });

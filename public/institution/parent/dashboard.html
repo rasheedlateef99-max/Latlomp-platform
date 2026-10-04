@@ -353,6 +353,39 @@
   </div>
 </div>
 <!-- END P9-C MODALS -->
+<!-- ===== P10-A3: CLAIM CONVERSATION PANEL ===== -->
+<div class="notif-backdrop" id="convBackdrop" onclick="closeConvPanel()" style="display:none;"></div>
+<div class="notif-panel" id="convPanel" style="display:flex;flex-direction:column;padding:0;">
+  <div class="notif-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;">
+    <div>
+      <div style="font-size:14px;font-weight:800;color:#fff;">💬 Claim Messages</div>
+      <div id="convClaimInfo" style="font-size:11px;color:var(--muted);margin-top:2px;"></div>
+    </div>
+    <button onclick="closeConvPanel()"
+      style="background:none;border:none;color:#a0a0c0;cursor:pointer;font-size:18px;
+      padding:4px;line-height:1;flex-shrink:0;">✕</button>
+  </div>
+  <div id="convThread"
+    style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;
+    min-height:160px;max-height:calc(100vh - 260px);"></div>
+  <div style="padding:12px 14px;border-top:1px solid rgba(255,255,255,.08);flex-shrink:0;">
+    <div id="convSendErr" style="font-size:12px;color:var(--red);margin-bottom:6px;display:none;"></div>
+    <div style="display:flex;gap:8px;align-items:flex-end;">
+      <textarea id="convInput" placeholder="Type a message… (Enter to send)" rows="2"
+        style="flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
+        border-radius:8px;color:#fff;font-size:13px;font-family:inherit;padding:9px 11px;
+        resize:none;outline:none;line-height:1.5;"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendConvMessage();}">
+      </textarea>
+      <button onclick="sendConvMessage()" id="convSendBtn"
+        style="padding:10px 16px;border-radius:8px;background:linear-gradient(135deg,#6c63ff,#574fd6);
+        border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;
+        font-family:inherit;flex-shrink:0;">Send</button>
+    </div>
+    <div style="font-size:10px;color:var(--muted);margin-top:4px;">Shift+Enter for new line</div>
+  </div>
+</div>
+<!-- END P10-A3 PANEL -->
 
 <div class="toast" id="toastEl"></div>
 
@@ -922,6 +955,12 @@ function renderParentClaims(data) {
       (c.rejectionReason ? '<div style="font-size:12px;color:var(--error);margin-top:8px;line-height:1.5;">❌ ' + esc(c.rejectionReason) + '</div>' : '') +
       (c.correctionNote  ? '<div style="font-size:12px;color:#ffd600;margin-top:8px;line-height:1.5;">🔧 ' + esc(c.correctionNote)  + '</div>' : '') +
       (c.receipt ? '<div style="font-size:12px;color:var(--success);margin-top:8px;">🧾 Receipt: <span style="font-family:monospace;font-weight:700;">' + esc(c.receipt.receiptNumber || '') + '</span></div>' : '') +
+      '<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06);">' +
+        '<button onclick="openConvPanel(\'' + c._id + '\')" ' +
+          'style="padding:6px 12px;border-radius:8px;background:rgba(255,255,255,0.04);' +
+          'border:1px solid rgba(255,255,255,0.1);color:var(--secondary);font-size:12px;' +
+          'font-weight:600;cursor:pointer;font-family:inherit;">💬 Messages</button>' +
+      '</div>' +
     '</div>';
   }).join('');
 }
@@ -1639,6 +1678,135 @@ async function notifDelete(id) {
     if (!_notifOpen) { loadNotifCount(); }
   }, 60000);
 })();
+
+/* ============================================
+   P10-A3 — CLAIM CONVERSATION (PARENT PORTAL)
+============================================ */
+var _convClaimId   = null;
+var _convStudentId = null;
+
+async function openConvPanel(claimId) {
+  _convClaimId   = claimId;
+  _convStudentId = _claimStudentId; /* module-level var set by loadFees() */
+
+  var infoEl = document.getElementById('convClaimInfo');
+  if (infoEl) infoEl.textContent = 'Claim #' + claimId.slice(-6).toUpperCase();
+
+  var threadEl = document.getElementById('convThread');
+  if (threadEl) threadEl.innerHTML =
+    '<div style="text-align:center;padding:20px;color:var(--muted);"><span class="spinner"></span></div>';
+
+  var errEl = document.getElementById('convSendErr');
+  if (errEl) errEl.style.display = 'none';
+
+  var inputEl = document.getElementById('convInput');
+  if (inputEl) inputEl.value = '';
+
+  document.getElementById('convPanel').classList.add('open');
+  document.getElementById('convBackdrop').style.display = 'block';
+
+  await loadConvThread();
+}
+
+function closeConvPanel() {
+  var panel    = document.getElementById('convPanel');
+  var backdrop = document.getElementById('convBackdrop');
+  if (panel)    panel.classList.remove('open');
+  if (backdrop) backdrop.style.display = 'none';
+  _convClaimId   = null;
+  _convStudentId = null;
+}
+
+async function loadConvThread() {
+  if (!_convClaimId || !_convStudentId) return;
+  var res = await api('/children/' + _convStudentId + '/claims/' + _convClaimId + '/conversation');
+  renderConvThread(res);
+}
+
+function renderConvThread(data) {
+  var el = document.getElementById('convThread');
+  if (!el) return;
+
+  if (!data || !data.success) {
+    el.innerHTML =
+      '<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px;">Could not load messages.</div>';
+    return;
+  }
+
+  var thread = (data.conversation && data.conversation.thread) || [];
+
+  if (!thread.length) {
+    el.innerHTML =
+      '<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px;">' +
+        '💬 No messages yet.<br/>' +
+        '<span style="font-size:12px;line-height:1.7;display:block;margin-top:6px;">' +
+          'Use this thread to communicate with Finance about your claim.' +
+        '</span>' +
+      '</div>';
+    return;
+  }
+
+  el.innerHTML = thread.map(function(m) {
+    var isMe    = (m.senderType === 'parent');
+    var timeStr = new Date(m.sentAt).toLocaleString('en', {
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+    return (
+      '<div style="display:flex;flex-direction:column;' +
+        'align-items:' + (isMe ? 'flex-end' : 'flex-start') + ';">' +
+        '<div style="max-width:88%;padding:10px 12px;' +
+          'background:' + (isMe ? 'rgba(108,99,255,0.14)' : 'rgba(255,255,255,0.05)') + ';' +
+          'border:1px solid ' + (isMe ? 'rgba(108,99,255,0.3)' : 'rgba(255,255,255,0.08)') + ';' +
+          'border-radius:' + (isMe ? '12px 2px 12px 12px' : '2px 12px 12px 12px') + ';">' +
+          '<div style="font-size:11px;font-weight:700;margin-bottom:4px;' +
+            'color:' + (isMe ? '#a78bfa' : 'var(--secondary)') + ';">' +
+            esc(m.senderName || (isMe ? 'You' : 'Finance')) +
+          '</div>' +
+          '<div style="font-size:13px;color:#fff;line-height:1.5;white-space:pre-wrap;word-break:break-word;">' +
+            esc(m.body) +
+          '</div>' +
+          '<div style="font-size:10px;color:var(--muted);margin-top:5px;text-align:right;">' +
+            timeStr +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    );
+  }).join('');
+
+  el.scrollTop = el.scrollHeight;
+}
+
+async function sendConvMessage() {
+  var errEl   = document.getElementById('convSendErr');
+  var btn     = document.getElementById('convSendBtn');
+  var inputEl = document.getElementById('convInput');
+  if (errEl) errEl.style.display = 'none';
+
+  var bodyText = ((inputEl && inputEl.value) || '').trim();
+  if (!bodyText) {
+    if (errEl) { errEl.textContent = 'Please type a message first.'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (!_convClaimId || !_convStudentId) return;
+
+  if (btn) { btn.textContent = '…'; btn.disabled = true; }
+
+  var res = await api(
+    '/children/' + _convStudentId + '/claims/' + _convClaimId + '/conversation',
+    'POST',
+    { body: bodyText }
+  );
+
+  if (btn) { btn.textContent = 'Send'; btn.disabled = false; }
+
+  if (res && res.success) {
+    if (inputEl) inputEl.value = '';
+    renderConvThread(res);
+  } else {
+    var msg = (res && res.message) || 'Failed to send message.';
+    if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+  }
+}
 
 </script>
 
