@@ -22,6 +22,8 @@ const { requireActiveSubscription } = require('../middleware/inst.tenant');
 
 /* ✅ R2 FIX: Use exported makeSchoolLimit from inst.rateLimit.js */
 const { makeSchoolLimit } = require('../middleware/inst.rateLimit');
+const SchoolManualPaymentAccount = require('../models/SchoolManualPaymentAccount.model');
+const { logAudit }               = require('../../middleware/audit.middleware');
 
 const paymentConnectLimit = makeSchoolLimit(15, 5,
   'Too many payment account connection attempts. Please wait 15 minutes.');
