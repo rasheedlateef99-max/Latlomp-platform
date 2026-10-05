@@ -776,12 +776,12 @@
 
     <div class="field">
       <label>Parent Gmail Address <span style="color:var(--red);">*</span></label>
-      <input type="email" id="parentInvEmail" placeholder="parent@gmail.com" />
+      <input type="email" id="parentInvEmail" class="inp" placeholder="parent@gmail.com" />
       <div class="field-hint">Must be their exact Google account email.</div>
     </div>
     <div class="field">
       <label>Parent Name (optional)</label>
-      <input type="text" id="parentInvName" placeholder="e.g. Mrs. Ngozi Okafor" />
+      <input type="text" id="parentInvName" class="inp" placeholder="e.g. Mrs. Ngozi Okafor" />
     </div>
 
     <div class="field">
@@ -2251,8 +2251,28 @@ var _parentInvites = [];
 var _linkedParents = [];
 var _parentStudents= [];
 
+/* esc() — HTML escape for parent section rendering */
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 async function loadParentSection() {
-  await Promise.all([loadParentInvites(), loadLinkedParents(), loadParentStudents()]);
+  await Promise.all([
+    loadParentInvites().catch(function (e) {
+      console.error('[Parents] loadParentInvites:', e.message);
+      var c = document.getElementById('parentInvitesContainer');
+      if (c) c.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);' +
+        'font-size:13px;">Could not load invitations. Please refresh the page.</div>';
+    }),
+    loadLinkedParents().catch(function (e) {
+      console.error('[Parents] loadLinkedParents:', e.message);
+    }),
+    loadParentStudents().catch(function (e) {
+      console.error('[Parents] loadParentStudents:', e.message);
+    })
+  ]);
 }
 
 async function loadParentStudents() {

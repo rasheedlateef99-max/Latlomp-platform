@@ -118,24 +118,31 @@ var _inviteEmail = null;
    INIT
 ============================================ */
 document.addEventListener('DOMContentLoaded', async function () {
-  /* Redirect if already logged in */
   if (localStorage.getItem('parentToken')) {
     window.location.href = '/institution/parent/dashboard.html';
     return;
   }
 
-  /* Read invite token from URL */
+  /* Fetch Google Client ID from backend — required before GIS can work */
+  try {
+    var cfgRes = await fetch('/api/institution/parent/auth/config');
+    if (cfgRes.ok) {
+      var cfg = await cfgRes.json();
+      if (cfg.googleClientId) {
+        GOOGLE_CLIENT_ID = cfg.googleClientId;
+        var onloadEl = document.getElementById('g_id_onload');
+        if (onloadEl) onloadEl.setAttribute('data-client_id', GOOGLE_CLIENT_ID);
+      }
+    }
+  } catch (e) {
+    console.warn('[ParentLogin] Could not load auth config:', e.message);
+  }
+
   var params = new URLSearchParams(window.location.search);
   _inviteToken = params.get('invite') || null;
 
   if (_inviteToken) {
     await loadInviteInfo(_inviteToken);
-  }
-
-  /* Initialize Google Identity Services */
-  if (GOOGLE_CLIENT_ID) {
-    var onloadEl = document.getElementById('g_id_onload');
-    if (onloadEl) { onloadEl.setAttribute('data-client_id', GOOGLE_CLIENT_ID); }
   }
 });
 
@@ -199,31 +206,58 @@ async function loadInviteInfo(token) {
 ============================================ */
 function startGoogleSignIn() {
   clearMsg();
-  var btn = document.getElementById('gBtn');
-  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner"></div><span class="g-btn-text">Signing in...</span>'; }
 
-  /* Use Google Identity Services prompt */
-  if (window.google && window.google.accounts && window.google.accounts.id) {
-    google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback:  onGoogleCredential,
-      auto_select: false
-    });
-    google.accounts.id.prompt(function (notification) {
-      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        /* One-Tap not available — fall back to popup */
-        google.accounts.id.renderButton(
-          document.createElement('div'),
-          { theme: 'outline', size: 'large' }
-        );
-        google.accounts.id.prompt();
-        resetGBtn();
-      }
-    });
-  } else {
-    showErr('Google Sign-In is not available. Please refresh the page and try again.');
-    resetGBtn();
+  if (!GOOGLE_CLIENT_ID) {
+    showErr('Authentication is not yet configured. Please refresh the page and try again.');
+    return;
   }
+
+  var btn = document.getElementById('gBtn');
+  if (btn) {
+    btn.disabled  = true;
+    btn.innerHTML = '<div class="spinner"></div><span class="g-btn-text">Connecting to Google…</span>';
+  }
+
+  if (!window.google || !window.google.accounts || !window.google.accounts.id) {
+    showErr('Google Sign-In is not available. Please check your internet connection and refresh.');
+    resetGBtn();
+    return;
+  }
+
+  google.accounts.id.initialize({
+    client_id:   GOOGLE_CLIENT_ID,
+    callback:    onGoogleCredential,
+    auto_select: false
+  });
+
+  google.accounts.id.prompt(function (notification) {
+    if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+      /* One-Tap suppressed — render a hidden GIS button and auto-click it.
+         This triggers Google's account picker popup reliably. */
+      var tempWrap = document.createElement('div');
+      tempWrap.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+      document.body.appendChild(tempWrap);
+
+      google.accounts.id.renderButton(tempWrap, {
+        type: 'standard', size: 'large', text: 'signin_with'
+      });
+
+      requestAnimationFrame(function () {
+        var inner = tempWrap.querySelector('div[role="button"]') ||
+                    tempWrap.querySelector('[jsname]') ||
+                    tempWrap.firstElementChild;
+        if (inner) {
+          inner.click();
+        } else {
+          showErr('Could not open Google Sign-In. Please ensure pop-ups are allowed for this site, then try again.');
+          resetGBtn();
+        }
+        setTimeout(function () {
+          if (tempWrap.parentNode) tempWrap.parentNode.removeChild(tempWrap);
+        }, 400);
+      });
+    }
+  });
 }
 
 function resetGBtn() {

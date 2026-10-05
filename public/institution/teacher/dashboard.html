@@ -208,6 +208,7 @@
     </button>
     <div class="sb-sep">Links</div>
     <button class="nav-item" data-sec="parents" onclick="showSection('parents')"><span class="nav-icon">👨‍👩‍👧</span> Parent Portal</button>
+    <button class="nav-item" data-sec="payments" onclick="showSection('payments')"><span class="nav-icon">💳</span> Payment Center</button>
     <!-- ✅ PHASE K.3: Paper Exams nav link -->
     <a class="nav-item" href="/institution/teacher/paper-exam.html">           <span class="nav-icon">📄</span> Paper Exams</a>
     <!-- ✅ PHASE L.5: Score Entry nav link -->
@@ -409,6 +410,28 @@
 
   </div>
 
+<!-- PAYMENT CENTER (P10-C) -->
+    <div class="section" id="sec-payments">
+      <div class="page-header">
+        <div>
+          <h1>Payment Center</h1>
+          <p>School bank accounts for fee transfers</p>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="loadPaymentCenterSection()">↺ Refresh</button>
+      </div>
+      <div style="background:rgba(108,99,255,0.07);border:1px solid rgba(108,99,255,0.2);
+        border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:13px;
+        color:#a78bfa;line-height:1.7;">
+        💡 Transfer money to any account below, then inform the school Finance office so they
+        can record and verify your payment.
+      </div>
+      <div id="teacherPaymentAccountsList">
+        <div style="text-align:center;padding:28px;color:var(--muted);">
+          <span class="spinner"></span>
+        </div>
+      </div>
+    </div>
+    <!-- END PAYMENT CENTER -->
     <!-- PARENT PORTAL -->
     <div class="section" id="sec-parents">
       <div class="page-header">
@@ -758,7 +781,7 @@ function renderQTableGrid() {
       html += '<td contenteditable="true" data-r="' + r + '" data-c="' + c + '"' +
         (isHeader ? ' data-header="true"' : '') +
         ' oninput="onQTableCell(this)" onblur="saveQTableHtml()">' +
-        escHtml(_qTableData[r][c]) + '</td>';
+        esc(_qTableData[r][c]) + '</td>';
     }
     html += '</tr>';
   }
@@ -1007,6 +1030,7 @@ function showSection(name) {
   if(name==='grading'){loadGradingExamList();}
   if(name==='ece'){loadEceConfig();}
   if(name==='parents'){loadTeacherParentSection();}
+  if(name==='payments'){loadPaymentCenterSection();}
 }
 function openSidebar()  { document.getElementById('sidebar').classList.add('open');    document.getElementById('sidebarOverlay').classList.add('visible');    document.body.style.overflow='hidden'; }
 function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('visible'); document.body.style.overflow=''; }
@@ -1500,27 +1524,47 @@ async function loadTParentInvites() {
   }
 
   var statusColors = { pending:'badge-orange', accepted:'badge-green', expired:'badge-red', cancelled:'badge-muted' };
-  container.innerHTML = '<div class="table-wrap"><table><thead><tr>' +
-    '<th>Parent Email</th><th>Children</th><th>Status</th><th>Sent</th><th>Actions</th>' +
-    '</tr></thead><tbody>' +
+  var statusCfg = {
+    pending:   { badge: 'badge-orange', label: '⏳ Pending'   },
+    accepted:  { badge: 'badge-green',  label: '✅ Accepted'  },
+    expired:   { badge: 'badge-red',    label: '⏰ Expired'   },
+    cancelled: { badge: 'badge-muted',  label: '🚫 Cancelled' }
+  };
+  container.innerHTML = '<div style="display:flex;flex-direction:column;gap:12px;padding:4px 0;">' +
     _tParentInvites.map(function (inv) {
       var students  = (inv.studentIds || []).map(function (s) { return s.name || '—'; }).join(', ');
       var isExpired = (inv.status === 'pending' && new Date(inv.expiresAt) < new Date());
       var status    = isExpired ? 'expired' : inv.status;
-      return '<tr>' +
-        '<td style="font-weight:700;color:#fff;">'  + escHtml(inv.parentEmail) + '</td>' +
-        '<td style="font-size:12px;color:var(--secondary);">' + escHtml(students || '—') + '</td>' +
-        '<td><span class="badge ' + (statusColors[status] || 'badge-muted') + '">' + status + '</span></td>' +
-        '<td style="font-size:12px;color:var(--muted);">' + instFmtDate(inv.createdAt) + '</td>' +
-        '<td><div style="display:flex;gap:5px;">' +
-          (inv.status === 'pending' && !isExpired
-            ? '<button class="btn btn-sm btn-secondary" onclick="tCopyParentLink(\'' + inv.token + '\')">📋 Copy</button>' +
-              '<button class="btn btn-sm btn-danger"    onclick="tCancelParentInv(\'' + inv._id + '\')">Cancel</button>'
-            : '—') +
-        '</div></td>' +
-      '</tr>';
+      var cfg       = statusCfg[status] || { badge: 'badge-muted', label: status };
+      return '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);' +
+        'border-radius:12px;padding:16px 18px;">' +
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;' +
+          'gap:10px;flex-wrap:wrap;margin-bottom:10px;">' +
+          '<div style="min-width:0;">' +
+            '<div style="font-size:14px;font-weight:700;color:#fff;word-break:break-all;">' +
+              escHtml(inv.parentEmail) + '</div>' +
+            (inv.parentName ? '<div style="font-size:12px;color:var(--secondary);margin-top:2px;">' +
+              escHtml(inv.parentName) + '</div>' : '') +
+          '</div>' +
+          '<span class="badge ' + cfg.badge + '" style="flex-shrink:0;">' + cfg.label + '</span>' +
+        '</div>' +
+        (students ? '<div style="font-size:13px;color:var(--secondary);margin-bottom:6px;">' +
+          '👤 ' + escHtml(students) + '</div>' : '') +
+        '<div style="font-size:11px;color:var(--muted);margin-bottom:12px;">' +
+          'Sent ' + instFmtDate(inv.createdAt) + '</div>' +
+        (inv.status === 'pending' && !isExpired
+          ? '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+              '<button class="btn btn-secondary btn-sm" ' +
+                'onclick="tCopyParentLink(\'' + inv.token + '\')" ' +
+                'style="padding:8px 14px;font-size:13px;">📋 Copy Link</button>' +
+              '<button class="btn btn-danger btn-sm" ' +
+                'onclick="tCancelParentInv(\'' + inv._id + '\')" ' +
+                'style="padding:8px 14px;font-size:13px;">Cancel</button>' +
+            '</div>'
+          : '') +
+      '</div>';
     }).join('') +
-    '</tbody></table></div>';
+  '</div>';
 }
 
 function openTeacherParentInviteModal() {
@@ -1663,6 +1707,89 @@ async function tCancelParentInv(id) {
   var res = await instApi('/parent/invite/' + id, 'DELETE');
   if (res.ok) { instToast('Invitation cancelled.', 'success'); loadTParentInvites(); }
   else instToast((res.data && res.data.message) || 'Failed.', 'error');
+}
+
+/* ============================================
+   PAYMENT CENTER (P10-C)
+   Reads school's active bank accounts via:
+   GET /api/institution/fee/manual-accounts/active
+   Uses staffGuard — teachers have access.
+============================================ */
+async function loadPaymentCenterSection() {
+  var wrap = document.getElementById('teacherPaymentAccountsList');
+  if (!wrap) return;
+  wrap.innerHTML = '<div style="text-align:center;padding:28px;color:var(--muted);">' +
+    '<span class="spinner"></span></div>';
+
+  var res      = await instApi('/fee/manual-accounts/active');
+  var accounts = (res.ok && res.data && res.data.accounts) ? res.data.accounts : [];
+
+  if (!accounts.length) {
+    wrap.innerHTML =
+      '<div class="card"><div class="card-body" style="text-align:center;padding:40px 20px;">' +
+        '<div style="font-size:36px;margin-bottom:12px;">🏦</div>' +
+        '<div style="font-size:14px;font-weight:700;color:var(--secondary);margin-bottom:8px;">' +
+          'No payment accounts configured</div>' +
+        '<div style="font-size:13px;color:var(--muted);line-height:1.7;">' +
+          'The school Finance team has not yet set up bank payment accounts.<br/>' +
+          'Please contact the Finance office for payment details.' +
+        '</div></div></div>';
+    return;
+  }
+
+  wrap.innerHTML = accounts.map(function (a) {
+    return '<div class="card" style="margin-bottom:14px;">' +
+      '<div class="card-head">' +
+        '<div>' +
+          '<div style="font-size:15px;font-weight:800;color:#fff;">🏦 ' +
+            escHtml(a.bankName) + '</div>' +
+          '<div style="font-size:12px;color:var(--muted);margin-top:2px;">' +
+            escHtml(a.accountLabel || '') +
+            (a.accountType && a.accountType !== 'main'
+              ? ' · ' + escHtml(a.accountType) : '') +
+          '</div>' +
+        '</div>' +
+        '<span class="badge badge-purple" style="font-size:11px;font-weight:800;">' +
+          escHtml(a.currency) + '</span>' +
+      '</div>' +
+      '<div style="padding:14px 18px 16px;">' +
+        '<div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;' +
+          'font-size:13px;align-items:center;margin-bottom:14px;">' +
+          '<span style="color:var(--muted);white-space:nowrap;">Account Name</span>' +
+          '<strong style="color:#fff;">' + escHtml(a.accountName) + '</strong>' +
+          '<span style="color:var(--muted);white-space:nowrap;">Account Number</span>' +
+          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+            '<strong style="color:#fff;font-family:monospace;font-size:15px;letter-spacing:1px;">' +
+              escHtml(a.accountNumber) + '</strong>' +
+            '<button onclick="copyTeacherPaymentDetail(\'' +
+              escHtml(a.accountNumber).replace(/'/g, "\\'") + '\',\'' +
+              escHtml(a.bankName).replace(/'/g, "\\'") + '\')" ' +
+              'style="padding:3px 10px;border-radius:6px;border:1px solid var(--border);' +
+              'background:rgba(255,255,255,0.05);color:var(--secondary);font-size:12px;' +
+              'cursor:pointer;font-family:inherit;flex-shrink:0;">📋 Copy</button>' +
+          '</div>' +
+          (a.country
+            ? '<span style="color:var(--muted);">Country</span>' +
+              '<span style="color:var(--secondary);">' + escHtml(a.country) + '</span>'
+            : '') +
+        '</div>' +
+        (a.instructions
+          ? '<div style="background:rgba(108,99,255,0.06);border:1px solid rgba(108,99,255,0.15);' +
+              'border-radius:8px;padding:10px 12px;font-size:12px;color:#a78bfa;line-height:1.7;">' +
+              '📋 ' + escHtml(a.instructions) +
+            '</div>'
+          : '') +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function copyTeacherPaymentDetail(number, bank) {
+  navigator.clipboard.writeText(number).then(function () {
+    instToast('📋 Copied: ' + number + ' (' + bank + ')', 'success');
+  }).catch(function () {
+    instToast('Account number: ' + number, 'info');
+  });
 }
 
 function closeModal(id){var el=document.getElementById(id);if(el)el.style.display='none';}

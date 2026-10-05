@@ -218,6 +218,17 @@ router.get('/me', parentProtect, async (req, res) => {
    Called by login.html to pre-fill the page
    before the parent clicks Continue with Google.
 ============================================ */
+/* GET /api/institution/parent/auth/config
+   Returns client-side auth configuration.
+   Public — no authentication required.
+   GOOGLE_CLIENT_ID is not a secret (it appears in OAuth URLs). */
+router.get('/config', function (req, res) {
+  return res.json({
+    success:        true,
+    googleClientId: process.env.GOOGLE_CLIENT_ID || ''
+  });
+});
+
 router.get('/invite-info/:token', async (req, res) => {
   try {
     var invite = await SchoolParentInvitation.findOne({
