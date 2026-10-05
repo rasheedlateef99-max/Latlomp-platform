@@ -747,13 +747,25 @@
       </div>
 
       <div class="card">
-        <div class="card-head"><h3>Parent Invitations</h3><span id="parentInvCountBadge" style="font-size:12px;color:var(--muted);"></span></div>
-        <div id="parentInvitesContainer"><div style="text-align:center;padding:28px;color:var(--muted);font-size:14px;">Loading...</div></div>
+        <div class="card-head">
+          <h3>Parent Invitations</h3>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span id="parentInvCountBadge" style="font-size:12px;color:var(--muted);"></span>
+            <button class="btn btn-secondary btn-sm" onclick="loadParentInvites()" title="Refresh invitations">↺ Refresh</button>
+          </div>
+        </div>
+        <div id="parentInvitesContainer"><div style="text-align:center;padding:28px;color:var(--muted);font-size:14px;"><span class="spinner"></span></div></div>
       </div>
 
       <div class="card">
-        <div class="card-head"><h3>Linked Parents</h3><span id="linkedParentsCountBadge" style="font-size:12px;color:var(--muted);"></span></div>
-        <div id="linkedParentsContainer"><div style="text-align:center;padding:28px;color:var(--muted);font-size:14px;">Loading...</div></div>
+        <div class="card-head">
+          <h3>Linked Parents</h3>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span id="linkedParentsCountBadge" style="font-size:12px;color:var(--muted);"></span>
+            <button class="btn btn-secondary btn-sm" onclick="loadLinkedParents()" title="Refresh linked parents">↺ Refresh</button>
+          </div>
+        </div>
+        <div id="linkedParentsContainer"><div style="text-align:center;padding:28px;color:var(--muted);font-size:14px;"><span class="spinner"></span></div></div>
       </div>
     </div>
 
@@ -2251,7 +2263,7 @@ var _parentInvites = [];
 var _linkedParents = [];
 var _parentStudents= [];
 
-/* esc() — HTML escape for parent section rendering */
+/* HTML escape — prevents XSS in all innerHTML writes in this section */
 function esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -2260,17 +2272,18 @@ function esc(s) {
 
 async function loadParentSection() {
   await Promise.all([
-    loadParentInvites().catch(function (e) {
-      console.error('[Parents] loadParentInvites:', e.message);
+    loadParentInvites().catch(function(e) {
+      console.error('[School/Parents] loadParentInvites:', e.message);
       var c = document.getElementById('parentInvitesContainer');
-      if (c) c.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);' +
-        'font-size:13px;">Could not load invitations. Please refresh the page.</div>';
+      if (c) c.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Could not load invitations. Click Refresh to try again.</div>';
     }),
-    loadLinkedParents().catch(function (e) {
-      console.error('[Parents] loadLinkedParents:', e.message);
+    loadLinkedParents().catch(function(e) {
+      console.error('[School/Parents] loadLinkedParents:', e.message);
+      var c = document.getElementById('linkedParentsContainer');
+      if (c) c.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Could not load linked parents.</div>';
     }),
-    loadParentStudents().catch(function (e) {
-      console.error('[Parents] loadParentStudents:', e.message);
+    loadParentStudents().catch(function(e) {
+      console.error('[School/Parents] loadParentStudents:', e.message);
     })
   ]);
 }
@@ -2282,52 +2295,177 @@ async function loadParentStudents() {
 }
 
 async function loadParentInvites() {
-  var res = await instApi('/parent/invite/list');
-  _parentInvites  = (res.ok && res.data.invitations) ? res.data.invitations : [];
-  var countEl     = document.getElementById('parentInvCountBadge');
-  if (countEl) countEl.textContent = _parentInvites.length + ' invitation' + (_parentInvites.length !== 1 ? 's' : '');
-
   var container = document.getElementById('parentInvitesContainer');
+  var countEl   = document.getElementById('parentInvCountBadge');
+  if (container) container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);"><span class="spinner"></span></div>';
+
+  var res = await instApi('/parent/invite/list');
+  _parentInvites = (res.ok && res.data.invitations) ? res.data.invitations : [];
+
+  if (countEl) countEl.textContent = _parentInvites.length + ' invitation' + (_parentInvites.length !== 1 ? 's' : '');
   if (!container) return;
 
   if (!_parentInvites.length) {
-    container.innerHTML = '<div class="empty"><div class="empty-icon">📨</div><div class="empty-text">No invitations yet</div><div class="empty-sub">Click "+ Invite Parent" to get started.</div></div>';
+    container.innerHTML =
+      '<div class="empty"><div class="empty-icon">📨</div>' +
+      '<div class="empty-text">No invitations yet</div>' +
+      '<div class="empty-sub">Click "+ Invite Parent" to get started.</div></div>';
     return;
   }
 
-  var statusColors = { pending:'badge-orange', accepted:'badge-green', expired:'badge-red', cancelled:'badge-muted' };
-  container.innerHTML = '<div class="table-wrap"><table><thead><tr>' +
-    '<th>Parent Email</th><th>Name</th><th>Children</th><th>Status</th><th>Sent</th><th>Actions</th>' +
-    '</tr></thead><tbody>' +
-    _parentInvites.map(function (inv) {
-      var students = (inv.studentIds || []).map(function (s) { return s.name || '—'; }).join(', ');
+  var statusCfg = {
+    pending:   { badge: 'badge-orange', label: '⏳ Pending'   },
+    accepted:  { badge: 'badge-green',  label: '✅ Accepted'  },
+    expired:   { badge: 'badge-red',    label: '⏰ Expired'   },
+    cancelled: { badge: 'badge-muted',  label: '🚫 Cancelled' }
+  };
+
+  container.innerHTML =
+    '<div style="display:flex;flex-direction:column;gap:12px;padding:4px 0;">' +
+    _parentInvites.map(function(inv) {
+      var students  = (inv.studentIds || []).map(function(s) { return s.name || '—'; }).join(', ');
       var isExpired = (inv.status === 'pending' && new Date(inv.expiresAt) < new Date());
       var status    = isExpired ? 'expired' : inv.status;
-      var invitedByName = inv.invitedBy ? (inv.invitedBy.name || inv.invitedBy.email || '—') : '—';
-      return '<tr>' +
-        '<td style="font-weight:700;color:#fff;">' + esc(inv.parentEmail) + '</td>' +
-        '<td>' + esc(inv.parentName || '—') + '</td>' +
-        '<td style="font-size:12px;color:var(--secondary);">' + esc(students) + '</td>' +
-        '<td><span class="badge ' + (statusColors[status] || 'badge-muted') + '">' + status + '</span></td>' +
-        '<td style="font-size:12px;color:var(--muted);">' + instFmtDate(inv.createdAt) + '</td>' +
-        '<td><div style="display:flex;gap:5px;flex-wrap:wrap;">' +
-          (inv.status === 'pending' && !isExpired
-            ? '<button class="btn btn-secondary btn-sm" onclick="copyParentLink(\'' + inv.token + '\')">📋 Copy Link</button>' +
-              '<button class="btn btn-danger btn-sm"    onclick="cancelParentInv(\'' + inv._id + '\')">Cancel</button>'
-            : '') +
-        '</div></td>' +
-      '</tr>';
+      var cfg       = statusCfg[status] || { badge: 'badge-muted', label: status };
+      var byName    = inv.invitedBy ? (inv.invitedBy.name || inv.invitedBy.email || '') : '';
+
+      return '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);' +
+               'border-radius:12px;padding:16px 18px;">' +
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;' +
+             'gap:10px;flex-wrap:wrap;margin-bottom:8px;">' +
+          '<div style="min-width:0;">' +
+            '<div style="font-size:14px;font-weight:700;color:#fff;word-break:break-all;">' +
+              esc(inv.parentEmail) + '</div>' +
+            (inv.parentName
+              ? '<div style="font-size:12px;color:var(--secondary);margin-top:2px;">' +
+                  esc(inv.parentName) + '</div>'
+              : '') +
+          '</div>' +
+          '<span class="badge ' + cfg.badge + '" style="flex-shrink:0;">' + cfg.label + '</span>' +
+        '</div>' +
+        (students
+          ? '<div style="font-size:13px;color:var(--secondary);margin-bottom:4px;">👤 ' +
+              esc(students) + '</div>'
+          : '') +
+        '<div style="font-size:11px;color:var(--muted);margin-bottom:12px;">' +
+          'Sent ' + instFmtDate(inv.createdAt) +
+          (byName ? ' by ' + esc(byName) : '') +
+        '</div>' +
+        (inv.status === 'pending' && !isExpired
+          ? '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+              '<button class="btn btn-secondary btn-sm" ' +
+                'onclick="copyParentLink(\'' + esc(inv.token) + '\')" ' +
+                'style="padding:7px 14px;">📋 Copy Link</button>' +
+              '<button class="btn btn-danger btn-sm" ' +
+                'onclick="cancelParentInv(\'' + esc(inv._id) + '\')" ' +
+                'style="padding:7px 14px;">Cancel</button>' +
+            '</div>'
+          : '') +
+      '</div>';
     }).join('') +
-    '</tbody></table></div>';
+    '</div>';
 }
 
 async function loadLinkedParents() {
-  /* Show parents who have accepted invitations and have accounts */
   var container = document.getElementById('linkedParentsContainer');
   var countEl   = document.getElementById('linkedParentsCountBadge');
   if (!container) return;
-  container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:14px;">Use the invitations table above to track parent access.</div>';
-  if (countEl) countEl.textContent = '';
+  container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);"><span class="spinner"></span></div>';
+
+  var res     = await instApi('/parent/linked');
+  _linkedParents = (res.ok && res.data.parents) ? res.data.parents : [];
+
+  if (countEl) countEl.textContent = _linkedParents.length + ' parent' + (_linkedParents.length !== 1 ? 's' : '');
+
+  if (!_linkedParents.length) {
+    container.innerHTML =
+      '<div class="empty"><div class="empty-icon">👨‍👩‍👧</div>' +
+      '<div class="empty-text">No linked parents yet</div>' +
+      '<div class="empty-sub">Parents appear here after accepting their invitation and signing in with Google.</div></div>';
+    return;
+  }
+
+  container.innerHTML =
+    '<div style="display:flex;flex-direction:column;gap:12px;padding:4px 0;">' +
+    _linkedParents.map(function(p) {
+      var childList = (p.linkedStudents || []).map(function(ls) {
+        return esc(ls.studentName) +
+          (ls.studentClass ? ' <span style="color:var(--muted);">(' + esc(ls.studentClass) + ')</span>' : '');
+      }).join(', ');
+
+      var lastLogin = p.lastLoginAt
+        ? instFmtDate(p.lastLoginAt)
+        : 'Never logged in';
+
+      var activeLabel = p.isActive
+        ? '<span class="badge badge-green">✅ Active</span>'
+        : '<span class="badge badge-red">🚫 Deactivated</span>';
+
+      return '<div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);' +
+               'border-radius:12px;padding:16px 18px;">' +
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;' +
+             'gap:10px;flex-wrap:wrap;margin-bottom:8px;">' +
+          '<div style="min-width:0;">' +
+            '<div style="font-size:14px;font-weight:700;color:#fff;">' + esc(p.name) + '</div>' +
+            '<div style="font-size:12px;color:var(--muted);margin-top:2px;word-break:break-all;">' +
+              esc(p.email) + '</div>' +
+          '</div>' +
+          activeLabel +
+        '</div>' +
+        (childList
+          ? '<div style="font-size:13px;color:var(--secondary);margin-bottom:4px;">👤 ' +
+              childList + '</div>'
+          : '') +
+        '<div style="font-size:11px;color:var(--muted);margin-bottom:12px;">' +
+          'Last login: ' + lastLogin +
+        '</div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+          '<button class="btn btn-secondary btn-sm" ' +
+            'onclick="toggleLinkedParent(\'' + esc(p._id) + '\',' + (p.isActive ? 'true' : 'false') + ')" ' +
+            'style="padding:7px 14px;">' +
+            (p.isActive ? '🔇 Deactivate' : '✅ Reactivate') + '</button>' +
+          '<button class="btn btn-danger btn-sm" ' +
+            'onclick="unlinkParent(\'' + esc(p._id) + '\',\'' + esc(p.name) + '\')" ' +
+            'style="padding:7px 14px;">🔗 Unlink</button>' +
+        '</div>' +
+      '</div>';
+    }).join('') +
+    '</div>';
+}
+
+async function toggleLinkedParent(parentId, currentlyActive) {
+  var action = currentlyActive ? 'deactivate' : 'reactivate';
+  var warn   = currentlyActive
+    ? 'Deactivating will prevent this parent from logging into ANY school portal, not just this one. Continue?'
+    : 'Reactivate this parent account?';
+  if (!confirm(warn)) return;
+
+  var res = await instApi('/parent/' + parentId + '/toggle', 'PUT');
+  if (res.ok && res.data.success) {
+    instToast('✅ ' + (res.data.message || 'Done.'), 'success');
+    loadLinkedParents();
+  } else {
+    instToast('❌ ' + ((res.data && res.data.message) || 'Action failed.'), 'error');
+  }
+}
+
+async function unlinkParent(parentId, name) {
+  if (!confirm(
+    'Remove ' + name + ' from this school?\n\n' +
+    'This removes their access to all students in this school. ' +
+    'Their account and links to other schools are not affected. ' +
+    'You can re-invite them if needed.\n\n' +
+    'Continue?'
+  )) return;
+
+  var res = await instApi('/parent/' + parentId + '/unlink', 'DELETE');
+  if (res.ok && res.data.success) {
+    instToast('✅ ' + (res.data.message || 'Parent unlinked.'), 'success');
+    loadLinkedParents();
+    loadParentInvites(); /* refresh invitations too */
+  } else {
+    instToast('❌ ' + ((res.data && res.data.message) || 'Action failed.'), 'error');
+  }
 }
 
 function openParentInviteModal() {

@@ -11,7 +11,8 @@ const mongoose               = require('mongoose');
 const {
   instProtect,
   getEffectiveRoles,
-  canManageStudents
+  canManageStudents,
+  schoolAdminOnly
 } = require('../middleware/inst.auth');
 /* P9-A: Payment account resolution + claim submission */
 const SchoolPaymentClaim = require('../models/SchoolPaymentClaim.model');
@@ -180,6 +181,159 @@ router.delete('/invite/:id', instProtect, canInviteParents, async (req, res) => 
     return res.status(200).json({ success: true, message: 'Invitation cancelled.' });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Failed to cancel invitation.' });
+  }
+});
+
+/* ============================================
+   P10-C — LINKED PARENT MANAGEMENT
+   All three routes use instProtect (institution JWT).
+   schoolId ALWAYS from req.schoolId (JWT — never body).
+   IDOR: parent must have a link to req.schoolId in
+   their linkedStudents array before any action.
+============================================ */
+
+/* GET /api/institution/parent/linked
+   Returns all SchoolParent records linked to this school.
+   Scoped to this school only — never leaks cross-school.
+   canInviteParents: class teachers and above can view. */
+router.get('/linked', instProtect, canInviteParents, async function(req, res) {
+  try {
+    /* Find parents who have at least one link to this school */
+    var parents = await SchoolParent.find({
+      'linkedStudents.schoolId': req.schoolId
+    })
+    .select('name email avatar isActive lastLoginAt linkedStudents')
+    .lean();
+
+    if (!parents.length) {
+      return res.json({ success: true, parents: [], count: 0 });
+    }
+
+    /* Gather all student IDs for this school across all found parents */
+    var studentIds = [];
+    parents.forEach(function(p) {
+      p.linkedStudents.forEach(function(ls) {
+        if (ls.schoolId.toString() === req.schoolId.toString()) {
+          studentIds.push(ls.studentId);
+        }
+      });
+    });
+
+    /* Load student details in one query — tenant scoped */
+    var students = await SchoolStudent.find({
+      _id:      { $in: studentIds },
+      schoolId: req.schoolId          /* TENANT SCOPE */
+    }).select('name admissionNo class').lean();
+
+    var studentMap = {};
+    students.forEach(function(s) { studentMap[s._id.toString()] = s; });
+
+    /* Filter each parent's links to this school only — no cross-school leakage */
+    var result = parents.map(function(p) {
+      var schoolLinks = p.linkedStudents
+        .filter(function(ls) {
+          return ls.schoolId.toString() === req.schoolId.toString();
+        })
+        .map(function(ls) {
+          var s = studentMap[ls.studentId.toString()] || null;
+          return {
+            studentId:          ls.studentId,
+            relationship:       ls.relationship,
+            linkedAt:           ls.linkedAt,
+            studentName:        s ? s.name              : '—',
+            studentClass:       s ? (s.class       || '') : '',
+            studentAdmissionNo: s ? (s.admissionNo || '') : ''
+          };
+        });
+      return {
+        _id:            p._id,
+        name:           p.name,
+        email:          p.email,
+        avatar:         p.avatar,
+        isActive:       p.isActive,
+        lastLoginAt:    p.lastLoginAt,
+        linkedStudents: schoolLinks
+      };
+    });
+
+    return res.json({ success: true, parents: result, count: result.length });
+  } catch(err) {
+    console.error('[Parent] GET /linked:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* PUT /api/institution/parent/:parentId/toggle
+   Toggles isActive on a parent account.
+   schoolAdminOnly — global action: affects this parent's
+   ability to log in across all schools they're linked to.
+   IDOR: parent must be linked to this school first. */
+router.put('/:parentId/toggle', instProtect, schoolAdminOnly, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.parentId)) {
+      return res.status(400).json({ success: false, message: 'Invalid parent ID.' });
+    }
+    var parent = await SchoolParent.findOne({
+      _id:                       req.params.parentId,
+      'linkedStudents.schoolId': req.schoolId         /* IDOR check */
+    });
+    if (!parent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Parent not found or not linked to this school.'
+      });
+    }
+    parent.isActive = !parent.isActive;
+    await parent.save();
+    var action = parent.isActive ? 'reactivated' : 'deactivated';
+    return res.json({
+      success:  true,
+      isActive: parent.isActive,
+      message:  parent.name + ' has been ' + action + '.'
+    });
+  } catch(err) {
+    console.error('[Parent] PUT /:parentId/toggle:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* DELETE /api/institution/parent/:parentId/unlink
+   Removes this school's student links from the parent's
+   linkedStudents array.
+   Does NOT delete the parent account or affect other schools.
+   The parent can still log in and access other schools.
+   schoolAdminOnly — permanent structural change. */
+router.delete('/:parentId/unlink', instProtect, schoolAdminOnly, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.parentId)) {
+      return res.status(400).json({ success: false, message: 'Invalid parent ID.' });
+    }
+    var parent = await SchoolParent.findOne({
+      _id:                       req.params.parentId,
+      'linkedStudents.schoolId': req.schoolId         /* IDOR check */
+    });
+    if (!parent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Parent not found or not linked to this school.'
+      });
+    }
+    var before = parent.linkedStudents.length;
+    /* Remove only this school's links — other schools unaffected */
+    parent.linkedStudents = parent.linkedStudents.filter(function(ls) {
+      return ls.schoolId.toString() !== req.schoolId.toString();
+    });
+    var removed = before - parent.linkedStudents.length;
+    await parent.save();
+    return res.json({
+      success: true,
+      message: parent.name + ' has been unlinked from this school (' +
+               removed + ' student link' + (removed !== 1 ? 's' : '') + ' removed). ' +
+               'Their account remains active for any other schools they are linked to.'
+    });
+  } catch(err) {
+    console.error('[Parent] DELETE /:parentId/unlink:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
   }
 });
 
