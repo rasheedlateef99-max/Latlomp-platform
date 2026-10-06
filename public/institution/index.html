@@ -844,10 +844,27 @@ async function handleGoogleResponse(response) {
 
     var data = await res.json();
 
-    if (data.success) {
+   if (data.success) {
       localStorage.setItem(INST_TOKEN_KEY, data.token);
       localStorage.setItem(INST_USER_KEY,  JSON.stringify(data.user));
       doRedirect(data.user, data.school, data.redirectTo);
+    } else if (data.isParent) {
+      /* This Gmail is a parent account — redirect to parent portal.
+         No institution token is issued or stored. */
+      resetBtn(btn);
+      var errEl = document.getElementById('signinError');
+      if (errEl) {
+        errEl.innerHTML =
+          '👨‍👩‍👧 This Google account is registered as a <strong>Parent</strong>. ' +
+          'Redirecting you to the Parent Portal…<br/>' +
+          '<a href="/institution/parent/login.html" ' +
+             'style="color:var(--primary);font-weight:700;display:inline-block;margin-top:6px;">' +
+            'Go to Parent Portal →</a>';
+        errEl.style.display = 'block';
+      }
+      setTimeout(function () {
+        window.location.href = '/institution/parent/login.html';
+      }, 2000);
     } else {
       resetBtn(btn);
       showErr(data.message || 'Sign in failed. Please try again.');

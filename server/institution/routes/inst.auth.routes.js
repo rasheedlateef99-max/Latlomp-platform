@@ -270,6 +270,44 @@ router.post('/google', async (req, res) => {
       });
     }
 
+/* ============================================
+       FLOW 3.5 — CHECK FOR EXISTING PARENT
+       Before creating a new school, check whether
+       this Gmail already belongs to a SchoolParent.
+       Parents must use /institution/parent/login.html.
+       Never issue an institution JWT for a parent.
+    ============================================ */
+    var SchoolParent = require('../models/SchoolParent.model');
+    var existingParent = await SchoolParent.findOne({
+      email: email.toLowerCase()
+    }).select('_id isActive name').lean();
+
+    if (existingParent) {
+      if (!existingParent.isActive) {
+        logAudit({
+          req, action: 'institution.auth.login.parent_deactivated',
+          success: false,
+          message: 'Deactivated parent account tried institution login: ' + email
+        });
+        return res.status(403).json({
+          success:  false,
+          isParent: true,
+          message:  'Your parent account has been deactivated. Please contact the school.'
+        });
+      }
+      logAudit({
+        req, action: 'institution.auth.login.parent_redirected',
+        success: true,
+        message: 'Existing parent account correctly identified and redirected: ' + email
+      });
+      return res.status(200).json({
+        success:    false,
+        isParent:   true,
+        message:    'This Google account belongs to a Parent Portal account.',
+        redirectTo: '/institution/parent/login.html'
+      });
+    }
+
     /* ---- Genuine new school registration ---- */
     var newSchool = await School.create({
       name:               name + "'s School",
