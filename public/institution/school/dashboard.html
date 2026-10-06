@@ -2427,6 +2427,11 @@ async function loadLinkedParents() {
           '<button class="btn btn-danger btn-sm" ' +
             'onclick="unlinkParent(\'' + esc(p._id) + '\',\'' + esc(p.name) + '\')" ' +
             'style="padding:7px 14px;">🔗 Unlink</button>' +
+          (!p.isActive
+            ? '<button class="btn btn-danger btn-sm" ' +
+                'onclick="deleteParentPermanently(\'' + esc(p._id) + '\',\'' + esc(p.name) + '\',\'' + esc(p.email) + '\')" ' +
+                'style="padding:7px 14px;background:rgba(255,101,132,0.2);">🗑️ Delete</button>'
+            : '') +
         '</div>' +
       '</div>';
     }).join('') +
@@ -2446,6 +2451,26 @@ async function toggleLinkedParent(parentId, currentlyActive) {
     loadLinkedParents();
   } else {
     instToast('❌ ' + ((res.data && res.data.message) || 'Action failed.'), 'error');
+  }
+}
+
+async function deleteParentPermanently(parentId, name, email) {
+  if (!confirm(
+    '⚠️ PERMANENTLY DELETE ' + name + ' (' + email + ')?\n\n' +
+    'This will:\n' +
+    '• Remove their account entirely\n' +
+    '• Free their Gmail for re-invitation\n' +
+    '• Cancel all pending invitations for this email\n\n' +
+    'This CANNOT be undone. Confirm?'
+  )) return;
+
+  var res = await instApi('/parent/' + parentId, 'DELETE');
+  if (res.ok && res.data.success) {
+    instToast('✅ ' + (res.data.message || 'Parent permanently deleted.'), 'success');
+    loadLinkedParents();
+    loadParentInvites(); /* refresh so accepted invitation disappears */
+  } else {
+    instToast('❌ ' + ((res.data && res.data.message) || 'Delete failed.'), 'error');
   }
 }
 

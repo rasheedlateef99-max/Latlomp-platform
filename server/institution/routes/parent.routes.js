@@ -263,6 +263,79 @@ router.get('/linked', instProtect, canInviteParents, async function(req, res) {
   }
 });
 
+/* DELETE /api/institution/parent/:parentId
+   Permanently deletes a SchoolParent record.
+   Requires parent to be deactivated first (safety gate).
+   If parent has links to other schools, only this school's
+   links are removed — the document stays for other schools.
+   If parent has NO other school links, the document is deleted
+   entirely, freeing the Gmail for fresh re-invitation.
+   Also cancels all pending invitations for this email at
+   this school so the Gmail is immediately reusable.
+   schoolAdminOnly — destructive, permanent action. */
+router.delete('/:parentId', instProtect, schoolAdminOnly, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.parentId)) {
+      return res.status(400).json({ success: false, message: 'Invalid parent ID.' });
+    }
+
+    var parent = await SchoolParent.findOne({
+      _id:                       req.params.parentId,
+      'linkedStudents.schoolId': req.schoolId   /* IDOR */
+    });
+
+    if (!parent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Parent not found or not linked to this school.'
+      });
+    }
+
+    /* Safety gate — must be deactivated before permanent deletion */
+    if (parent.isActive) {
+      return res.status(400).json({
+        success: false,
+        message: 'Parent account must be deactivated before it can be permanently deleted. ' +
+                 'Use the Deactivate button first, then delete.'
+      });
+    }
+
+    var parentEmail = parent.email;
+    var parentName  = parent.name;
+
+    /* Remove this school's links from the parent document */
+    var otherLinks = parent.linkedStudents.filter(function(ls) {
+      return ls.schoolId.toString() !== req.schoolId.toString();
+    });
+
+    if (otherLinks.length > 0) {
+      /* Parent is linked to other schools — remove only this school's links */
+      parent.linkedStudents = otherLinks;
+      await parent.save();
+    } else {
+      /* No other school links — delete the entire parent document */
+      await SchoolParent.findByIdAndDelete(parent._id);
+    }
+
+    /* Cancel all invitation records for this email at this school
+       so the Gmail is immediately available for fresh re-invitation */
+    await SchoolParentInvitation.updateMany(
+      { schoolId: req.schoolId, parentEmail: parentEmail },
+      { $set: { status: 'cancelled' } }
+    );
+
+    return res.json({
+      success: true,
+      message: parentName + ' (' + parentEmail + ') has been permanently removed. ' +
+               'The email address can now be used for a new parent invitation.',
+      emailFreed: parentEmail
+    });
+  } catch(err) {
+    console.error('[Parent] DELETE /:parentId:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 /* PUT /api/institution/parent/:parentId/toggle
    Toggles isActive on a parent account.
    schoolAdminOnly — global action: affects this parent's
