@@ -148,7 +148,12 @@ router.post('/invite', instProtect, canInviteParents, async (req, res) => {
 ============================================ */
 router.get('/invite/list', instProtect, canInviteParents, async (req, res) => {
   try {
-    var invites = await SchoolParentInvitation.find({ schoolId: req.schoolId })
+    /* Exclude cancelled invitations — they are either expired records or
+       belong to permanently deleted parents and should not clutter the UI. */
+    var invites = await SchoolParentInvitation.find({
+      schoolId: req.schoolId,
+      status:   { $ne: 'cancelled' }
+    })
       .populate('studentIds', 'name admissionNo class')
       .populate('invitedBy', 'name email')
       .sort({ createdAt: -1 })
@@ -317,12 +322,12 @@ router.delete('/:parentId', instProtect, schoolAdminOnly, async function(req, re
       await SchoolParent.findByIdAndDelete(parent._id);
     }
 
-    /* Cancel all invitation records for this email at this school
-       so the Gmail is immediately available for fresh re-invitation */
-    await SchoolParentInvitation.updateMany(
-      { schoolId: req.schoolId, parentEmail: parentEmail },
-      { $set: { status: 'cancelled' } }
-    );
+    /* Permanently delete all invitation records for this email at this school.
+       This frees the Gmail immediately — no history left in the invitations list. */
+    await SchoolParentInvitation.deleteMany({
+      schoolId:    req.schoolId,
+      parentEmail: parentEmail
+    });
 
     return res.json({
       success: true,

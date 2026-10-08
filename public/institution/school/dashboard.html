@@ -2314,15 +2314,28 @@ async function loadParentInvites() {
   }
 
   var statusCfg = {
-    pending:   { badge: 'badge-orange', label: '⏳ Pending'   },
-    accepted:  { badge: 'badge-green',  label: '✅ Accepted'  },
-    expired:   { badge: 'badge-red',    label: '⏰ Expired'   },
-    cancelled: { badge: 'badge-muted',  label: '🚫 Cancelled' }
+    pending:  { badge: 'badge-orange', label: '⏳ Pending'  },
+    accepted: { badge: 'badge-green',  label: '✅ Accepted' },
+    expired:  { badge: 'badge-red',    label: '⏰ Expired'  }
   };
+
+  /* Filter out cancelled — they belong to deleted parents and add no value */
+  var visibleInvites = _parentInvites.filter(function(inv) {
+    return inv.status !== 'cancelled';
+  });
+
+  if (!visibleInvites.length) {
+    container.innerHTML =
+      '<div class="empty"><div class="empty-icon">📨</div>' +
+      '<div class="empty-text">No invitations yet</div>' +
+      '<div class="empty-sub">Click "+ Invite Parent" to get started.</div></div>';
+    if (countEl) countEl.textContent = '0 invitations';
+    return;
+  }
 
   container.innerHTML =
     '<div style="display:flex;flex-direction:column;gap:12px;padding:4px 0;">' +
-    _parentInvites.map(function(inv) {
+    visibleInvites.map(function(inv) {
       var students  = (inv.studentIds || []).map(function(s) { return s.name || '—'; }).join(', ');
       var isExpired = (inv.status === 'pending' && new Date(inv.expiresAt) < new Date());
       var status    = isExpired ? 'expired' : inv.status;

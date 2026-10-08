@@ -106,6 +106,127 @@
   .fee-acct-select-card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:16px; margin-bottom:10px; }
   .fee-acct-select-btn  { width:100%; padding:10px; border-radius:8px; background:linear-gradient(135deg,#43e97b,#38f9d7); border:none; color:#0f0f1a; font-size:13px; font-weight:800; cursor:pointer; font-family:inherit; margin-top:8px; }
   .fee-acct-highlight   { background:rgba(108,99,255,0.08); border:1px solid rgba(108,99,255,0.2); border-radius:10px; padding:12px 14px; margin-bottom:14px; }
+
+  /* ═══ SIDEBAR LAYOUT ═══ */
+  .sidebar {
+    position:fixed; left:0; top:0; bottom:0; width:250px;
+    background:var(--dark-2); border-right:1px solid var(--border);
+    display:flex; flex-direction:column; z-index:400;
+    overflow-y:auto; overflow-x:hidden;
+    transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  }
+  @media (max-width:768px) {
+    .sidebar { transform:translateX(-100%); }
+    .sidebar.open { transform:translateX(0); box-shadow:8px 0 48px rgba(0,0,0,0.6); }
+  }
+  .sidebar-overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,0.6); z-index:399;
+  }
+  .sidebar-overlay.visible { display:block; }
+
+  .sb-profile {
+    padding:18px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:12px; flex-shrink:0;
+  }
+  .sb-avatar-wrap {
+    width:44px; height:44px; border-radius:10px; flex-shrink:0;
+    background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px; font-weight:900; color:#fff; overflow:hidden;
+  }
+  .sb-name  { font-size:14px; font-weight:700; color:#fff; line-height:1.3; }
+  .sb-role  { font-size:11px; color:var(--success); font-weight:700;
+               text-transform:uppercase; letter-spacing:0.5px; margin-top:1px; }
+  .sb-nav   { flex:1; padding:10px; }
+  .sb-sep   { font-size:10px; font-weight:700; color:var(--text-muted);
+               text-transform:uppercase; letter-spacing:0.6px; padding:14px 10px 6px; }
+  .nav-item {
+    display:flex; align-items:center; gap:10px; padding:10px 12px;
+    border-radius:10px; font-size:14px; font-weight:500; color:var(--text-secondary);
+    cursor:pointer; transition:all 0.15s; margin-bottom:2px;
+    width:100%; border:none; background:none; font-family:inherit;
+    text-align:left; text-decoration:none; line-height:1.4;
+  }
+  .nav-item:hover  { background:rgba(255,255,255,0.06); color:#fff; }
+  .nav-item.active { background:rgba(108,99,255,0.15); color:var(--primary); font-weight:700; }
+  .nav-icon { font-size:16px; width:22px; text-align:center; flex-shrink:0; }
+  .sb-footer { padding:10px; border-top:1px solid var(--border); flex-shrink:0; }
+
+  /* ═══ MAIN AREA ═══ */
+  .main { margin-left:250px; display:flex; flex-direction:column; min-height:100vh; }
+  @media (max-width:768px) { .main { margin-left:0 !important; } }
+  .page-content { padding:20px 24px; flex:1; }
+  @media (max-width:768px) { .page-content { padding:16px; } }
+  @media (max-width:480px) { .page-content { padding:12px; } }
+
+  /* ═══ MOBILE BAR ═══ */
+  .mobile-bar {
+    display:none; align-items:center; justify-content:space-between;
+    padding:0 16px; height:56px; background:var(--dark-2);
+    border-bottom:1px solid var(--border);
+    position:sticky; top:0; z-index:300; flex-shrink:0;
+  }
+  @media (max-width:768px) { .mobile-bar { display:flex !important; } }
+  .ham-btn {
+    background:none; border:none; color:#fff; font-size:22px;
+    cursor:pointer; padding:8px; border-radius:8px;
+  }
+
+  /* ═══ SECTION ═══ */
+  .section { display:none; }
+  .section.active { display:block; animation:fadeIn 0.25s ease; }
+
+  /* ═══ NOTIFICATION / CONVERSATION PANEL (CRITICAL FIX) ═══
+     Without this CSS the panel renders inline and causes the
+     blank content area visible in the parent dashboard. */
+  .notif-panel {
+    position:fixed; top:0; right:0; bottom:0; width:360px; max-width:100vw;
+    background:var(--dark-2); border-left:1px solid var(--border);
+    z-index:499; box-shadow:-8px 0 40px rgba(0,0,0,0.6);
+    display:flex; flex-direction:column; overflow:hidden;
+    transform:translateX(100%);
+    transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  }
+  .notif-panel.open { transform:translateX(0); }
+  .notif-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px; border-bottom:1px solid var(--border); flex-shrink:0;
+    background:var(--dark-2); position:sticky; top:0; z-index:1;
+  }
+  .notif-backdrop {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,.55); z-index:498;
+  }
+
+  /* ═══ PAYMENT CENTER ═══ */
+  .pc-account-card {
+    background:rgba(108,99,255,0.06); border:1px solid rgba(108,99,255,0.2);
+    border-radius:14px; padding:18px; margin-bottom:14px;
+  }
+  .pc-account-card:hover { border-color:rgba(108,99,255,0.4); }
+  .pc-fee-item {
+    background:rgba(255,255,255,0.02); border:1px solid var(--border);
+    border-left:4px solid var(--warn); border-radius:12px;
+    padding:16px; margin-bottom:12px;
+  }
+  .pc-fee-item.paid { border-left-color:var(--success); }
+  .pc-cta-btn {
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; padding:12px 16px; border-radius:10px;
+    background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+    border:none; color:#fff; font-size:14px; font-weight:800;
+    cursor:pointer; font-family:inherit; margin-top:12px;
+    transition:all 0.2s;
+  }
+  .pc-cta-btn:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(108,99,255,0.4); }
+  .pc-copy-btn {
+    padding:4px 10px; border-radius:6px; border:1px solid var(--border);
+    background:rgba(255,255,255,0.05); color:var(--text-secondary);
+    font-size:11px; cursor:pointer; font-family:inherit;
+    transition:all 0.15s;
+  }
+  .pc-copy-btn:hover { color:#fff; background:rgba(255,255,255,0.1); }
   </style>
 </head>
 <body>
@@ -116,53 +237,119 @@
   <p style="color:var(--text-muted); font-size:13px;">Loading your dashboard...</p>
 </div>
 
-<!-- TOPBAR -->
-<header class="topbar">
-  <div class="topbar-brand">⚡ <span>LatLomp</span> Parent Portal</div>
-  <div class="topbar-right">
-    <span class="parent-name" id="parentName"></span>
-    <button onclick="toggleNotifPanel()" title="Notifications"
-    style="position:relative;background:none;border:none;cursor:pointer;
-      padding:6px 8px;font-size:20px;line-height:1;
-      color:#a0a0c0;transition:color .15s;border-radius:8px;"
-    onmouseover="this.style.color='#fff';this.style.background='rgba(255,255,255,.06)'"
-    onmouseout="this.style.color='#a0a0c0';this.style.background='none'">
-    🔔
-    <span id="notifBellBadge"
-      style="display:none;position:absolute;top:2px;right:2px;
-        background:#ff6584;color:#fff;border-radius:50%;
-        min-width:16px;height:16px;font-size:9px;font-weight:800;
-        padding:0 3px;text-align:center;line-height:16px;
-        font-family:Inter,sans-serif;pointer-events:none;"></span>
-  </button>
-    <button class="logout-btn" onclick="doLogout()">Log Out</button>
-  </div>
-</header>
+<!-- ===== SIDEBAR OVERLAY ===== -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
-<!-- CHILD SWITCHER -->
-<div class="child-bar" id="childBar">
+<!-- ===== SIDEBAR ===== -->
+<aside class="sidebar" id="sidebar">
+  <div class="sb-profile">
+    <div class="sb-avatar-wrap" id="sbAvatarWrap">P</div>
+    <div>
+      <div class="sb-name"  id="sbParentName">Loading…</div>
+      <div class="sb-role">Parent Portal</div>
+    </div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-sep">Navigation</div>
+    <button class="nav-item active" data-sec="overview"      onclick="showTab('overview')">
+      <span class="nav-icon">📊</span> Dashboard
+    </button>
+    <button class="nav-item"        data-sec="payments"      onclick="showTab('payments')">
+      <span class="nav-icon">💳</span> Payment Center
+    </button>
+    <button class="nav-item"        data-sec="results"       onclick="showTab('results')">
+      <span class="nav-icon">📋</span> Results
+    </button>
+    <button class="nav-item"        data-sec="fees"          onclick="showTab('fees')">
+      <span class="nav-icon">💰</span> Fee Progress
+    </button>
+    <button class="nav-item"        data-sec="attendance"    onclick="showTab('attendance')">
+      <span class="nav-icon">✅</span> Attendance
+    </button>
+    <button class="nav-item"        data-sec="timetable"     onclick="showTab('timetable')">
+      <span class="nav-icon">📅</span> Timetable
+    </button>
+    <div class="sb-sep">Communication</div>
+    <button class="nav-item"        data-sec="messages"      onclick="showTab('messages')">
+      <span class="nav-icon">💬</span> Messages
+    </button>
+    <button class="nav-item"        data-sec="notifications" onclick="showTab('notifications')">
+      <span class="nav-icon">🔔</span> Notifications
+    </button>
+  </nav>
+  <div class="sb-footer">
+    <button class="nav-item" style="color:var(--error);" onclick="doLogout()">
+      <span class="nav-icon">🚪</span> Log Out
+    </button>
+  </div>
+</aside>
+
+<!-- ===== MAIN WRAPPER ===== -->
+<div class="main">
+
+<!-- MOBILE BAR -->
+<div class="mobile-bar">
+  <button class="ham-btn" onclick="openSidebar()">&#9776;</button>
+  <span style="font-size:14px;font-weight:800;">⚡ <span style="color:var(--primary);">LatLomp</span> Parent</span>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <button onclick="toggleNotifPanel()" title="Notifications"
+      style="position:relative;background:none;border:none;cursor:pointer;
+        padding:6px 8px;font-size:20px;line-height:1;color:#a0a0c0;border-radius:8px;">
+      🔔
+      <span id="notifBellBadge"
+        style="display:none;position:absolute;top:2px;right:2px;
+          background:#ff6584;color:#fff;border-radius:50%;
+          min-width:16px;height:16px;font-size:9px;font-weight:800;
+          padding:0 3px;text-align:center;line-height:16px;
+          pointer-events:none;"></span>
+    </button>
+  </div>
+</div>
+
+<!-- CHILD SWITCHER — stays as horizontal bar inside main -->
+<div class="child-bar" id="childBar" style="border-bottom:1px solid var(--border);padding:12px 20px;background:var(--dark-2);">
   <button class="add-child-btn" onclick="openLinkModal()">＋ Link Child</button>
 </div>
 
-<!-- TABS -->
-<div class="tabs" id="tabBar" style="display:none;">
-  <button class="tab-btn active" onclick="showTab('overview')">📊 Overview</button>
-  <button class="tab-btn"        onclick="showTab('results')">📋 Results</button>
-  <button class="tab-btn"        onclick="showTab('fees')">💳 Fees</button>
-  <button class="tab-btn"        onclick="showTab('attendance')">✅ Attendance</button>
-  <button class="tab-btn"        onclick="showTab('timetable')">📅 Timetable</button>
-  <button class="tab-btn"        onclick="showTab('notifications')">🔔 Notifications</button>
-  <button class="tab-btn" onclick="showTab('timeline')"    id="tab-timeline">📅 Timeline</button>
-  <button class="tab-btn" onclick="showTab('progress')"    id="tab-progress">📈 Progress</button>
-  <button class="tab-btn" onclick="showTab('homework')"    id="tab-homework">📚 Homework</button>
-  <button class="tab-btn" onclick="showTab('alerts')"      id="tab-alerts">🔔 Alerts</button>
-  <button class="tab-btn" onclick="showTab('messages')"    id="tab-messages">💬 Messages</button>
-  <button class="tab-btn" onclick="showTab('announcements')"id="tab-announcements">📢 News</button>
-  <button class="tab-btn" onclick="showTab('events')"      id="tab-events">🗓️ Events</button>
-</div>
+<!-- PAGE CONTENT -->
+<div class="page-content" id="mainContent" style="display:none;">
 
-<!-- MAIN CONTENT -->
-<div class="content" id="mainContent" style="display:none;">
+<!-- PAYMENT CENTER (P10-C / Step 3) -->
+  <div class="section" id="sec-payments">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">🏦 School Payment Accounts</div>
+        <button onclick="loadPaymentCenter()"
+          style="padding:5px 12px;border-radius:8px;border:1px solid var(--border);
+          background:rgba(255,255,255,0.04);color:var(--text-secondary);
+          font-size:12px;cursor:pointer;font-family:inherit;">↺ Refresh</button>
+      </div>
+      <div style="padding:6px 0 10px;font-size:13px;color:var(--text-muted);line-height:1.7;padding:12px 20px 0;">
+        Transfer money to any account below, then click <strong style="color:#fff;">I Have Made This Payment</strong> to notify Finance for verification.
+      </div>
+      <div id="pcAccountsWrap" style="padding:16px;"></div>
+    </div>
+
+    <div class="card" style="margin-top:0;">
+      <div class="card-head">
+        <div class="card-title">📋 Outstanding Fee Obligations</div>
+        <div id="pcFeeSummary" style="font-size:12px;color:var(--text-secondary);"></div>
+      </div>
+      <div id="pcFeesWrap" style="padding:16px;"></div>
+    </div>
+
+    <div class="card" style="margin-top:0;">
+      <div class="card-head">
+        <div class="card-title">📨 My Payment Claims</div>
+        <button onclick="loadPaymentCenter()"
+          style="padding:5px 12px;border-radius:8px;border:1px solid var(--border);
+          background:rgba(255,255,255,0.04);color:var(--text-secondary);
+          font-size:12px;cursor:pointer;font-family:inherit;">↺</button>
+      </div>
+      <div id="pcClaimsWrap" style="padding:16px;"></div>
+    </div>
+  </div>
+  <!-- END PAYMENT CENTER -->
 
   <!-- OVERVIEW -->
   <div class="section active" id="sec-overview">
@@ -259,6 +446,9 @@
   </div>
 </div>
 
+</div><!-- /.page-content -->
+</div><!-- /.main -->
+
 <!-- NO CHILDREN STATE -->
 <div id="noChildrenState" style="display:none;">
   <div class="empty" style="margin-top:60px;">
@@ -268,6 +458,11 @@
     <button class="btn-primary" onclick="openLinkModal()" style="margin-top:20px; max-width:240px;">＋ Link Child Now</button>
   </div>
 </div>
+
+</div><!-- /.page-content -->
+
+<!-- NO CHILDREN STATE — inside main but outside page-content -->
+</div><!-- /.main — ends here; modals/panels are outside .main below -->
 
 <!-- LINK CHILD MODAL -->
 <div class="overlay" id="linkModal">
@@ -406,10 +601,20 @@ var _cache      = {};   /* { studentId_tab: data } */
 document.addEventListener('DOMContentLoaded', async function() {
   if (!_token) { window.location.href = '/institution/parent/login.html'; return; }
   try {
-    var res  = await api('/auth/me');
+    var res = await api('/auth/me');
     if (!res.success) { doLogout(); return; }
     _parent = res.parent;
-    document.getElementById('parentName').textContent = _parent.name;
+    /* Update sidebar profile */
+    var nameEl = document.getElementById('sbParentName');
+    if (nameEl) nameEl.textContent = _parent.name || 'Parent';
+    var avEl = document.getElementById('sbAvatarWrap');
+    if (avEl) {
+      if (_parent.avatar) {
+        avEl.innerHTML = '<img src="' + _parent.avatar + '" style="width:44px;height:44px;object-fit:cover;" />';
+      } else {
+        avEl.textContent = (_parent.name || 'P').charAt(0).toUpperCase();
+      }
+    }
     await loadChildren();
     document.getElementById('pageLoader').style.display = 'none';
   } catch (e) {
@@ -481,21 +686,42 @@ function selectChild(child) {
 ============================================ */
 function showTab(tab) {
   _activeTab = tab;
-  document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
-  var tabMap = { overview:0, results:1, attendance:2, timetable:3, notifications:4 };
-  var btns = document.querySelectorAll('.tab-btn');
-  if (btns[tabMap[tab]]) { btns[tabMap[tab]].classList.add('active'); }
 
+  /* Update sidebar nav active state */
+  document.querySelectorAll('.nav-item[data-sec]').forEach(function(n) {
+    n.classList.toggle('active', n.dataset.sec === tab);
+  });
+
+  /* Hide all sections */
   document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
+
+  /* Show target section */
   var sec = document.getElementById('sec-' + tab);
   if (sec) { sec.classList.add('active'); }
 
+  /* Mobile: update mobile bar label + close sidebar */
+  if (window.innerWidth <= 768) { closeSidebar(); }
+
+  /* Load content */
   if      (tab === 'overview')       renderOverview();
+  else if (tab === 'payments')       loadPaymentCenter();
   else if (tab === 'results')        loadResults();
   else if (tab === 'fees')           loadFees();
   else if (tab === 'attendance')     loadAttendance();
   else if (tab === 'timetable')      loadTimetable();
   else if (tab === 'notifications')  loadNotifications();
+  else if (tab === 'messages')       loadMessages(_claimStudentId);
+}
+
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebarOverlay').classList.add('visible');
+  document.body.style.overflow = 'hidden';
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('visible');
+  document.body.style.overflow = '';
 }
 
 /* ============================================
@@ -902,7 +1128,10 @@ async function submitParentClaim() {
 
 /* ---- Claims History ---- */
 function renderParentClaims(data) {
-  var el = document.getElementById('feeClaimsContent');
+  /* Render into either Payment Center or Fees section depending on active tab */
+  var el = _activeTab === 'payments'
+    ? document.getElementById('pcClaimsWrap')
+    : document.getElementById('feeClaimsContent');
   if (!el) { return; }
 
   if (!data || !data.success) {
@@ -963,6 +1192,181 @@ function renderParentClaims(data) {
       '</div>' +
     '</div>';
   }).join('');
+}
+
+/* ============================================
+   PAYMENT CENTER (P10-C — Step 3)
+   Central payment-information + claim entry point.
+   Uses existing APIs — no new payment engine.
+   Accounts:  GET /children/:id/payment-accounts
+   Progress:  GET /children/:id/fee-progress
+   Claims:    GET /children/:id/claims
+   CTA opens: existing openPaymentPicker() → submitParentClaim()
+============================================ */
+async function loadPaymentCenter() {
+  if (!_activeChild) { return; }
+  _claimStudentId = _activeChild._id;
+
+  var accountsEl = document.getElementById('pcAccountsWrap');
+  var feesEl     = document.getElementById('pcFeesWrap');
+  var claimsEl   = document.getElementById('pcClaimsWrap');
+  if (accountsEl) accountsEl.innerHTML = loadingHTML();
+  if (feesEl)     feesEl.innerHTML     = loadingHTML();
+  if (claimsEl)   claimsEl.innerHTML   = loadingHTML();
+
+  /* Load all three in parallel */
+  var results = await Promise.all([
+    api('/children/' + _activeChild._id + '/payment-accounts'),
+    api('/children/' + _activeChild._id + '/fee-progress'),
+    api('/children/' + _activeChild._id + '/claims')
+  ]);
+
+  renderPcAccounts(results[0]);
+  renderPcFees(results[1]);
+  renderParentClaims(results[2]);   /* reuse existing render function */
+  /* Point the existing claims render at pcClaimsWrap */
+  var old = document.getElementById('feeClaimsContent');
+  var pc  = document.getElementById('pcClaimsWrap');
+  if (old && pc) { pc.innerHTML = old.innerHTML; }
+}
+
+function renderPcAccounts(data) {
+  var el = document.getElementById('pcAccountsWrap');
+  if (!el) { return; }
+
+  var accounts = (data && data.success && data.accounts) ? data.accounts : [];
+  if (!accounts.length) {
+    el.innerHTML =
+      '<div class="empty">' +
+        '<div class="empty-icon">🏦</div>' +
+        '<div class="empty-text">No payment accounts configured yet.</div>' +
+        '<div class="empty-text" style="font-size:12px;margin-top:6px;line-height:1.6;">' +
+          'The school Finance team will add payment accounts here.' +
+        '</div>' +
+      '</div>';
+    return;
+  }
+
+  el.innerHTML = accounts.map(function(a, idx) {
+    return '<div class="pc-account-card">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;' +
+           'gap:10px;flex-wrap:wrap;margin-bottom:12px;">' +
+        '<div>' +
+          '<div style="font-size:16px;font-weight:800;color:#fff;">🏦 ' +
+            esc(a.bankName) + '</div>' +
+          '<div style="font-size:12px;color:#a78bfa;font-weight:600;margin-top:2px;">' +
+            esc(a.accountLabel || '') + '</div>' +
+        '</div>' +
+        '<span style="background:rgba(108,99,255,0.12);color:#a78bfa;padding:3px 10px;' +
+               'border-radius:20px;font-size:12px;font-weight:700;flex-shrink:0;">' +
+          esc(a.currency) + '</span>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:auto 1fr;gap:5px 14px;' +
+           'align-items:center;font-size:13px;margin-bottom:12px;">' +
+        '<span style="color:var(--text-muted);">Account Name</span>' +
+        '<strong style="color:#fff;">' + esc(a.accountName) + '</strong>' +
+        '<span style="color:var(--text-muted);">Account Number</span>' +
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+          '<strong style="color:#fff;font-family:monospace;font-size:15px;letter-spacing:1px;">' +
+            esc(a.accountNumber) + '</strong>' +
+          '<button class="pc-copy-btn" ' +
+            'onclick="pcCopyDetail(\'' + esc(a.accountNumber) + '\',\'' + esc(a.bankName) + '\')">' +
+            '📋 Copy</button>' +
+        '</div>' +
+        (a.country ? '<span style="color:var(--text-muted);">Country</span>' +
+          '<span style="color:var(--text-secondary);">' + esc(a.country) + '</span>' : '') +
+      '</div>' +
+      (a.instructions ?
+        '<div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);' +
+             'border-radius:8px;padding:10px 12px;font-size:12px;color:var(--text-muted);' +
+             'line-height:1.7;">📋 ' + esc(a.instructions) + '</div>'
+        : '') +
+    '</div>';
+  }).join('');
+}
+
+function renderPcFees(data) {
+  var el      = document.getElementById('pcFeesWrap');
+  var sumEl   = document.getElementById('pcFeeSummary');
+  if (!el) { return; }
+
+  if (!data || !data.success) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div>' +
+      '<div class="empty-text">Could not load fee obligations.</div></div>';
+    return;
+  }
+
+  var summary = data.summary || {};
+  var items   = (data.progressItems || []).filter(function(item) {
+    return (item.progress || {}).remaining > 0;
+  });
+
+  if (sumEl && summary.currency) {
+    sumEl.innerHTML =
+      '<span style="color:var(--error);font-weight:700;">Owed: ' +
+        fmtMoney(summary.totalRemaining, summary.currency) + '</span>' +
+      ' &nbsp;·&nbsp; <span style="color:var(--success);">Paid: ' +
+        fmtMoney(summary.totalAllocated, summary.currency) + '</span>';
+  }
+
+  if (!items.length) {
+    el.innerHTML =
+      '<div class="empty">' +
+        '<div class="empty-icon">✅</div>' +
+        '<div class="empty-text" style="color:var(--success);font-weight:700;">' +
+          'No outstanding fees!' +
+        '</div>' +
+        '<div class="empty-text" style="font-size:12px;margin-top:6px;">All fee obligations are paid.</div>' +
+      '</div>';
+    return;
+  }
+
+  el.innerHTML = items.map(function(item) {
+    var p  = item.progress || {};
+    var fs = item.feeStructureId || {};
+    var tm = item.termId         || {};
+    var barColor = p.status === 'partial' ? 'var(--warn)' : 'var(--error)';
+
+    return '<div class="pc-fee-item">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;' +
+           'flex-wrap:wrap;gap:8px;margin-bottom:10px;">' +
+        '<div>' +
+          '<div style="font-size:15px;font-weight:700;color:#fff;">' + esc(fs.name || 'Fee') + '</div>' +
+          '<div style="font-size:12px;color:var(--text-muted);margin-top:2px;">' +
+            esc(tm.name || '') + (tm.session ? ' · ' + esc(tm.session) : '') +
+          '</div>' +
+        '</div>' +
+        '<div style="text-align:right;">' +
+          '<div style="font-size:18px;font-weight:900;color:var(--error);">' +
+            fmtMoney(p.remaining, p.currency) + '</div>' +
+          '<div style="font-size:11px;color:var(--text-muted);">remaining</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="background:rgba(255,255,255,0.06);border-radius:6px;height:6px;overflow:hidden;margin-bottom:10px;">' +
+        '<div style="width:' + (p.percentage || 0) + '%;height:100%;border-radius:6px;' +
+             'background:' + (p.status === 'partial' ? 'var(--warn)' : 'var(--error)') + ';' +
+             'transition:width 0.5s;"></div>' +
+      '</div>' +
+      '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">' +
+        'Paid: ' + fmtMoney(p.totalAllocated, p.currency) +
+        ' of ' + fmtMoney(p.netObligation, p.currency) +
+        ' &nbsp;·&nbsp; ' + (p.percentage || 0) + '% complete' +
+      '</div>' +
+      '<button class="pc-cta-btn" ' +
+        'onclick="openPaymentPicker(\'' + esc(item._id) + '\',' +
+        (p.remaining || 0) + ',\'' + esc(p.currency || '') + '\')">' +
+        '✅ I Have Made This Payment' +
+      '</button>' +
+    '</div>';
+  }).join('');
+}
+
+function pcCopyDetail(number, bank) {
+  navigator.clipboard.writeText(number).then(function() {
+    showToast('📋 Copied: ' + number + ' (' + bank + ')', 'var(--success)');
+  }).catch(function() {
+    showToast('Account: ' + number, 'var(--text-primary)');
+  });
 }
 
 /* ============================================
