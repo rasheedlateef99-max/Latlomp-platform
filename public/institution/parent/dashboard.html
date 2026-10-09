@@ -447,22 +447,72 @@
 </div>
 
 </div><!-- /.page-content -->
-</div><!-- /.main -->
 
-<!-- NO CHILDREN STATE -->
+
+<!-- NO CHILDREN STATE — inside .main so sidebar stays visible -->
 <div id="noChildrenState" style="display:none;">
-  <div class="empty" style="margin-top:60px;">
+  <div class="empty" style="margin-top:60px;padding:40px 20px;">
     <div class="empty-icon">👨‍👩‍👧</div>
-    <div class="empty-text" style="font-size:16px; font-weight:700; color:var(--text-primary); margin-bottom:8px;">No children linked yet</div>
-    <div class="empty-text">Link your child's school account to view their progress.</div>
-    <button class="btn-primary" onclick="openLinkModal()" style="margin-top:20px; max-width:240px;">＋ Link Child Now</button>
+    <div class="empty-text" style="font-size:16px;font-weight:700;color:var(--text-primary);margin-bottom:8px;">No children linked yet</div>
+    <div class="empty-text">Your school will send you an invitation link to link your child.</div>
+    <button class="btn-primary" onclick="openLinkModal()" style="margin-top:20px;max-width:240px;">＋ Link Child</button>
   </div>
 </div>
+
+</div><!-- /.main -->
 
 </div><!-- /.page-content -->
 
 <!-- NO CHILDREN STATE — inside main but outside page-content -->
 </div><!-- /.main — ends here; modals/panels are outside .main below -->
+
+<!-- ===== STEP 4: STICKY MESSAGING CTA ===== -->
+<div id="stickyCta"
+  style="position:fixed;bottom:0;left:250px;right:0;z-index:350;
+    background:linear-gradient(135deg,rgba(26,26,46,0.98),rgba(15,15,26,0.98));
+    border-top:1px solid var(--border);
+    padding:12px 20px;
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    backdrop-filter:blur(8px);
+    transform:translateY(0);
+    transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);">
+  <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+    <span style="font-size:20px;flex-shrink:0;">💬</span>
+    <div style="min-width:0;">
+      <div style="font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+        Questions for the teacher?
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">
+        Send a direct message
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+    <button onclick="showTab('messages')"
+      style="padding:8px 16px;border-radius:9px;
+        background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+        border:none;color:#fff;font-size:13px;font-weight:700;
+        cursor:pointer;font-family:inherit;white-space:nowrap;">
+      Send Message
+    </button>
+    <button onclick="dismissStickyCta()"
+      title="Dismiss"
+      style="background:rgba(255,255,255,0.06);border:1px solid var(--border);
+        border-radius:8px;color:var(--text-muted);cursor:pointer;
+        font-size:14px;padding:6px 9px;line-height:1;font-family:inherit;">
+      ✕
+    </button>
+  </div>
+</div>
+<!-- END STICKY CTA -->
+
+<!-- Adjust sticky CTA left offset on mobile -->
+<style>
+  @media (max-width:768px) {
+    #stickyCta { left:0; }
+    .page-content { padding-bottom:72px !important; }
+  }
+</style>
 
 <!-- LINK CHILD MODAL -->
 <div class="overlay" id="linkModal">
@@ -666,19 +716,24 @@ function renderChildBar() {
 }
 
 function selectChild(child) {
-  _activeChild = child;
-  _cache = {};   /* clear cache on child switch */
+  _activeChild      = child;
+  _currentStudentId = child._id;   /* E7 compatibility — must be the ID string */
+  _claimStudentId   = child._id;   /* payment flow */
+  _cache            = {};
 
   /* Update pill active state */
   document.querySelectorAll('.child-pill').forEach(function(p) { p.classList.remove('active'); });
   var pill = document.getElementById('pill_' + child._id);
   if (pill) { pill.classList.add('active'); }
 
-  document.getElementById('noChildrenState').style.display = 'none';
-  document.getElementById('tabBar').style.display          = 'flex';
-  document.getElementById('mainContent').style.display     = 'block';
+  var noChildEl = document.getElementById('noChildrenState');
+  if (noChildEl) { noChildEl.style.display = 'none'; }
 
-  showTab(_activeTab);
+  /* Show the main content wrapper (starts display:none until a child is selected) */
+  var mc = document.getElementById('mainContent');
+  if (mc) { mc.style.display = 'block'; }
+
+  showTab(_activeTab || 'overview');
 }
 
 /* ============================================
@@ -687,30 +742,36 @@ function selectChild(child) {
 function showTab(tab) {
   _activeTab = tab;
 
-  /* Update sidebar nav active state */
+  /* 1. Hide all .section elements (non-E7) */
+  document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
+
+  /* 2. Also reset E7 tab sections which use inline display style */
+  ['timeline','progress','homework','alerts','messages','announcements','events'].forEach(function(n) {
+    var s = document.getElementById('sec-' + n);
+    if (s) { s.style.display = 'none'; }
+  });
+
+  /* 3. Show the target section */
+  var sec = document.getElementById('sec-' + tab);
+  if (sec) { sec.classList.add('active'); }
+
+  /* 4. Update sidebar nav active state */
   document.querySelectorAll('.nav-item[data-sec]').forEach(function(n) {
     n.classList.toggle('active', n.dataset.sec === tab);
   });
 
-  /* Hide all sections */
-  document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
-
-  /* Show target section */
-  var sec = document.getElementById('sec-' + tab);
-  if (sec) { sec.classList.add('active'); }
-
-  /* Mobile: update mobile bar label + close sidebar */
+  /* 5. Close sidebar on mobile */
   if (window.innerWidth <= 768) { closeSidebar(); }
 
-  /* Load content */
-  if      (tab === 'overview')       renderOverview();
-  else if (tab === 'payments')       loadPaymentCenter();
-  else if (tab === 'results')        loadResults();
-  else if (tab === 'fees')           loadFees();
-  else if (tab === 'attendance')     loadAttendance();
-  else if (tab === 'timetable')      loadTimetable();
-  else if (tab === 'notifications')  loadNotifications();
-  else if (tab === 'messages')       loadMessages(_claimStudentId);
+  /* 6. Load content for this section */
+  if      (tab === 'overview')      { renderOverview(); }
+  else if (tab === 'payments')      { loadPaymentCenter(); }
+  else if (tab === 'results')       { loadResults(); }
+  else if (tab === 'fees')          { loadFees(); }
+  else if (tab === 'attendance')    { loadAttendance(); }
+  else if (tab === 'timetable')     { loadTimetable(); }
+  else if (tab === 'notifications') { loadNotifications(); }
+  else if (tab === 'messages')      { loadMessages(_currentStudentId); }
 }
 
 function openSidebar() {
@@ -1549,6 +1610,44 @@ function esc(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+/* ── Sticky CTA: dismiss for this session ── */
+function dismissStickyCta() {
+  var cta = document.getElementById('stickyCta');
+  if (cta) {
+    cta.style.transform = 'translateY(110%)';
+    /* Remove bottom padding reservation */
+    var pc = document.getElementById('mainContent');
+    if (pc) { pc.style.paddingBottom = ''; }
+  }
+  try { sessionStorage.setItem('ctaDismissed', '1'); } catch(e) {}
+}
+
+/* Hide if already dismissed this session */
+(function() {
+  try {
+    if (sessionStorage.getItem('ctaDismissed') === '1') {
+      /* Defer until DOM is ready */
+      document.addEventListener('DOMContentLoaded', function() {
+        var cta = document.getElementById('stickyCta');
+        if (cta) { cta.style.transform = 'translateY(110%)'; }
+      });
+    }
+  } catch(e) {}
+})();
+
+/* Also hide sticky CTA when the Messages section is open (redundant with it being visible) */
+var _stickyCtaOrigShowTab = window.showTab;
+window.showTab = function(tab) {
+  if (typeof _stickyCtaOrigShowTab === 'function') { _stickyCtaOrigShowTab(tab); }
+  var cta = document.getElementById('stickyCta');
+  if (!cta) { return; }
+  try {
+    if (sessionStorage.getItem('ctaDismissed') === '1') { return; }
+  } catch(e) {}
+  /* Hide CTA when messages section is open — it would be redundant */
+  cta.style.transform = (tab === 'messages') ? 'translateY(110%)' : 'translateY(0)';
+};
+
 function doLogout() {
   localStorage.removeItem('parentToken');
   localStorage.removeItem('parentUser');
@@ -1558,11 +1657,6 @@ function doLogout() {
 /* ✅ E7: New tab sections */
 var _currentStudentId = null; /* set when a child is selected */
 
-function selectChild(studentId) {
-  _currentStudentId = studentId;
-  /* existing child selection logic — call new sections too */
-  loadAlertsForChild(studentId);
-}
 
 /* Timeline */
 async function loadTimeline(studentId) {
