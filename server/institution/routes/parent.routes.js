@@ -1192,12 +1192,16 @@ router.get('/children/:studentId/alerts', async function(req, res) {
   }
 });
 
-/* ============================================
-   ✅ E7: GET /children/:studentId/messages
+/* C3: GET /children/:studentId/messages
    Parent-side message threads for a specific child.
-============================================ */
+   Populates teacherId for recipient name display.
+   Includes recipientType for grouping in the UI.
+*/
 router.get('/children/:studentId/messages', async function(req, res) {
   try {
+    if (!mongoose.isValidObjectId(req.params.studentId)) {
+      return res.status(400).json({ success: false, message: 'Invalid student ID.' });
+    }
     if (!isLinkedTo(req.parent, req.params.studentId)) {
       return res.status(403).json({ success: false, message: 'Access denied.' });
     }
@@ -1207,6 +1211,7 @@ router.get('/children/:studentId/messages', async function(req, res) {
       parentId:  req.parent._id,
       studentId: req.params.studentId
     })
+    .populate('teacherId', 'name role')
     .sort({ lastMessageAt: -1 })
     .lean();
 
@@ -1217,18 +1222,141 @@ router.get('/children/:studentId/messages', async function(req, res) {
   }
 });
 
+
 /* ============================================
-   ✅ E7: POST /children/:studentId/messages
-   Parent sends a new message or replies to thread.
-   Body: { body, subject? }
+   C3: GET /children/:studentId/available-recipients
+
+   Returns the resolvable staff contacts a parent
+   can message for a specific linked child.
+   All resolution is server-side — client supplies
+   only studentId (IDOR-verified via isLinkedTo).
+
+   Three categories resolved from actual school data:
+   class_teacher → student.classId → SchoolUser
+   school_admin  → SchoolUser by senior role at school
+   finance       → SchoolUser by finance role at school
 ============================================ */
-router.post('/children/:studentId/messages', async function(req, res) {
+router.get('/children/:studentId/available-recipients', async function(req, res) {
   try {
+    if (!mongoose.isValidObjectId(req.params.studentId)) {
+      return res.status(400).json({ success: false, message: 'Invalid student ID.' });
+    }
     if (!isLinkedTo(req.parent, req.params.studentId)) {
       return res.status(403).json({ success: false, message: 'Access denied.' });
     }
 
-    var { body, subject } = req.body;
+    var link = req.parent.linkedStudents.find(function(ls) {
+      return ls.studentId.toString() === req.params.studentId;
+    });
+    if (!link) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    var SchoolUserModel = require('../models/SchoolUser.model');
+    var SchoolStudentModel = require('../models/SchoolStudent.model');
+
+    /* Resolve student to get classId for class-teacher lookup */
+    var student = await SchoolStudentModel.findOne({
+      _id:      req.params.studentId,
+      schoolId: link.schoolId
+    }).select('classId class arm').lean();
+
+    var recipients = [];
+
+    /* ── Class Teacher ── */
+    var classTeacher = null;
+    if (student && student.classId) {
+      classTeacher = await SchoolUserModel.findOne({
+        schoolId: link.schoolId,
+        classId:  student.classId,
+        role:     'class_teacher',
+        isActive: { $ne: false }
+      }).select('_id name role').lean();
+    }
+    recipients.push({
+      type:          'class_teacher',
+      label:         'Class Teacher',
+      icon:          '👩‍🏫',
+      description:   classTeacher
+        ? classTeacher.name + ' — your child\'s class teacher'
+        : 'No class teacher currently assigned' +
+          (student && student.class ? ' for ' + student.class : ''),
+      recipientId:   classTeacher ? classTeacher._id  : null,
+      recipientName: classTeacher ? classTeacher.name : null,
+      available:     !!classTeacher
+    });
+
+    /* ── School Administration ── */
+    var adminUser = await SchoolUserModel.findOne({
+      schoolId: link.schoolId,
+      role:     { $in: ['principal', 'vice_principal', 'school_admin'] },
+      isActive: { $ne: false }
+    }).select('_id name role').lean();
+
+    recipients.push({
+      type:          'school_admin',
+      label:         'School Administration',
+      icon:          '🏫',
+      description:   adminUser
+        ? 'Contact the school office — ' + adminUser.name
+        : 'School administration not currently available',
+      recipientId:   adminUser ? adminUser._id  : null,
+      recipientName: adminUser ? adminUser.name : null,
+      available:     !!adminUser
+    });
+
+    /* ── Finance Department ── */
+    var financeUser = await SchoolUserModel.findOne({
+      schoolId: link.schoolId,
+      role:     { $in: ['bursar', 'school_admin'] },
+      isActive: { $ne: false }
+    }).select('_id name role').lean();
+
+    recipients.push({
+      type:          'finance',
+      label:         'Finance Department',
+      icon:          '💳',
+      description:   financeUser
+        ? 'Questions about fees and payments — ' + financeUser.name
+        : 'Finance contact not currently available',
+      recipientId:   financeUser ? financeUser._id  : null,
+      recipientName: financeUser ? financeUser.name : null,
+      available:     !!financeUser
+    });
+
+    return res.json({ success: true, recipients });
+  } catch(err) {
+    console.error('[Parent] GET /available-recipients:', err.message);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ============================================
+   C3: POST /children/:studentId/messages
+   Parent sends a message to a specific recipient type.
+   Body: { body, recipientType?, subject? }
+
+   recipientType: 'class_teacher' | 'school_admin' | 'finance'
+   Defaults to 'class_teacher' for backward compatibility.
+
+   Recipient is ALWAYS resolved server-side from the
+   authenticated school context. Client recipientId is
+   never trusted — only recipientType string is accepted.
+
+   Each recipientType creates/uses its own thread so a
+   parent can have separate conversations with the class
+   teacher, school admin, and finance simultaneously.
+============================================ */
+router.post('/children/:studentId/messages', async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.studentId)) {
+      return res.status(400).json({ success: false, message: 'Invalid student ID.' });
+    }
+    if (!isLinkedTo(req.parent, req.params.studentId)) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    var { body, subject, recipientType } = req.body;
     if (!body || !body.trim()) {
       return res.status(400).json({ success: false, message: 'Message body is required.' });
     }
@@ -1236,16 +1364,87 @@ router.post('/children/:studentId/messages', async function(req, res) {
     var link = req.parent.linkedStudents.find(function(ls) {
       return ls.studentId.toString() === req.params.studentId;
     });
-    if (!link) { return res.status(403).json({ success: false, message: 'Access denied.' }); }
+    if (!link) {
+      return res.status(403).json({ success: false, message: 'Access denied.' });
+    }
+
+    /* Validate and normalize recipientType */
+    var VALID_TYPES = ['class_teacher', 'school_admin', 'finance'];
+    var reqType     = (recipientType && VALID_TYPES.includes(recipientType))
+      ? recipientType
+      : 'class_teacher'; /* backward-compatible default */
+
+    /* Resolve actual recipient server-side — client cannot supply recipientId */
+    var SchoolUserModel    = require('../models/SchoolUser.model');
+    var SchoolStudentModel = require('../models/SchoolStudent.model');
+    var resolvedTeacherId   = null;
+    var resolvedTeacherName = '';
+
+    if (reqType === 'class_teacher') {
+      var student = await SchoolStudentModel.findOne({
+        _id:      req.params.studentId,
+        schoolId: link.schoolId
+      }).select('classId').lean();
+
+      if (student && student.classId) {
+        var ct = await SchoolUserModel.findOne({
+          schoolId: link.schoolId,
+          classId:  student.classId,
+          role:     'class_teacher',
+          isActive: { $ne: false }
+        }).select('_id name').lean();
+        if (ct) { resolvedTeacherId = ct._id; resolvedTeacherName = ct.name; }
+      }
+
+      if (!resolvedTeacherId) {
+        return res.status(422).json({
+          success: false,
+          message: 'No class teacher is currently assigned for this student\'s class. ' +
+                   'Please contact the school administration instead.'
+        });
+      }
+
+    } else if (reqType === 'school_admin') {
+      var adm = await SchoolUserModel.findOne({
+        schoolId: link.schoolId,
+        role:     { $in: ['principal', 'vice_principal', 'school_admin'] },
+        isActive: { $ne: false }
+      }).select('_id name').lean();
+      if (adm) { resolvedTeacherId = adm._id; resolvedTeacherName = adm.name; }
+
+      if (!resolvedTeacherId) {
+        return res.status(422).json({
+          success: false,
+          message: 'School administration is not currently available. Please try again later.'
+        });
+      }
+
+    } else if (reqType === 'finance') {
+      var fin = await SchoolUserModel.findOne({
+        schoolId: link.schoolId,
+        role:     { $in: ['bursar', 'school_admin'] },
+        isActive: { $ne: false }
+      }).select('_id name').lean();
+      if (fin) { resolvedTeacherId = fin._id; resolvedTeacherName = fin.name; }
+
+      if (!resolvedTeacherId) {
+        return res.status(422).json({
+          success: false,
+          message: 'Finance department is not currently available. Please try again later.'
+        });
+      }
+    }
 
     var SchoolMessage = require('../models/SchoolMessage.model');
 
-    /* Find existing open thread or create new */
+    /* One open thread per recipientType per student-parent pair.
+       Appending to existing thread if same audience, new thread otherwise. */
     var existing = await SchoolMessage.findOne({
-      schoolId:  link.schoolId,
-      studentId: req.params.studentId,
-      parentId:  req.parent._id,
-      status:    'open'
+      schoolId:      link.schoolId,
+      studentId:     req.params.studentId,
+      parentId:      req.parent._id,
+      recipientType: reqType,
+      status:        'open'
     });
 
     if (existing) {
@@ -1259,19 +1458,32 @@ router.post('/children/:studentId/messages', async function(req, res) {
       existing.lastMessageAt = new Date();
       existing.lastMessageBy = 'parent';
       await existing.save();
-      return res.json({ success: true, message: 'Message sent.', messageId: existing._id });
+      return res.json({
+        success:   true,
+        message:   'Message sent.',
+        messageId: existing._id
+      });
     }
 
-    /* New thread */
+    /* Create new thread for this recipient type */
+    var recipientLabels = {
+      class_teacher: 'Class Teacher',
+      school_admin:  'School Administration',
+      finance:       'Finance Department'
+    };
     var newMessage = await SchoolMessage.create({
-      schoolId:     link.schoolId,
-      studentId:    req.params.studentId,
-      parentId:     req.parent._id,
-      subject:      (subject || '').trim(),
-      initiatedBy:  'parent',
-      status:       'open',
-      lastMessageAt:new Date(),
-      lastMessageBy:'parent',
+      schoolId:      link.schoolId,
+      studentId:     req.params.studentId,
+      parentId:      req.parent._id,
+      teacherId:     resolvedTeacherId,
+      teacherName:   resolvedTeacherName,
+      recipientType: reqType,
+      subject:       (subject || '').trim() ||
+                     ('Message to ' + (resolvedTeacherName || recipientLabels[reqType] || 'School')),
+      initiatedBy:   'parent',
+      status:        'open',
+      lastMessageAt: new Date(),
+      lastMessageBy: 'parent',
       thread: [{
         senderId:   req.parent._id,
         senderType: 'parent',
@@ -1283,7 +1495,7 @@ router.post('/children/:studentId/messages', async function(req, res) {
 
     return res.status(201).json({
       success:   true,
-      message:   'Message sent. A teacher will respond shortly.',
+      message:   'Message sent to ' + (resolvedTeacherName || recipientLabels[reqType]) + '.',
       messageId: newMessage._id
     });
   } catch(err) {

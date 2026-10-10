@@ -398,16 +398,95 @@
   <div id="alertsContent"><div class="loading-msg">Checking alerts...</div></div>
 </div>
 
-<!-- ✅ E7: MESSAGES SECTION -->
-<div id="sec-messages" class="tab-section" style="display:none;">
-  <div class="section-header"><h2>💬 Messages</h2></div>
-  <div id="messagesContent"><div class="loading-msg">Loading messages...</div></div>
-  <div id="newMessageForm" style="margin-top:16px;display:none;">
-    <textarea id="msgBody" placeholder="Type your message..." rows="3"
-              style="width:100%;padding:10px;border-radius:8px;border:1px solid #333;background:#1a1a2e;color:#fff;font-family:inherit;resize:vertical;"></textarea>
-    <button onclick="sendParentMessage()" style="margin-top:8px;padding:8px 20px;">Send Message</button>
+<!-- MESSAGES SECTION (C3 — proper implementation with recipient selection) -->
+<div class="section" id="sec-messages">
+
+  <!-- Header card with recipient picker + compose -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">💬 Messages</div>
+      <button onclick="toggleNewMsgForm()" id="newMsgBtn"
+        style="padding:7px 14px;border-radius:9px;
+          background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+          border:none;color:#fff;font-size:13px;font-weight:700;
+          cursor:pointer;font-family:inherit;">+ New Message</button>
+    </div>
+
+    <!-- Recipient picker + compose (hidden until button clicked) -->
+    <div id="msgNewForm" style="display:none;border-top:1px solid var(--border);padding:16px;">
+      <div style="font-size:13px;font-weight:700;color:var(--text-secondary);margin-bottom:10px;">
+        Who do you want to contact?
+      </div>
+      <div id="msgRecipientList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:0;">
+        <div style="text-align:center;padding:14px;color:var(--text-muted);font-size:13px;">
+          <span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.2);
+            border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;"></span>
+          Loading...
+        </div>
+      </div>
+
+      <!-- Compose area — shown after recipient selected -->
+      <div id="msgComposeArea" style="display:none;margin-top:12px;">
+        <div id="msgSelectedRecipient"></div>
+        <textarea id="msgNewBody" placeholder="Type your message…" rows="3"
+          style="width:100%;padding:11px 13px;background:rgba(255,255,255,0.04);
+            border:1px solid var(--border);border-radius:9px;color:#fff;
+            font-size:14px;font-family:inherit;outline:none;resize:vertical;
+            min-height:70px;margin-bottom:10px;box-sizing:border-box;"></textarea>
+        <div id="msgNewErr"
+          style="display:none;font-size:12px;color:var(--error);margin-bottom:8px;"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button id="msgSendBtn" onclick="sendNewMsg()"
+            style="padding:9px 20px;border-radius:9px;
+              background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+              border:none;color:#fff;font-size:13px;font-weight:700;
+              cursor:pointer;font-family:inherit;">Send →</button>
+          <button onclick="closeMsgCompose()"
+            style="padding:9px 16px;border-radius:9px;
+              background:rgba(255,255,255,0.06);border:1px solid var(--border);
+              color:var(--text-secondary);font-size:13px;font-weight:600;
+              cursor:pointer;font-family:inherit;">Cancel</button>
+        </div>
+      </div>
+    </div>
   </div>
+
+  <!-- Conversation list -->
+  <div id="msgConvListWrap" style="margin-top:0;"></div>
+
+  <!-- Thread view — shown when a conversation is opened -->
+  <div id="msgThreadWrap" style="display:none;margin-top:0;">
+    <div class="card">
+      <div class="card-head" style="gap:12px;">
+        <button onclick="closeMsgThread()"
+          style="padding:6px 14px;border-radius:8px;flex-shrink:0;
+            background:rgba(255,255,255,0.06);border:1px solid var(--border);
+            color:var(--text-secondary);font-size:13px;cursor:pointer;
+            font-family:inherit;white-space:nowrap;">← Back</button>
+        <div id="msgThreadTitle" style="min-width:0;"></div>
+      </div>
+      <div id="msgThreadMessages"
+        style="padding:16px;max-height:50vh;overflow-y:auto;
+          display:flex;flex-direction:column;gap:10px;"></div>
+      <div style="padding:14px 16px;border-top:1px solid var(--border);">
+        <textarea id="msgReplyBody" placeholder="Type a reply…" rows="2"
+          style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.04);
+            border:1px solid var(--border);border-radius:9px;color:#fff;
+            font-size:14px;font-family:inherit;outline:none;resize:none;
+            margin-bottom:8px;box-sizing:border-box;"></textarea>
+        <div id="msgReplyErr"
+          style="display:none;font-size:12px;color:var(--error);margin-bottom:6px;"></div>
+        <button onclick="sendMsgReply()" id="msgReplyBtn"
+          style="padding:9px 20px;border-radius:9px;
+            background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+            border:none;color:#fff;font-size:13px;font-weight:700;
+            cursor:pointer;font-family:inherit;">Send Reply →</button>
+      </div>
+    </div>
+  </div>
+
 </div>
+<!-- END MESSAGES SECTION -->
 
 <!-- ✅ E7: ANNOUNCEMENTS SECTION -->
 <div id="sec-announcements" class="tab-section" style="display:none;">
@@ -746,7 +825,8 @@ function showTab(tab) {
   document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
 
   /* 2. Also reset E7 tab sections which use inline display style */
-  ['timeline','progress','homework','alerts','messages','announcements','events'].forEach(function(n) {
+  /* 'messages' is now a proper .section element — removed from E7 inline-style list */
+  ['timeline','progress','homework','alerts','announcements','events'].forEach(function(n) {
     var s = document.getElementById('sec-' + n);
     if (s) { s.style.display = 'none'; }
   });
@@ -1765,129 +1845,423 @@ async function loadAlertsForChild(studentId) {
     }).join('');
   } catch(e) { content.innerHTML = '<p>Alerts unavailable.</p>'; }
 }
+/* ============================================
+   C3 — MESSAGING WITH RECIPIENT SELECTION
+   Replaces the E7 stub implementation.
+   Uses actual SchoolMessage model + recipient
+   resolution from the server.
+============================================ */
+var _messageStudentId    = null;
+var _availableRecipients = [];
+var _selectedRecipient   = null;
+var _activeThreadId      = null;
 
-/* Messages */
-var _messageStudentId = null;
 async function loadMessages(studentId) {
   var sid = studentId || _currentStudentId;
-  if (!sid) return;
+  if (!sid) {
+    var listWrap = document.getElementById('msgConvListWrap');
+    if (listWrap) listWrap.innerHTML =
+      '<div class="card" style="margin-top:0;"><div style="padding:28px;text-align:center;' +
+      'color:var(--text-muted);font-size:13px;">Select a child first.</div></div>';
+    return;
+  }
   _messageStudentId = sid;
-  var content = document.getElementById('messagesContent');
-  if (!content) return;
-  try {
-    var res  = await parentApi('/children/' + sid + '/messages');
-    var data = res.data;
-    var formEl = document.getElementById('newMessageForm');
-    if (formEl) formEl.style.display = 'block';
-    if (!data.success || !data.messages.length) {
-      content.innerHTML = '<p style="color:#888;">No messages yet. Use the form below to contact a teacher.</p>';
-      return;
+
+  /* Reset to list view */
+  closeMsgThread();
+  var form = document.getElementById('msgNewForm');
+  if (form) { form.style.display = 'none'; }
+  var btn  = document.getElementById('newMsgBtn');
+  if (btn)  { btn.textContent = '+ New Message'; }
+
+  var listWrap = document.getElementById('msgConvListWrap');
+  if (listWrap) listWrap.innerHTML =
+    '<div class="card" style="margin-top:0;"><div style="padding:24px;text-align:center;">' +
+    '<span style="display:inline-block;width:20px;height:20px;border:2px solid rgba(255,255,255,0.1);' +
+    'border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;"></span></div></div>';
+
+  /* Load conversations + pre-fetch recipients in parallel */
+  var results = await Promise.all([
+    api('/children/' + sid + '/messages'),
+    api('/children/' + sid + '/available-recipients')
+  ]);
+
+  var msgRes  = results[0] || {};
+  var recpRes = results[1] || {};
+
+  _availableRecipients = (recpRes.success && recpRes.recipients) ? recpRes.recipients : [];
+
+  renderMsgConvList(msgRes.messages || []);
+}
+
+function renderMsgConvList(messages) {
+  var listWrap = document.getElementById('msgConvListWrap');
+  if (!listWrap) { return; }
+
+  if (!messages.length) {
+    listWrap.innerHTML =
+      '<div class="card" style="margin-top:0;">' +
+        '<div style="padding:36px 20px;text-align:center;">' +
+          '<div style="font-size:36px;margin-bottom:10px;">💬</div>' +
+          '<div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:6px;">No messages yet</div>' +
+          '<div style="font-size:13px;color:var(--text-muted);line-height:1.7;margin-bottom:16px;">' +
+            'Start a conversation with your child\'s class teacher,<br/>school administration, or Finance.' +
+          '</div>' +
+          '<button onclick="toggleNewMsgForm()" ' +
+            'style="padding:10px 20px;border-radius:10px;' +
+            'background:linear-gradient(135deg,var(--primary),var(--primary-dark));' +
+            'border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">' +
+            '+ Start a Conversation</button>' +
+        '</div>' +
+      '</div>';
+    return;
+  }
+
+  var rCfg = {
+    class_teacher: { label:'Class Teacher',       icon:'👩‍🏫' },
+    school_admin:  { label:'School Administration', icon:'🏫' },
+    finance:       { label:'Finance Department',    icon:'💳' },
+    general:       { label:'School',                icon:'🏫' }
+  };
+
+  listWrap.innerHTML =
+    '<div style="display:flex;flex-direction:column;gap:12px;">' +
+    messages.map(function(m) {
+      var cfg       = rCfg[m.recipientType] || rCfg.general;
+      var recipient = (m.teacherId && m.teacherId.name) ? m.teacherId.name : (m.teacherName || cfg.label);
+      var lastMsg   = m.thread && m.thread.length ? m.thread[m.thread.length - 1] : null;
+      var unreadCt  = m.thread
+        ? m.thread.filter(function(e) { return e.senderType !== 'parent' && !e.readAt; }).length
+        : 0;
+      var dateStr   = m.lastMessageAt
+        ? new Date(m.lastMessageAt).toLocaleDateString('en-NG', { day:'numeric', month:'short' })
+        : '';
+      var preview   = lastMsg
+        ? lastMsg.body.substring(0, 80) + (lastMsg.body.length > 80 ? '…' : '')
+        : 'No messages yet';
+
+      return '<div onclick="viewMsgThread(\'' + m._id + '\')" ' +
+        'style="background:' + (unreadCt > 0 ? 'rgba(108,99,255,0.08)' : 'rgba(255,255,255,0.02)') + ';' +
+        'border:1px solid ' + (unreadCt > 0 ? 'rgba(108,99,255,0.3)' : 'var(--border)') + ';' +
+        'border-radius:12px;padding:14px 16px;cursor:pointer;transition:all 0.15s;">' +
+          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:6px;">' +
+            '<div style="display:flex;align-items:center;gap:10px;min-width:0;">' +
+              '<span style="font-size:20px;flex-shrink:0;">' + cfg.icon + '</span>' +
+              '<div style="min-width:0;">' +
+                '<div style="font-size:14px;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
+                  esc(recipient) + '</div>' +
+                '<div style="font-size:11px;color:#a78bfa;font-weight:600;margin-top:1px;">' +
+                  esc(cfg.label) + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">' +
+              (unreadCt > 0
+                ? '<span style="background:#6c63ff;color:#fff;border-radius:50%;' +
+                  'min-width:18px;height:18px;display:inline-flex;align-items:center;' +
+                  'justify-content:center;font-size:10px;font-weight:800;">' + unreadCt + '</span>'
+                : '') +
+              '<span style="font-size:11px;color:var(--text-muted);">' + dateStr + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div style="font-size:13px;color:var(--text-secondary);line-height:1.5;padding-left:30px;">' +
+            esc(preview) +
+          '</div>' +
+      '</div>';
+    }).join('') +
+    '</div>';
+}
+
+function toggleNewMsgForm() {
+  var form = document.getElementById('msgNewForm');
+  var btn  = document.getElementById('newMsgBtn');
+  if (!form) { return; }
+
+  var isOpen = form.style.display === 'block';
+  form.style.display = isOpen ? 'none' : 'block';
+  if (btn) { btn.textContent = isOpen ? '+ New Message' : '✕ Cancel'; }
+
+  if (!isOpen) {
+    closeMsgCompose();
+    renderRecipientPicker(); /* may use cached _availableRecipients */
+    /* If not yet loaded, fetch them */
+    if (!_availableRecipients.length && _messageStudentId) {
+      api('/children/' + _messageStudentId + '/available-recipients').then(function(r) {
+        _availableRecipients = (r && r.success && r.recipients) ? r.recipients : [];
+        renderRecipientPicker();
+      });
     }
-    content.innerHTML = data.messages.map(function(m) {
-      var lastMsg = m.thread && m.thread.length > 0 ? m.thread[m.thread.length - 1] : null;
-      var badge   = m.status === 'open' ? 'color:#43e97b;' : 'color:#888;';
-      return '<div style="padding:14px;border:1px solid #222;border-radius:10px;margin-bottom:10px;cursor:pointer;" onclick="viewMessageThread(\'' + m._id + '\')">' +
-        '<strong>' + esc(m.subject || 'Message Thread') + '</strong>' +
-        ' <small style="' + badge + '">[' + m.status + ']</small>' +
-        (lastMsg ? '<br/><small style="color:#888;">' + esc(lastMsg.senderName || '') + ': ' + esc((lastMsg.body || '').substring(0, 60)) + '...</small>' : '') +
-        '<br/><small style="color:#555;">' + (m.lastMessageAt ? new Date(m.lastMessageAt).toLocaleDateString('en-GB') : '') + '</small>' +
+  }
+}
+
+function renderRecipientPicker() {
+  var listEl = document.getElementById('msgRecipientList');
+  if (!listEl) { return; }
+
+  if (!_availableRecipients.length) {
+    listEl.innerHTML =
+      '<div style="font-size:13px;color:var(--text-muted);padding:10px 0;">' +
+      'No recipients available at this time. Please contact the school directly.</div>';
+    return;
+  }
+
+  listEl.innerHTML = _availableRecipients.map(function(r) {
+    return '<div id="rCard_' + r.type + '" ' +
+      (r.available ? 'onclick="selectMsgRecipient(\'' + r.type + '\')" ' : '') +
+      'style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;' +
+      'border:2px solid var(--border);background:rgba(255,255,255,0.02);' +
+      (r.available ? 'cursor:pointer;' : 'opacity:0.45;') +
+      'transition:all 0.15s;">' +
+        '<span style="font-size:22px;flex-shrink:0;">' + r.icon + '</span>' +
+        '<div style="min-width:0;">' +
+          '<div style="font-size:14px;font-weight:700;color:#fff;">' + esc(r.label) + '</div>' +
+          '<div style="font-size:12px;color:var(--text-muted);margin-top:2px;line-height:1.5;">' +
+            esc(r.description) + '</div>' +
+        '</div>' +
+        (!r.available ? '<span style="margin-left:auto;font-size:11px;color:var(--text-muted);' +
+          'white-space:nowrap;">Unavailable</span>' : '') +
+    '</div>';
+  }).join('');
+}
+
+function selectMsgRecipient(type) {
+  _selectedRecipient = _availableRecipients.find(function(r) { return r.type === type; });
+  if (!_selectedRecipient || !_selectedRecipient.available) { return; }
+
+  /* Highlight selection */
+  document.querySelectorAll('[id^="rCard_"]').forEach(function(el) {
+    el.style.borderColor = 'var(--border)';
+    el.style.background  = 'rgba(255,255,255,0.02)';
+  });
+  var card = document.getElementById('rCard_' + type);
+  if (card) {
+    card.style.borderColor = 'var(--primary)';
+    card.style.background  = 'rgba(108,99,255,0.1)';
+  }
+
+  /* Show compose area */
+  var composeArea = document.getElementById('msgComposeArea');
+  if (composeArea) { composeArea.style.display = 'block'; }
+
+  var selEl = document.getElementById('msgSelectedRecipient');
+  if (selEl) {
+    selEl.innerHTML =
+      '<div style="background:rgba(108,99,255,0.08);border:1px solid rgba(108,99,255,0.2);' +
+      'border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;">' +
+        '<span style="font-size:16px;">' + _selectedRecipient.icon + '</span>' +
+        ' <strong style="color:#fff;">' + esc(_selectedRecipient.label) + '</strong>' +
+        (_selectedRecipient.recipientName
+          ? ' <span style="color:var(--text-muted);">— ' + esc(_selectedRecipient.recipientName) + '</span>'
+          : '') +
+      '</div>';
+  }
+
+  var body = document.getElementById('msgNewBody');
+  if (body) { body.value = ''; setTimeout(function() { body.focus(); }, 50); }
+  var err  = document.getElementById('msgNewErr');
+  if (err)  { err.style.display = 'none'; }
+}
+
+function closeMsgCompose() {
+  _selectedRecipient = null;
+  var area = document.getElementById('msgComposeArea');
+  if (area) { area.style.display = 'none'; }
+  document.querySelectorAll('[id^="rCard_"]').forEach(function(el) {
+    el.style.borderColor = 'var(--border)';
+    el.style.background  = 'rgba(255,255,255,0.02)';
+  });
+}
+
+async function sendNewMsg() {
+  var btn   = document.getElementById('msgSendBtn');
+  var errEl = document.getElementById('msgNewErr');
+  var bodyEl= document.getElementById('msgNewBody');
+  if (errEl) { errEl.style.display = 'none'; }
+
+  if (!_selectedRecipient) {
+    if (errEl) { errEl.textContent = 'Please select a recipient first.'; errEl.style.display = 'block'; }
+    return;
+  }
+  var body = (bodyEl ? bodyEl.value : '').trim();
+  if (!body) {
+    if (errEl) { errEl.textContent = 'Please type a message.'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (!_messageStudentId) { return; }
+
+  if (btn) { btn.textContent = 'Sending…'; btn.disabled = true; }
+
+  var res = await api('/children/' + _messageStudentId + '/messages', 'POST', {
+    body:          body,
+    recipientType: _selectedRecipient.type,
+    subject:       'Message to ' + _selectedRecipient.label
+  });
+
+  if (btn) { btn.textContent = 'Send →'; btn.disabled = false; }
+
+  if (res && res.success) {
+    /* Close form, clear selection, reload list */
+    var form = document.getElementById('msgNewForm');
+    if (form) { form.style.display = 'none'; }
+    var newBtn = document.getElementById('newMsgBtn');
+    if (newBtn) { newBtn.textContent = '+ New Message'; }
+    closeMsgCompose();
+    showToast('✅ ' + (res.message || 'Message sent.'), 'var(--success)');
+    loadMessages(_messageStudentId);
+  } else {
+    var msg = (res && res.message) || 'Failed to send message.';
+    if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+    showToast('❌ ' + msg, 'var(--error)');
+  }
+}
+
+async function viewMsgThread(messageId) {
+  _activeThreadId = messageId;
+
+  /* Switch views */
+  var listWrap   = document.getElementById('msgConvListWrap');
+  var threadWrap = document.getElementById('msgThreadWrap');
+  if (listWrap)   { listWrap.style.display   = 'none'; }
+  if (threadWrap) { threadWrap.style.display = 'block'; }
+
+  /* Close new form if open */
+  var form = document.getElementById('msgNewForm');
+  if (form) { form.style.display = 'none'; }
+  var newBtn = document.getElementById('newMsgBtn');
+  if (newBtn) { newBtn.textContent = '+ New Message'; }
+
+  var titleEl = document.getElementById('msgThreadTitle');
+  var msgsEl  = document.getElementById('msgThreadMessages');
+  if (msgsEl) {
+    msgsEl.innerHTML =
+      '<div style="text-align:center;padding:20px;color:var(--text-muted);">' +
+      '<span style="display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.1);' +
+      'border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;"></span></div>';
+  }
+
+  /* Mark as read, then load fresh */
+  try { await api('/messages/' + messageId + '/read', 'PUT'); } catch(e) {}
+
+  var res      = await api('/children/' + _messageStudentId + '/messages');
+  var messages = (res && res.messages) || [];
+  var msg      = messages.find(function(m) { return m._id === messageId; });
+
+  if (!msg) {
+    if (msgsEl) msgsEl.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);">Message thread not found.</div>';
+    return;
+  }
+
+  /* Update thread title */
+  var rLabels = {
+    class_teacher: '👩‍🏫 Class Teacher',
+    school_admin:  '🏫 School Administration',
+    finance:       '💳 Finance Department',
+    general:       '🏫 School'
+  };
+  var recipientDisplay = (msg.teacherId && msg.teacherId.name)
+    ? msg.teacherId.name
+    : (msg.teacherName || rLabels[msg.recipientType] || 'School');
+
+  if (titleEl) {
+    titleEl.innerHTML =
+      '<div style="min-width:0;">' +
+        '<div style="font-size:14px;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
+          esc(recipientDisplay) + '</div>' +
+        '<div style="font-size:11px;color:#a78bfa;margin-top:1px;">' +
+          esc(rLabels[msg.recipientType] || '') + '</div>' +
+      '</div>';
+  }
+
+  /* Render thread */
+  if (!msg.thread || !msg.thread.length) {
+    if (msgsEl) msgsEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">No messages yet.</div>';
+    return;
+  }
+
+  if (msgsEl) {
+    msgsEl.innerHTML = msg.thread.map(function(entry) {
+      var isMe  = (entry.senderType === 'parent');
+      var time  = new Date(entry.sentAt).toLocaleString('en', {
+        month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'
+      });
+      return '<div style="display:flex;flex-direction:column;align-items:' +
+        (isMe ? 'flex-end' : 'flex-start') + ';">' +
+        '<div style="max-width:88%;padding:10px 12px;' +
+          'background:' + (isMe ? 'rgba(108,99,255,0.14)' : 'rgba(255,255,255,0.05)') + ';' +
+          'border:1px solid ' + (isMe ? 'rgba(108,99,255,0.3)' : 'rgba(255,255,255,0.08)') + ';' +
+          'border-radius:' + (isMe ? '12px 2px 12px 12px' : '2px 12px 12px 12px') + ';">' +
+          '<div style="font-size:11px;font-weight:700;margin-bottom:4px;' +
+            'color:' + (isMe ? '#a78bfa' : 'var(--success)') + ';">' +
+            esc(entry.senderName || (isMe ? 'You' : recipientDisplay)) + '</div>' +
+          '<div style="font-size:13px;color:#fff;line-height:1.5;white-space:pre-wrap;word-break:break-word;">' +
+            esc(entry.body) + '</div>' +
+          '<div style="font-size:10px;color:var(--text-muted);margin-top:5px;text-align:right;">' +
+            time + '</div>' +
+        '</div>' +
       '</div>';
     }).join('');
-  } catch(e) { content.innerHTML = '<p>Messages unavailable.</p>'; }
+    msgsEl.scrollTop = msgsEl.scrollHeight;
+  }
+
+  /* Clear reply fields */
+  var replyBody = document.getElementById('msgReplyBody');
+  if (replyBody) { replyBody.value = ''; }
+  var replyErr  = document.getElementById('msgReplyErr');
+  if (replyErr)  { replyErr.style.display = 'none'; }
 }
 
-async function viewMessageThread(messageId) {
-  /* Mark as read then load full thread */
-  try { await parentApi('/messages/' + messageId + '/read', 'PUT'); } catch(e) {}
-  /* In a full implementation, open a modal or expand inline */
-  alert('Full thread view can be implemented as a modal. Thread ID: ' + messageId);
+function closeMsgThread() {
+  _activeThreadId = null;
+  var listWrap   = document.getElementById('msgConvListWrap');
+  var threadWrap = document.getElementById('msgThreadWrap');
+  if (listWrap)   { listWrap.style.display   = 'block'; }
+  if (threadWrap) { threadWrap.style.display = 'none'; }
 }
 
-async function sendParentMessage() {
-  var body = (document.getElementById('msgBody') || {}).value || '';
-  if (!body.trim() || !_messageStudentId) { alert('Please type a message.'); return; }
-  try {
-    var res  = await parentApi('/children/' + _messageStudentId + '/messages', 'POST', { body });
-    var data = res.data;
-    if (data.success) {
-      document.getElementById('msgBody').value = '';
-      alert('Message sent! A teacher will respond shortly.');
-      loadMessages(_messageStudentId);
-    } else {
-      alert(data.message || 'Failed to send.');
-    }
-  } catch(e) { alert('Network error. Please try again.'); }
+async function sendMsgReply() {
+  if (!_activeThreadId || !_messageStudentId) { return; }
+
+  var btn    = document.getElementById('msgReplyBtn');
+  var errEl  = document.getElementById('msgReplyErr');
+  var bodyEl = document.getElementById('msgReplyBody');
+  if (errEl) { errEl.style.display = 'none'; }
+
+  var body = (bodyEl ? bodyEl.value : '').trim();
+  if (!body) {
+    if (errEl) { errEl.textContent = 'Please type a reply.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  if (btn) { btn.textContent = 'Sending…'; btn.disabled = true; }
+
+  /* Reply goes to the same thread — no recipientType needed, server finds by messageId context */
+  var res = await api('/children/' + _messageStudentId + '/messages', 'POST', { body });
+
+  if (btn) { btn.textContent = 'Send Reply →'; btn.disabled = false; }
+
+  if (res && res.success) {
+    if (bodyEl) { bodyEl.value = ''; }
+    showToast('✅ Reply sent.', 'var(--success)');
+    await viewMsgThread(_activeThreadId);
+  } else {
+    var msg = (res && res.message) || 'Failed to send reply.';
+    if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+  }
 }
 
-/* Announcements */
-async function loadAnnouncements() {
-  var content = document.getElementById('announcementsContent');
-  if (!content) return;
-  try {
-    var res  = await parentApi('/announcements');
-    var data = res.data;
-    if (!data.success || !data.announcements.length) {
-      content.innerHTML = '<p style="color:#888;">No announcements at this time.</p>'; return;
-    }
-    content.innerHTML = data.announcements.map(function(a) {
-      var date  = a.publishedAt ? new Date(a.publishedAt).toLocaleDateString('en-GB') : '';
-      var urgent= a.priority === 'urgent';
-      return '<div style="padding:16px;border-radius:10px;border:1px solid #222;margin-bottom:12px;' +
-        (urgent ? 'border-left:4px solid #ff6584;' : '') + '">' +
-        (urgent ? '<span style="color:#ff6584;font-size:12px;font-weight:700;">🚨 URGENT</span><br/>' : '') +
-        '<strong>' + esc(a.title) + '</strong>' +
-        '<p style="color:#aaa;font-size:13px;margin:8px 0;">' + esc(a.body) + '</p>' +
-        '<small style="color:#666;">' + date + '</small>' +
-      '</div>';
-    }).join('');
-  } catch(e) { content.innerHTML = '<p>Announcements unavailable.</p>'; }
-}
-
-/* Events */
-async function loadEvents() {
-  var content = document.getElementById('eventsContent');
-  if (!content) return;
-  try {
-    var res  = await parentApi('/events');
-    var data = res.data;
-    if (!data.success || !data.events.length) {
-      content.innerHTML = '<p style="color:#888;">No upcoming events.</p>'; return;
-    }
-    content.innerHTML = data.events.map(function(ev) {
-      var date  = ev.date ? new Date(ev.date).toLocaleDateString('en-GB',
-        { weekday:'short', day:'numeric', month:'long', year:'numeric' }) : '';
-      var myReg = ev.myRegistrationStatus;
-      return '<div style="padding:16px;border-radius:10px;border:1px solid #222;margin-bottom:12px;">' +
-        '<strong>' + esc(ev.title) + '</strong>' +
-        ' <small style="background:#222;padding:2px 8px;border-radius:8px;">' + esc(ev.eventType.replace('_',' ')) + '</small>' +
-        '<p style="color:#aaa;font-size:13px;margin:8px 0;">' + (ev.description ? esc(ev.description) : '') + '</p>' +
-        '<small>📅 ' + date + '</small>' +
-        (ev.location && ev.location.address ? '<br/><small>📍 ' + esc(ev.location.address) + '</small>' : '') +
-        '<br/><div style="margin-top:8px;">' +
-        (!myReg || myReg === 'cancelled'
-          ? '<button onclick="registerForEvent(\'' + ev._id + '\')" style="padding:6px 14px;border-radius:8px;">Register</button>'
-          : '<span style="color:#43e97b;font-size:13px;">✅ ' + esc(myReg) + '</span>' +
-            ' <button onclick="cancelEventReg(\'' + ev._id + '\')" style="padding:4px 10px;border-radius:6px;font-size:11px;margin-left:8px;">Cancel</button>'
-        ) + '</div>' +
-      '</div>';
-    }).join('');
-  } catch(e) { content.innerHTML = '<p>Events unavailable.</p>'; }
-}
-
+/* Events (retained from E7 — event sections accessed via E7 tab mechanism) */
 async function registerForEvent(eventId) {
   try {
     var res  = await parentApi('/events/' + eventId + '/register', 'POST',
       { studentId: _currentStudentId || null });
     var data = res.data;
     if (data.success) { loadEvents(); }
-    else { alert(data.message || 'Registration failed.'); }
-  } catch(e) { alert('Network error.'); }
+    else { showToast('❌ ' + (data.message || 'Registration failed.'), 'var(--error)'); }
+  } catch(e) { showToast('❌ Network error.', 'var(--error)'); }
 }
 
 async function cancelEventReg(eventId) {
-  if (!confirm('Cancel your registration for this event?')) return;
-  /* Event cancellation (DELETE /events/:id/register) can be added to parent routes */
-  alert('Cancellation requires backend handler — extend parent.routes.js DELETE /events/:id/register');
+  if (!confirm('Cancel your registration for this event?')) { return; }
+  showToast('ℹ️ Cancellation requires backend handler — extend parent.routes.js DELETE /events/:id/register', 'var(--warn)');
 }
 
 /* ✅ E7: Hook new sections into existing showTab function */

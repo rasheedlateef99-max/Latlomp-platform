@@ -39,6 +39,14 @@ const schoolMessageSchema = new mongoose.Schema({
   subject:     { type: String, default: '', trim: true },
   initiatedBy: { type: String, enum: ['parent','teacher','admin'], required: true },
 
+/* C3: Recipient type — identifies conversation audience.
+     Allows separate threads per recipient type for one student-parent pair. */
+  recipientType: {
+    type:    String,
+    enum:    ['class_teacher', 'school_admin', 'finance', 'general'],
+    default: 'class_teacher'
+  },
+
   status: {
     type:    String,
     enum:    ['open','closed'],
@@ -50,7 +58,7 @@ const schoolMessageSchema = new mongoose.Schema({
   lastMessageBy:  { type: String, default: '' } /* senderType of last message */
 }, { timestamps: true });
 
-schoolMessageSchema.index({ schoolId: 1, parentId: 1, status: 1 });
+schoolMessageSchema.index({ schoolId: 1, parentId: 1, recipientType: 1, status: 1 });
 schoolMessageSchema.index({ schoolId: 1, teacherId: 1, status: 1 });
 schoolMessageSchema.index({ schoolId: 1, studentId: 1 });
 schoolMessageSchema.index({ schoolId: 1, status: 1, lastMessageAt: -1 });
