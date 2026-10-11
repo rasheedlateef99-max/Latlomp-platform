@@ -216,6 +216,7 @@
           font-weight:800;padding:0 3px;text-align:center;line-height:16px;">0</span>
     </button>
     <button class="nav-item" data-sec="payments" onclick="showSection('payments')"><span class="nav-icon">💳</span> Payment Center</button>
+    <button class="nav-item" data-sec="manual-receipt" onclick="showSection('manual-receipt')"><span class="nav-icon">🧾</span> Manual Receipt</button>
     <!-- ✅ PHASE K.3: Paper Exams nav link -->
     <a class="nav-item" href="/institution/teacher/paper-exam.html">           <span class="nav-icon">📄</span> Paper Exams</a>
     <!-- ✅ PHASE L.5: Score Entry nav link -->
@@ -456,6 +457,48 @@
     </div>
     <!-- END STAFF MESSAGES -->
 
+    <!-- MANUAL RECEIPT GENERATOR -->
+    <div class="section" id="sec-manual-receipt">
+      <div class="page-header">
+        <div>
+          <h1>🧾 Manual Receipt</h1>
+          <p>Issue professional receipts for payments received outside LatLomp</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-sm" onclick="loadManualReceipts()">↺ Refresh</button>
+          <button class="btn btn-primary" onclick="openManualReceiptModal()">+ Issue Receipt</button>
+        </div>
+      </div>
+
+      <div style="background:rgba(255,165,0,0.06);border:1px solid rgba(255,165,0,0.2);
+        border-radius:10px;padding:13px 16px;margin-bottom:18px;font-size:12px;
+        color:var(--orange);line-height:1.7;">
+        ⚠️ Manual receipts are for payments received <strong>outside</strong> the LatLomp Finance system
+        (e.g. walk-in cash, external transfers). They do <strong>not</strong> create verified transactions,
+        update fee balances, or trigger payment allocations. Use the Payment Claims workflow for
+        bank-transfer payments that need Finance verification.
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>Issued Receipts</h3>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <input type="text" id="mrSearch" class="inp" style="width:180px;padding:7px 11px;"
+              placeholder="Search payer, student, receipt…"
+              onkeydown="if(event.key==='Enter')loadManualReceipts(1);" />
+            <button class="btn btn-primary btn-sm" onclick="loadManualReceipts(1)">Search</button>
+          </div>
+        </div>
+        <div id="mrList">
+          <div style="text-align:center;padding:28px;color:var(--muted);">
+            <span class="spinner"></span>
+          </div>
+        </div>
+        <div id="mrPagination" style="display:flex;gap:6px;justify-content:center;padding:12px 0 4px;"></div>
+      </div>
+    </div>
+    <!-- END MANUAL RECEIPT GENERATOR -->
+
     <!-- PAYMENT CENTER (P10-C) -->
     <div class="section" id="sec-payments">
       <div class="page-header">
@@ -497,6 +540,148 @@
 
   </div><!-- /.page-content -->
 </div><!-- /.main -->
+
+<!-- ===== MANUAL RECEIPT MODAL ===== -->
+<div class="modal-overlay" id="manualReceiptModal" style="display:none;">
+  <div class="modal-box" style="max-width:560px;max-height:92vh;overflow-y:auto;">
+    <div class="modal-header">
+      <h2>🧾 Issue Manual Receipt</h2>
+      <button class="modal-close" onclick="closeModal('manualReceiptModal')">✕</button>
+    </div>
+    <div id="mrModalErr"
+      style="display:none;background:rgba(255,101,132,0.1);border:1px solid rgba(255,101,132,0.3);
+        color:var(--red);padding:11px;border-radius:8px;font-size:13px;margin-bottom:14px;"></div>
+    <div id="mrModalSuccess" style="display:none;"></div>
+
+    <!-- Payer info -->
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+      letter-spacing:0.4px;margin-bottom:10px;">Payer Details</div>
+    <div class="field-row">
+      <div class="field">
+        <label>Payer Name <span style="color:var(--red);">*</span></label>
+        <input type="text" id="mrPayerName" class="inp" placeholder="Full name of payer" />
+      </div>
+      <div class="field">
+        <label>Payer Phone</label>
+        <input type="tel" id="mrPayerPhone" class="inp" placeholder="Optional" />
+      </div>
+    </div>
+    <div class="field">
+      <label>Payer Email</label>
+      <input type="email" id="mrPayerEmail" class="inp" placeholder="Optional" />
+    </div>
+
+    <!-- Student info (optional) -->
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+      letter-spacing:0.4px;margin:14px 0 10px;">Student Details (optional)</div>
+    <div class="field-row">
+      <div class="field">
+        <label>Student Name</label>
+        <input type="text" id="mrStudentName" class="inp" placeholder="If applicable" />
+      </div>
+      <div class="field">
+        <label>Admission No.</label>
+        <input type="text" id="mrAdmNo" class="inp" placeholder="e.g. BFS-2025-001" />
+      </div>
+    </div>
+    <div class="field">
+      <label>Student Class</label>
+      <input type="text" id="mrStudentClass" class="inp" placeholder="e.g. JSS 2A" />
+    </div>
+
+    <!-- Payment info -->
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;
+      letter-spacing:0.4px;margin:14px 0 10px;">Payment Details</div>
+    <div class="field">
+      <label>Description <span style="color:var(--red);">*</span></label>
+      <input type="text" id="mrDescription" class="inp"
+        placeholder="e.g. Third Term School Fees, Development Levy…" maxlength="200" />
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Amount <span style="color:var(--red);">*</span></label>
+        <input type="number" id="mrAmount" class="inp" placeholder="e.g. 50000" min="0.01" step="0.01" />
+      </div>
+      <div class="field">
+        <label>Currency <span style="color:var(--red);">*</span></label>
+        <select id="mrCurrency" class="sel">
+          <option value="NGN">NGN — Nigerian Naira</option>
+          <option value="USD">USD — US Dollar</option>
+          <option value="GBP">GBP — British Pound</option>
+          <option value="EUR">EUR — Euro</option>
+          <option value="GHS">GHS — Ghanaian Cedi</option>
+          <option value="KES">KES — Kenyan Shilling</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Payment Method</label>
+        <select id="mrMethod" class="sel">
+          <option value="cash">Cash</option>
+          <option value="bank_transfer">Bank Transfer</option>
+          <option value="cheque">Cheque</option>
+          <option value="pos">POS</option>
+          <option value="mobile_money">Mobile Money</option>
+          <option value="ussd">USSD</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Payment Date <span style="color:var(--red);">*</span></label>
+        <input type="date" id="mrDate" class="inp" />
+      </div>
+    </div>
+    <div class="field">
+      <label>Reference / Teller No. <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+      <input type="text" id="mrReference" class="inp" placeholder="e.g. Bank teller number, cheque no." />
+    </div>
+    <div class="field">
+      <label>Notes <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+      <textarea id="mrNotes" class="tex" rows="2" maxlength="500"
+        placeholder="Any additional notes for this receipt…"></textarea>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('manualReceiptModal')">Cancel</button>
+      <button class="btn btn-primary" id="mrSubmitBtn" onclick="submitManualReceipt()">
+        Issue Receipt →
+      </button>
+    </div>
+  </div>
+</div>
+<!-- END MANUAL RECEIPT MODAL -->
+
+<!-- VOID MODAL -->
+<div class="modal-overlay" id="voidReceiptModal" style="display:none;">
+  <div class="modal-box" style="max-width:420px;">
+    <div class="modal-header">
+      <h2>Void Receipt</h2>
+      <button class="modal-close" onclick="closeModal('voidReceiptModal')">✕</button>
+    </div>
+    <div style="background:rgba(255,101,132,0.06);border:1px solid rgba(255,101,132,0.2);
+      border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:12px;
+      color:var(--red);line-height:1.7;">
+      ❌ Voiding a receipt marks it as invalid. A voided receipt cannot be downloaded or re-issued.
+      This action is permanent.
+    </div>
+    <input type="hidden" id="voidTargetId" />
+    <div class="field">
+      <label>Reason for voiding <span style="color:var(--red);">*</span></label>
+      <textarea id="voidReason" class="tex" rows="2"
+        placeholder="e.g. Issued in error, wrong amount…"></textarea>
+    </div>
+    <div id="voidErr"
+      style="display:none;font-size:12px;color:var(--red);margin-bottom:8px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('voidReceiptModal')">Cancel</button>
+      <button class="btn btn-danger" id="voidConfirmBtn" onclick="confirmVoidReceipt()">
+        Void Receipt
+      </button>
+    </div>
+  </div>
+</div>
+<!-- END VOID MODAL -->
 
 <!-- ===== CREATE/EDIT EXAM MODAL ===== -->
 <div class="modal-overlay" id="examModal" style="display:none;">
@@ -1077,6 +1262,7 @@ function showSection(name) {
   if(name==='parents'){loadTeacherParentSection();}
   if(name==='payments'){loadPaymentCenterSection();}
   if(name==='messages'){loadStaffMessages();}
+  if(name==='manual-receipt'){loadManualReceipts();}
 }
 function openSidebar()  { document.getElementById('sidebar').classList.add('open');    document.getElementById('sidebarOverlay').classList.add('visible');    document.body.style.overflow='hidden'; }
 function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('visible'); document.body.style.overflow=''; }
@@ -2089,6 +2275,326 @@ async function sendStaffReply() {
     var msg = (res.data && res.data.message) || 'Failed to send reply.';
     if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
     instToast('❌ ' + msg, 'error');
+  }
+}
+
+/* ============================================
+   MANUAL RECEIPT GENERATOR
+   All routes: /api/institution/manual-receipts
+   Guard: instProtect + requireActiveSubscription
+   Void/Delete: bursar, school_admin, principal, vice_principal
+============================================ */
+var _mrPage = 1;
+
+var _MR_VOID_ROLES = ['school_admin','principal','vice_principal','bursar'];
+
+function canVoidReceipt() {
+  if (!_schoolUser) { return false; }
+  var roles = [_schoolUser.role].concat(_schoolUser.additionalRoles || []);
+  return roles.some(function(r) { return _MR_VOID_ROLES.includes(r); });
+}
+
+var _MR_METHOD_LABELS = {
+  cash:          'Cash',
+  bank_transfer: 'Bank Transfer',
+  cheque:        'Cheque',
+  pos:           'POS',
+  mobile_money:  'Mobile Money',
+  ussd:          'USSD',
+  other:         'Other'
+};
+
+async function loadManualReceipts(page) {
+  _mrPage       = page || 1;
+  var listEl    = document.getElementById('mrList');
+  var pagEl     = document.getElementById('mrPagination');
+  if (listEl) {
+    listEl.innerHTML =
+      '<div style="text-align:center;padding:28px;color:var(--muted);">' +
+      '<span class="spinner"></span></div>';
+  }
+  if (pagEl) { pagEl.innerHTML = ''; }
+
+  var search = (document.getElementById('mrSearch') || {}).value || '';
+  var url    = '/manual-receipts?page=' + _mrPage + '&limit=20';
+  if (search.trim()) { url += '&search=' + encodeURIComponent(search.trim()); }
+
+  var res  = await instApi(url);
+  var data = res.data;
+
+  if (!res.ok || !data.success) {
+    if (listEl) listEl.innerHTML =
+      '<div class="empty"><div class="empty-icon">⚠️</div>' +
+      '<div class="empty-title">Could not load receipts.</div></div>';
+    return;
+  }
+
+  var receipts = data.receipts || [];
+  if (!receipts.length) {
+    if (listEl) listEl.innerHTML =
+      '<div class="empty">' +
+        '<div class="empty-icon">🧾</div>' +
+        '<div class="empty-title">No receipts issued yet</div>' +
+        '<div class="empty-sub">Click "Issue Receipt" to create your first manual receipt.</div>' +
+      '</div>';
+    return;
+  }
+
+  var canVoid = canVoidReceipt();
+
+  if (listEl) {
+    listEl.innerHTML =
+      '<div class="table-wrap"><table><thead><tr>' +
+        '<th>Receipt No.</th><th>Payer</th><th>Student</th>' +
+        '<th>Description</th><th>Amount</th><th>Method</th>' +
+        '<th>Date</th><th>Status</th><th>Actions</th>' +
+      '</tr></thead><tbody>' +
+      receipts.map(function(r) {
+        var isVoided = r.status === 'voided';
+        var statusBadge = isVoided
+          ? '<span class="badge badge-red">Voided</span>'
+          : '<span class="badge badge-green">Issued</span>';
+        var amount = (r.currency || 'NGN') === 'NGN'
+          ? '₦' + Number(r.amount || 0).toLocaleString()
+          : Number(r.amount || 0).toLocaleString() + ' ' + (r.currency || '');
+
+        return '<tr>' +
+          '<td style="font-family:monospace;font-weight:700;color:#a78bfa;">' +
+            escHtml(r.receiptNumber) + '</td>' +
+          '<td style="font-weight:700;color:#fff;">' +
+            escHtml(r.payerName) +
+            (r.payerPhone ? '<br/><span style="font-size:11px;color:var(--muted);">' + escHtml(r.payerPhone) + '</span>' : '') +
+          '</td>' +
+          '<td style="font-size:12px;color:var(--secondary);">' +
+            (r.studentName ? escHtml(r.studentName) : '—') +
+            (r.studentClass ? '<br/><span style="color:var(--muted);">' + escHtml(r.studentClass) + '</span>' : '') +
+          '</td>' +
+          '<td style="font-size:13px;">' + escHtml(r.description) + '</td>' +
+          '<td style="font-weight:800;color:var(--green);">' + amount + '</td>' +
+          '<td style="font-size:12px;">' + escHtml(_MR_METHOD_LABELS[r.paymentMethod] || r.paymentMethod) + '</td>' +
+          '<td style="font-size:12px;color:var(--muted);">' +
+            (r.paymentDate ? new Date(r.paymentDate).toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'}) : '—') +
+          '</td>' +
+          '<td>' + statusBadge + '</td>' +
+          '<td>' +
+            '<div style="display:flex;gap:5px;flex-wrap:wrap;">' +
+              (!isVoided
+                ? '<button class="btn btn-sm btn-green" onclick="downloadMrPdf(\'' + r._id + '\',\'' + escHtml(r.receiptNumber) + '\')">📄 PDF</button>'
+                : '') +
+              (!isVoided && canVoid
+                ? '<button class="btn btn-sm btn-danger" onclick="openVoidModal(\'' + r._id + '\')">Void</button>'
+                : '') +
+              (isVoided && canVoid
+                ? '<button class="btn btn-sm btn-secondary" style="color:var(--red);" onclick="deleteMr(\'' + r._id + '\',\'' + escHtml(r.receiptNumber) + '\')">🗑️ Delete</button>'
+                : '') +
+            '</div>' +
+          '</td>' +
+        '</tr>';
+      }).join('') +
+      '</tbody></table></div>';
+  }
+
+  /* Pagination */
+  var pages = data.pages || 1;
+  if (pagEl && pages > 1) {
+    var html = '';
+    if (_mrPage > 1) {
+      html += '<button class="btn btn-secondary btn-sm" ' +
+        'onclick="loadManualReceipts(' + (_mrPage - 1) + ')">←</button>';
+    }
+    for (var i = Math.max(1, _mrPage - 2); i <= Math.min(pages, _mrPage + 2); i++) {
+      html += '<button class="btn btn-sm ' + (i === _mrPage ? 'btn-primary' : 'btn-secondary') + '" ' +
+        'onclick="loadManualReceipts(' + i + ')">' + i + '</button>';
+    }
+    if (_mrPage < pages) {
+      html += '<button class="btn btn-secondary btn-sm" ' +
+        'onclick="loadManualReceipts(' + (_mrPage + 1) + ')">→</button>';
+    }
+    pagEl.innerHTML = html;
+  }
+}
+
+function openManualReceiptModal() {
+  /* Reset form */
+  ['mrPayerName','mrPayerPhone','mrPayerEmail','mrStudentName','mrAdmNo',
+   'mrStudentClass','mrDescription','mrAmount','mrReference','mrNotes'].forEach(function(id) {
+    var el = document.getElementById(id); if (el) el.value = '';
+  });
+  var curr = document.getElementById('mrCurrency');
+  if (curr) curr.value = 'NGN';
+  var method = document.getElementById('mrMethod');
+  if (method) method.value = 'cash';
+  var date = document.getElementById('mrDate');
+  if (date) date.value = new Date().toISOString().split('T')[0];
+  var errEl = document.getElementById('mrModalErr');
+  if (errEl) errEl.style.display = 'none';
+  var sucEl = document.getElementById('mrModalSuccess');
+  if (sucEl) sucEl.style.display = 'none';
+  var btn = document.getElementById('mrSubmitBtn');
+  if (btn) { btn.textContent = 'Issue Receipt →'; btn.disabled = false; }
+
+  document.getElementById('manualReceiptModal').style.display = 'flex';
+  setTimeout(function() {
+    var el = document.getElementById('mrPayerName'); if (el) el.focus();
+  }, 100);
+}
+
+async function submitManualReceipt() {
+  var errEl = document.getElementById('mrModalErr');
+  var sucEl = document.getElementById('mrModalSuccess');
+  var btn   = document.getElementById('mrSubmitBtn');
+  if (errEl) errEl.style.display = 'none';
+  if (sucEl) sucEl.style.display = 'none';
+
+  var payload = {
+    payerName:     ((document.getElementById('mrPayerName')     ||{}).value||'').trim(),
+    payerPhone:    ((document.getElementById('mrPayerPhone')    ||{}).value||'').trim(),
+    payerEmail:    ((document.getElementById('mrPayerEmail')    ||{}).value||'').trim(),
+    studentName:   ((document.getElementById('mrStudentName')   ||{}).value||'').trim(),
+    admissionNo:   ((document.getElementById('mrAdmNo')         ||{}).value||'').trim(),
+    studentClass:  ((document.getElementById('mrStudentClass')  ||{}).value||'').trim(),
+    description:   ((document.getElementById('mrDescription')   ||{}).value||'').trim(),
+    amount:        parseFloat((document.getElementById('mrAmount')      ||{}).value)||0,
+    currency:      ((document.getElementById('mrCurrency')      ||{}).value||'NGN'),
+    paymentMethod: ((document.getElementById('mrMethod')        ||{}).value||'cash'),
+    paymentDate:   ((document.getElementById('mrDate')          ||{}).value||''),
+    reference:     ((document.getElementById('mrReference')     ||{}).value||'').trim(),
+    notes:         ((document.getElementById('mrNotes')         ||{}).value||'').trim()
+  };
+
+  /* Client validation */
+  if (!payload.payerName) {
+    if (errEl) { errEl.textContent = 'Payer name is required.'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (!payload.description) {
+    if (errEl) { errEl.textContent = 'Description is required.'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (!payload.amount || payload.amount <= 0) {
+    if (errEl) { errEl.textContent = 'A valid amount is required.'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (!payload.paymentDate) {
+    if (errEl) { errEl.textContent = 'Payment date is required.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  if (btn) { btn.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:1.5px;"></span> Issuing…'; btn.disabled = true; }
+
+  var res  = await instApi('/manual-receipts', 'POST', payload);
+  var data = res.data;
+
+  if (btn) { btn.textContent = 'Issue Receipt →'; btn.disabled = false; }
+
+  if (res.ok && data.success) {
+    if (sucEl) {
+      sucEl.innerHTML =
+        '<div style="background:rgba(67,233,123,0.1);border:1px solid rgba(67,233,123,0.3);' +
+        'border-radius:8px;padding:14px 16px;font-size:13px;margin-bottom:14px;">' +
+          '<div style="font-weight:700;color:var(--green);margin-bottom:6px;">✅ Receipt Issued!</div>' +
+          '<div style="font-family:monospace;font-size:16px;font-weight:800;color:#fff;margin-bottom:8px;">' +
+            escHtml(data.receiptNumber) +
+          '</div>' +
+          '<button class="btn btn-green btn-sm" ' +
+            'onclick="downloadMrPdf(\'' + data.receiptId + '\',\'' + data.receiptNumber + '\')">' +
+            '📄 Download PDF</button>' +
+          '<button class="btn btn-secondary btn-sm" style="margin-left:8px;" ' +
+            'onclick="openManualReceiptModal()">+ Issue Another</button>' +
+        '</div>';
+      sucEl.style.display = 'block';
+    }
+    instToast('✅ Receipt ' + data.receiptNumber + ' issued.', 'success');
+    loadManualReceipts(_mrPage);
+  } else {
+    var msg = (data && data.message) || 'Failed to issue receipt.';
+    if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+    instToast('❌ ' + msg, 'error');
+  }
+}
+
+async function downloadMrPdf(id, receiptNumber) {
+  instToast('Generating PDF…', 'info');
+  try {
+    var token = instGetToken();
+    var response = await fetch('/api/institution/manual-receipts/' + id + '/pdf', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!response.ok) {
+      var errData = await response.json().catch(function() { return {}; });
+      instToast('❌ ' + (errData.message || 'PDF generation failed.'), 'error');
+      return;
+    }
+    var blob = await response.blob();
+    var url  = window.URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    a.href        = url;
+    a.download    = 'Receipt-' + (receiptNumber || id) + '.pdf';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function() {
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    }, 300);
+  } catch(e) {
+    instToast('❌ Could not download PDF. Check your connection.', 'error');
+  }
+}
+
+function openVoidModal(receiptId) {
+  var idEl = document.getElementById('voidTargetId');
+  if (idEl) idEl.value = receiptId;
+  var reasonEl = document.getElementById('voidReason');
+  if (reasonEl) reasonEl.value = '';
+  var errEl = document.getElementById('voidErr');
+  if (errEl) errEl.style.display = 'none';
+  var btn = document.getElementById('voidConfirmBtn');
+  if (btn) { btn.textContent = 'Void Receipt'; btn.disabled = false; }
+  document.getElementById('voidReceiptModal').style.display = 'flex';
+}
+
+async function confirmVoidReceipt() {
+  var btn      = document.getElementById('voidConfirmBtn');
+  var errEl    = document.getElementById('voidErr');
+  var reason   = ((document.getElementById('voidReason')||{}).value||'').trim();
+  var targetId = ((document.getElementById('voidTargetId')||{}).value||'').trim();
+  if (errEl) errEl.style.display = 'none';
+
+  if (!reason) {
+    if (errEl) { errEl.textContent = 'A reason is required.'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (btn) { btn.textContent = 'Voiding…'; btn.disabled = true; }
+
+  var res  = await instApi('/manual-receipts/' + targetId + '/void', 'PUT', { reason });
+  var data = res.data;
+
+  if (btn) { btn.textContent = 'Void Receipt'; btn.disabled = false; }
+
+  if (res.ok && data.success) {
+    closeModal('voidReceiptModal');
+    instToast('✅ ' + data.message, 'success');
+    loadManualReceipts(_mrPage);
+  } else {
+    var msg = (data && data.message) || 'Failed to void receipt.';
+    if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+    instToast('❌ ' + msg, 'error');
+  }
+}
+
+async function deleteMr(receiptId, receiptNumber) {
+  if (!confirm(
+    'Permanently delete receipt ' + receiptNumber + '?\n\n' +
+    'This is irreversible. The receipt record will be completely removed.'
+  )) { return; }
+  var res  = await instApi('/manual-receipts/' + receiptId, 'DELETE');
+  var data = res.data;
+  if (res.ok && data.success) {
+    instToast('✅ Receipt ' + receiptNumber + ' deleted.', 'success');
+    loadManualReceipts(_mrPage);
+  } else {
+    instToast('❌ ' + ((data && data.message) || 'Delete failed.'), 'error');
   }
 }
 
