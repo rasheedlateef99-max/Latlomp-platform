@@ -208,6 +208,13 @@
     </button>
     <div class="sb-sep">Links</div>
     <button class="nav-item" data-sec="parents" onclick="showSection('parents')"><span class="nav-icon">👨‍👩‍👧</span> Parent Portal</button>
+    <button class="nav-item" data-sec="messages" onclick="showSection('messages')" style="position:relative;">
+      <span class="nav-icon">💬</span> Messages
+      <span id="staffMsgNavBadge"
+        style="display:none;position:absolute;top:8px;right:10px;background:#ff6584;
+          color:#fff;border-radius:50%;min-width:16px;height:16px;font-size:9px;
+          font-weight:800;padding:0 3px;text-align:center;line-height:16px;">0</span>
+    </button>
     <button class="nav-item" data-sec="payments" onclick="showSection('payments')"><span class="nav-icon">💳</span> Payment Center</button>
     <!-- ✅ PHASE K.3: Paper Exams nav link -->
     <a class="nav-item" href="/institution/teacher/paper-exam.html">           <span class="nav-icon">📄</span> Paper Exams</a>
@@ -405,6 +412,49 @@
         </div>
       </div>
     </div>
+
+<!-- STAFF MESSAGES INBOX -->
+    <div class="section" id="sec-messages">
+      <div class="page-header">
+        <div><h1>💬 Messages</h1><p>Parent-to-school conversations</p></div>
+        <button class="btn btn-secondary btn-sm" onclick="loadStaffMessages()">↺ Refresh</button>
+      </div>
+      <!-- Conversation list -->
+      <div id="staffMsgListWrap">
+        <div class="card">
+          <div class="card-head">
+            <h3>Conversations</h3>
+            <span id="staffMsgHeaderBadge" style="font-size:12px;color:var(--muted);"></span>
+          </div>
+          <div id="staffMsgList" style="padding:16px;">
+            <div style="text-align:center;padding:24px;color:var(--muted);">Loading...</div>
+          </div>
+        </div>
+      </div>
+      <!-- Thread view — shown when a conversation is opened -->
+      <div id="staffThreadWrap" style="display:none;">
+        <div class="card">
+          <div class="card-head" style="gap:12px;">
+            <button onclick="closeStaffThread()"
+              class="btn btn-secondary btn-sm" style="flex-shrink:0;">← Back</button>
+            <div id="staffThreadTitle" style="min-width:0;"></div>
+          </div>
+          <div id="staffThreadMessages"
+            style="padding:16px;max-height:52vh;overflow-y:auto;
+              display:flex;flex-direction:column;gap:10px;"></div>
+          <div style="padding:14px 16px;border-top:1px solid var(--border);">
+            <textarea id="staffReplyBody" rows="2" class="inp"
+              placeholder="Type a reply…"
+              style="width:100%;margin-bottom:8px;resize:none;"></textarea>
+            <div id="staffReplyErr"
+              style="display:none;font-size:12px;color:var(--red);margin-bottom:6px;"></div>
+            <button onclick="sendStaffReply()" id="staffReplyBtn"
+              class="btn btn-primary btn-sm">Send Reply →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- END STAFF MESSAGES -->
 
     <!-- PAYMENT CENTER (P10-C) -->
     <div class="section" id="sec-payments">
@@ -1026,6 +1076,7 @@ function showSection(name) {
   if(name==='ece'){loadEceConfig();}
   if(name==='parents'){loadTeacherParentSection();}
   if(name==='payments'){loadPaymentCenterSection();}
+  if(name==='messages'){loadStaffMessages();}
 }
 function openSidebar()  { document.getElementById('sidebar').classList.add('open');    document.getElementById('sidebarOverlay').classList.add('visible');    document.body.style.overflow='hidden'; }
 function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('visible'); document.body.style.overflow=''; }
@@ -1039,7 +1090,13 @@ async function loadOverview() {
   document.getElementById('stTotalExams').textContent  = _myExams.length;
   document.getElementById('stPublished').textContent   = published;
   document.getElementById('stSubmissions').textContent = submissions;
-  document.getElementById('stPendingGrade').textContent= '—';
+  /* Count theory/mixed exams with submissions as proxy for "needs grading" */
+  var pendingGrade = _myExams.filter(function(e) {
+    return (e.examType === 'theory' || e.examType === 'mixed') &&
+           (e.totalAttempts || 0) > 0 &&
+           e.status !== 'draft' && e.status !== 'archived';
+  }).length;
+  document.getElementById('stPendingGrade').textContent = pendingGrade;
   var wt = document.getElementById('welcomeTitle');
   if (wt && _schoolUser) {
     wt.textContent = 'Welcome, ' + (_schoolUser.name || 'Teacher') + '!';
@@ -1785,6 +1842,254 @@ function copyTeacherPaymentDetail(number, bank) {
   }).catch(function () {
     instToast('Account number: ' + number, 'info');
   });
+}
+
+/* ============================================
+   STAFF MESSAGE INBOX
+   Reads from /api/institution/parent-comms/messages
+   Replies via /api/institution/parent-comms/messages/send
+============================================ */
+var _staffActiveThreadId = null;
+
+async function loadStaffMessages() {
+  var listEl  = document.getElementById('staffMsgList');
+  var badgeEl = document.getElementById('staffMsgHeaderBadge');
+  if (listEl) {
+    listEl.innerHTML =
+      '<div style="text-align:center;padding:24px;color:var(--muted);">' +
+      '<span class="spinner"></span></div>';
+  }
+  closeStaffThread();
+
+  var res      = await instApi('/parent-comms/messages');
+  var messages = (res.ok && res.data && res.data.messages) ? res.data.messages : [];
+
+  var totalUnread = messages.reduce(function(s,m){ return s+(m.unreadCount||0); }, 0);
+
+  /* Update nav badge */
+  var navBadge = document.getElementById('staffMsgNavBadge');
+  if (navBadge) {
+    navBadge.textContent   = totalUnread > 99 ? '99+' : totalUnread;
+    navBadge.style.display = totalUnread > 0 ? 'inline-block' : 'none';
+  }
+  if (badgeEl) {
+    badgeEl.textContent = messages.length + ' conversation' + (messages.length !== 1 ? 's' : '') +
+      (totalUnread > 0 ? ' · ' + totalUnread + ' unread' : '');
+  }
+
+  renderStaffMsgList(messages);
+}
+
+function renderStaffMsgList(messages) {
+  var wrap = document.getElementById('staffMsgList');
+  if (!wrap) { return; }
+
+  if (!messages.length) {
+    wrap.innerHTML =
+      '<div class="empty">' +
+        '<div class="empty-icon">💬</div>' +
+        '<div class="empty-title">No messages yet</div>' +
+        '<div class="empty-sub">Parent messages will appear here when they contact the school.</div>' +
+      '</div>';
+    return;
+  }
+
+  var rCfg = {
+    class_teacher: { label:'Class Teacher',       icon:'👩‍🏫' },
+    school_admin:  { label:'School Administration', icon:'🏫' },
+    finance:       { label:'Finance Department',    icon:'💳' },
+    general:       { label:'General',               icon:'💬' }
+  };
+
+  wrap.innerHTML =
+    '<div style="display:flex;flex-direction:column;gap:10px;">' +
+    messages.map(function(m) {
+      var cfg     = rCfg[m.recipientType] || rCfg.general;
+      var unread  = m.unreadCount || 0;
+      var preview = m.lastMessage ? m.lastMessage.body : 'No messages yet';
+      var dateStr = m.lastMessageAt
+        ? new Date(m.lastMessageAt).toLocaleString('en', {
+            day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'
+          })
+        : '';
+
+      return '<div onclick="viewStaffThread(\'' + escHtml(m._id) + '\')" ' +
+        'style="padding:14px 16px;border-radius:12px;cursor:pointer;' +
+        'border:1px solid ' + (unread > 0 ? 'rgba(108,99,255,0.3)' : 'var(--border)') + ';' +
+        'background:' + (unread > 0 ? 'rgba(108,99,255,0.07)' : 'rgba(255,255,255,0.02)') + ';' +
+        'transition:all 0.15s;">' +
+          '<div style="display:flex;align-items:flex-start;justify-content:space-between;' +
+               'gap:10px;margin-bottom:6px;">' +
+            '<div style="display:flex;align-items:center;gap:8px;min-width:0;">' +
+              '<span style="font-size:20px;flex-shrink:0;">' + cfg.icon + '</span>' +
+              '<div style="min-width:0;">' +
+                '<div style="font-size:13px;font-weight:700;color:#fff;">' +
+                  escHtml(m.subject || ('Message from parent')) + '</div>' +
+                '<div style="font-size:11px;color:#a78bfa;margin-top:1px;">' +
+                  escHtml(cfg.label) +
+                  (m.teacherName ? ' — ' + escHtml(m.teacherName) : '') +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">' +
+              (unread > 0
+                ? '<span style="background:#6c63ff;color:#fff;border-radius:50%;min-width:18px;' +
+                  'height:18px;display:inline-flex;align-items:center;justify-content:center;' +
+                  'font-size:10px;font-weight:800;">' + unread + '</span>'
+                : '') +
+              '<span style="font-size:11px;color:var(--muted);">' + dateStr + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div style="font-size:13px;color:var(--secondary);padding-left:28px;' +
+               'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
+            escHtml(preview) +
+          '</div>' +
+      '</div>';
+    }).join('') +
+    '</div>';
+}
+
+async function viewStaffThread(messageId) {
+  _staffActiveThreadId = messageId;
+
+  var listWrap   = document.getElementById('staffMsgListWrap');
+  var threadWrap = document.getElementById('staffThreadWrap');
+  if (listWrap)   { listWrap.style.display   = 'none';  }
+  if (threadWrap) { threadWrap.style.display = 'block'; }
+
+  var msgsEl = document.getElementById('staffThreadMessages');
+  if (msgsEl) {
+    msgsEl.innerHTML =
+      '<div style="text-align:center;padding:20px;color:var(--muted);">' +
+      '<span class="spinner"></span></div>';
+  }
+
+  /* Mark parent messages as read */
+  try { await instApi('/parent-comms/messages/' + messageId + '/read', 'PUT'); } catch(e) {}
+
+  /* Load full thread */
+  var res = await instApi('/parent-comms/messages/' + messageId);
+  var msg = res.ok && res.data && res.data.message;
+
+  if (!msg) {
+    if (msgsEl) {
+      msgsEl.innerHTML =
+        '<div style="text-align:center;padding:20px;color:var(--muted);">Thread not found.</div>';
+    }
+    return;
+  }
+
+  /* Update thread title */
+  var rLabels = {
+    class_teacher: '👩‍🏫 Class Teacher',
+    school_admin:  '🏫 School Administration',
+    finance:       '💳 Finance Department',
+    general:       '💬 General'
+  };
+  var titleEl = document.getElementById('staffThreadTitle');
+  if (titleEl) {
+    titleEl.innerHTML =
+      '<div style="min-width:0;">' +
+        '<div style="font-size:14px;font-weight:700;color:#fff;overflow:hidden;' +
+             'text-overflow:ellipsis;white-space:nowrap;">' +
+          escHtml(msg.subject || 'Message Thread') +
+        '</div>' +
+        '<div style="font-size:11px;color:#a78bfa;margin-top:1px;">' +
+          escHtml(rLabels[msg.recipientType] || 'General') +
+        '</div>' +
+      '</div>';
+  }
+
+  /* Render thread entries */
+  var thread = msg.thread || [];
+  if (!thread.length) {
+    if (msgsEl) {
+      msgsEl.innerHTML =
+        '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">' +
+        'No messages in this thread yet.</div>';
+    }
+    return;
+  }
+
+  if (msgsEl) {
+    msgsEl.innerHTML = thread.map(function(entry) {
+      var isStaff = (entry.senderType !== 'parent');
+      var time    = new Date(entry.sentAt).toLocaleString('en', {
+        month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'
+      });
+      return (
+        '<div style="display:flex;flex-direction:column;' +
+          'align-items:' + (isStaff ? 'flex-end' : 'flex-start') + ';">' +
+          '<div style="max-width:88%;padding:10px 12px;' +
+            'background:' + (isStaff ? 'rgba(108,99,255,0.14)' : 'rgba(255,255,255,0.05)') + ';' +
+            'border:1px solid ' + (isStaff ? 'rgba(108,99,255,0.3)' : 'rgba(255,255,255,0.08)') + ';' +
+            'border-radius:' + (isStaff ? '12px 2px 12px 12px' : '2px 12px 12px 12px') + ';">' +
+            '<div style="font-size:11px;font-weight:700;margin-bottom:4px;' +
+              'color:' + (isStaff ? '#a78bfa' : 'var(--green)') + ';">' +
+              escHtml(entry.senderName || (isStaff ? 'You' : 'Parent')) +
+            '</div>' +
+            '<div style="font-size:13px;color:#fff;line-height:1.5;' +
+              'white-space:pre-wrap;word-break:break-word;">' +
+              escHtml(entry.body) +
+            '</div>' +
+            '<div style="font-size:10px;color:var(--muted);margin-top:5px;text-align:right;">' +
+              time +
+            '</div>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
+    msgsEl.scrollTop = msgsEl.scrollHeight;
+  }
+
+  var replyBody = document.getElementById('staffReplyBody');
+  if (replyBody) { replyBody.value = ''; }
+  var replyErr = document.getElementById('staffReplyErr');
+  if (replyErr)  { replyErr.style.display = 'none'; }
+
+  /* Refresh badge after reading */
+  loadStaffMessages();
+}
+
+function closeStaffThread() {
+  _staffActiveThreadId = null;
+  var listWrap   = document.getElementById('staffMsgListWrap');
+  var threadWrap = document.getElementById('staffThreadWrap');
+  if (listWrap)   { listWrap.style.display   = 'block'; }
+  if (threadWrap) { threadWrap.style.display = 'none';  }
+}
+
+async function sendStaffReply() {
+  if (!_staffActiveThreadId) { return; }
+  var btn    = document.getElementById('staffReplyBtn');
+  var errEl  = document.getElementById('staffReplyErr');
+  var bodyEl = document.getElementById('staffReplyBody');
+  if (errEl) { errEl.style.display = 'none'; }
+
+  var body = (bodyEl ? bodyEl.value : '').trim();
+  if (!body) {
+    if (errEl) { errEl.textContent = 'Please type a reply.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  if (btn) { btn.textContent = 'Sending…'; btn.disabled = true; }
+
+  var res = await instApi('/parent-comms/messages/send', 'POST', {
+    messageId: _staffActiveThreadId,
+    body:      body
+  });
+
+  if (btn) { btn.textContent = 'Send Reply →'; btn.disabled = false; }
+
+  if (res.ok && res.data && res.data.success) {
+    if (bodyEl) { bodyEl.value = ''; }
+    instToast('Reply sent.', 'success');
+    await viewStaffThread(_staffActiveThreadId);
+  } else {
+    var msg = (res.data && res.data.message) || 'Failed to send reply.';
+    if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+    instToast('❌ ' + msg, 'error');
+  }
 }
 
 function closeModal(id){var el=document.getElementById(id);if(el)el.style.display='none';}

@@ -390,26 +390,58 @@ router.delete('/events/:id', adminGuard, async function(req, res) {
    List all message threads for this school.
    Query: ?studentId=&status=&teacherId=
 */
-router.get('/messages', manageGuard, async function(req, res) {
+/* GET /api/institution/parent-comms/messages
+   C3 fix: changed to readGuard (all staff can see messages).
+   Removed .select('-thread') — was breaking unread count calculation.
+   Added recipientType filter + proper unread count for staff side.
+*/
+router.get('/messages', readGuard, async function(req, res) {
   try {
     var filter = { schoolId: req.schoolId };
-    if (req.query.status)    filter.status    = req.query.status;
-    if (req.query.studentId) filter.studentId = req.query.studentId;
-    if (req.query.teacherId) filter.teacherId = req.query.teacherId;
+    if (req.query.status)        filter.status        = req.query.status;
+    if (req.query.studentId)     filter.studentId     = req.query.studentId;
+    if (req.query.teacherId)     filter.teacherId     = req.query.teacherId;
+    if (req.query.recipientType) filter.recipientType = req.query.recipientType;
 
     var messages = await SchoolMessage.find(filter)
-      .select('-thread') /* list view: no thread bodies */
       .sort({ lastMessageAt: -1 })
       .limit(100)
       .lean();
 
-    /* Enrich with unread count (messages from parent not yet read by staff) */
     var enriched = messages.map(function(m) {
-      return Object.assign({}, m, { threadCount: m.thread ? m.thread.length : 0 });
+      var thread      = m.thread || [];
+      /* Staff-side unread = parent messages not yet read by staff */
+      var unreadCount = thread.filter(function(e) {
+        return e.senderType === 'parent' && !e.readAt;
+      }).length;
+      var lastEntry = thread.length ? thread[thread.length - 1] : null;
+      return {
+        _id:           m._id,
+        schoolId:      m.schoolId,
+        studentId:     m.studentId,
+        parentId:      m.parentId,
+        teacherId:     m.teacherId,
+        teacherName:   m.teacherName,
+        recipientType: m.recipientType || 'class_teacher',
+        subject:       m.subject,
+        initiatedBy:   m.initiatedBy,
+        status:        m.status,
+        lastMessageAt: m.lastMessageAt,
+        lastMessageBy: m.lastMessageBy,
+        threadCount:   thread.length,
+        unreadCount,
+        lastMessage:   lastEntry ? {
+          senderType: lastEntry.senderType,
+          senderName: lastEntry.senderName || '',
+          body:       (lastEntry.body || '').substring(0, 100),
+          sentAt:     lastEntry.sentAt
+        } : null
+      };
     });
 
     return res.json({ success: true, messages: enriched, count: enriched.length });
   } catch(err) {
+    console.error('[parent-comms] GET /messages:', err.message);
     return res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -443,24 +475,67 @@ router.get('/messages/:id', manageGuard, async function(req, res) {
 */
 router.post('/messages/send', manageGuard, async function(req, res) {
   try {
-    var { studentId, parentId, body, subject } = req.body;
-    if (!studentId || !parentId || !body) {
-      return res.status(400).json({ success: false, message: 'studentId, parentId and body are required.' });
+    var { studentId, parentId, body, subject, messageId, recipientType } = req.body;
+
+    if (!body || !body.trim()) {
+      return res.status(400).json({ success: false, message: 'Message body is required.' });
+    }
+
+    /* ── Option A: Direct reply to existing thread by ID ── */
+    if (messageId) {
+      if (!mongoose.isValidObjectId(messageId)) {
+        return res.status(400).json({ success: false, message: 'Invalid message ID.' });
+      }
+      var directThread = await SchoolMessage.findOne({
+        _id:      messageId,
+        schoolId: req.schoolId    /* TENANT SCOPE */
+      });
+      if (!directThread) {
+        return res.status(404).json({ success: false, message: 'Message thread not found.' });
+      }
+      directThread.thread.push({
+        senderId:   req.schoolUser._id,
+        senderType: 'teacher',
+        senderName: req.schoolUser.name || '',
+        body:       body.trim(),
+        sentAt:     new Date()
+      });
+      directThread.lastMessageAt = new Date();
+      directThread.lastMessageBy = 'teacher';
+      if (!directThread.teacherId) {
+        directThread.teacherId   = req.schoolUser._id;
+        directThread.teacherName = req.schoolUser.name || '';
+      }
+      await directThread.save();
+      return res.json({ success: true, message: 'Reply sent.', messageId: directThread._id });
+    }
+
+    /* ── Option B: New message or reply by studentId + parentId ── */
+    if (!studentId || !parentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'messageId or (studentId and parentId) are required.'
+      });
     }
 
     /* Verify student belongs to this school */
-    var student = await SchoolStudent.findOne({ _id: studentId, schoolId: req.schoolId })
-      .select('name').lean();
+    var student = await SchoolStudent.findOne({
+      _id:      studentId,
+      schoolId: req.schoolId   /* FIXED: was bare `schoolId` variable */
+    }).select('name').lean();
     if (!student) {
       return res.status(404).json({ success: false, message: 'Student not found.' });
     }
 
-    /* Find existing open thread or create new */
+    var reqType  = recipientType || 'class_teacher';
+
+    /* Find existing open thread for this student-parent-recipientType combination */
     var existing = await SchoolMessage.findOne({
-      schoolId,
+      schoolId:      req.schoolId,  /* FIXED: was bare `schoolId` variable */
       studentId,
       parentId,
-      status: 'open'
+      recipientType: reqType,
+      status:        'open'
     });
 
     if (existing) {
@@ -483,16 +558,17 @@ router.post('/messages/send', manageGuard, async function(req, res) {
 
     /* New thread */
     var newMessage = await SchoolMessage.create({
-      schoolId:     req.schoolId,
+      schoolId:      req.schoolId,
       studentId,
       parentId,
-      teacherId:    req.schoolUser._id,
-      teacherName:  req.schoolUser.name || '',
-      subject:      (subject || '').trim(),
-      initiatedBy:  'teacher',
-      status:       'open',
-      lastMessageAt:new Date(),
-      lastMessageBy:'teacher',
+      teacherId:     req.schoolUser._id,
+      teacherName:   req.schoolUser.name || '',
+      recipientType: reqType,
+      subject:       (subject || '').trim(),
+      initiatedBy:   'teacher',
+      status:        'open',
+      lastMessageAt: new Date(),
+      lastMessageBy: 'teacher',
       thread: [{
         senderId:   req.schoolUser._id,
         senderType: 'teacher',
@@ -504,6 +580,42 @@ router.post('/messages/send', manageGuard, async function(req, res) {
 
     return res.status(201).json({ success: true, message: 'Message thread started.', messageId: newMessage._id });
   } catch(err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* PUT /api/institution/parent-comms/messages/:id/read
+   Staff marks all parent messages in thread as read.
+   Also claims the thread by setting teacherId if not yet assigned.
+*/
+router.put('/messages/:id/read', readGuard, async function(req, res) {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid message ID.' });
+    }
+    var msg = await SchoolMessage.findOne({
+      _id:      req.params.id,
+      schoolId: req.schoolId   /* TENANT SCOPE */
+    });
+    if (!msg) {
+      return res.status(404).json({ success: false, message: 'Message thread not found.' });
+    }
+    var now = new Date();
+    msg.thread.forEach(function(entry) {
+      if (entry.senderType === 'parent' && !entry.readAt) {
+        entry.readAt = now;
+      }
+    });
+    /* Claim thread: set this staff member as the responsible teacher
+       if no one has claimed it yet */
+    if (!msg.teacherId) {
+      msg.teacherId   = req.schoolUser._id;
+      msg.teacherName = req.schoolUser.name || '';
+    }
+    await msg.save();
+    return res.json({ success: true });
+  } catch(err) {
+    console.error('[parent-comms] PUT /messages/:id/read:', err.message);
     return res.status(500).json({ success: false, message: err.message });
   }
 });

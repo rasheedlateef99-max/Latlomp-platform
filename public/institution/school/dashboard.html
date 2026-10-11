@@ -243,6 +243,13 @@
     <a class="nav-item" href="/institution/school/attendance-reports.html"><span class="nav-icon">📊</span> Attendance Reports</a>
     <div class="sb-sep">Links</div>
     <button class="nav-item" data-sec="parents" onclick="showSection('parents')"><span class="nav-icon">👨‍👩‍👧</span> Parent Portal</button>
+    <button class="nav-item" data-sec="messages" onclick="showSection('messages')" style="position:relative;">
+      <span>💬 Messages</span>
+      <span id="sdMsgNavBadge"
+        style="display:none;position:absolute;top:8px;right:10px;background:#ff6584;
+          color:#fff;border-radius:50%;min-width:16px;height:16px;font-size:9px;
+          font-weight:800;padding:0 3px;text-align:center;line-height:16px;">0</span>
+    </button>
     <a href="/institution/student/exam.html" class="nav-item" target="_blank"><span class="nav-icon">🎓</span> Student Portal</a>
     <a href="/institution/index.html"        class="nav-item"><span class="nav-icon">🏠</span> Institution Home</a>
   </nav>
@@ -733,6 +740,46 @@
       </div>
     </div>
 
+<!-- SCHOOL MESSAGES INBOX -->
+    <div class="section" id="sec-messages">
+      <div class="page-header">
+        <div><h1>💬 Messages</h1><p>Parent-to-school conversations</p></div>
+        <button class="btn btn-secondary btn-sm" onclick="loadSchoolMessages()">↺ Refresh</button>
+      </div>
+      <div id="sdMsgListWrap">
+        <div class="card">
+          <div class="card-head">
+            <h3>All Conversations</h3>
+            <span id="sdMsgHeaderBadge" style="font-size:12px;color:var(--muted);"></span>
+          </div>
+          <div id="sdMsgList" style="padding:16px;">
+            <div style="text-align:center;padding:24px;color:var(--muted);">Loading...</div>
+          </div>
+        </div>
+      </div>
+      <div id="sdThreadWrap" style="display:none;">
+        <div class="card">
+          <div class="card-head" style="gap:12px;">
+            <button onclick="closeSchoolThread()" class="btn btn-secondary btn-sm" style="flex-shrink:0;">← Back</button>
+            <div id="sdThreadTitle" style="min-width:0;"></div>
+          </div>
+          <div id="sdThreadMessages"
+            style="padding:16px;max-height:52vh;overflow-y:auto;
+              display:flex;flex-direction:column;gap:10px;"></div>
+          <div style="padding:14px 16px;border-top:1px solid var(--border);">
+            <textarea id="sdReplyBody" rows="2" class="inp"
+              placeholder="Type a reply…"
+              style="width:100%;margin-bottom:8px;resize:none;"></textarea>
+            <div id="sdReplyErr"
+              style="display:none;font-size:12px;color:var(--red);margin-bottom:6px;"></div>
+            <button onclick="sendSchoolReply()" id="sdReplyBtn"
+              class="btn btn-primary btn-sm">Send Reply →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- END SCHOOL MESSAGES -->
+
   <!-- PARENT PORTAL -->
     <div class="section" id="sec-parents">
       <div class="page-header">
@@ -1070,6 +1117,7 @@ function showSection(name) {
   if (name === 'subscription') loadSubscriptionSection();
   if (name === 'settings')     loadSettingsSection();
   if (name === 'parents')      loadParentSection();
+  if (name === 'messages')     loadSchoolMessages();
   if (name === 'payments')     loadPaymentSection();
 }
 
@@ -2606,6 +2654,184 @@ async function cancelParentInv(id) {
   var res = await instApi('/parent/invite/' + id, 'DELETE');
   if (res.ok) { instToast('Invitation cancelled.', 'success'); loadParentInvites(); }
   else instToast((res.data && res.data.message) || 'Failed.', 'error');
+}
+
+/* ============================================
+   SCHOOL DASHBOARD — MESSAGE INBOX
+   School admin/principal sees ALL messages.
+   Uses same backend as teacher inbox.
+============================================ */
+var _sdActiveThreadId = null;
+
+async function loadSchoolMessages() {
+  var listEl  = document.getElementById('sdMsgList');
+  var badgeEl = document.getElementById('sdMsgHeaderBadge');
+  if (listEl) {
+    listEl.innerHTML =
+      '<div style="text-align:center;padding:24px;color:var(--muted);"><span class="spinner"></span></div>';
+  }
+  closeSchoolThread();
+
+  /* School admin sees all message types — no recipientType filter */
+  var res      = await instApi('/parent-comms/messages');
+  var messages = (res.ok && res.data && res.data.messages) ? res.data.messages : [];
+  var totalUnread = messages.reduce(function(s,m){ return s+(m.unreadCount||0); }, 0);
+
+  var navBadge = document.getElementById('sdMsgNavBadge');
+  if (navBadge) {
+    navBadge.textContent   = totalUnread > 99 ? '99+' : totalUnread;
+    navBadge.style.display = totalUnread > 0 ? 'inline-block' : 'none';
+  }
+  if (badgeEl) {
+    badgeEl.textContent =
+      messages.length + ' conversation' + (messages.length !== 1 ? 's' : '') +
+      (totalUnread > 0 ? ' · ' + totalUnread + ' unread' : '');
+  }
+
+  if (!listEl) { return; }
+
+  if (!messages.length) {
+    listEl.innerHTML =
+      '<div class="empty"><div class="empty-icon">💬</div>' +
+      '<div class="empty-text" style="font-weight:700;color:var(--secondary);">No messages yet</div>' +
+      '<div class="empty-sub">Parent messages appear here when they contact the school.</div></div>';
+    return;
+  }
+
+  var rCfg = {
+    class_teacher: { label:'Class Teacher',       icon:'👩‍🏫' },
+    school_admin:  { label:'Administration',       icon:'🏫' },
+    finance:       { label:'Finance Department',   icon:'💳' },
+    general:       { label:'General',              icon:'💬' }
+  };
+
+  listEl.innerHTML =
+    '<div style="display:flex;flex-direction:column;gap:10px;">' +
+    messages.map(function(m) {
+      var cfg     = rCfg[m.recipientType] || rCfg.general;
+      var unread  = m.unreadCount || 0;
+      var preview = m.lastMessage ? m.lastMessage.body : '—';
+      var dateStr = m.lastMessageAt
+        ? new Date(m.lastMessageAt).toLocaleString('en',
+            { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })
+        : '';
+      return '<div onclick="viewSchoolThread(\'' + esc(m._id) + '\')" ' +
+        'style="padding:14px 16px;border-radius:12px;cursor:pointer;' +
+        'border:1px solid ' + (unread > 0 ? 'rgba(108,99,255,0.3)' : 'var(--border)') + ';' +
+        'background:' + (unread > 0 ? 'rgba(108,99,255,0.07)' : 'rgba(255,255,255,0.02)') + ';">' +
+          '<div style="display:flex;align-items:flex-start;justify-content:space-between;' +
+               'gap:10px;margin-bottom:6px;">' +
+            '<div style="display:flex;align-items:center;gap:8px;min-width:0;">' +
+              '<span style="font-size:20px;flex-shrink:0;">' + cfg.icon + '</span>' +
+              '<div style="min-width:0;">' +
+                '<div style="font-size:13px;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
+                  esc(m.subject || 'Message from parent') + '</div>' +
+                '<div style="font-size:11px;color:#a78bfa;margin-top:1px;">' +
+                  esc(cfg.label) +
+                  (m.teacherName ? ' — ' + esc(m.teacherName) : '') + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">' +
+              (unread > 0
+                ? '<span style="background:#6c63ff;color:#fff;border-radius:50%;' +
+                  'min-width:18px;height:18px;display:inline-flex;align-items:center;' +
+                  'justify-content:center;font-size:10px;font-weight:800;">' + unread + '</span>'
+                : '') +
+              '<span style="font-size:11px;color:var(--muted);">' + dateStr + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div style="font-size:13px;color:var(--secondary);padding-left:28px;' +
+               'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
+            esc(preview) + '</div>' +
+      '</div>';
+    }).join('') + '</div>';
+}
+
+async function viewSchoolThread(messageId) {
+  _sdActiveThreadId = messageId;
+  var listWrap   = document.getElementById('sdMsgListWrap');
+  var threadWrap = document.getElementById('sdThreadWrap');
+  if (listWrap)   { listWrap.style.display   = 'none';  }
+  if (threadWrap) { threadWrap.style.display = 'block'; }
+  var msgsEl = document.getElementById('sdThreadMessages');
+  if (msgsEl) {
+    msgsEl.innerHTML =
+      '<div style="text-align:center;padding:20px;color:var(--muted);"><span class="spinner"></span></div>';
+  }
+  try { await instApi('/parent-comms/messages/' + messageId + '/read', 'PUT'); } catch(e) {}
+  var res = await instApi('/parent-comms/messages/' + messageId);
+  var msg = res.ok && res.data && res.data.message;
+  if (!msg) {
+    if (msgsEl) msgsEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">Not found.</div>';
+    return;
+  }
+  var rLabels = { class_teacher:'👩‍🏫 Class Teacher', school_admin:'🏫 Administration',
+                  finance:'💳 Finance', general:'💬 General' };
+  var titleEl = document.getElementById('sdThreadTitle');
+  if (titleEl) {
+    titleEl.innerHTML =
+      '<div><div style="font-size:14px;font-weight:700;color:#fff;">' +
+        esc(msg.subject || 'Message Thread') + '</div>' +
+      '<div style="font-size:11px;color:#a78bfa;">' +
+        esc(rLabels[msg.recipientType] || 'General') + '</div></div>';
+  }
+  var thread = msg.thread || [];
+  if (msgsEl) {
+    if (!thread.length) {
+      msgsEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);">Empty thread.</div>';
+    } else {
+      msgsEl.innerHTML = thread.map(function(e) {
+        var isStaff = e.senderType !== 'parent';
+        var time    = new Date(e.sentAt).toLocaleString('en',
+          { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+        return '<div style="display:flex;flex-direction:column;align-items:' +
+          (isStaff ? 'flex-end' : 'flex-start') + ';">' +
+          '<div style="max-width:88%;padding:10px 12px;' +
+            'background:' + (isStaff ? 'rgba(108,99,255,0.14)' : 'rgba(255,255,255,0.05)') + ';' +
+            'border:1px solid ' + (isStaff ? 'rgba(108,99,255,0.3)' : 'rgba(255,255,255,0.08)') + ';' +
+            'border-radius:' + (isStaff ? '12px 2px 12px 12px' : '2px 12px 12px 12px') + ';">' +
+            '<div style="font-size:11px;font-weight:700;margin-bottom:4px;' +
+              'color:' + (isStaff ? '#a78bfa' : 'var(--green)') + ';">' + esc(e.senderName || '') + '</div>' +
+            '<div style="font-size:13px;color:#fff;line-height:1.5;white-space:pre-wrap;word-break:break-word;">' +
+              esc(e.body) + '</div>' +
+            '<div style="font-size:10px;color:var(--muted);margin-top:5px;text-align:right;">' + time + '</div>' +
+          '</div></div>';
+      }).join('');
+      msgsEl.scrollTop = msgsEl.scrollHeight;
+    }
+  }
+  var rb = document.getElementById('sdReplyBody'); if (rb) rb.value = '';
+  var re = document.getElementById('sdReplyErr');  if (re) re.style.display = 'none';
+  loadSchoolMessages();
+}
+
+function closeSchoolThread() {
+  _sdActiveThreadId = null;
+  var lw = document.getElementById('sdMsgListWrap');
+  var tw = document.getElementById('sdThreadWrap');
+  if (lw) lw.style.display = 'block';
+  if (tw) tw.style.display = 'none';
+}
+
+async function sendSchoolReply() {
+  if (!_sdActiveThreadId) { return; }
+  var btn = document.getElementById('sdReplyBtn');
+  var err = document.getElementById('sdReplyErr');
+  var bd  = document.getElementById('sdReplyBody');
+  if (err) err.style.display = 'none';
+  var body = (bd ? bd.value : '').trim();
+  if (!body) { if (err) { err.textContent='Type a reply.'; err.style.display='block'; } return; }
+  if (btn) { btn.textContent='Sending…'; btn.disabled=true; }
+  var res = await instApi('/parent-comms/messages/send','POST',{messageId:_sdActiveThreadId,body});
+  if (btn) { btn.textContent='Send Reply →'; btn.disabled=false; }
+  if (res.ok && res.data && res.data.success) {
+    if (bd) bd.value = '';
+    instToast('Reply sent.','success');
+    await viewSchoolThread(_sdActiveThreadId);
+  } else {
+    var msg = (res.data && res.data.message) || 'Failed.';
+    if (err) { err.textContent = msg; err.style.display = 'block'; }
+  }
 }
 
 /* ============================================ MODAL HELPERS */
