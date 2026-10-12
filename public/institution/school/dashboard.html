@@ -2694,7 +2694,10 @@ async function loadSchoolMessages() {
     listEl.innerHTML =
       '<div class="empty"><div class="empty-icon">💬</div>' +
       '<div class="empty-text" style="font-weight:700;color:var(--secondary);">No messages yet</div>' +
-      '<div class="empty-sub">Parent messages appear here when they contact the school.</div></div>';
+      '<div class="empty-sub" style="max-width:300px;margin:0 auto;line-height:1.7;">' +
+        'Messages from parents to school administration and finance will appear here. ' +
+        'Private teacher-parent conversations are visible only to the respective teacher.' +
+      '</div></div>';
     return;
   }
 

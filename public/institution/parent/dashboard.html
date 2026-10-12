@@ -1033,8 +1033,21 @@ function renderFeeProgress(data) {
   if (!el) { return; }
 
   if (!data || !data.success) {
-    el.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div>' +
-      '<div class="empty-text">' + esc((data && data.message) || 'Could not load fee information.') + '</div></div>';
+    el.innerHTML =
+      '<div class="empty">' +
+        '<div class="empty-icon">⚠️</div>' +
+        '<div class="empty-text" style="font-weight:700;color:#fff;">' +
+          esc((data && data.message) || 'Could not load fee information.') +
+        '</div>' +
+        '<div class="empty-text" style="font-size:12px;margin-top:6px;line-height:1.6;">' +
+          'Please check your connection and try again.' +
+        '</div>' +
+        '<button onclick="loadFees()" ' +
+          'style="margin-top:14px;padding:8px 18px;border-radius:9px;' +
+          'background:rgba(108,99,255,0.15);border:1px solid rgba(108,99,255,0.3);' +
+          'color:#a78bfa;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">' +
+          '↺ Try Again</button>' +
+      '</div>';
     return;
   }
 
@@ -1208,6 +1221,9 @@ async function submitParentClaim() {
   var btn   = document.getElementById('claimSubmitBtn');
   var errEl = document.getElementById('claimModalErr');
   if (errEl) { errEl.style.display = 'none'; }
+  /* D4: Prevent double-submission on slow connections */
+  if (btn && btn.dataset.submitting === 'true') { return; }
+  if (btn) { btn.dataset.submitting = 'true'; }
 
   if (!_selectedAccount || !_pickerAssignmentId || !_claimStudentId) {
     if (errEl) { errEl.textContent = 'Missing payment context. Please start again.'; errEl.style.display = 'block'; }
@@ -1251,6 +1267,7 @@ async function submitParentClaim() {
   });
 
   if (btn) { btn.textContent = 'Submit Claim →'; btn.disabled = false; }
+  if (btn) { btn.dataset.submitting = 'false'; }
 
   if (res && res.success) {
     closeClaimModal();
@@ -1378,11 +1395,15 @@ function renderPcAccounts(data) {
   var accounts = (data && data.success && data.accounts) ? data.accounts : [];
   if (!accounts.length) {
     el.innerHTML =
-      '<div class="empty">' +
+      '<div class="empty" style="padding:32px 20px;">' +
         '<div class="empty-icon">🏦</div>' +
-        '<div class="empty-text">No payment accounts configured yet.</div>' +
-        '<div class="empty-text" style="font-size:12px;margin-top:6px;line-height:1.6;">' +
-          'The school Finance team will add payment accounts here.' +
+        '<div class="empty-text" style="font-weight:700;font-size:14px;color:var(--text-secondary);">' +
+          'No payment accounts configured yet' +
+        '</div>' +
+        '<div class="empty-text" style="font-size:13px;margin-top:8px;line-height:1.7;' +
+             'max-width:320px;margin-left:auto;margin-right:auto;">' +
+          'The school Finance office has not yet set up bank transfer accounts. ' +
+          'Please contact the school directly for current payment details.' +
         '</div>' +
       '</div>';
     return;

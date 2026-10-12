@@ -1269,7 +1269,25 @@ function closeSidebar() { document.getElementById('sidebar').classList.remove('o
 
 async function loadOverview() {
   var res = await instApi('/teacher/exams');
-  if (!res.ok) { instToast('Failed to load dashboard.', 'error'); return; }
+  if (!res.ok) {
+    var errMsg = (res.data && res.data.message) || 'Failed to load dashboard.';
+    instToast('❌ ' + errMsg, 'error');
+    /* Show retry button in overview body */
+    var overviewEl = document.getElementById('sec-overview');
+    if (overviewEl) {
+      var existingRetry = document.getElementById('overviewRetryBtn');
+      if (!existingRetry) {
+        var retryDiv = document.createElement('div');
+        retryDiv.id = 'overviewRetryBtn';
+        retryDiv.style.cssText = 'text-align:center;padding:20px;';
+        retryDiv.innerHTML =
+          '<div style="font-size:13px;color:var(--muted);margin-bottom:12px;">Could not load dashboard data.</div>' +
+          '<button class="btn btn-secondary" onclick="loadOverview();this.parentNode.remove();">↺ Retry</button>';
+        overviewEl.insertBefore(retryDiv, overviewEl.firstChild);
+      }
+    }
+    return;
+  }
   _myExams = res.data.exams || [];
   var published   = _myExams.filter(function(e){return e.status==='published'||e.status==='active';}).length;
   var submissions = _myExams.reduce(function(s,e){return s+(e.totalAttempts||0);},0);
@@ -1959,8 +1977,21 @@ async function loadPaymentCenterSection() {
   wrap.innerHTML = '<div style="text-align:center;padding:28px;color:var(--muted);">' +
     '<span class="spinner"></span></div>';
 
-  var res      = await instApi('/fee/manual-accounts/active');
-  var accounts = (res.ok && res.data && res.data.accounts) ? res.data.accounts : [];
+  var res = await instApi('/fee/manual-accounts/active');
+
+  if (!res.ok) {
+    wrap.innerHTML =
+      '<div class="card"><div class="card-body" style="text-align:center;padding:32px 20px;">' +
+        '<div style="font-size:32px;margin-bottom:10px;">⚠️</div>' +
+        '<div style="font-size:13px;color:var(--secondary);margin-bottom:12px;">' +
+          ((res.data && res.data.message) || 'Could not load payment accounts.') +
+        '</div>' +
+        '<button class="btn btn-secondary btn-sm" onclick="loadPaymentCenterSection()">↺ Retry</button>' +
+      '</div></div>';
+    return;
+  }
+
+  var accounts = (res.data && res.data.accounts) ? res.data.accounts : [];
 
   if (!accounts.length) {
     wrap.innerHTML =
@@ -2075,7 +2106,10 @@ function renderStaffMsgList(messages) {
       '<div class="empty">' +
         '<div class="empty-icon">💬</div>' +
         '<div class="empty-title">No messages yet</div>' +
-        '<div class="empty-sub">Parent messages will appear here when they contact the school.</div>' +
+        '<div class="empty-sub" style="max-width:300px;margin:0 auto;line-height:1.7;">' +
+          'Parent messages addressed to you will appear here. ' +
+          'Parents can reach you through their Parent Dashboard → Messages.' +
+        '</div>' +
       '</div>';
     return;
   }

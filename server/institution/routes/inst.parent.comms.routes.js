@@ -395,13 +395,47 @@ router.delete('/events/:id', adminGuard, async function(req, res) {
    Removed .select('-thread') — was breaking unread count calculation.
    Added recipientType filter + proper unread count for staff side.
 */
+/* GET /api/institution/parent-comms/messages
+   Role-based privacy filtering (P10-C correction):
+   - class_teacher messages  → only the assigned teacher (teacherId match)
+   - school_admin messages   → principal, vice_principal, school_admin
+   - finance messages        → bursar, school_admin
+   Staff can NEVER see message threads addressed to a different recipient category.
+*/
 router.get('/messages', readGuard, async function(req, res) {
   try {
-    var filter = { schoolId: req.schoolId };
-    if (req.query.status)        filter.status        = req.query.status;
-    if (req.query.studentId)     filter.studentId     = req.query.studentId;
-    if (req.query.teacherId)     filter.teacherId     = req.query.teacherId;
-    if (req.query.recipientType) filter.recipientType = req.query.recipientType;
+    var filter         = { schoolId: req.schoolId };
+    var effectiveRoles = getEffectiveRoles(req.schoolUser);
+
+    var ADMIN_ROLES   = ['school_admin', 'principal', 'vice_principal'];
+    var FINANCE_ROLES = ['bursar', 'school_admin'];
+
+    var isAdmin   = effectiveRoles.some(function(r) { return ADMIN_ROLES.includes(r); });
+    var isFinance = effectiveRoles.some(function(r) { return FINANCE_ROLES.includes(r); });
+
+    if (isAdmin || isFinance) {
+      /* Admin/Finance: see only messages addressed to admin or finance.
+         NEVER see private class_teacher conversations. */
+      var visibleTypes = [];
+      if (isAdmin)   { visibleTypes.push('school_admin'); }
+      if (isFinance && !visibleTypes.includes('finance')) { visibleTypes.push('finance'); }
+      filter.recipientType = visibleTypes.length === 1
+        ? visibleTypes[0]
+        : { $in: visibleTypes };
+    } else {
+      /* Class teacher / regular teacher:
+         See ONLY messages where teacherId matches this staff member.
+         Covers both new (recipientType=class_teacher) and
+         old pre-C3 messages (recipientType may be null/undefined). */
+      filter.$or = [
+        { recipientType: 'class_teacher',  teacherId: req.schoolUser._id },
+        { recipientType: { $in: [null, undefined, 'general'] }, teacherId: req.schoolUser._id }
+      ];
+    }
+
+    /* Optional additional filters from query */
+    if (req.query.status)    filter.status    = req.query.status;
+    if (req.query.studentId) filter.studentId = req.query.studentId;
 
     var messages = await SchoolMessage.find(filter)
       .sort({ lastMessageAt: -1 })

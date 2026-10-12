@@ -2058,6 +2058,31 @@ router.post('/children/:studentId/claims', async function (req, res) {
       }
     }
 
+    /* ---- D4: Soft duplicate guard ----
+       Prevent the same parent submitting an identical claim
+       for the same assignment within a 5-minute window.
+       Warns but does not hard-block (same reference could
+       be a corrected resubmission). */
+    if (hasAssignment) {
+      var recentDuplicate = await SchoolPaymentClaim.findOne({
+        schoolId:     link.schoolId,
+        payerId:      req.parent._id,
+        assignmentId: assignmentId,
+        status:       { $in: ['awaiting_verification', 'needs_correction'] },
+        createdAt:    { $gte: new Date(Date.now() - 5 * 60 * 1000) }
+      }).select('_id createdAt').lean();
+
+      if (recentDuplicate) {
+        return res.status(409).json({
+          success: false,
+          message: 'A claim for this fee was just submitted (within the last 5 minutes). ' +
+                   'Please wait for Finance to review it before submitting another. ' +
+                   'Check your Claims section to see its current status.',
+          existingClaimId: recentDuplicate._id
+        });
+      }
+    }
+
     /* ---- Create the claim ----
        All security-sensitive fields are set server-side.
        Client body is never trusted for: schoolId, studentId,
