@@ -24,7 +24,15 @@ var messageEntrySchema = new mongoose.Schema({
   senderName: { type: String, default: '' },
   body:       { type: String, required: true, trim: true },
   sentAt:     { type: Date, default: Date.now },
-  readAt:     { type: Date, default: null } /* set when OTHER party reads */
+  readAt:     { type: Date, default: null }, /* set when OTHER party reads */
+  /* C3+: File/audio attachments */
+  attachments: [{
+    url:      { type: String, required: true },
+    name:     { type: String, default: '' },
+    mimeType: { type: String, default: '' },
+    size:     { type: Number, default: 0 },
+    fileType: { type: String, enum: ['image','audio','document','other'], default: 'other' }
+  }]
 }, { _id: false });
 
 const schoolMessageSchema = new mongoose.Schema({

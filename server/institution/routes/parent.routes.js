@@ -1356,9 +1356,10 @@ router.post('/children/:studentId/messages', async function(req, res) {
       return res.status(403).json({ success: false, message: 'Access denied.' });
     }
 
-    var { body, subject, recipientType } = req.body;
-    if (!body || !body.trim()) {
-      return res.status(400).json({ success: false, message: 'Message body is required.' });
+    var { body, subject, recipientType, attachments } = req.body;
+    var hasAttachments = Array.isArray(attachments) && attachments.length > 0;
+    if (!body && !hasAttachments) {
+      return res.status(400).json({ success: false, message: 'Message body or an attachment is required.' });
     }
 
     var link = req.parent.linkedStudents.find(function(ls) {
@@ -1449,11 +1450,20 @@ router.post('/children/:studentId/messages', async function(req, res) {
 
     if (existing) {
       existing.thread.push({
-        senderId:   req.parent._id,
-        senderType: 'parent',
-        senderName: req.parent.name || '',
-        body:       body.trim(),
-        sentAt:     new Date()
+        senderId:    req.parent._id,
+        senderType:  'parent',
+        senderName:  req.parent.name || '',
+        body:        (body || '').trim(),
+        sentAt:      new Date(),
+        attachments: hasAttachments ? attachments.slice(0, 5).map(function(a) {
+          return {
+            url:      (a.url      || '').substring(0, 2000),
+            name:     (a.name     || '').substring(0, 200),
+            mimeType: (a.mimeType || '').substring(0, 100),
+            size:     parseInt(a.size) || 0,
+            fileType: ['image','audio','document','other'].includes(a.fileType) ? a.fileType : 'other'
+          };
+        }) : []
       });
       existing.lastMessageAt = new Date();
       existing.lastMessageBy = 'parent';

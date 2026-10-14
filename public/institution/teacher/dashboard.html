@@ -180,6 +180,234 @@
     .theory-q { background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:12px; }
     .theory-answer-box { background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:8px; padding:12px; font-size:13px; color:var(--secondary); line-height:1.6; margin:8px 0; min-height:60px; }
     .spinner { width:18px; height:18px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block; }
+/* ═══ CHAT UI (P10-D) ═══ */
+.chat-shell {
+  display:flex; height:calc(100vh - 180px); min-height:400px;
+  background:var(--dark); border-radius:14px; overflow:hidden;
+  border:1px solid var(--border);
+}
+@media (max-width:768px) {
+  .chat-shell { height:calc(100vh - 120px); border-radius:0; border:none; }
+}
+
+/* ── Conversation list (left panel) ── */
+.chat-list-panel {
+  width:320px; flex-shrink:0; border-right:1px solid var(--border);
+  display:flex; flex-direction:column; background:var(--dark-2);
+}
+@media (max-width:768px) {
+  .chat-list-panel { width:100%; border-right:none; }
+  .chat-list-panel.hidden { display:none; }
+}
+.chat-list-header {
+  padding:16px; border-bottom:1px solid var(--border); flex-shrink:0;
+}
+.chat-list-title {
+  font-size:16px; font-weight:800; color:#fff; margin-bottom:10px;
+}
+.chat-search-wrap {
+  display:flex; align-items:center; gap:8px;
+  background:rgba(255,255,255,0.05); border:1px solid var(--border);
+  border-radius:9px; padding:8px 12px;
+}
+.chat-search-input {
+  flex:1; background:none; border:none; color:#fff; font-size:13px;
+  font-family:inherit; outline:none;
+}
+.chat-search-input::placeholder { color:var(--muted,#6b6b8a); }
+.chat-conv-list { flex:1; overflow-y:auto; }
+.chat-conv-item {
+  display:flex; align-items:center; gap:12px; padding:14px 16px;
+  cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.04);
+  transition:background 0.12s;
+}
+.chat-conv-item:hover  { background:rgba(255,255,255,0.04); }
+.chat-conv-item.active { background:rgba(108,99,255,0.12); }
+.chat-conv-avatar {
+  width:42px; height:42px; border-radius:50%; flex-shrink:0;
+  background:linear-gradient(135deg,#6c63ff,#574fd6);
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; font-weight:800; color:#fff; position:relative;
+}
+.chat-conv-unread-dot {
+  position:absolute; top:0; right:0; width:10px; height:10px;
+  background:#ff6584; border-radius:50%; border:2px solid var(--dark-2);
+}
+.chat-conv-info { flex:1; min-width:0; }
+.chat-conv-name {
+  font-size:13px; font-weight:700; color:#fff;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.chat-conv-role  { font-size:11px; color:var(--primary); margin-top:1px; font-weight:600; }
+.chat-conv-preview {
+  font-size:12px; color:var(--secondary,#a0a0c0); margin-top:2px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.chat-conv-meta { flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
+.chat-conv-time  { font-size:10px; color:var(--muted); white-space:nowrap; }
+.chat-conv-badge {
+  background:#6c63ff; color:#fff; border-radius:50%;
+  min-width:18px; height:18px; display:inline-flex;
+  align-items:center; justify-content:center;
+  font-size:10px; font-weight:800;
+}
+.chat-new-btn {
+  margin:12px 14px; width:calc(100% - 28px);
+  padding:10px; border-radius:9px;
+  background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+  border:none; color:#fff; font-size:13px; font-weight:700;
+  cursor:pointer; font-family:inherit; text-align:center;
+}
+
+/* ── Thread panel (right) ── */
+.chat-thread-panel {
+  flex:1; display:flex; flex-direction:column; min-width:0;
+  background:var(--dark);
+}
+@media (max-width:768px) {
+  .chat-thread-panel { display:none; }
+  .chat-thread-panel.active {
+    display:flex; position:fixed; inset:0; z-index:600;
+    background:var(--dark);
+  }
+}
+.chat-thread-header {
+  display:flex; align-items:center; gap:12px;
+  padding:14px 18px; border-bottom:1px solid var(--border);
+  background:var(--dark-2); flex-shrink:0;
+}
+.chat-back-btn {
+  display:none; background:none; border:none; color:var(--secondary);
+  font-size:20px; cursor:pointer; padding:4px; flex-shrink:0;
+}
+@media (max-width:768px) { .chat-back-btn { display:block; } }
+.chat-thread-name  { font-size:14px; font-weight:700; color:#fff; }
+.chat-thread-sub   { font-size:11px; color:#a78bfa; margin-top:1px; }
+.chat-thread-status{ margin-left:auto; font-size:11px; color:var(--secondary); }
+.chat-messages-area { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px; }
+
+/* Message bubbles */
+.msg-row { display:flex; align-items:flex-end; gap:8px; }
+.msg-row.sent { flex-direction:row-reverse; }
+.msg-avatar {
+  width:28px; height:28px; border-radius:50%; flex-shrink:0;
+  background:rgba(108,99,255,0.2);
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:800; color:#a78bfa;
+}
+.msg-bubble-wrap { display:flex; flex-direction:column; max-width:72%; }
+.msg-row.sent .msg-bubble-wrap { align-items:flex-end; }
+.msg-sender { font-size:10px; color:var(--muted); margin-bottom:3px; padding:0 4px; }
+.msg-bubble {
+  padding:10px 14px; border-radius:16px; font-size:14px; color:#fff;
+  line-height:1.55; word-break:break-word; position:relative;
+}
+.msg-row.received .msg-bubble {
+  background:var(--dark-2); border:1px solid var(--border);
+  border-bottom-left-radius:4px;
+}
+.msg-row.sent .msg-bubble {
+  background:linear-gradient(135deg,#6c63ff,#574fd6);
+  border-bottom-right-radius:4px;
+}
+.msg-time {
+  font-size:10px; color:rgba(255,255,255,0.45); margin-top:4px;
+  padding:0 4px; text-align:right;
+}
+.msg-row.received .msg-time { text-align:left; }
+
+/* Audio message */
+.msg-audio { display:flex; align-items:center; gap:8px; min-width:180px; }
+.msg-audio audio { height:30px; flex:1; border-radius:8px; }
+.msg-audio-label { font-size:11px; color:rgba(255,255,255,0.6); }
+
+/* File attachment */
+.msg-file {
+  display:flex; align-items:center; gap:10px; padding:6px 0;
+}
+.msg-file-icon { font-size:22px; flex-shrink:0; }
+.msg-file-info { min-width:0; }
+.msg-file-name {
+  font-size:13px; font-weight:600; color:#fff;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;
+}
+.msg-file-size { font-size:11px; color:rgba(255,255,255,0.5); margin-top:1px; }
+.msg-file-dl {
+  background:rgba(255,255,255,0.15); border:none; border-radius:6px;
+  padding:4px 8px; color:#fff; font-size:12px; cursor:pointer;
+  font-family:inherit; text-decoration:none; display:inline-block;
+}
+
+/* Input bar */
+.chat-input-bar {
+  padding:12px 16px; border-top:1px solid var(--border);
+  background:var(--dark-2); flex-shrink:0;
+}
+.chat-input-row {
+  display:flex; align-items:flex-end; gap:8px;
+  background:rgba(255,255,255,0.04); border:1px solid var(--border);
+  border-radius:12px; padding:8px 8px 8px 14px;
+}
+.chat-input-field {
+  flex:1; background:none; border:none; color:#fff; font-size:14px;
+  font-family:inherit; outline:none; resize:none; max-height:100px;
+  overflow-y:auto; line-height:1.5; min-height:22px;
+}
+.chat-input-field::placeholder { color:var(--muted); }
+.chat-action-btn {
+  width:36px; height:36px; border-radius:9px; flex-shrink:0;
+  background:none; border:none; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; color:var(--secondary); transition:all 0.15s;
+}
+.chat-action-btn:hover  { background:rgba(255,255,255,0.08); color:#fff; }
+.chat-send-btn {
+  width:36px; height:36px; border-radius:9px; flex-shrink:0;
+  background:linear-gradient(135deg,#6c63ff,#574fd6);
+  border:none; cursor:pointer; display:flex; align-items:center;
+  justify-content:center; font-size:16px; color:#fff; transition:all 0.15s;
+}
+.chat-send-btn:hover { transform:scale(1.05); }
+.chat-send-btn:disabled { opacity:0.5; cursor:not-allowed; }
+.chat-voice-recording {
+  display:none; align-items:center; gap:10px;
+  background:rgba(255,101,132,0.1); border-radius:12px;
+  padding:10px 14px; border:1px solid rgba(255,101,132,0.3);
+}
+.chat-voice-pulse {
+  width:10px; height:10px; border-radius:50%; background:#ff6584;
+  animation:voicePulse 1s ease-in-out infinite;
+}
+@keyframes voicePulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50%      { opacity:0.4; transform:scale(1.4); }
+}
+.chat-voice-time { font-size:13px; color:#ff6584; font-weight:700; font-family:monospace; }
+
+/* New conversation recipient picker */
+.chat-recipient-picker {
+  padding:16px; border-bottom:1px solid var(--border); display:none;
+}
+.chat-recipient-card {
+  display:flex; align-items:center; gap:12px; padding:12px;
+  border:2px solid var(--border); border-radius:10px;
+  cursor:pointer; margin-bottom:8px; transition:all 0.15s;
+}
+.chat-recipient-card:hover { border-color:rgba(108,99,255,0.4); background:rgba(108,99,255,0.06); }
+.chat-recipient-card.selected { border-color:var(--primary); background:rgba(108,99,255,0.1); }
+.chat-recipient-card.unavailable { opacity:0.4; cursor:not-allowed; }
+.chat-file-input { display:none; }
+
+/* Empty / loading states */
+.chat-empty {
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  text-align:center; padding:40px 20px;
+}
+.chat-empty-icon { font-size:48px; margin-bottom:14px; opacity:0.5; }
+.chat-empty-title { font-size:15px; font-weight:700; color:var(--secondary); margin-bottom:6px; }
+.chat-empty-sub   { font-size:13px; color:var(--muted); line-height:1.7; max-width:260px; }
+
   </style>
 </head>
 <body>
@@ -414,45 +642,92 @@
       </div>
     </div>
 
-<!-- STAFF MESSAGES INBOX -->
+    <!-- STAFF MESSAGES (P10-D Chat UI) -->
     <div class="section" id="sec-messages">
-      <div class="page-header">
-        <div><h1>💬 Messages</h1><p>Parent-to-school conversations</p></div>
-        <button class="btn btn-secondary btn-sm" onclick="loadStaffMessages()">↺ Refresh</button>
-      </div>
-      <!-- Conversation list -->
-      <div id="staffMsgListWrap">
-        <div class="card">
-          <div class="card-head">
-            <h3>Conversations</h3>
-            <span id="staffMsgHeaderBadge" style="font-size:12px;color:var(--muted);"></span>
+      <div class="chat-shell">
+
+        <!-- LEFT: Conversation list -->
+        <div class="chat-list-panel" id="staffChatListPanel">
+          <div class="chat-list-header">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <div class="chat-list-title" style="margin:0;">💬 Messages</div>
+              <span id="staffMsgNavBadge"
+                style="display:none;background:#ff6584;color:#fff;border-radius:50%;
+                  min-width:18px;height:18px;font-size:10px;font-weight:800;
+                  display:inline-flex;align-items:center;justify-content:center;padding:0 4px;">0</span>
+            </div>
+            <div class="chat-search-wrap">
+              <span style="color:var(--muted);font-size:14px;">🔍</span>
+              <input type="text" class="chat-search-input" id="staffChatSearch"
+                placeholder="Search conversations…"
+                oninput="filterStaffConvList(this.value)" />
+            </div>
           </div>
-          <div id="staffMsgList" style="padding:16px;">
-            <div style="text-align:center;padding:24px;color:var(--muted);">Loading...</div>
-          </div>
-        </div>
-      </div>
-      <!-- Thread view — shown when a conversation is opened -->
-      <div id="staffThreadWrap" style="display:none;">
-        <div class="card">
-          <div class="card-head" style="gap:12px;">
-            <button onclick="closeStaffThread()"
-              class="btn btn-secondary btn-sm" style="flex-shrink:0;">← Back</button>
-            <div id="staffThreadTitle" style="min-width:0;"></div>
-          </div>
-          <div id="staffThreadMessages"
-            style="padding:16px;max-height:52vh;overflow-y:auto;
-              display:flex;flex-direction:column;gap:10px;"></div>
-          <div style="padding:14px 16px;border-top:1px solid var(--border);">
-            <textarea id="staffReplyBody" rows="2" class="inp"
-              placeholder="Type a reply…"
-              style="width:100%;margin-bottom:8px;resize:none;"></textarea>
-            <div id="staffReplyErr"
-              style="display:none;font-size:12px;color:var(--red);margin-bottom:6px;"></div>
-            <button onclick="sendStaffReply()" id="staffReplyBtn"
-              class="btn btn-primary btn-sm">Send Reply →</button>
+          <div class="chat-conv-list" id="staffConvList">
+            <div class="chat-empty" style="padding:32px 20px;">
+              <div class="chat-empty-icon">💬</div>
+              <div class="chat-empty-title">No messages yet</div>
+              <div class="chat-empty-sub">Parent messages addressed to you will appear here.</div>
+            </div>
           </div>
         </div>
+
+        <!-- RIGHT: Thread panel -->
+        <div class="chat-thread-panel" id="staffChatThreadPanel">
+          <div class="chat-empty" id="staffThreadEmpty">
+            <div class="chat-empty-icon">👈</div>
+            <div class="chat-empty-title">Select a conversation</div>
+            <div class="chat-empty-sub">Choose a conversation from the list</div>
+          </div>
+
+          <div id="staffActiveThread" style="display:none;flex:1;flex-direction:column;">
+            <div class="chat-thread-header">
+              <button class="chat-back-btn" onclick="staffCloseThread()">←</button>
+              <div class="chat-conv-avatar" id="staffThreadAvatar" style="width:36px;height:36px;font-size:15px;">👩‍🏫</div>
+              <div>
+                <div class="chat-thread-name" id="staffThreadName">—</div>
+                <div class="chat-thread-sub"  id="staffThreadSub">—</div>
+              </div>
+            </div>
+            <div class="chat-messages-area" id="staffMessagesArea"></div>
+
+            <!-- Voice recording indicator -->
+            <div class="chat-voice-recording" id="staffVoiceRecording">
+              <div class="chat-voice-pulse"></div>
+              <span class="chat-voice-time" id="staffVoiceTime">0:00</span>
+              <span style="flex:1;font-size:13px;color:#ff6584;">Recording… release to send</span>
+              <button onclick="staffCancelVoice()"
+                style="background:rgba(255,255,255,0.1);border:none;border-radius:6px;
+                  padding:4px 10px;color:#fff;font-size:12px;cursor:pointer;font-family:inherit;">
+                Cancel</button>
+            </div>
+
+            <div class="chat-input-bar">
+              <div id="staffInputErr"
+                style="display:none;font-size:12px;color:var(--red);margin-bottom:6px;"></div>
+              <div class="chat-input-row">
+                <textarea id="staffMsgInput" class="chat-input-field" rows="1"
+                  placeholder="Type a reply…"
+                  oninput="autoResizeChatInput(this)"
+                  onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();staffSendText();}">
+                </textarea>
+                <input type="file" class="chat-file-input" id="staffFileInput"
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                  onchange="staffHandleFile(this)" />
+                <button class="chat-action-btn" title="Attach file"
+                  onclick="document.getElementById('staffFileInput').click()">📎</button>
+                <button class="chat-action-btn" id="staffVoiceBtn" title="Voice note"
+                  onmousedown="staffStartVoice()" ontouchstart="staffStartVoice()"
+                  onmouseup="staffStopVoice()"   ontouchend="staffStopVoice()">🎤</button>
+                <button class="chat-send-btn" onclick="staffSendText()">➤</button>
+              </div>
+              <div style="font-size:10px;color:var(--muted);margin-top:5px;">
+                Enter to send · Shift+Enter for new line · Hold 🎤 for voice note
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
     <!-- END STAFF MESSAGES -->
@@ -2062,255 +2337,356 @@ function copyTeacherPaymentDetail(number, bank) {
 }
 
 /* ============================================
-   STAFF MESSAGE INBOX
-   Reads from /api/institution/parent-comms/messages
-   Replies via /api/institution/parent-comms/messages/send
+   P10-D — STAFF CHAT (teacher + school dashboards)
+   _sChat: shared state object
 ============================================ */
-var _staffActiveThreadId = null;
+var _sChat = {
+  conversations: [],
+  activeId:      null
+};
+var _sVoiceRecorder = null;
+var _sVoiceChunks   = [];
+var _sVoiceTimer    = null;
+var _sVoiceSeconds  = 0;
+var _sVoiceStream   = null;
 
 async function loadStaffMessages() {
-  var listEl  = document.getElementById('staffMsgList');
-  var badgeEl = document.getElementById('staffMsgHeaderBadge');
+  var listEl  = document.getElementById('staffConvList');
+  var badgeEl = document.getElementById('staffMsgNavBadge');
   if (listEl) {
     listEl.innerHTML =
       '<div style="text-align:center;padding:24px;color:var(--muted);">' +
       '<span class="spinner"></span></div>';
   }
-  closeStaffThread();
+  staffCloseThread();
 
-  var res      = await instApi('/parent-comms/messages');
-  var messages = (res.ok && res.data && res.data.messages) ? res.data.messages : [];
+  var res = await instApi('/parent-comms/messages');
+  _sChat.conversations = (res.ok && res.data && res.data.messages) ? res.data.messages : [];
 
-  var totalUnread = messages.reduce(function(s,m){ return s+(m.unreadCount||0); }, 0);
-
-  /* Update nav badge */
-  var navBadge = document.getElementById('staffMsgNavBadge');
-  if (navBadge) {
-    navBadge.textContent   = totalUnread > 99 ? '99+' : totalUnread;
-    navBadge.style.display = totalUnread > 0 ? 'inline-block' : 'none';
-  }
+  var totalUnread = _sChat.conversations.reduce(function(s,m){ return s+(m.unreadCount||0); }, 0);
   if (badgeEl) {
-    badgeEl.textContent = messages.length + ' conversation' + (messages.length !== 1 ? 's' : '') +
-      (totalUnread > 0 ? ' · ' + totalUnread + ' unread' : '');
+    badgeEl.textContent   = totalUnread > 99 ? '99+' : totalUnread;
+    badgeEl.style.display = totalUnread > 0 ? 'inline-flex' : 'none';
   }
+  /* Also update nav badge */
+  var navBadge = document.querySelector('[data-sec="messages"] #staffMsgNavBadge');
+  if (!navBadge) navBadge = document.getElementById('staffMsgNavBadge');
 
-  renderStaffMsgList(messages);
+  renderStaffConvList(_sChat.conversations);
 }
 
-function renderStaffMsgList(messages) {
-  var wrap = document.getElementById('staffMsgList');
-  if (!wrap) { return; }
+function filterStaffConvList(q) {
+  var filtered = q
+    ? _sChat.conversations.filter(function(m) {
+        var str = (m.subject||'') + ' ' + (m.teacherName||'') + ' ' + (m.recipientType||'');
+        return str.toLowerCase().includes(q.toLowerCase());
+      })
+    : _sChat.conversations;
+  renderStaffConvList(filtered);
+}
 
-  if (!messages.length) {
-    wrap.innerHTML =
-      '<div class="empty">' +
-        '<div class="empty-icon">💬</div>' +
-        '<div class="empty-title">No messages yet</div>' +
-        '<div class="empty-sub" style="max-width:300px;margin:0 auto;line-height:1.7;">' +
-          'Parent messages addressed to you will appear here. ' +
-          'Parents can reach you through their Parent Dashboard → Messages.' +
-        '</div>' +
+function renderStaffConvList(list) {
+  var el = document.getElementById('staffConvList');
+  if (!el) { return; }
+
+  if (!list.length) {
+    el.innerHTML =
+      '<div class="chat-empty" style="padding:32px 20px;">' +
+        '<div class="chat-empty-icon">💬</div>' +
+        '<div class="chat-empty-title">No messages yet</div>' +
+        '<div class="chat-empty-sub">Parent messages addressed to you will appear here.</div>' +
       '</div>';
     return;
   }
 
   var rCfg = {
-    class_teacher: { label:'Class Teacher',       icon:'👩‍🏫' },
-    school_admin:  { label:'School Administration', icon:'🏫' },
-    finance:       { label:'Finance Department',    icon:'💳' },
-    general:       { label:'General',               icon:'💬' }
+    class_teacher: { label:'Class Teacher',       icon:'👩‍🏫', color:'#a78bfa' },
+    school_admin:  { label:'Administration',       icon:'🏫',  color:'#43e97b' },
+    finance:       { label:'Finance',              icon:'💳',  color:'#ffa500' },
+    general:       { label:'General',              icon:'💬',  color:'#a0a0c0' }
   };
 
-  wrap.innerHTML =
-    '<div style="display:flex;flex-direction:column;gap:10px;">' +
-    messages.map(function(m) {
-      var cfg     = rCfg[m.recipientType] || rCfg.general;
-      var unread  = m.unreadCount || 0;
-      var preview = m.lastMessage ? m.lastMessage.body : 'No messages yet';
-      var dateStr = m.lastMessageAt
-        ? new Date(m.lastMessageAt).toLocaleString('en', {
-            day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'
-          })
-        : '';
+  el.innerHTML = list.map(function(m) {
+    var cfg     = rCfg[m.recipientType] || rCfg.general;
+    var unread  = m.unreadCount || 0;
+    var last    = m.lastMessage;
+    var preview = last ? (last.body || '📎 Attachment').substring(0,60) : 'No messages';
+    var dateStr = m.lastMessageAt ? _chatFmtDate(m.lastMessageAt) : '';
+    var isActive = m._id === _sChat.activeId;
 
-      return '<div onclick="viewStaffThread(\'' + escHtml(m._id) + '\')" ' +
-        'style="padding:14px 16px;border-radius:12px;cursor:pointer;' +
-        'border:1px solid ' + (unread > 0 ? 'rgba(108,99,255,0.3)' : 'var(--border)') + ';' +
-        'background:' + (unread > 0 ? 'rgba(108,99,255,0.07)' : 'rgba(255,255,255,0.02)') + ';' +
-        'transition:all 0.15s;">' +
-          '<div style="display:flex;align-items:flex-start;justify-content:space-between;' +
-               'gap:10px;margin-bottom:6px;">' +
-            '<div style="display:flex;align-items:center;gap:8px;min-width:0;">' +
-              '<span style="font-size:20px;flex-shrink:0;">' + cfg.icon + '</span>' +
-              '<div style="min-width:0;">' +
-                '<div style="font-size:13px;font-weight:700;color:#fff;">' +
-                  escHtml(m.subject || ('Message from parent')) + '</div>' +
-                '<div style="font-size:11px;color:#a78bfa;margin-top:1px;">' +
-                  escHtml(cfg.label) +
-                  (m.teacherName ? ' — ' + escHtml(m.teacherName) : '') +
-                '</div>' +
-              '</div>' +
-            '</div>' +
-            '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">' +
-              (unread > 0
-                ? '<span style="background:#6c63ff;color:#fff;border-radius:50%;min-width:18px;' +
-                  'height:18px;display:inline-flex;align-items:center;justify-content:center;' +
-                  'font-size:10px;font-weight:800;">' + unread + '</span>'
-                : '') +
-              '<span style="font-size:11px;color:var(--muted);">' + dateStr + '</span>' +
-            '</div>' +
-          '</div>' +
-          '<div style="font-size:13px;color:var(--secondary);padding-left:28px;' +
-               'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
-            escHtml(preview) +
-          '</div>' +
-      '</div>';
-    }).join('') +
+    return '<div class="chat-conv-item ' + (isActive ? 'active' : '') + '" ' +
+      'onclick="staffOpenThread(\'' + escHtml(m._id) + '\')" ' +
+      'id="sconv_' + m._id + '">' +
+      '<div class="chat-conv-avatar">' +
+        cfg.icon +
+        (unread > 0 ? '<span class="chat-conv-unread-dot"></span>' : '') +
+      '</div>' +
+      '<div class="chat-conv-info">' +
+        '<div class="chat-conv-name">' + escHtml(m.subject || 'Message from parent') + '</div>' +
+        '<div class="chat-conv-role" style="color:' + cfg.color + ';">' + cfg.label + '</div>' +
+        '<div class="chat-conv-preview">' + escHtml(preview) + '</div>' +
+      '</div>' +
+      '<div class="chat-conv-meta">' +
+        '<div class="chat-conv-time">' + dateStr + '</div>' +
+        (unread > 0 ? '<span class="chat-conv-badge">' + unread + '</span>' : '') +
+      '</div>' +
     '</div>';
+  }).join('');
 }
 
-async function viewStaffThread(messageId) {
-  _staffActiveThreadId = messageId;
+async function staffOpenThread(msgId) {
+  _sChat.activeId = msgId;
 
-  var listWrap   = document.getElementById('staffMsgListWrap');
-  var threadWrap = document.getElementById('staffThreadWrap');
-  if (listWrap)   { listWrap.style.display   = 'none';  }
-  if (threadWrap) { threadWrap.style.display = 'block'; }
+  document.querySelectorAll('.chat-conv-item').forEach(function(el){ el.classList.remove('active'); });
+  var convEl = document.getElementById('sconv_' + msgId);
+  if (convEl) convEl.classList.add('active');
 
-  var msgsEl = document.getElementById('staffThreadMessages');
-  if (msgsEl) {
-    msgsEl.innerHTML =
-      '<div style="text-align:center;padding:20px;color:var(--muted);">' +
-      '<span class="spinner"></span></div>';
+  /* Mobile: show thread panel */
+  var listEl   = document.getElementById('staffChatListPanel');
+  var threadEl = document.getElementById('staffChatThreadPanel');
+  if (window.innerWidth <= 768) {
+    if (listEl)   listEl.classList.add('hidden');
+    if (threadEl) threadEl.classList.add('active');
   }
 
-  /* Mark parent messages as read */
-  try { await instApi('/parent-comms/messages/' + messageId + '/read', 'PUT'); } catch(e) {}
+  var emptyEl  = document.getElementById('staffThreadEmpty');
+  var activeEl = document.getElementById('staffActiveThread');
+  if (emptyEl)  emptyEl.style.display  = 'none';
+  if (activeEl) { activeEl.style.display = 'flex'; }
+
+  var msgsEl = document.getElementById('staffMessagesArea');
+  if (msgsEl) msgsEl.innerHTML =
+    '<div style="text-align:center;padding:24px;color:var(--muted);">' +
+    '<span class="spinner"></span></div>';
+
+  /* Mark read */
+  try { await instApi('/parent-comms/messages/' + msgId + '/read', 'PUT'); } catch(e) {}
 
   /* Load full thread */
-  var res = await instApi('/parent-comms/messages/' + messageId);
+  var res = await instApi('/parent-comms/messages/' + msgId);
   var msg = res.ok && res.data && res.data.message;
 
   if (!msg) {
-    if (msgsEl) {
-      msgsEl.innerHTML =
-        '<div style="text-align:center;padding:20px;color:var(--muted);">Thread not found.</div>';
-    }
+    if (msgsEl) msgsEl.innerHTML =
+      '<div class="chat-empty"><div class="chat-empty-title">Thread not found.</div></div>';
     return;
   }
 
-  /* Update thread title */
-  var rLabels = {
-    class_teacher: '👩‍🏫 Class Teacher',
-    school_admin:  '🏫 School Administration',
-    finance:       '💳 Finance Department',
-    general:       '💬 General'
+  /* Header */
+  var rCfg = {
+    class_teacher: { label:'Class Teacher', icon:'👩‍🏫' },
+    school_admin:  { label:'Administration', icon:'🏫' },
+    finance:       { label:'Finance Department', icon:'💳' },
+    general:       { label:'General', icon:'💬' }
   };
-  var titleEl = document.getElementById('staffThreadTitle');
-  if (titleEl) {
-    titleEl.innerHTML =
-      '<div style="min-width:0;">' +
-        '<div style="font-size:14px;font-weight:700;color:#fff;overflow:hidden;' +
-             'text-overflow:ellipsis;white-space:nowrap;">' +
-          escHtml(msg.subject || 'Message Thread') +
-        '</div>' +
-        '<div style="font-size:11px;color:#a78bfa;margin-top:1px;">' +
-          escHtml(rLabels[msg.recipientType] || 'General') +
-        '</div>' +
-      '</div>';
-  }
+  var cfg = rCfg[msg.recipientType] || rCfg.general;
+  var avatarEl = document.getElementById('staffThreadAvatar');
+  var nameEl   = document.getElementById('staffThreadName');
+  var subEl    = document.getElementById('staffThreadSub');
+  if (avatarEl) avatarEl.textContent = cfg.icon;
+  if (nameEl)   nameEl.textContent   = msg.subject || 'Message thread';
+  if (subEl)    subEl.textContent    = cfg.label;
 
-  /* Render thread entries */
-  var thread = msg.thread || [];
-  if (!thread.length) {
-    if (msgsEl) {
-      msgsEl.innerHTML =
-        '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">' +
-        'No messages in this thread yet.</div>';
-    }
-    return;
-  }
+  /* Render thread */
+  renderStaffThread(msg.thread || [], msg);
 
-  if (msgsEl) {
-    msgsEl.innerHTML = thread.map(function(entry) {
-      var isStaff = (entry.senderType !== 'parent');
-      var time    = new Date(entry.sentAt).toLocaleString('en', {
-        month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'
-      });
-      return (
-        '<div style="display:flex;flex-direction:column;' +
-          'align-items:' + (isStaff ? 'flex-end' : 'flex-start') + ';">' +
-          '<div style="max-width:88%;padding:10px 12px;' +
-            'background:' + (isStaff ? 'rgba(108,99,255,0.14)' : 'rgba(255,255,255,0.05)') + ';' +
-            'border:1px solid ' + (isStaff ? 'rgba(108,99,255,0.3)' : 'rgba(255,255,255,0.08)') + ';' +
-            'border-radius:' + (isStaff ? '12px 2px 12px 12px' : '2px 12px 12px 12px') + ';">' +
-            '<div style="font-size:11px;font-weight:700;margin-bottom:4px;' +
-              'color:' + (isStaff ? '#a78bfa' : 'var(--green)') + ';">' +
-              escHtml(entry.senderName || (isStaff ? 'You' : 'Parent')) +
-            '</div>' +
-            '<div style="font-size:13px;color:#fff;line-height:1.5;' +
-              'white-space:pre-wrap;word-break:break-word;">' +
-              escHtml(entry.body) +
-            '</div>' +
-            '<div style="font-size:10px;color:var(--muted);margin-top:5px;text-align:right;">' +
-              time +
-            '</div>' +
-          '</div>' +
-        '</div>'
-      );
-    }).join('');
-    msgsEl.scrollTop = msgsEl.scrollHeight;
-  }
-
-  var replyBody = document.getElementById('staffReplyBody');
-  if (replyBody) { replyBody.value = ''; }
-  var replyErr = document.getElementById('staffReplyErr');
-  if (replyErr)  { replyErr.style.display = 'none'; }
-
-  /* Refresh badge after reading */
+  /* Refresh list to update unread */
   loadStaffMessages();
 }
 
-function closeStaffThread() {
-  _staffActiveThreadId = null;
-  var listWrap   = document.getElementById('staffMsgListWrap');
-  var threadWrap = document.getElementById('staffThreadWrap');
-  if (listWrap)   { listWrap.style.display   = 'block'; }
-  if (threadWrap) { threadWrap.style.display = 'none';  }
-}
+function renderStaffThread(thread, msg) {
+  var el = document.getElementById('staffMessagesArea');
+  if (!el) { return; }
 
-async function sendStaffReply() {
-  if (!_staffActiveThreadId) { return; }
-  var btn    = document.getElementById('staffReplyBtn');
-  var errEl  = document.getElementById('staffReplyErr');
-  var bodyEl = document.getElementById('staffReplyBody');
-  if (errEl) { errEl.style.display = 'none'; }
-
-  var body = (bodyEl ? bodyEl.value : '').trim();
-  if (!body) {
-    if (errEl) { errEl.textContent = 'Please type a reply.'; errEl.style.display = 'block'; }
+  if (!thread.length) {
+    el.innerHTML =
+      '<div class="chat-empty">' +
+        '<div class="chat-empty-icon">👋</div>' +
+        '<div class="chat-empty-title">No messages yet</div>' +
+        '<div class="chat-empty-sub">Type a reply below to start the conversation.</div>' +
+      '</div>';
     return;
   }
 
-  if (btn) { btn.textContent = 'Sending…'; btn.disabled = true; }
+  el.innerHTML = thread.map(function(entry) {
+    var isSent = (entry.senderType !== 'parent');
+    var time   = new Date(entry.sentAt).toLocaleString('en',{
+      month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'
+    });
+    var attHtml = '';
+    if (entry.attachments && entry.attachments.length) {
+      attHtml = entry.attachments.map(function(att) {
+        if (att.fileType === 'audio') {
+          return '<div class="msg-audio"><audio src="' + escHtml(att.url) + '" controls></audio>' +
+            '<span class="msg-audio-label">🎤 Voice note</span></div>';
+        }
+        if (att.fileType === 'image') {
+          return '<img src="' + escHtml(att.url) + '" style="max-width:220px;max-height:180px;' +
+            'border-radius:10px;display:block;margin-bottom:4px;" />';
+        }
+        return '<div class="msg-file">' +
+          '<span class="msg-file-icon">📄</span>' +
+          '<div class="msg-file-info">' +
+            '<div class="msg-file-name">' + escHtml(att.name || 'File') + '</div>' +
+            '<div class="msg-file-size">' + _fmtFileSize(att.size) + '</div>' +
+          '</div>' +
+          '<a class="msg-file-dl" href="' + escHtml(att.url) + '" target="_blank">↓ Open</a></div>';
+      }).join('');
+    }
+    return '<div class="msg-row ' + (isSent ? 'sent' : 'received') + '">' +
+      (!isSent ? '<div class="chat-conv-avatar" style="width:28px;height:28px;font-size:12px;">' +
+        (entry.senderName||'P').charAt(0).toUpperCase() + '</div>' : '') +
+      '<div class="msg-bubble-wrap">' +
+        (!isSent ? '<div class="msg-sender">' + escHtml(entry.senderName||'Parent') + '</div>' : '') +
+        '<div class="msg-bubble">' +
+          (attHtml||'') +
+          (entry.body ? '<div>' + escHtml(entry.body) + '</div>' : '') +
+          '<div class="msg-time">' + time + '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  el.scrollTop = el.scrollHeight;
+}
+
+function staffCloseThread() {
+  _sChat.activeId = null;
+  var listEl   = document.getElementById('staffChatListPanel');
+  var threadEl = document.getElementById('staffChatThreadPanel');
+  if (listEl)   listEl.classList.remove('hidden');
+  if (threadEl) threadEl.classList.remove('active');
+  var emptyEl  = document.getElementById('staffThreadEmpty');
+  var activeEl = document.getElementById('staffActiveThread');
+  if (emptyEl)  emptyEl.style.display  = 'flex';
+  if (activeEl) activeEl.style.display = 'none';
+  document.querySelectorAll('.chat-conv-item').forEach(function(el){ el.classList.remove('active'); });
+}
+
+async function staffSendText() {
+  var errEl  = document.getElementById('staffInputErr');
+  var inputEl= document.getElementById('staffMsgInput');
+  if (errEl) errEl.style.display = 'none';
+  if (!_sChat.activeId) { return; }
+
+  var body = (inputEl ? inputEl.value : '').trim();
+  if (!body) {
+    if (errEl) { errEl.textContent='Type a message.'; errEl.style.display='block'; }
+    return;
+  }
+  if (inputEl) inputEl.value = '';
 
   var res = await instApi('/parent-comms/messages/send', 'POST', {
-    messageId: _staffActiveThreadId,
-    body:      body
+    messageId: _sChat.activeId,
+    body
   });
 
-  if (btn) { btn.textContent = 'Send Reply →'; btn.disabled = false; }
-
   if (res.ok && res.data && res.data.success) {
-    if (bodyEl) { bodyEl.value = ''; }
-    instToast('Reply sent.', 'success');
-    await viewStaffThread(_staffActiveThreadId);
+    await staffOpenThread(_sChat.activeId);
   } else {
-    var msg = (res.data && res.data.message) || 'Failed to send reply.';
-    if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
-    instToast('❌ ' + msg, 'error');
+    var msg = (res.data && res.data.message) || 'Failed to send.';
+    if (errEl) { errEl.textContent=msg; errEl.style.display='block'; }
+    if (inputEl) inputEl.value = body;
   }
 }
+
+async function staffHandleFile(input) {
+  var file = input.files && input.files[0];
+  if (!file || !_sChat.activeId) { if(input) input.value=''; return; }
+  if (file.size > 15 * 1024 * 1024) { instToast('❌ File too large (max 15MB).','error'); return; }
+  instToast('📎 Attaching ' + file.name + '…', 'info');
+  var reader = new FileReader();
+  reader.onload = async function(e) {
+    var ft = file.type.startsWith('image/') ? 'image'
+           : file.type.startsWith('audio/') ? 'audio' : 'document';
+    var res = await instApi('/parent-comms/messages/send', 'POST', {
+      messageId:   _sChat.activeId,
+      body:        '',
+      attachments: [{ url:e.target.result, name:file.name, mimeType:file.type, size:file.size, fileType:ft }]
+    });
+    input.value = '';
+    if (res.ok && res.data && res.data.success) {
+      await staffOpenThread(_sChat.activeId);
+    } else {
+      instToast('❌ ' + ((res.data && res.data.message)||'Failed.'), 'error');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+async function staffStartVoice() {
+  if (_sVoiceRecorder) { return; }
+  try {
+    _sVoiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch(e) { instToast('❌ Microphone access denied.', 'error'); return; }
+  _sVoiceChunks = []; _sVoiceSeconds = 0;
+  _sVoiceRecorder = new MediaRecorder(_sVoiceStream);
+  _sVoiceRecorder.ondataavailable = function(e){ if(e.data.size>0) _sVoiceChunks.push(e.data); };
+  _sVoiceRecorder.onstop = staffFinishVoice;
+  _sVoiceRecorder.start();
+  var recEl = document.getElementById('staffVoiceRecording');
+  if (recEl) recEl.style.display = 'flex';
+  _sVoiceTimer = setInterval(function(){
+    _sVoiceSeconds++;
+    var t = document.getElementById('staffVoiceTime');
+    if (t) { var m=Math.floor(_sVoiceSeconds/60),s=_sVoiceSeconds%60; t.textContent=m+':'+(s<10?'0':'')+s; }
+    if (_sVoiceSeconds >= 120) staffStopVoice();
+  }, 1000);
+}
+function staffStopVoice() {
+  if (!_sVoiceRecorder||_sVoiceRecorder.state==='inactive') return;
+  _sVoiceRecorder.stop(); clearInterval(_sVoiceTimer);
+  if (_sVoiceStream) { _sVoiceStream.getTracks().forEach(function(t){t.stop();}); _sVoiceStream=null; }
+  var recEl=document.getElementById('staffVoiceRecording'); if(recEl) recEl.style.display='none';
+  _sVoiceRecorder=null;
+}
+function staffCancelVoice() {
+  if (_sVoiceRecorder&&_sVoiceRecorder.state!=='inactive'){_sVoiceRecorder.onstop=null;_sVoiceRecorder.stop();}
+  clearInterval(_sVoiceTimer);
+  if (_sVoiceStream){_sVoiceStream.getTracks().forEach(function(t){t.stop();});_sVoiceStream=null;}
+  _sVoiceRecorder=null; _sVoiceChunks=[];
+  var recEl=document.getElementById('staffVoiceRecording'); if(recEl) recEl.style.display='none';
+}
+async function staffFinishVoice() {
+  if (!_sVoiceChunks.length||!_sChat.activeId) return;
+  var blob=new Blob(_sVoiceChunks,{type:'audio/webm'});
+  var reader=new FileReader();
+  reader.onload=async function(e){
+    var res=await instApi('/parent-comms/messages/send','POST',{
+      messageId:_sChat.activeId, body:'',
+      attachments:[{url:e.target.result,name:'Voice note',mimeType:'audio/webm',size:blob.size,fileType:'audio'}]
+    });
+    _sVoiceChunks=[];
+    if(res.ok&&res.data&&res.data.success){ await staffOpenThread(_sChat.activeId); }
+    else instToast('❌ '+(res.data&&res.data.message||'Failed.'),'error');
+  };
+  reader.readAsDataURL(blob);
+}
+
+/* Shared utilities (used by parent dashboard too if loaded) */
+function _chatFmtDate(d) {
+  if (!d) return '';
+  var now=new Date(),date=new Date(d),diff=now-date,day=86400000;
+  if (diff<60000) return 'just now';
+  if (diff<3600000) return Math.floor(diff/60000)+'m ago';
+  if (diff<day) return date.toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit'});
+  if (diff<2*day) return 'Yesterday';
+  return date.toLocaleDateString('en',{day:'numeric',month:'short'});
+}
+function _fmtFileSize(bytes) {
+  if (!bytes) return '';
+  if (bytes<1024) return bytes+' B';
+  if (bytes<1048576) return (bytes/1024).toFixed(1)+' KB';
+  return (bytes/1048576).toFixed(1)+' MB';
+}
+function autoResizeChatInput(el) {
+  el.style.height='auto';
+  el.style.height=Math.min(el.scrollHeight,100)+'px';
+}
+
+/* ── School dashboard chat (same backend, same pattern) ── */
+var _sdChat = { conversations:[], activeId:null };
+var _sdVoiceRecorder=null,_sdVoiceChunks=[],_sdVoiceTimer=null,_sdVoiceSeconds=0,_sdVoiceStream=null;
 
 /* ============================================
    MANUAL RECEIPT GENERATOR
