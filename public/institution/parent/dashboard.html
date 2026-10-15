@@ -2151,6 +2151,20 @@ function renderParentConvList(list) {
   var el = document.getElementById('parentConvList');
   if (!el) { return; }
 
+  /* Normalize and deduplicate: keep most-recent thread per recipientType.
+     Merges pre-C3 (null recipientType) and post-C3 threads for the same teacher. */
+  var seen   = {};
+  var deduped = [];
+  (list || []).slice().sort(function(a,b){
+    return new Date(b.lastMessageAt||0) - new Date(a.lastMessageAt||0);
+  }).forEach(function(m) {
+    var rt  = m.recipientType || (m.teacherId ? 'class_teacher' : 'general');
+    var tid = (m.teacherId && (m.teacherId._id || m.teacherId)) || 'none';
+    var key = rt + '_' + tid;
+    if (!seen[key]) { seen[key] = true; m.recipientType = rt; deduped.push(m); }
+  });
+  list = deduped;
+
   var query = (document.getElementById('parentChatSearch') || {}).value || '';
   var filtered = query
     ? list.filter(function(m) {
@@ -2423,12 +2437,18 @@ async function parentSendText() {
   var btn    = document.getElementById('parentSendBtn');
   var errEl  = document.getElementById('parentInputErr');
   var inputEl= document.getElementById('parentMsgInput');
-  if (errEl) errEl.style.display = 'none';
+  if (errEl) { errEl.style.display = 'none'; errEl.style.color = ''; }
 
   var body = (inputEl ? inputEl.value : '').trim();
   if (!body && !_pChat.selectedRecip && !_pChat.activeId) { return; }
   if (!body) {
-    if (errEl) { errEl.textContent = 'Type a message first.'; errEl.style.display = 'block'; }
+    /* If a voice note is currently being processed, do not show an error — it is already sending */
+    if (_pVoiceSending) { return; }
+    if (errEl) {
+      errEl.style.color   = 'var(--error)';
+      errEl.textContent   = 'Type a message first.';
+      errEl.style.display = 'block';
+    }
     return;
   }
 
@@ -2508,12 +2528,21 @@ async function parentHandleFile(input) {
       attachments:   [attachment]
     });
     input.value = '';
-    if (res && res.success) {
-      await loadMessages(_pChat.studentId);
-      if (res.messageId) parentOpenThread(res.messageId);
-    } else {
-      showToast('❌ ' + ((res && res.message) || 'Failed to send file.'), 'var(--error)');
+      if (res && res.success) {
+    showToast('✅ File sent.', 'var(--success)');
+    await loadMessages(_pChat.studentId);
+    if (res.messageId) parentOpenThread(res.messageId);
+  } else {
+    var errMsg = (res && res.message) || 'Failed to send file.';
+    showToast('❌ ' + errMsg, 'var(--error)');
+    /* Show in input error area too */
+    var inputErr = document.getElementById('parentInputErr');
+    if (inputErr) {
+      inputErr.style.color   = 'var(--error)';
+      inputErr.textContent   = errMsg;
+      inputErr.style.display = 'block';
     }
+  }
   };
   reader.readAsDataURL(file);
 }
@@ -2523,6 +2552,7 @@ var _pVoiceChunks   = [];
 var _pVoiceTimer    = null;
 var _pVoiceSeconds  = 0;
 var _pVoiceStream   = null;
+var _pVoiceSending  = false;  /* true while voice note is being processed/uploaded */
 
 async function parentStartVoice() {
   if (_pVoiceRecorder) { return; }
@@ -2587,7 +2617,15 @@ function parentCancelVoice() {
 
 async function parentFinishVoice() {
   if (!_pVoiceChunks.length) { return; }
+  _pVoiceSending = true;
   var blob   = new Blob(_pVoiceChunks, { type: 'audio/webm' });
+  /* Show brief "sending voice note" indicator in input area */
+  var inputErr = document.getElementById('parentInputErr');
+  if (inputErr) {
+    inputErr.style.color   = '#a78bfa';
+    inputErr.textContent   = '🎤 Sending voice note…';
+    inputErr.style.display = 'block';
+  }
   var reader = new FileReader();
   reader.onload = async function(e) {
     var recpType = _pChat.selectedRecip;
@@ -2607,12 +2645,24 @@ async function parentFinishVoice() {
         fileType: 'audio'
       }]
     });
-    if (res && res.success) {
-      await loadMessages(_pChat.studentId);
-      if (res.messageId) parentOpenThread(res.messageId);
-    } else {
-      showToast('❌ ' + ((res && res.message) || 'Failed to send voice note.'), 'var(--error)');
+    _pVoiceSending = false;
+    var inputErr = document.getElementById('parentInputErr');
+    if (inputErr) { inputErr.style.display = 'none'; inputErr.style.color = ''; }
+      if (res && res.success) {
+    showToast('✅ File sent.', 'var(--success)');
+    await loadMessages(_pChat.studentId);
+    if (res.messageId) parentOpenThread(res.messageId);
+  } else {
+    var errMsg = (res && res.message) || 'Failed to send file.';
+    showToast('❌ ' + errMsg, 'var(--error)');
+    /* Show in input error area too */
+    var inputErr = document.getElementById('parentInputErr');
+    if (inputErr) {
+      inputErr.style.color   = 'var(--error)';
+      inputErr.textContent   = errMsg;
+      inputErr.style.display = 'block';
     }
+  }
   };
   reader.readAsDataURL(blob);
   _pVoiceChunks = [];

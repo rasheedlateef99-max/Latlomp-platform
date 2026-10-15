@@ -22,7 +22,8 @@ var messageEntrySchema = new mongoose.Schema({
   senderId:   { type: mongoose.Schema.Types.ObjectId, required: true },
   senderType: { type: String, enum: ['parent','teacher','admin'], required: true },
   senderName: { type: String, default: '' },
-  body:       { type: String, required: true, trim: true },
+  /* body is optional when attachments are present */
+  body:       { type: String, default: '', trim: true },
   sentAt:     { type: Date, default: Date.now },
   readAt:     { type: Date, default: null }, /* set when OTHER party reads */
   /* C3+: File/audio attachments */
@@ -37,8 +38,9 @@ var messageEntrySchema = new mongoose.Schema({
 
 const schoolMessageSchema = new mongoose.Schema({
   schoolId:  { type: mongoose.Schema.Types.ObjectId, ref: 'School',       required: true },
-  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'SchoolStudent', required: true },
-  parentId:  { type: mongoose.Schema.Types.ObjectId, ref: 'SchoolParent',  required: true },
+  /* required: false for staff-initiated threads (teacher→admin) that have no parent/student context */
+  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'SchoolStudent', default: null },
+  parentId:  { type: mongoose.Schema.Types.ObjectId, ref: 'SchoolParent',  default: null },
 
   /* The staff participant (set when staff opens/replies; may be null initially) */
   teacherId: { type: mongoose.Schema.Types.ObjectId, ref: 'SchoolUser', default: null },

@@ -1215,6 +1215,13 @@ router.get('/children/:studentId/messages', async function(req, res) {
     .sort({ lastMessageAt: -1 })
     .lean();
 
+    /* Normalize pre-C3 messages that have no recipientType */
+    messages.forEach(function(m) {
+      if (!m.recipientType) {
+        m.recipientType = m.teacherId ? 'class_teacher' : 'general';
+      }
+    });
+
     return res.json({ success: true, messages, count: messages.length });
   } catch(err) {
     console.error('[Parent] GET /messages:', err.message);
@@ -1457,7 +1464,7 @@ router.post('/children/:studentId/messages', async function(req, res) {
         sentAt:      new Date(),
         attachments: hasAttachments ? attachments.slice(0, 5).map(function(a) {
           return {
-            url:      (a.url      || '').substring(0, 2000),
+            url:      a.url      || '',      /* full data URL — no truncation */
             name:     (a.name     || '').substring(0, 200),
             mimeType: (a.mimeType || '').substring(0, 100),
             size:     parseInt(a.size) || 0,

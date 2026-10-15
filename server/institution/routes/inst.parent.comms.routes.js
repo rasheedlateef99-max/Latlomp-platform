@@ -26,7 +26,8 @@ const {
   schoolAdminOnly,
   seniorStaffOrAdmin,
   canManageStudents,
-  teacherOrAdmin
+  teacherOrAdmin,
+  getEffectiveRoles
 } = require('../middleware/inst.auth');
 const { requireActiveSubscription } = require('../middleware/inst.tenant');
 
@@ -385,67 +386,58 @@ router.delete('/events/:id', adminGuard, async function(req, res) {
 /* ============================================
    MESSAGES — STAFF SIDE
 ============================================ */
-
-/* GET /api/institution/parent-comms/messages
-   List all message threads for this school.
-   Query: ?studentId=&status=&teacherId=
-*/
-/* GET /api/institution/parent-comms/messages
-   C3 fix: changed to readGuard (all staff can see messages).
-   Removed .select('-thread') — was breaking unread count calculation.
-   Added recipientType filter + proper unread count for staff side.
-*/
-/* GET /api/institution/parent-comms/messages
-   Role-based privacy filtering (P10-C correction):
-   - class_teacher messages  → only the assigned teacher (teacherId match)
-   - school_admin messages   → principal, vice_principal, school_admin
-   - finance messages        → bursar, school_admin
-   Staff can NEVER see message threads addressed to a different recipient category.
-*/
 router.get('/messages', readGuard, async function(req, res) {
   try {
     var filter         = { schoolId: req.schoolId };
-    var effectiveRoles = getEffectiveRoles(req.schoolUser);
+    var effectiveRoles = getEffectiveRoles ? getEffectiveRoles(req.schoolUser)
+                       : [req.schoolUser.role].concat(req.schoolUser.additionalRoles || []);
 
     var ADMIN_ROLES   = ['school_admin', 'principal', 'vice_principal'];
     var FINANCE_ROLES = ['bursar', 'school_admin'];
-
     var isAdmin   = effectiveRoles.some(function(r) { return ADMIN_ROLES.includes(r); });
     var isFinance = effectiveRoles.some(function(r) { return FINANCE_ROLES.includes(r); });
 
     if (isAdmin || isFinance) {
+      /* Admin/Finance: see school_admin and/or finance messages only.
+         NEVER see class_teacher private conversations. */
       var visibleTypes = [];
       if (isAdmin)   { visibleTypes.push('school_admin'); }
       if (isFinance) { visibleTypes.push('finance'); }
       var uniqueTypes = visibleTypes.filter(function(v,i,a){ return a.indexOf(v)===i; });
-      /* Admin/Finance see their recipient-type messages OR messages directly assigned to them.
-         class_teacher messages are explicitly excluded — those are private between parent and teacher. */
       filter.$and = [
         { recipientType: { $nin: ['class_teacher'] } },
         { $or: [
           { recipientType: { $in: uniqueTypes } },
+          { recipientType: null },
+          { recipientType: { $exists: false } },
           { teacherId: req.schoolUser._id }
         ]}
       ];
     } else {
-      /* Teacher: see only messages where they are the assigned teacher.
-         Cannot see admin or finance threads. */
-      filter.teacherId     = req.schoolUser._id;
-      filter.recipientType = { $nin: ['school_admin', 'finance'] };
+      /* Teacher: see only messages where they are the assigned teacher */
+      filter.$and = [
+        { teacherId: req.schoolUser._id },
+        { recipientType: { $nin: ['school_admin', 'finance'] } }
+      ];
     }
 
-    /* Optional additional filters from query */
-    if (req.query.status)    filter.status    = req.query.status;
-    if (req.query.studentId) filter.studentId = req.query.studentId;
+    if (req.query.status)    { filter.status    = req.query.status; }
+    if (req.query.studentId) { filter.studentId = req.query.studentId; }
 
     var messages = await SchoolMessage.find(filter)
       .sort({ lastMessageAt: -1 })
       .limit(100)
       .lean();
 
+    /* Normalize pre-C3 messages with no recipientType */
+    messages.forEach(function(m) {
+      if (!m.recipientType) {
+        m.recipientType = m.teacherId ? 'class_teacher' : 'general';
+      }
+    });
+
     var enriched = messages.map(function(m) {
       var thread      = m.thread || [];
-      /* Staff-side unread = parent messages not yet read by staff */
       var unreadCount = thread.filter(function(e) {
         return e.senderType === 'parent' && !e.readAt;
       }).length;
@@ -457,7 +449,7 @@ router.get('/messages', readGuard, async function(req, res) {
         parentId:      m.parentId,
         teacherId:     m.teacherId,
         teacherName:   m.teacherName,
-        recipientType: m.recipientType || 'class_teacher',
+        recipientType: m.recipientType,
         subject:       m.subject,
         initiatedBy:   m.initiatedBy,
         status:        m.status,
@@ -468,7 +460,7 @@ router.get('/messages', readGuard, async function(req, res) {
         lastMessage:   lastEntry ? {
           senderType: lastEntry.senderType,
           senderName: lastEntry.senderName || '',
-          body:       (lastEntry.body || '').substring(0, 100),
+          body:       (lastEntry.body || (lastEntry.attachments && lastEntry.attachments.length ? '📎 Attachment' : '')).substring(0, 100),
           sentAt:     lastEntry.sentAt
         } : null
       };
@@ -480,7 +472,6 @@ router.get('/messages', readGuard, async function(req, res) {
     return res.status(500).json({ success: false, message: err.message });
   }
 });
-
 /* GET /api/institution/parent-comms/messages/:id
    Full thread for staff.
 */
@@ -513,18 +504,28 @@ router.post('/messages/send', manageGuard, async function(req, res) {
     var { studentId, parentId, body, subject, messageId, recipientType, attachments } = req.body;
     var hasAttachments = Array.isArray(attachments) && attachments.length > 0;
 
-    if (!body || !body.trim()) {
-      return res.status(400).json({ success: false, message: 'Message body is required.' });
+    if (!body && !hasAttachments) {
+      return res.status(400).json({ success: false, message: 'Message body or an attachment is required.' });
     }
 
-    /* ── Option A: Direct reply to existing thread by ID ── */
+    var safeAttachments = hasAttachments ? attachments.slice(0, 5).map(function(a) {
+      return {
+        url:      a.url      || '',      /* NO truncation — full data URL preserved */
+        name:     (a.name     || '').substring(0, 200),
+        mimeType: (a.mimeType || '').substring(0, 100),
+        size:     parseInt(a.size) || 0,
+        fileType: ['image','audio','document','other'].includes(a.fileType) ? a.fileType : 'other'
+      };
+    }) : [];
+
+    /* ── Option A: Direct reply to existing thread by messageId ── */
     if (messageId) {
       if (!mongoose.isValidObjectId(messageId)) {
         return res.status(400).json({ success: false, message: 'Invalid message ID.' });
       }
       var directThread = await SchoolMessage.findOne({
         _id:      messageId,
-        schoolId: req.schoolId    /* TENANT SCOPE */
+        schoolId: req.schoolId
       });
       if (!directThread) {
         return res.status(404).json({ success: false, message: 'Message thread not found.' });
@@ -535,11 +536,7 @@ router.post('/messages/send', manageGuard, async function(req, res) {
         senderName:  req.schoolUser.name || '',
         body:        (body || '').trim(),
         sentAt:      new Date(),
-        attachments: hasAttachments ? attachments.slice(0,5).map(function(a){
-          return { url:(a.url||'').substring(0,2000), name:(a.name||'').substring(0,200),
-                   mimeType:(a.mimeType||'').substring(0,100), size:parseInt(a.size)||0,
-                   fileType:['image','audio','document','other'].includes(a.fileType)?a.fileType:'other' };
-        }) : []
+        attachments: safeAttachments
       });
       directThread.lastMessageAt = new Date();
       directThread.lastMessageBy = 'teacher';
@@ -551,41 +548,42 @@ router.post('/messages/send', manageGuard, async function(req, res) {
       return res.json({ success: true, message: 'Reply sent.', messageId: directThread._id });
     }
 
-    /* ── Option B: New message or reply by studentId + parentId ── */
-    if (!studentId || !parentId) {
+    /* ── Option B: Staff-to-admin thread (no parent/student context) ── */
+    var reqType = recipientType || 'class_teacher';
+    var isStaffAdminThread = !studentId && !parentId &&
+                             ['school_admin','finance'].includes(reqType);
+
+    if (!studentId && !parentId && !isStaffAdminThread) {
       return res.status(400).json({
         success: false,
-        message: 'messageId or (studentId and parentId) are required.'
+        message: 'messageId or (studentId and parentId) or recipientType=school_admin are required.'
       });
     }
 
-    /* Verify student belongs to this school */
-    var student = await SchoolStudent.findOne({
-      _id:      studentId,
-      schoolId: req.schoolId   /* FIXED: was bare `schoolId` variable */
-    }).select('name').lean();
-    if (!student) {
-      return res.status(404).json({ success: false, message: 'Student not found.' });
+    if (studentId) {
+      var student = await SchoolStudent.findOne({ _id: studentId, schoolId: req.schoolId })
+        .select('name').lean();
+      if (!student) {
+        return res.status(404).json({ success: false, message: 'Student not found.' });
+      }
     }
 
-    var reqType  = recipientType || 'class_teacher';
+    var threadQuery = isStaffAdminThread
+      ? { schoolId: req.schoolId, teacherId: req.schoolUser._id,
+          recipientType: reqType, parentId: null, status: 'open' }
+      : { schoolId: req.schoolId, studentId, parentId,
+          recipientType: reqType, status: 'open' };
 
-    /* Find existing open thread for this student-parent-recipientType combination */
-    var existing = await SchoolMessage.findOne({
-      schoolId:      req.schoolId,  /* FIXED: was bare `schoolId` variable */
-      studentId,
-      parentId,
-      recipientType: reqType,
-      status:        'open'
-    });
+    var existing = await SchoolMessage.findOne(threadQuery);
 
     if (existing) {
       existing.thread.push({
-        senderId:   req.schoolUser._id,
-        senderType: 'teacher',
-        senderName: req.schoolUser.name || '',
-        body:       body.trim(),
-        sentAt:     new Date()
+        senderId:    req.schoolUser._id,
+        senderType:  'teacher',
+        senderName:  req.schoolUser.name || '',
+        body:        (body || '').trim(),
+        sentAt:      new Date(),
+        attachments: safeAttachments
       });
       existing.lastMessageAt = new Date();
       existing.lastMessageBy = 'teacher';
@@ -597,11 +595,10 @@ router.post('/messages/send', manageGuard, async function(req, res) {
       return res.json({ success: true, message: 'Reply sent.', messageId: existing._id });
     }
 
-    /* New thread */
     var newMessage = await SchoolMessage.create({
       schoolId:      req.schoolId,
-      studentId,
-      parentId,
+      studentId:     studentId || null,
+      parentId:      parentId  || null,
       teacherId:     req.schoolUser._id,
       teacherName:   req.schoolUser.name || '',
       recipientType: reqType,
@@ -611,16 +608,22 @@ router.post('/messages/send', manageGuard, async function(req, res) {
       lastMessageAt: new Date(),
       lastMessageBy: 'teacher',
       thread: [{
-        senderId:   req.schoolUser._id,
-        senderType: 'teacher',
-        senderName: req.schoolUser.name || '',
-        body:       body.trim(),
-        sentAt:     new Date()
+        senderId:    req.schoolUser._id,
+        senderType:  'teacher',
+        senderName:  req.schoolUser.name || '',
+        body:        (body || '').trim(),
+        sentAt:      new Date(),
+        attachments: safeAttachments
       }]
     });
 
-    return res.status(201).json({ success: true, message: 'Message thread started.', messageId: newMessage._id });
+    return res.status(201).json({
+      success: true,
+      message: 'Message thread started.',
+      messageId: newMessage._id
+    });
   } catch(err) {
+    console.error('[parent-comms] POST /messages/send:', err.message);
     return res.status(500).json({ success: false, message: err.message });
   }
 });
