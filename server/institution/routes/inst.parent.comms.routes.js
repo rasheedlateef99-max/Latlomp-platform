@@ -475,7 +475,7 @@ router.get('/messages', readGuard, async function(req, res) {
 /* GET /api/institution/parent-comms/messages/:id
    Full thread for staff.
 */
-router.get('/messages/:id', manageGuard, async function(req, res) {
+router.get('/messages/:id', readGuard, async function(req, res) {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({ success: false, message: 'Invalid message ID.' });

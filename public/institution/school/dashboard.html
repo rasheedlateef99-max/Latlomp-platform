@@ -2922,6 +2922,124 @@ async function cancelParentInv(id) {
   else instToast((res.data && res.data.message) || 'Failed.', 'error');
 }
 
+/* ── School messages: state + utilities ── */
+var _sdChat = { conversations: [], activeId: null };
+var _sdVoiceRecorder = null;
+var _sdVoiceChunks   = [];
+var _sdVoiceTimer    = null;
+var _sdVoiceSeconds  = 0;
+var _sdVoiceStream   = null;
+
+function _chatFmtDate(d) {
+  if (!d) { return ''; }
+  var now  = new Date();
+  var date = new Date(d);
+  var diff = now - date;
+  var day  = 86400000;
+  if (diff < 60000)    { return 'just now'; }
+  if (diff < 3600000)  { return Math.floor(diff / 60000) + 'm ago'; }
+  if (diff < day)      { return date.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' }); }
+  if (diff < 2 * day)  { return 'Yesterday'; }
+  return date.toLocaleDateString('en', { day: 'numeric', month: 'short' });
+}
+
+function _fmtFileSize(bytes) {
+  if (!bytes) { return ''; }
+  if (bytes < 1024)    { return bytes + ' B'; }
+  if (bytes < 1048576) { return (bytes / 1024).toFixed(1) + ' KB'; }
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+function autoResizeChatInput(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+
+/* School dashboard voice recording (self-contained, not shared with teacher dashboard) */
+async function sdStartVoice() {
+  if (_sdVoiceRecorder) { return; }
+  try {
+    _sdVoiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch(e) {
+    instToast('❌ Microphone access denied.', 'error');
+    return;
+  }
+  _sdVoiceChunks = []; _sdVoiceSeconds = 0;
+  _sdVoiceRecorder = new MediaRecorder(_sdVoiceStream);
+  _sdVoiceRecorder.ondataavailable = function(e) {
+    if (e.data.size > 0) { _sdVoiceChunks.push(e.data); }
+  };
+  _sdVoiceRecorder.onstop = sdFinishVoice;
+  _sdVoiceRecorder.start();
+  var recEl = document.getElementById('sdVoiceRecording');
+  if (recEl) { recEl.style.display = 'flex'; }
+  _sdVoiceTimer = setInterval(function() {
+    _sdVoiceSeconds++;
+    var t = document.getElementById('sdVoiceTime');
+    if (t) {
+      var m = Math.floor(_sdVoiceSeconds / 60);
+      var s = _sdVoiceSeconds % 60;
+      t.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+    }
+    if (_sdVoiceSeconds >= 120) { sdStopVoice(); }
+  }, 1000);
+}
+
+function sdStopVoice() {
+  if (!_sdVoiceRecorder || _sdVoiceRecorder.state === 'inactive') { return; }
+  _sdVoiceRecorder.stop();
+  clearInterval(_sdVoiceTimer);
+  if (_sdVoiceStream) {
+    _sdVoiceStream.getTracks().forEach(function(t) { t.stop(); });
+    _sdVoiceStream = null;
+  }
+  var recEl = document.getElementById('sdVoiceRecording');
+  if (recEl) { recEl.style.display = 'none'; }
+  _sdVoiceRecorder = null;
+}
+
+function sdCancelVoice() {
+  if (_sdVoiceRecorder && _sdVoiceRecorder.state !== 'inactive') {
+    _sdVoiceRecorder.onstop = null;
+    _sdVoiceRecorder.stop();
+  }
+  clearInterval(_sdVoiceTimer);
+  if (_sdVoiceStream) {
+    _sdVoiceStream.getTracks().forEach(function(t) { t.stop(); });
+    _sdVoiceStream = null;
+  }
+  _sdVoiceRecorder = null;
+  _sdVoiceChunks = [];
+  var recEl = document.getElementById('sdVoiceRecording');
+  if (recEl) { recEl.style.display = 'none'; }
+}
+
+async function sdFinishVoice() {
+  if (!_sdVoiceChunks.length || !_sdChat.activeId) { return; }
+  var blob = new Blob(_sdVoiceChunks, { type: 'audio/webm' });
+  var reader = new FileReader();
+  reader.onload = async function(e) {
+    var res = await instApi('/parent-comms/messages/send', 'POST', {
+      messageId:   _sdChat.activeId,
+      body:        '',
+      attachments: [{
+        url:      e.target.result,
+        name:     'Voice note',
+        mimeType: 'audio/webm',
+        size:     blob.size,
+        fileType: 'audio'
+      }]
+    });
+    _sdVoiceChunks = [];
+    if (res.ok && res.data && res.data.success) {
+      await sdOpenThread(_sdChat.activeId);
+    } else {
+      instToast('❌ ' + ((res.data && res.data.message) || 'Failed to send voice note.'), 'error');
+    }
+  };
+  reader.readAsDataURL(blob);
+}
+
 async function loadSchoolMessages() {
   var listEl  = document.getElementById('sdConvList');
   var navBadge= document.getElementById('sdMsgNavBadge');

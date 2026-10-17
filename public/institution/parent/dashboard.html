@@ -3092,8 +3092,10 @@ function renderConvThread(data) {
     );
   }).join('');
 
-  el.scrollTop = el.scrollHeight;
+  setTimeout(function() { el.scrollTop = el.scrollHeight; }, 0);
 }
+
+/* ── Voice notes ── */
 
 async function sendConvMessage() {
   var errEl   = document.getElementById('convSendErr');

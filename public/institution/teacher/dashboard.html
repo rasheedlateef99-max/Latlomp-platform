@@ -233,31 +233,7 @@
   position:absolute; top:0; right:0; width:10px; height:10px;
   background:#ff6584; border-radius:50%; border:2px solid var(--dark-2);
 }
-.chat-conv-info { flex:1; min-width:0; }
-.chat-conv-name {
-  font-size:13px; font-weight:700; color:#fff;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
-.chat-conv-role  { font-size:11px; color:var(--primary); margin-top:1px; font-weight:600; }
-.chat-conv-preview {
-  font-size:12px; color:var(--secondary,#a0a0c0); margin-top:2px;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
-.chat-conv-meta { flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
-.chat-conv-time  { font-size:10px; color:var(--muted); white-space:nowrap; }
-.chat-conv-badge {
-  background:#6c63ff; color:#fff; border-radius:50%;
-  min-width:18px; height:18px; display:inline-flex;
-  align-items:center; justify-content:center;
-  font-size:10px; font-weight:800;
-}
-.chat-new-btn {
-  margin:12px 14px; width:calc(100% - 28px);
-  padding:10px; border-radius:9px;
-  background:linear-gradient(135deg,var(--primary),var(--primary-dark));
-  border:none; color:#fff; font-size:13px; font-weight:700;
-  cursor:pointer; font-family:inherit; text-align:center;
-}
+
 
 /* ── Thread panel (right) ── */
 .chat-thread-panel {
@@ -298,10 +274,12 @@
 .msg-bubble-wrap { display:flex; flex-direction:column; max-width:72%; }
 .msg-row.sent .msg-bubble-wrap { align-items:flex-end; }
 .msg-sender { font-size:10px; color:var(--muted); margin-bottom:3px; padding:0 4px; }
+
 .msg-bubble {
   padding:10px 14px; border-radius:16px; font-size:14px; color:#fff;
   line-height:1.55; word-break:break-word; position:relative;
 }
+
 .msg-row.received .msg-bubble {
   background:var(--dark-2); border:1px solid var(--border);
   border-bottom-left-radius:4px;
@@ -663,8 +641,7 @@
                 oninput="filterStaffConvList(this.value)" />
             </div>
           </div>
-          <button class="chat-new-btn" onclick="staffStartNewConv()">+ Message Admin</button>
-          <button class="chat-new-btn" onclick="staffStartNewConv()" style="margin:12px 14px 0;width:calc(100% - 28px);">+ Message Administration</button>
+          <button class="chat-new-btn" onclick="staffStartNewConv()">+ Message Administration</button>
           <div class="chat-conv-list" id="staffConvList">
             <div class="chat-empty" style="padding:32px 20px;">
               <div class="chat-empty-icon">💬</div>
@@ -2397,57 +2374,7 @@ async function staffStartNewConv() {
 
     var existing = await SchoolMessage.findOne(threadQuery);
 
-async function staffStartNewConv() {
-  /* Check if admin thread already exists */
-  var existing = _sChat.conversations.find(function(m){
-    return m.recipientType === 'school_admin';
-  });
-  if (existing) {
-    staffOpenThread(existing._id);
-    return;
-  }
-  /* Prompt for first message */
-  var body = window.prompt('Your message to school administration:');
-  if (!body || !body.trim()) { return; }
-  var res = await instApi('/parent-comms/messages/send', 'POST', {
-    recipientType: 'school_admin',
-    body:          body.trim()
-  });
-  if (res.ok && res.data && res.data.success) {
-    instToast('✅ Message sent to administration.', 'success');
-    await loadStaffMessages();
-    /* Open the new thread */
-    var newThread = _sChat.conversations.find(function(m){ return m.recipientType === 'school_admin'; });
-    if (newThread) { staffOpenThread(newThread._id); }
-  } else {
-    instToast('❌ ' + ((res.data && res.data.message) || 'Failed.'), 'error');
-  }
-}
 
-async function loadStaffMessages() {
-  var listEl  = document.getElementById('staffConvList');
-  var badgeEl = document.getElementById('staffMsgNavBadge');
-  if (listEl) {
-    listEl.innerHTML =
-      '<div style="text-align:center;padding:24px;color:var(--muted);">' +
-      '<span class="spinner"></span></div>';
-  }
-  staffCloseThread();
-
-  var res = await instApi('/parent-comms/messages');
-  _sChat.conversations = (res.ok && res.data && res.data.messages) ? res.data.messages : [];
-
-  var totalUnread = _sChat.conversations.reduce(function(s,m){ return s+(m.unreadCount||0); }, 0);
-  if (badgeEl) {
-    badgeEl.textContent   = totalUnread > 99 ? '99+' : totalUnread;
-    badgeEl.style.display = totalUnread > 0 ? 'inline-flex' : 'none';
-  }
-  /* Also update nav badge */
-  var navBadge = document.querySelector('[data-sec="messages"] #staffMsgNavBadge');
-  if (!navBadge) navBadge = document.getElementById('staffMsgNavBadge');
-
-  renderStaffConvList(_sChat.conversations);
-}
 
 function filterStaffConvList(q) {
   var filtered = q
@@ -2564,8 +2491,27 @@ async function staffOpenThread(msgId) {
   /* Render thread */
   renderStaffThread(msg.thread || [], msg);
 
-  /* Refresh list to update unread */
-  loadStaffMessages();
+  /* Update the conversation list item in-place to clear unread badge.
+     Do NOT call loadStaffMessages() here — it calls staffCloseThread()
+     synchronously which would immediately hide this thread panel. */
+  var convItemEl = document.getElementById('sconv_' + msgId);
+  if (convItemEl) {
+    var dot   = convItemEl.querySelector('.chat-conv-unread-dot');
+    var badge = convItemEl.querySelector('.chat-conv-badge');
+    if (dot)   { dot.remove(); }
+    if (badge) { badge.remove(); }
+    convItemEl.style.borderColor = 'rgba(255,255,255,0.04)';
+    convItemEl.style.background  = 'rgba(255,255,255,0.02)';
+  }
+  /* Update nav badge count */
+  var navBadge = document.getElementById('staffMsgNavBadge');
+  if (navBadge) {
+    var newUnread = _sChat.conversations.reduce(function(s,m) {
+      return s + (m._id === msgId ? 0 : (m.unreadCount||0));
+    }, 0);
+    navBadge.textContent   = newUnread > 99 ? '99+' : newUnread;
+    navBadge.style.display = newUnread > 0 ? 'inline-flex' : 'none';
+  }
 }
 
 function renderStaffThread(thread, msg) {
@@ -2621,7 +2567,7 @@ function renderStaffThread(thread, msg) {
     '</div>';
   }).join('');
 
-  el.scrollTop = el.scrollHeight;
+  setTimeout(function() { el.scrollTop = el.scrollHeight; }, 0);
 }
 
 function staffCloseThread() {
