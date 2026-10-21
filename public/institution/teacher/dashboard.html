@@ -641,7 +641,6 @@
                 oninput="filterStaffConvList(this.value)" />
             </div>
           </div>
-          <button class="chat-new-btn" onclick="staffStartNewConv()">+ Message Administration</button>
           <div class="chat-conv-list" id="staffConvList">
             <div class="chat-empty" style="padding:32px 20px;">
               <div class="chat-empty-icon">💬</div>
@@ -2328,53 +2327,6 @@ var _sVoiceChunks   = [];
 var _sVoiceTimer    = null;
 var _sVoiceSeconds  = 0;
 var _sVoiceStream   = null;
-
-async function staffStartNewConv() {
-  /* Teacher can message school admin — no student/parent context needed */
-  var res  = await instApi('/school-users?role=school_admin&limit=1');
-  var admin = res.ok && res.data && res.data.users && res.data.users[0];
-  if (!admin) {
-    instToast('No school administrator found.', 'error');
-    return;
-  }
-  /* Find or create an open admin thread for this teacher */
-  var existing = _sChat.conversations.find(function(m){
-    return m.recipientType === 'school_admin';
-  });
-  if (existing) { staffOpenThread(existing._id); return; }
-
-  /* Create a new staff-to-admin thread (no studentId/parentId) */
-  var body = window.prompt('Enter your message to school administration:');
-  if (!body || !body.trim()) { return; }
-  var res2 = await instApi('/parent-comms/messages/send', 'POST', {
-    recipientType: 'school_admin',
-    body:          body.trim()
-  });
-  if (res2.ok && res2.data && res2.data.success) {
-    instToast('✅ Message sent to administration.', 'success');
-    await loadStaffMessages();
-  } else {
-    instToast('❌ ' + ((res2.data && res2.data.message) || 'Failed to send.'), 'error');
-  }
-}
-
-    /* For staff-initiated admin threads there is no parent or student context */
-    var isStaffAdminThread = !studentId && !parentId && recipientType === 'school_admin';
-    if (!studentId && !parentId && !isStaffAdminThread) {
-      return res.status(400).json({
-        success: false,
-        message: 'messageId or (studentId and parentId) are required.'
-      });
-    }
-
-    /* For staff-admin threads, match on schoolId + teacherId + recipientType only */
-    var threadQuery = isStaffAdminThread
-      ? { schoolId: req.schoolId, teacherId: req.schoolUser._id, recipientType: reqType, status: 'open', parentId: null }
-      : { schoolId: req.schoolId, studentId, parentId, recipientType: reqType, status: 'open' };
-
-    var existing = await SchoolMessage.findOne(threadQuery);
-
-
 
 function filterStaffConvList(q) {
   var filtered = q

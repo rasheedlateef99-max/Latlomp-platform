@@ -3121,8 +3121,27 @@ async function sdOpenThread(msgId) {
     '<div class="msg-bubble-wrap">'+(!isSent?'<div class="msg-sender">'+esc(e.senderName||'Parent')+'</div>':'')+
     '<div class="msg-bubble">'+(att||'')+(e.body?'<div>'+esc(e.body)+'</div>':'')+'<div class="msg-time">'+time+'</div></div></div></div>';
   }).join('');
-  msgsEl.scrollTop=msgsEl.scrollHeight;
-  loadSchoolMessages();
+  setTimeout(function() { msgsEl.scrollTop = msgsEl.scrollHeight; }, 0);
+
+  /* Update the conversation list item in-place.
+     Do NOT call loadSchoolMessages() here — it runs sdCloseThread() synchronously
+     which immediately closes the thread the user just opened. */
+  var convItemEl = document.getElementById('sdconv_' + msgId);
+  if (convItemEl) {
+    var dot   = convItemEl.querySelector('.chat-conv-unread-dot');
+    var badge = convItemEl.querySelector('.chat-conv-badge');
+    if (dot)   { dot.remove(); }
+    if (badge) { badge.remove(); }
+  }
+  /* Update the nav badge count in-place */
+  var navBadge = document.getElementById('sdMsgNavBadge');
+  if (navBadge) {
+    var remaining = _sdChat.conversations.reduce(function(s, m) {
+      return s + (m._id === msgId ? 0 : (m.unreadCount || 0));
+    }, 0);
+    navBadge.textContent   = remaining > 99 ? '99+' : remaining;
+    navBadge.style.display = remaining > 0 ? 'inline-flex' : 'none';
+  }
 }
 
 function sdCloseThread() {
