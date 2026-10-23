@@ -235,6 +235,25 @@
 }
 
 
+.chat-conv-info { flex:1; min-width:0; }
+.chat-conv-name {
+  font-size:13px; font-weight:700; color:#fff;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.chat-conv-role { font-size:11px; color:var(--primary); margin-top:1px; font-weight:600; }
+.chat-conv-preview {
+  font-size:12px; color:var(--secondary); margin-top:2px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.chat-conv-meta { flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
+.chat-conv-time { font-size:10px; color:var(--muted); white-space:nowrap; }
+.chat-conv-badge {
+  background:#6c63ff; color:#fff; border-radius:50%;
+  min-width:18px; height:18px; display:inline-flex;
+  align-items:center; justify-content:center;
+  font-size:10px; font-weight:800;
+}
+
 /* ── Thread panel (right) ── */
 .chat-thread-panel {
   flex:1; display:flex; flex-direction:column; min-width:0;
@@ -416,10 +435,7 @@
     <button class="nav-item" data-sec="parents" onclick="showSection('parents')"><span class="nav-icon">👨‍👩‍👧</span> Parent Portal</button>
     <button class="nav-item" data-sec="messages" onclick="showSection('messages')" style="position:relative;">
       <span class="nav-icon">💬</span> Messages
-      <span id="staffMsgNavBadge"
-        style="display:none;position:absolute;top:8px;right:10px;background:#ff6584;
-          color:#fff;border-radius:50%;min-width:16px;height:16px;font-size:9px;
-          font-weight:800;padding:0 3px;text-align:center;line-height:16px;">0</span>
+      <span id="staffMsgListBadge" style="display:none;background:#ff6584;color:#fff;border-radius:10px;min-width:18px;height:18px;font-size:10px;font-weight:800;align-items:center;justify-content:center;padding:0 5px;">0</span>
     </button>
     <button class="nav-item" data-sec="payments" onclick="showSection('payments')"><span class="nav-icon">💳</span> Payment Center</button>
     <button class="nav-item" data-sec="manual-receipt" onclick="showSection('manual-receipt')"><span class="nav-icon">🧾</span> Manual Receipt</button>
@@ -684,11 +700,7 @@
               <div id="staffInputErr"
                 style="display:none;font-size:12px;color:var(--red);margin-bottom:6px;"></div>
               <div class="chat-input-row">
-                <textarea id="staffMsgInput" class="chat-input-field" rows="1"
-                  placeholder="Type a reply…"
-                  oninput="autoResizeChatInput(this)"
-                  onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();staffSendText();}">
-                </textarea>
+                <textarea id="staffMsgInput" class="chat-input-field" rows="1" placeholder="Type a reply…" oninput="autoResizeChatInput(this)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();staffSendText();}"></textarea>
                 <input type="file" class="chat-file-input" id="staffFileInput"
                   accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
                   onchange="staffHandleFile(this)" />
@@ -1264,7 +1276,7 @@ function renderQTableGrid() {
       html += '<td contenteditable="true" data-r="' + r + '" data-c="' + c + '"' +
         (isHeader ? ' data-header="true"' : '') +
         ' oninput="onQTableCell(this)" onblur="saveQTableHtml()">' +
-        esc(_qTableData[r][c]) + '</td>';
+        escHtml(_qTableData[r][c]) + '</td>';
     }
     html += '</tr>';
   }
@@ -1525,6 +1537,10 @@ async function loadOverview() {
   if (!res.ok) {
     var errMsg = (res.data && res.data.message) || 'Failed to load dashboard.';
     instToast('❌ ' + errMsg, 'error');
+    var overviewBody = document.getElementById('overviewExamsBody');
+    if (overviewBody) {
+      overviewBody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--muted);">Could not load exams. Use Retry above.</td></tr>';
+    }
     /* Show retry button in overview body */
     var overviewEl = document.getElementById('sec-overview');
     if (overviewEl) {
@@ -2327,6 +2343,40 @@ var _sVoiceChunks   = [];
 var _sVoiceTimer    = null;
 var _sVoiceSeconds  = 0;
 var _sVoiceStream   = null;
+
+async function loadStaffMessages() {
+  var listEl = document.getElementById('staffConvList');
+  if (listEl && !_sChat.conversations.length) {
+    listEl.innerHTML =
+      '<div style="text-align:center;padding:24px;color:var(--muted);"><span class="spinner"></span></div>';
+  }
+
+  var res = await instApi('/parent-comms/messages');
+
+  if (!res.ok) {
+    if (listEl) {
+      listEl.innerHTML =
+        '<div class="chat-empty" style="padding:32px 20px;">' +
+          '<div class="chat-empty-icon">⚠️</div>' +
+          '<div class="chat-empty-title">Could not load messages</div>' +
+          '<div class="chat-empty-sub">' + escHtml((res.data && res.data.message) || 'Please try again.') + '</div>' +
+          '<button class="btn btn-secondary btn-sm" style="margin-top:14px;" onclick="loadStaffMessages()">↺ Retry</button>' +
+        '</div>';
+    }
+    return;
+  }
+
+  _sChat.conversations = (res.data && res.data.messages) ? res.data.messages : [];
+
+  var totalUnread = _sChat.conversations.reduce(function(s, m) { return s + (m.unreadCount || 0); }, 0);
+  var label     = totalUnread > 99 ? '99+' : String(totalUnread);
+  var navBadge  = document.getElementById('staffMsgNavBadge');
+  var listBadge = document.getElementById('staffMsgListBadge');
+  if (navBadge)  { navBadge.textContent  = label; navBadge.style.display  = totalUnread > 0 ? 'block' : 'none'; }
+  if (listBadge) { listBadge.textContent = label; listBadge.style.display = totalUnread > 0 ? 'inline-flex' : 'none'; }
+
+  filterStaffConvList((document.getElementById('staffChatSearch') || {}).value || '');
+}
 
 function filterStaffConvList(q) {
   var filtered = q
