@@ -20,6 +20,11 @@ const mongoose = require('mongoose');
 
    Auto-expires after 90 days via TTL index.
    schoolId enforced on every query — tenant safe.
+
+   MESSAGING B1 (additive): dedupeKey + partial unique index
+   so there is at most ONE unread notification per
+   (recipient, dedupeKey). Existing documents have no
+   dedupeKey and are not covered by that index.
 ============================================ */
 const schoolNotificationSchema = new mongoose.Schema({
 
@@ -42,7 +47,7 @@ const schoolNotificationSchema = new mongoose.Schema({
     index:   true
     /* staff   → SchoolUser._id
        parent  → SchoolParent._id
-       student → SchoolStudent._id */
+       student → SchoolStudent._id (students AND alumni) */
   },
 
   /* ── What happened ── */
@@ -67,6 +72,9 @@ const schoolNotificationSchema = new mongoose.Schema({
   entityType: { type: String, default: '' },
   entityId:   { type: mongoose.Schema.Types.ObjectId, default: null },
 
+  /* ── MESSAGING B1: one unread notification per conversation/request ── */
+  dedupeKey: { type: String },
+
   /* ── Extra context shown inside the notification card ── */
   metadata: {
     amount:          { type: Number, default: null },
@@ -88,6 +96,15 @@ const schoolNotificationSchema = new mongoose.Schema({
 /* ── Compound indexes ── */
 schoolNotificationSchema.index({ schoolId: 1, recipientId: 1, isDeleted: 1, createdAt: -1 });
 schoolNotificationSchema.index({ schoolId: 1, recipientId: 1, isRead:    1 });
+
+/* ── MESSAGING B1: at most one UNREAD, non-deleted notification per dedupeKey ── */
+schoolNotificationSchema.index(
+  { schoolId: 1, recipientType: 1, recipientId: 1, dedupeKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { dedupeKey: { $type: 'string' }, isRead: false, isDeleted: false }
+  }
+);
 
 /* ── Auto-expire after 90 days ── */
 schoolNotificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 90 });

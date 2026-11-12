@@ -11,6 +11,8 @@
    inst.email.service.js.
    Does NOT create financial records.
    schoolId enforced on every DB write.
+
+   MESSAGING B1: added notifyOne() (additive only).
 ============================================ */
 const SchoolNotification = require('../models/SchoolNotification.model');
 
@@ -101,7 +103,6 @@ async function notifyStudent(schoolId, studentId, opts) {
     recipientId:   studentId
   }));
 }
-
 /* ── Notify payer based on claim.payerType and claim.payerId ──
    Handles parent / student automatically.
    Skips external/alumni/staff (no portal to notify). */
@@ -114,6 +115,41 @@ async function notifyClaimPayer(schoolId, claim, opts) {
     return notifyStudent(schoolId, claim.payerId, opts);
   }
   return null;
+}
+
+/* ── MESSAGING B1: notify ONE recipient (staff | parent | student) ──
+   With opts.dedupeKey, at most ONE unread notification exists per
+   (recipient, dedupeKey): a repeat event updates the existing unread
+   entry instead of adding another. Once the recipient reads it, the
+   next event creates a fresh one. Never throws. */
+async function notifyOne(schoolId, recipientType, recipientId, opts) {
+  try {
+    if (!schoolId || !recipientId || !opts || !opts.title) { return null; }
+    var fields = {
+      type:       opts.type       || 'general',
+      title:      String(opts.title).slice(0, 200),
+      body:       String(opts.body || '').slice(0, 600),
+      entityType: opts.entityType || '',
+      entityId:   opts.entityId   || null
+    };
+    if (!opts.dedupeKey) {
+      return await createNotification(Object.assign({
+        schoolId: schoolId, recipientType: recipientType, recipientId: recipientId
+      }, fields));
+    }
+    return await SchoolNotification.findOneAndUpdate(
+      {
+        schoolId: schoolId, recipientType: recipientType, recipientId: recipientId,
+        dedupeKey: String(opts.dedupeKey), isRead: false, isDeleted: false
+      },
+      { $set: fields },
+      { upsert: true, new: true, runValidators: true }
+    );
+  } catch(e) {
+    if (e && e.code === 11000) { return null; } /* a concurrent identical notification already exists */
+    console.error('[notification] notifyOne:', e.message);
+    return null;
+  }
 }
 
 /* ── Get unread count for a recipient ── */
@@ -200,6 +236,7 @@ module.exports = {
   notifyParent,
   notifyStudent,
   notifyClaimPayer,
+  notifyOne,
   getUnreadCount,
   getNotifications,
   markRead,

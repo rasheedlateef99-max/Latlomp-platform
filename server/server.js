@@ -106,6 +106,8 @@ app.use("/api/institution/parent-comms", require("./institution/routes/inst.pare
 app.use("/api/institution/finance", require("./institution/routes/inst.finance.routes"));
 /* ✅ P10-A: In-app notifications — institution staff */
 app.use("/api/institution/notifications", require("./institution/routes/inst.notification.routes"));
+/* ✅ MESSAGING B1: directory + connections (staff, parent, student/alumni) */
+app.use("/api/institution/messaging", require("./institution/routes/messaging.routes"));
 /* ✅ E8A: Institution Website Management */
 app.use("/api/institution/website", require("./institution/routes/inst.website.routes"));
 /* ✅ E9A: LatLomp Community Network */

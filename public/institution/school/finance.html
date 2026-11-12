@@ -2642,7 +2642,7 @@ async function deletePaymentMethod(id, label) {
             (c.submittedByName ? ' by ' + esc(c.submittedByName) : '') + '</span>' +
           /* ---- P10-A3: Claim conversation ---- */
           (c.status !== 'cancelled'
-            ? '<button class="btn btn-secondary btn-sm" onclick="openFinanceConv(\'' + esc(c._id) + '\',\'' + esc(c.payerName) + '\')">💬 Messages</button>'
+            ? '<button class="btn btn-secondary btn-sm" onclick="openFinanceConv(\'' + esc(c._id) + '\')">💬 Messages</button>'
             : '') +
 
           /* ---- P8: Receipt options (verified claims with a payment) ---- */
